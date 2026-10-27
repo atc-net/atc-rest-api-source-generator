@@ -21,17 +21,53 @@ internal static class PackageVersionDefaults
     public const string ResiliencePackageId = "Microsoft.Extensions.Http.Resilience";
 
     /// <summary>
-    /// Fallback version for Atc.Rest.Api.SourceGenerator.
+    /// Package ID for the SignalR client the typed hub clients of x-signalr-hubs build on.
     /// </summary>
-    public static readonly Version SourceGeneratorFallback = new(1, 0, 341);
+    public const string SignalRClientPackageId = "Microsoft.AspNetCore.SignalR.Client";
+
+    /// <summary>
+    /// Fallback version for Atc.Rest.Api.SourceGenerator when NuGet cannot be reached: the CLI's own version, since the
+    /// CLI and the generator are released together.
+    /// </summary>
+    public static readonly Version SourceGeneratorFallback = OwnVersion();
 
     /// <summary>
     /// Fallback minimum version for Atc.Rest.Client.
     /// </summary>
-    public static readonly Version RestClientMinFallback = new(2, 0, 36);
+    /// <remarks>
+    /// The generated EndpointPerOperation client needs the trim- and Native AOT-ready library (WithUrlEncodedForm,
+    /// WithBody with a media type, ConfigureAtcRestClientJsonOptions, URI-escaped query parameter keys,
+    /// WithFormJsonField for an object field of a multipart form), its readers of streamed responses (2.4.0:
+    /// StreamFraming, typed errors and headers on StreamingEndpointResponse&lt;T&gt;) and the default error response
+    /// without a type (2.5.0); the typed client's Result style reads an event stream with its ServerSentEventReader
+    /// (2.6.0); a streamed request body is sent by its request builder (WithStreamedBody), and an empty text body is
+    /// read as the empty text (2.7.0).
+    /// </remarks>
+    public static readonly Version RestClientMinFallback = new(2, 7, 0);
 
     /// <summary>
     /// Fallback minimum version for Microsoft.Extensions.Http.Resilience.
     /// </summary>
     public static readonly Version ResilienceMinFallback = new(10, 7, 0);
+
+    /// <summary>
+    /// The minimum Atc.Rest.MinimalApi a generated server that builds on it needs (the generator's ATC_API_DEP013).
+    /// </summary>
+    /// <remarks>
+    /// 3.1.0: the validation keys, RequestValidation for a form endpoint and the problem bodies the generated server is
+    /// written for; 3.1.1: each item of a list body validated by the model's FluentValidation validator, and an XML
+    /// request's messages naming a field by its XML name.
+    /// </remarks>
+    public static readonly Version MinimalApiMin = new(3, 1, 1);
+
+    /// <summary>
+    /// Fallback minimum version for Microsoft.AspNetCore.SignalR.Client.
+    /// </summary>
+    public static readonly Version SignalRClientMinFallback = new(10, 0, 13);
+
+    private static Version OwnVersion()
+    {
+        var version = typeof(PackageVersionDefaults).Assembly.GetName().Version ?? new Version(1, 0, 0);
+        return new Version(version.Major, version.Minor, System.Math.Max(version.Build, 0));
+    }
 }

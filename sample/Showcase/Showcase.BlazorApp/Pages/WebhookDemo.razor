@@ -122,7 +122,7 @@ else
     <MudStack Spacing="2">
         @foreach (var notification in notifications.AsEnumerable().Reverse())
         {
-            <MudCard Outlined="true" Elevation="1">
+            <MudCard Outlined="true" Elevation="1" data-testid="webhook-event">
                 <MudCardContent>
                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                         <MudIcon Icon="@GetNotificationIcon(notification.Type)"

@@ -30,13 +30,25 @@ internal static class ProjectFileModifier
         var content = File.ReadAllText(projectPath);
         var modified = content;
         var versionString = sourceGeneratorVersion.ToString();
+        var centralFile = CentralPackageVersions.FindFile(projectPath);
+        var centralContent = centralFile is null ? null : File.ReadAllText(centralFile);
+        var central = centralContent;
 
         // Add source generator package reference
         if (!content.Contains(PackageVersionDefaults.SourceGeneratorPackageId, StringComparison.OrdinalIgnoreCase))
         {
-            var packageRef = GenerateSourceGeneratorPackageReference(versionString);
+            var packageRef = GenerateSourceGeneratorPackageReference(central is null ? versionString : null);
             modified = AddItemGroup(modified, packageRef);
-            result.AddedPackages.Add($"{PackageVersionDefaults.SourceGeneratorPackageId} ({versionString})");
+            if (central is null)
+            {
+                result.AddedPackages.Add($"{PackageVersionDefaults.SourceGeneratorPackageId} ({versionString})");
+            }
+        }
+
+        // With Central Package Management the version goes to Directory.Packages.props
+        if (central is not null)
+        {
+            central = CentralPackageVersions.EnsureVersion(central, PackageVersionDefaults.SourceGeneratorPackageId, versionString, result);
         }
 
         // Add AdditionalFiles for spec and marker
@@ -53,7 +65,12 @@ internal static class ProjectFileModifier
             File.WriteAllText(projectPath, modified);
         }
 
-        result.WasModified = modified != content;
+        if (!dryRun && centralFile is not null && central != centralContent)
+        {
+            File.WriteAllText(centralFile, central);
+        }
+
+        result.WasModified = modified != content || central != centralContent;
         return result;
     }
 
@@ -84,14 +101,26 @@ internal static class ProjectFileModifier
         var content = File.ReadAllText(projectPath);
         var modified = content;
         var versionString = sourceGeneratorVersion.ToString();
+        var centralFile = CentralPackageVersions.FindFile(projectPath);
+        var centralContent = centralFile is null ? null : File.ReadAllText(centralFile);
+        var central = centralContent;
         var clientVersionString = restClientMinVersion.ToString();
 
         // Add source generator package reference
         if (!content.Contains(PackageVersionDefaults.SourceGeneratorPackageId, StringComparison.OrdinalIgnoreCase))
         {
-            var packageRef = GenerateSourceGeneratorPackageReference(versionString);
+            var packageRef = GenerateSourceGeneratorPackageReference(central is null ? versionString : null);
             modified = AddItemGroup(modified, packageRef);
-            result.AddedPackages.Add($"{PackageVersionDefaults.SourceGeneratorPackageId} ({versionString})");
+            if (central is null)
+            {
+                result.AddedPackages.Add($"{PackageVersionDefaults.SourceGeneratorPackageId} ({versionString})");
+            }
+        }
+
+        // With Central Package Management the version goes to Directory.Packages.props
+        if (central is not null)
+        {
+            central = CentralPackageVersions.EnsureVersion(central, PackageVersionDefaults.SourceGeneratorPackageId, versionString, result);
         }
 
         // Add AdditionalFiles for spec and marker
@@ -108,14 +137,20 @@ internal static class ProjectFileModifier
             modified,
             PackageVersionDefaults.RestClientPackageId,
             clientVersionString,
-            result);
+            result,
+            ref central);
 
         if (!dryRun && modified != content)
         {
             File.WriteAllText(projectPath, modified);
         }
 
-        result.WasModified = modified != content;
+        if (!dryRun && centralFile is not null && central != centralContent)
+        {
+            File.WriteAllText(centralFile, central);
+        }
+
+        result.WasModified = modified != content || central != centralContent;
         return result;
     }
 
@@ -144,13 +179,25 @@ internal static class ProjectFileModifier
         var content = File.ReadAllText(projectPath);
         var modified = content;
         var versionString = sourceGeneratorVersion.ToString();
+        var centralFile = CentralPackageVersions.FindFile(projectPath);
+        var centralContent = centralFile is null ? null : File.ReadAllText(centralFile);
+        var central = centralContent;
 
         // Add source generator package reference
         if (!content.Contains(PackageVersionDefaults.SourceGeneratorPackageId, StringComparison.OrdinalIgnoreCase))
         {
-            var packageRef = GenerateSourceGeneratorPackageReference(versionString);
+            var packageRef = GenerateSourceGeneratorPackageReference(central is null ? versionString : null);
             modified = AddItemGroup(modified, packageRef);
-            result.AddedPackages.Add($"{PackageVersionDefaults.SourceGeneratorPackageId} ({versionString})");
+            if (central is null)
+            {
+                result.AddedPackages.Add($"{PackageVersionDefaults.SourceGeneratorPackageId} ({versionString})");
+            }
+        }
+
+        // With Central Package Management the version goes to Directory.Packages.props
+        if (central is not null)
+        {
+            central = CentralPackageVersions.EnsureVersion(central, PackageVersionDefaults.SourceGeneratorPackageId, versionString, result);
         }
 
         // Add AdditionalFiles for spec and marker
@@ -167,61 +214,50 @@ internal static class ProjectFileModifier
             File.WriteAllText(projectPath, modified);
         }
 
-        result.WasModified = modified != content;
+        if (!dryRun && centralFile is not null && central != centralContent)
+        {
+            File.WriteAllText(centralFile, central);
+        }
+
+        result.WasModified = modified != content || central != centralContent;
         return result;
     }
 
     /// <summary>
-    /// Updates project references from old names to new names.
+    /// Compares two package versions (x.y.z); falls back to an ordinal comparison when one is no version.
     /// </summary>
-    /// <param name="projectPath">Path to the .csproj file.</param>
-    /// <param name="oldName">The old project name (e.g., "Api.Generated").</param>
-    /// <param name="newName">The new project name (e.g., "Api.Contracts").</param>
-    /// <param name="dryRun">If true, only returns what would be modified.</param>
-    /// <returns>The modifications made.</returns>
-    public static ProjectModificationResult UpdateProjectReference(
-        string projectPath,
-        string oldName,
-        string newName,
-        bool dryRun = false)
+    internal static bool IsVersionLessThan(
+        string current,
+        string minimum)
     {
-        var result = new ProjectModificationResult { ProjectPath = projectPath };
-
-        if (!File.Exists(projectPath))
+        if (Version.TryParse(current, out var currentVer) &&
+            Version.TryParse(minimum, out var minimumVer))
         {
-            result.Error = "Project file not found.";
-            return result;
+            return currentVer < minimumVer;
         }
 
-        var content = File.ReadAllText(projectPath);
-
-        if (!content.Contains(oldName, StringComparison.OrdinalIgnoreCase))
-        {
-            return result;
-        }
-
-        var modified = content.Replace(oldName, newName, StringComparison.OrdinalIgnoreCase);
-        result.UpdatedReferences.Add($"{oldName} → {newName}");
-
-        if (!dryRun && modified != content)
-        {
-            File.WriteAllText(projectPath, modified);
-        }
-
-        result.WasModified = modified != content;
-        return result;
+        return string.Compare(current, minimum, StringComparison.OrdinalIgnoreCase) < 0;
     }
 
+    // A null version: the solution manages versions centrally, the reference carries none
     private static string GenerateSourceGeneratorPackageReference(
-        string version)
-        => $"""
-              <ItemGroup>
-                <PackageReference Include="{PackageVersionDefaults.SourceGeneratorPackageId}"
-                                  Version="{version}"
-                                  OutputItemType="Analyzer"
-                                  ReferenceOutputAssembly="false" />
-              </ItemGroup>
-            """;
+        string? version)
+        => version is null
+            ? $"""
+                  <ItemGroup>
+                    <PackageReference Include="{PackageVersionDefaults.SourceGeneratorPackageId}"
+                                      OutputItemType="Analyzer"
+                                      ReferenceOutputAssembly="false" />
+                  </ItemGroup>
+                """
+            : $"""
+                  <ItemGroup>
+                    <PackageReference Include="{PackageVersionDefaults.SourceGeneratorPackageId}"
+                                      Version="{version}"
+                                      OutputItemType="Analyzer"
+                                      ReferenceOutputAssembly="false" />
+                  </ItemGroup>
+                """;
 
     private static string GenerateAdditionalFilesItemGroup(
         string specPath,
@@ -251,56 +287,51 @@ internal static class ProjectFileModifier
         string content,
         string packageName,
         string minVersion,
-        ProjectModificationResult result)
+        ProjectModificationResult result,
+        ref string? central)
     {
-        // Pattern to find the package reference with version
-        var pattern = new Regex(
-            $@"<PackageReference\s+Include=""{Regex.Escape(packageName)}""\s+Version=""(?<version>[^""]+)""",
+        // A reference with or without a version (Central Package Management writes none)
+        var reference = new Regex(
+            $@"<PackageReference\s+Include=""{Regex.Escape(packageName)}""(?<rest>[^>]*?)/?>",
+            RegexOptions.IgnoreCase | RegexOptions.ExplicitCapture,
+            TimeSpan.FromSeconds(1));
+        var version = new Regex(
+            @"\bVersion=""(?<version>[^""]+)""",
             RegexOptions.IgnoreCase | RegexOptions.ExplicitCapture,
             TimeSpan.FromSeconds(1));
 
-        var match = pattern.Match(content);
-
-        if (match.Success)
+        if (central is not null)
         {
-            // Package exists - check if version needs update
-            var currentVersion = match.Groups["version"].Value;
-            if (IsVersionLessThan(currentVersion, minVersion))
-            {
-                // Update the version
-                var updated = content.Remove(match.Index, match.Length);
-                updated = updated.Insert(match.Index, $"<PackageReference Include=\"{packageName}\" Version=\"{minVersion}\"");
-                result.AddedPackages.Add($"{packageName} ({currentVersion} → {minVersion})");
-                return updated;
-            }
+            central = CentralPackageVersions.EnsureVersion(central, packageName, minVersion, result);
+            return reference.IsMatch(content)
+                ? content
+                : AddItemGroup(content, $"""
+                      <ItemGroup>
+                        <PackageReference Include="{packageName}" />
+                      </ItemGroup>
+                    """);
         }
-        else
+
+        var match = reference.Match(content);
+        if (!match.Success)
         {
-            // Package doesn't exist - add it
-            var packageRef = $"""
+            result.AddedPackages.Add($"{packageName} ({minVersion})");
+            return AddItemGroup(content, $"""
                   <ItemGroup>
                     <PackageReference Include="{packageName}" Version="{minVersion}" />
                   </ItemGroup>
-                """;
-            result.AddedPackages.Add($"{packageName} ({minVersion})");
-            return AddItemGroup(content, packageRef);
+                """);
+        }
+
+        var versionMatch = version.Match(match.Groups["rest"].Value);
+        if (versionMatch.Success && IsVersionLessThan(versionMatch.Groups["version"].Value, minVersion))
+        {
+            var current = versionMatch.Groups["version"].Value;
+            result.AddedPackages.Add($"{packageName} ({current} → {minVersion})");
+            var updatedReference = match.Value.Replace($"Version=\"{current}\"", $"Version=\"{minVersion}\"", StringComparison.Ordinal);
+            return content.Remove(match.Index, match.Length).Insert(match.Index, updatedReference);
         }
 
         return content;
-    }
-
-    private static bool IsVersionLessThan(
-        string current,
-        string minimum)
-    {
-        // Simple version comparison - handles x.y.z format
-        if (Version.TryParse(current, out var currentVer) &&
-            Version.TryParse(minimum, out var minimumVer))
-        {
-            return currentVer < minimumVer;
-        }
-
-        // Fall back to string comparison if parsing fails
-        return string.Compare(current, minimum, StringComparison.OrdinalIgnoreCase) < 0;
     }
 }

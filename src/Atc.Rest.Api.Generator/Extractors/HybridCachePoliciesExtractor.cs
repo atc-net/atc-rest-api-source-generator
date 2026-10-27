@@ -35,241 +35,20 @@ public static class HybridCachePoliciesExtractor
     }
 
     /// <summary>
+    /// Generates a valid C# constant name from a policy name.
+    /// </summary>
+    /// <param name="policyName">The policy name (e.g., "users", "user-detail").</param>
+    /// <returns>A valid C# identifier (e.g., "Users", "UserDetail").</returns>
+    public static string GenerateConstantName(string policyName)
+        => PolicyNamingHelper.ToConstantName(policyName);
+
+    /// <summary>
     /// Collects all unique HybridCache policies from cache extensions across all operations.
     /// </summary>
     internal static Dictionary<string, CacheConfiguration> CollectPolicies(
         OpenApiDocument openApiDoc,
         bool includeDeprecated)
-    {
-        var policies = new Dictionary<string, CacheConfiguration>(StringComparer.Ordinal);
-
-        // Check document-level policy
-        var documentPolicy = openApiDoc.Extensions.ExtractCachePolicy();
-        var documentType = openApiDoc.Extensions.ExtractCacheType() ?? "output";
-        if (!string.IsNullOrEmpty(documentPolicy) && ParseCacheType(documentType) == CacheType.Hybrid)
-        {
-            var config = CreateConfigFromExtensions(openApiDoc.Extensions, null, null);
-            if (config is not null && config.Type == CacheType.Hybrid)
-            {
-                policies[documentPolicy!] = config;
-            }
-        }
-
-        if (openApiDoc.Paths is null || openApiDoc.Paths.Count == 0)
-        {
-            return policies;
-        }
-
-        foreach (var pathPair in openApiDoc.Paths)
-        {
-            if (pathPair.Value is not IOpenApiPathItem pathItem)
-            {
-                continue;
-            }
-
-            // Check path-level policy
-            var pathPolicy = pathItem.Extensions.ExtractCachePolicy();
-            if (!string.IsNullOrEmpty(pathPolicy) && !policies.ContainsKey(pathPolicy!))
-            {
-                var config = CreateConfigFromExtensions(openApiDoc.Extensions, pathItem.Extensions, null);
-                if (config is not null && config.Type == CacheType.Hybrid)
-                {
-                    policies[pathPolicy!] = config;
-                }
-            }
-
-            if (pathItem.Operations is null)
-            {
-                continue;
-            }
-
-            foreach (var operationPair in pathItem.Operations)
-            {
-                var operation = operationPair.Value;
-
-                // Skip deprecated operations if not including them
-                if (!includeDeprecated && operation?.Deprecated == true)
-                {
-                    continue;
-                }
-
-                if (operation is null)
-                {
-                    continue;
-                }
-
-                // Check operation-level policy
-                var operationPolicy = operation.Extensions.ExtractCachePolicy();
-                if (!string.IsNullOrEmpty(operationPolicy) && !policies.ContainsKey(operationPolicy!))
-                {
-                    var config = CreateConfigFromExtensions(
-                        openApiDoc.Extensions,
-                        pathItem.Extensions,
-                        operation.Extensions);
-                    if (config is not null && config.Type == CacheType.Hybrid)
-                    {
-                        policies[operationPolicy!] = config;
-                    }
-                }
-            }
-        }
-
-        return policies;
-    }
-
-    /// <summary>
-    /// Creates a cache configuration from extension values at different levels.
-    /// </summary>
-    private static CacheConfiguration? CreateConfigFromExtensions(
-        IDictionary<string, IOpenApiExtension>? documentExtensions,
-        IDictionary<string, IOpenApiExtension>? pathExtensions,
-        IDictionary<string, IOpenApiExtension>? operationExtensions)
-    {
-        var policy = operationExtensions.ExtractCachePolicy()
-                     ?? pathExtensions.ExtractCachePolicy()
-                     ?? documentExtensions.ExtractCachePolicy();
-
-        if (string.IsNullOrEmpty(policy))
-        {
-            return null;
-        }
-
-        var typeString = operationExtensions.ExtractCacheType()
-                         ?? pathExtensions.ExtractCacheType()
-                         ?? documentExtensions.ExtractCacheType()
-                         ?? "output";
-
-        var cacheType = ParseCacheType(typeString);
-
-        // Only process HybridCache type
-        if (cacheType != CacheType.Hybrid)
-        {
-            return null;
-        }
-
-        var expirationSeconds = operationExtensions.ExtractCacheExpirationSeconds()
-                                ?? pathExtensions.ExtractCacheExpirationSeconds()
-                                ?? documentExtensions.ExtractCacheExpirationSeconds()
-                                ?? 300;
-
-        // Merge tags from all levels
-        var tags = MergeTags(
-            documentExtensions.ExtractCacheTags(),
-            pathExtensions.ExtractCacheTags(),
-            operationExtensions.ExtractCacheTags());
-
-        var varyByQuery = operationExtensions.ExtractCacheVaryByQuery()
-                          ?? pathExtensions.ExtractCacheVaryByQuery()
-                          ?? documentExtensions.ExtractCacheVaryByQuery()
-                          ?? [];
-
-        var varyByHeader = operationExtensions.ExtractCacheVaryByHeader()
-                           ?? pathExtensions.ExtractCacheVaryByHeader()
-                           ?? documentExtensions.ExtractCacheVaryByHeader()
-                           ?? [];
-
-        // HybridCache specific
-        var modeString = operationExtensions.ExtractCacheMode()
-                         ?? pathExtensions.ExtractCacheMode()
-                         ?? documentExtensions.ExtractCacheMode()
-                         ?? "hybrid";
-
-        var cacheMode = ParseCacheMode(modeString);
-
-        var slidingExpirationSeconds = operationExtensions.ExtractCacheSlidingExpirationSeconds()
-                                       ?? pathExtensions.ExtractCacheSlidingExpirationSeconds()
-                                       ?? documentExtensions.ExtractCacheSlidingExpirationSeconds();
-
-        var keyPrefix = operationExtensions.ExtractCacheKeyPrefix()
-                        ?? pathExtensions.ExtractCacheKeyPrefix()
-                        ?? documentExtensions.ExtractCacheKeyPrefix();
-
-        return new CacheConfiguration
-        {
-            Enabled = true,
-            Type = CacheType.Hybrid,
-            Policy = policy,
-            ExpirationSeconds = expirationSeconds,
-            Tags = tags,
-            VaryByQuery = varyByQuery,
-            VaryByHeader = varyByHeader,
-            Mode = cacheMode,
-            SlidingExpirationSeconds = slidingExpirationSeconds,
-            KeyPrefix = keyPrefix,
-        };
-    }
-
-    /// <summary>
-    /// Merges tags from all levels.
-    /// </summary>
-    private static IReadOnlyList<string> MergeTags(
-        IReadOnlyList<string>? documentTags,
-        IReadOnlyList<string>? pathTags,
-        IReadOnlyList<string>? operationTags)
-    {
-        var merged = new HashSet<string>(StringComparer.Ordinal);
-
-        if (documentTags is not null)
-        {
-            foreach (var tag in documentTags)
-            {
-                merged.Add(tag);
-            }
-        }
-
-        if (pathTags is not null)
-        {
-            foreach (var tag in pathTags)
-            {
-                merged.Add(tag);
-            }
-        }
-
-        if (operationTags is not null)
-        {
-            foreach (var tag in operationTags)
-            {
-                merged.Add(tag);
-            }
-        }
-
-        return [.. merged.OrderBy(t => t, StringComparer.Ordinal)];
-    }
-
-    /// <summary>
-    /// Parses a cache type string to the enum value.
-    /// </summary>
-    private static CacheType ParseCacheType(string? typeString)
-    {
-        if (string.IsNullOrEmpty(typeString))
-        {
-            return CacheType.Output;
-        }
-
-        return typeString!.ToLowerInvariant() switch
-        {
-            "hybrid" or "hybridcache" => CacheType.Hybrid,
-            _ => CacheType.Output,
-        };
-    }
-
-    /// <summary>
-    /// Parses a cache mode string to the enum value.
-    /// </summary>
-    private static CacheMode ParseCacheMode(string? modeString)
-    {
-        if (string.IsNullOrEmpty(modeString))
-        {
-            return CacheMode.Hybrid;
-        }
-
-        return modeString!.ToLowerInvariant() switch
-        {
-            "in-memory" or "inmemory" or "memory" => CacheMode.InMemory,
-            "distributed" or "l2" => CacheMode.Distributed,
-            _ => CacheMode.Hybrid,
-        };
-    }
+        => CachePolicyCollector.CollectPolicies(openApiDoc, includeDeprecated, CacheType.Hybrid);
 
     /// <summary>
     /// Generates the complete file content.
@@ -277,53 +56,18 @@ public static class HybridCachePoliciesExtractor
     private static string GenerateFileContent(
         string projectName,
         Dictionary<string, CacheConfiguration> policies)
-    {
-        var builder = new StringBuilder();
-
-        builder.AppendLine("// <auto-generated />");
-        builder.AppendLine("#nullable enable");
-        builder.AppendLine();
-        builder.AppendLine("using System.CodeDom.Compiler;");
-        builder.AppendLine();
-        builder.AppendLine($"namespace {projectName}.Generated.Caching;");
-        builder.AppendLine();
-        builder.AppendLine("/// <summary>");
-        builder.AppendLine("/// HybridCache policy name constants generated from OpenAPI extensions.");
-        builder.AppendLine("/// </summary>");
-        builder.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
-        builder.AppendLine("public static class CachePolicies");
-        builder.AppendLine("{");
-
-        var sortedPolicies = policies
-            .OrderBy(p => p.Key, StringComparer.Ordinal)
-            .ToList();
-
-        var isFirst = true;
-
-        foreach (var policyKvp in sortedPolicies)
-        {
-            if (!isFirst)
-            {
-                builder.AppendLine();
-            }
-
-            isFirst = false;
-
-            var policyName = policyKvp.Key;
-            var config = policyKvp.Value;
-            var constantName = GenerateConstantName(policyName);
-            var description = GeneratePolicyDescription(config);
-
-            builder.AppendLine(4, "/// <summary>");
-            builder.AppendLine(4, $"/// {description}");
-            builder.AppendLine(4, "/// </summary>");
-            builder.AppendLine(4, $"public const string {constantName} = \"{policyName}\";");
-        }
-
-        builder.AppendLine("}");
-
-        return builder.ToString();
-    }
+        => CacheTagConstants.AppendClass(
+            PolicyConstantsClassBuilder.Build(
+                projectName,
+                "Caching",
+                "CachePolicies",
+                "HybridCache policy name constants generated from OpenAPI extensions.",
+                policies
+                    .OrderBy(p => p.Key, StringComparer.Ordinal)
+                    .Select(p => new PolicyConstant(GenerateConstantName(p.Key), p.Key, GeneratePolicyDescription(p.Value)))),
+            "CacheTags",
+            "HybridCache tag constants (x-cache-tags): what HybridCache.RemoveByTagAsync removes by.",
+            CacheTagConstants.Assign(policies.Values));
 
     /// <summary>
     /// Generates a description for the policy based on configuration.
@@ -363,12 +107,4 @@ public static class HybridCachePoliciesExtractor
 
         return $"Policy: {string.Join(", ", parts)}";
     }
-
-    /// <summary>
-    /// Generates a valid C# constant name from a policy name.
-    /// </summary>
-    /// <param name="policyName">The policy name (e.g., "users", "user-detail").</param>
-    /// <returns>A valid C# identifier (e.g., "Users", "UserDetail").</returns>
-    public static string GenerateConstantName(string policyName)
-        => PolicyNamingHelper.ToConstantName(policyName);
 }

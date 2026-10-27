@@ -2,6 +2,12 @@ namespace Atc.Rest.Api.Generator.Tests.Helpers;
 
 public class SystemTypeConflictResolverTests
 {
+    private static readonly Lazy<CSharpCompilation> PlatformCompilation = new(() => CSharpCompilation.Create(
+        "Platform",
+        references: ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!)
+            .Split(Path.PathSeparator)
+            .Select(p => Microsoft.CodeAnalysis.MetadataReference.CreateFromFile(p))));
+
     // ========== EnsureFullNamespaceIfNeeded Tests ==========
     [Fact]
     public void EnsureFullNamespaceIfNeeded_ConflictingType_ReturnsFullyQualified()
@@ -96,5 +102,33 @@ public class SystemTypeConflictResolverTests
         var resolver = new SystemTypeConflictResolver(["task"]); // lowercase
         var result = resolver.EnsureFullNamespaceIfNeeded("task");
         Assert.Equal("task", result); // no conflict since "task" != "Task"
+    }
+
+    // ========== Every protected name resolves to a real .NET type of that name ==========
+    public static TheoryData<string> ProtectedNames
+        =>
+        [
+            "Task", "Action", "Func", "Type", "Exception", "Object", "String", "Guid", "DateTime", "TimeSpan", "Uri",
+            "Version", "File", "Directory", "Path", "Stream", "Thread", "Timer", "Environment", "Console", "Math",
+            "Random", "Array", "Attribute", "Buffer", "Convert", "Delegate", "Enum", "GC", "Monitor", "Mutex",
+            "EventArgs",
+        ];
+
+    [Theory]
+    [MemberData(nameof(ProtectedNames))]
+    public void EnsureFullNamespaceIfNeeded_AProtectedName_IsTheFullNameOfARealTypeOfThatName(
+        string name)
+    {
+        var resolver = new SystemTypeConflictResolver([name]);
+
+        var fullName = resolver.EnsureFullNamespaceIfNeeded(name);
+
+        Assert.True(resolver.HasConflict(name));
+        Assert.EndsWith("." + name, fullName, StringComparison.Ordinal);
+
+        // The framework the generated code compiles against: an open generic (Func) is named with its arity
+        var types = PlatformCompilation.Value.GetTypesByMetadataName(fullName)
+            .Concat(PlatformCompilation.Value.GetTypesByMetadataName(fullName + "`1"));
+        Assert.Contains(types, t => t.DeclaredAccessibility == Microsoft.CodeAnalysis.Accessibility.Public);
     }
 }

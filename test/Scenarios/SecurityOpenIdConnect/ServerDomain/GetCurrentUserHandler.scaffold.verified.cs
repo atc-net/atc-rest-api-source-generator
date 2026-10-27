@@ -5,6 +5,9 @@ namespace SecurityOpenIdConnect.ApiHandlers;
 /// </summary>
 public sealed class GetCurrentUserHandler : IGetCurrentUserHandler
 {
+    /// <summary>
+    /// Executes the GetCurrentUser operation.
+    /// </summary>
     public Task<GetCurrentUserResult> ExecuteAsync(
         CancellationToken cancellationToken = default)
     {

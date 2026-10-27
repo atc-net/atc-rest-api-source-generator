@@ -21,6 +21,19 @@ public class TypeScriptClientConfig
     public TypeScriptEnumStyle EnumStyle { get; set; } = TypeScriptEnumStyle.Union;
 
     /// <summary>
+    /// Keep string enums open to values the specification does not list. Default: true.
+    /// When true, a Union-style enum is <c>'a' | 'b' | (string &amp; {})</c> - the listed values still autocomplete, and a value
+    /// a server adds later type-checks - and a Zod enum schema accepts any string. The same setting as
+    /// <c>extensibleEnums</c> in the C# client marker. An Enum-style enum (<see cref="EnumStyle"/>) cannot be opened.
+    /// </summary>
+    public bool ExtensibleEnums { get; set; } = true;
+
+    /// <summary>
+    /// OpenAPI Overlay files applied to the specification before the client is generated, in order (<c>--overlay</c>).
+    /// </summary>
+    public IReadOnlyList<string> Overlays { get; set; } = [];
+
+    /// <summary>
     /// Whether to generate auto-generated file headers. Default: true.
     /// </summary>
     public bool GenerateFileHeaders { get; set; } = true;
@@ -50,6 +63,14 @@ public class TypeScriptClientConfig
     /// Convert date/date-time properties to Date objects with automatic JSON reviver/replacer. Default: false.
     /// </summary>
     public bool ConvertDates { get; set; }
+
+    /// <summary>
+    /// Ask for XML first for an operation that offers its response as JSON and XML, and send a request body offered as
+    /// JSON and XML as XML (<c>--prefer-xml</c>). Default: false. The same setting as <c>preferXml</c> in the C# client
+    /// marker: by default the client sends <c>Accept: application/json, application/problem+json</c> and a JSON body;
+    /// either way it reads whatever <c>Content-Type</c> comes back.
+    /// </summary>
+    public bool PreferXml { get; set; }
 
     /// <summary>
     /// Generate mutable model properties (omit readonly modifier). Default: false.

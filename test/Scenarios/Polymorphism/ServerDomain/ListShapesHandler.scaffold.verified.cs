@@ -5,6 +5,9 @@ namespace Polymorphism.ApiHandlers;
 /// </summary>
 public sealed class ListShapesHandler : IListShapesHandler
 {
+    /// <summary>
+    /// Executes the ListShapes operation.
+    /// </summary>
     public Task<ListShapesResult> ExecuteAsync(
         CancellationToken cancellationToken = default)
     {

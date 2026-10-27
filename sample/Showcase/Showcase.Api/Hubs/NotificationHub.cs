@@ -4,7 +4,12 @@ namespace Showcase.Api.Hubs;
 /// SignalR hub for real-time notifications.
 /// Clients can subscribe to notification topics and receive events in real-time.
 /// </summary>
-public sealed class NotificationHub : Hub
+/// <remarks>
+/// The hub is declared in Showcase.yaml (<c>x-signalr-hubs</c>): its events are the generated
+/// <see cref="INotificationsHubClient"/> (a typed hub sends them by name and payload), its methods the generated
+/// <see cref="INotificationsHub"/>, so the hub cannot drift from what the clients are generated from.
+/// </remarks>
+public sealed class NotificationHub : Hub<INotificationsHubClient>, INotificationsHub
 {
     private readonly INotificationService notificationService;
     private readonly ILogger<NotificationHub> logger;
@@ -48,10 +53,11 @@ public sealed class NotificationHub : Hub
     /// <summary>
     /// Subscribe to notification topics.
     /// </summary>
-    /// <param name="topics">List of topics to subscribe to (System, User, Data, Alert, Metric).</param>
+    /// <param name="payload">List of topics to subscribe to (System, User, Data, Alert, Metric).</param>
     /// <returns>The subscription ID.</returns>
-    public async Task<string> Subscribe(string[] topics)
+    public async Task<string> Subscribe(IReadOnlyList<string> payload)
     {
+        string[] topics = [.. payload];
         logger.LogInformation(
             "Client {ConnectionId} subscribing to topics: {Topics}",
             Context.ConnectionId,
@@ -73,9 +79,10 @@ public sealed class NotificationHub : Hub
     /// <summary>
     /// Unsubscribe from notifications.
     /// </summary>
-    /// <param name="subscriptionId">The subscription ID to cancel.</param>
-    public async Task Unsubscribe(string subscriptionId)
+    /// <param name="payload">The subscription ID to cancel.</param>
+    public async Task Unsubscribe(string payload)
     {
+        var subscriptionId = payload;
         logger.LogInformation(
             "Client {ConnectionId} unsubscribing: {SubscriptionId}",
             Context.ConnectionId,

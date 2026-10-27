@@ -5,6 +5,9 @@ namespace SecurityHybrid.ApiHandlers;
 /// </summary>
 public sealed class GetHealthHandler : IGetHealthHandler
 {
+    /// <summary>
+    /// Executes the GetHealth operation.
+    /// </summary>
     public Task<GetHealthResult> ExecuteAsync(
         CancellationToken cancellationToken = default)
     {

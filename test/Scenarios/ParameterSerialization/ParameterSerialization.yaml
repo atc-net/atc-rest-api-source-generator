@@ -4,9 +4,9 @@ info:
   title: Parameter Serialization Test
   description: >
     Exercises query-parameter style/explode/allowReserved serialization:
-    a supported optional form-explode array (tags), an allowReserved primitive (q),
-    an unsupported spaceDelimited array (legacy → ATC_API_OPR026), a $ref-to-array
-    query param (ids), an OAS 3.2 in:querystring raw-query param (rawFilter), and
+    a supported optional form-explode array (tags), a form array without explode (sizes, sent as ?sizes=s,m), an allowReserved primitive (q),
+    a spaceDelimited array (legacy, sent as one value with spaces), a $ref-to-array
+    query param (ids), an optional URI (callback), an untyped value (anything, sent as text), an object as deepObject (filter[name]=...) and an object as form explode (page=...&perPage=...), an OAS 3.2 in:querystring raw-query param (rawFilter, its own operation), and
     an in:cookie with style:cookie (session) per RFC 6265.
 
 paths:
@@ -20,6 +20,15 @@ paths:
         - name: tags
           in: query
           required: false
+          schema:
+            type: array
+            items:
+              type: string
+        - name: sizes
+          in: query
+          required: false
+          style: form
+          explode: false
           schema:
             type: array
             items:
@@ -43,13 +52,28 @@ paths:
           required: false
           schema:
             $ref: "#/components/schemas/IdList"
-        - name: rawFilter
-          in: querystring
+        - name: callback
+          in: query
           required: false
-          content:
-            application/x-www-form-urlencoded:
-              schema:
-                type: string
+          schema:
+            type: string
+            format: uri
+        - name: anything
+          in: query
+          required: false
+          schema: {}
+        - name: filter
+          in: query
+          required: false
+          style: deepObject
+          explode: true
+          schema:
+            $ref: "#/components/schemas/ItemFilter"
+        - name: paging
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/Paging"
         - name: session
           in: cookie
           style: cookie
@@ -66,8 +90,92 @@ paths:
                 items:
                   $ref: "#/components/schemas/Item"
 
+  /items/search:
+    get:
+      operationId: listItemsByQueryString
+      summary: Search items by the raw query string (an OAS 3.2 querystring parameter, the only query parameter it may have)
+      tags:
+        - items
+      parameters:
+        - name: rawFilter
+          in: querystring
+          required: false
+          content:
+            application/x-www-form-urlencoded:
+              schema:
+                type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Item"
+
+  /items/{itemId}/reports:
+    parameters:
+      - name: itemId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: x-region
+        in: header
+        required: true
+        schema:
+          type: string
+      - name: limit
+        in: query
+        schema:
+          type: integer
+    get:
+      operationId: listItemReports
+      summary: The path item's path, header and query parameters, one of them redeclared by the operation
+      parameters:
+        - name: limit
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: The report names
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
 components:
   schemas:
+    ItemFilter:
+      type: object
+      properties:
+        name:
+          type: string
+        minPrice:
+          type: number
+          format: double
+        status:
+          $ref: "#/components/schemas/ItemStatus"
+    ItemStatus:
+      type: string
+      enum:
+        - in-stock
+        - sold-out
+    Paging:
+      type: object
+      required:
+        - page
+      properties:
+        page:
+          type: integer
+          format: int32
+        perPage:
+          type: integer
+          format: int32
     IdList:
       type: array
       items:

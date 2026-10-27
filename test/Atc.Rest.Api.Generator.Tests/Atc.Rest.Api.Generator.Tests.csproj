@@ -9,12 +9,23 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0" />
     <PackageReference Include="Microsoft.OpenApi" Version="3.10.2" />
     <PackageReference Include="Microsoft.OpenApi.YamlReader" Version="3.10.2" />
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Ground truth for the generator's tables: the StatusCodes constants generated server code names -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\Atc.Rest.Api.Generator\Atc.Rest.Api.Generator.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The JSONPath compliance test suite (BSD-2, see jsonpath-cts.LICENSE) -->
+    <None Update="Overlays\TestData\**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <!-- Include runtime assemblies so they are properly registered in deps.json -->

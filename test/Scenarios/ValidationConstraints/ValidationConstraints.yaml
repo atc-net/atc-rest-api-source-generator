@@ -1,0 +1,209 @@
+openapi: 3.0.3
+info:
+  title: ValidationConstraints
+  version: 1.0.0
+  description: |
+    Every constraint the generator turns into validation: a pattern on a string, on a string component a parameter,
+    a property and the items of an array reference, and on the items of an array; format email (with a pattern too),
+    uri (absolute) and uri-reference; lengths, ranges and item counts; and common form-field patterns.
+paths:
+  /products/{productCode}:
+    get:
+      operationId: getProduct
+      parameters:
+        - name: productCode
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/ProductCode'
+      responses:
+        '200':
+          description: The product
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+  /products:
+    get:
+      operationId: listProducts
+      parameters:
+        - name: codes
+          in: query
+          description: Only these products.
+          schema:
+            type: array
+            maxItems: 10
+            items:
+              $ref: '#/components/schemas/ProductCode'
+        - name: properties
+          in: query
+          description: |
+            Only products that have all the given properties, each formatted as key:value (color:red).
+          schema:
+            type: array
+            maxItems: 10
+            items:
+              type: string
+              pattern: '^[^:]+:.+$'
+        - name: X-Region
+          in: header
+          schema:
+            type: string
+            pattern: '^[A-Z]{2}$'
+        - name: session
+          in: cookie
+          schema:
+            type: string
+            minLength: 8
+      responses:
+        '200':
+          description: The products
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Product'
+  /products/codes/next:
+    get:
+      operationId: getNextProductCode
+      description: A response that is the string component itself.
+      responses:
+        '200':
+          description: The next free product code
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductCode'
+  /products/codes:
+    get:
+      operationId: listProductCodes
+      description: A response that is a list of the string component.
+      responses:
+        '200':
+          description: The product codes in use
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProductCode'
+  /orders:
+    post:
+      operationId: createOrder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Order'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+  /orders/form:
+    post:
+      operationId: createOrderFromForm
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OrderForm'
+      responses:
+        '204':
+          description: Created
+components:
+  schemas:
+    ProductCode:
+      type: string
+      title: Product code
+      description: A unique product code - two capital letters and four digits.
+      pattern: '^[A-Z]{2}\d{4}$'
+      example: DK9876
+    Product:
+      type: object
+      required: [code, name]
+      properties:
+        code:
+          $ref: '#/components/schemas/ProductCode'
+        name:
+          type: string
+          minLength: 2
+          maxLength: 50
+    Order:
+      type: object
+      required: [productCode, email]
+      properties:
+        productCode:
+          $ref: '#/components/schemas/ProductCode'
+        related:
+          type: array
+          maxItems: 5
+          items:
+            $ref: '#/components/schemas/ProductCode'
+        properties:
+          type: array
+          items:
+            type: string
+            pattern: '^[^:]+:.+$'
+        email:
+          type: string
+          format: email
+        invoiceEmail:
+          type: string
+          format: email
+          pattern: '^.+@contoso\.com$'
+        website:
+          type: string
+          format: uri
+        returnPath:
+          type: string
+          format: uri-reference
+        phone:
+          type: string
+          pattern: '^\+?[1-9]\d{6,14}$'
+        postalCode:
+          type: string
+          pattern: '^\d{4}$'
+        countryCode:
+          type: string
+          pattern: '^[A-Z]{2}$'
+        color:
+          type: string
+          pattern: '^#[0-9A-Fa-f]{6}$'
+        slug:
+          type: string
+          pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$'
+        deliveryTime:
+          type: string
+          pattern: '^([01]\d|2[0-3]):[0-5]\d$'
+        iban:
+          type: string
+          pattern: '^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$'
+        quantity:
+          type: integer
+          minimum: 1
+          maximum: 100
+        price:
+          type: number
+          minimum: 0
+          exclusiveMinimum: true
+        id:
+          type: string
+          format: uuid
+        deliveryDate:
+          type: string
+          format: date
+    OrderForm:
+      type: object
+      required: [productCode]
+      properties:
+        productCode:
+          $ref: '#/components/schemas/ProductCode'
+        note:
+          type: string
+          maxLength: 200

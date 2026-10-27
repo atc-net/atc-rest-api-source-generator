@@ -5,6 +5,9 @@ namespace SecurityOpenIdConnect.ApiHandlers;
 /// </summary>
 public sealed class DeleteResourceHandler : IDeleteResourceHandler
 {
+    /// <summary>
+    /// Executes the DeleteResource operation.
+    /// </summary>
     public Task<DeleteResourceResult> ExecuteAsync(
         DeleteResourceParameters parameters,
         CancellationToken cancellationToken = default)

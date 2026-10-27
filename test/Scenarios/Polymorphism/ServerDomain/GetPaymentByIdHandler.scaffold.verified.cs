@@ -5,6 +5,9 @@ namespace Polymorphism.ApiHandlers;
 /// </summary>
 public sealed class GetPaymentByIdHandler : IGetPaymentByIdHandler
 {
+    /// <summary>
+    /// Executes the GetPaymentById operation.
+    /// </summary>
     public Task<GetPaymentByIdResult> ExecuteAsync(
         GetPaymentByIdParameters parameters,
         CancellationToken cancellationToken = default)

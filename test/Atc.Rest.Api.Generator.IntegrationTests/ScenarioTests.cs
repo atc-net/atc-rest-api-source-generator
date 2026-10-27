@@ -108,11 +108,107 @@ public class ScenarioTests
         var baseDir = GetSourceSnapshotDirectory(scenarioName, masterFolder);
         var isTypeScript = string.Equals(generator, "TypeScriptClient", StringComparison.OrdinalIgnoreCase);
 
+        // Every file is verified, so one run writes every .received file and names every mismatch - not only the first
+        var mismatches = new List<string>();
         foreach (var type in types)
         {
+            if (await MismatchOfAsync(type, baseDir, isTypeScript) is { } mismatch)
+            {
+                mismatches.Add(mismatch);
+            }
+        }
+
+        Assert.True(mismatches.Count == 0, $"{mismatches.Count} of {types.Count} files differ from their snapshots:\n" + string.Join("\n", mismatches));
+    }
+
+    /// <summary>
+    /// Asserts that no TypeScript snapshot survives that the generator no longer emits, by path relative to the
+    /// master folder and case-sensitively: Verify never deletes, so a removed or renamed file (also a rename that only
+    /// changes case, which Windows would otherwise match) would leave its snapshot behind.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(AllScenarioGenerators))]
+    public void TypeScriptSnapshots_HaveNoOrphans(
+        string scenarioName,
+        string masterFolder,
+        string generator)
+    {
+        if (!string.Equals(generator, "TypeScriptClient", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var yamlPath = ScenarioDiscovery.GetYamlPath(scenarioName);
+        var markerPath = ScenarioDiscovery.GetMarkerPath(scenarioName, masterFolder, ScenarioDiscovery.GetMarkerFileForGenerator(generator)!);
+        var expected = GeneratorTestHelper
+            .GetTypeScriptClientTypesWithPaths(yamlPath, markerPath, scenarioName)
+            .Select(t => Path.Combine(t.SubFolder ?? string.Empty, SafeFileName(t.TypeName) + ".verified.ts"))
+            .ToHashSet(StringComparer.Ordinal);
+
+        var baseDir = GetSourceSnapshotDirectory(scenarioName, masterFolder);
+        var orphans = Directory
+            .EnumerateFiles(baseDir, "*.verified.ts", SearchOption.AllDirectories)
+            .Select(f => Path.GetRelativePath(baseDir, f))
+            .Where(f => !expected.Contains(f))
+            .OrderBy(f => f, StringComparer.Ordinal)
+            .ToList();
+
+        Assert.True(orphans.Count == 0, $"{scenarioName}/{masterFolder}: {orphans.Count} snapshot(s) no longer emitted:\n  " + string.Join("\n  ", orphans));
+    }
+
+    /// <summary>
+    /// A type name as a Windows-safe file name: <c>&lt;T&gt;</c> as <c>[T]</c>, " : " (inheritance) and ":" as "-".
+    /// </summary>
+    private static string SafeFileName(string typeName)
+        => typeName
+            .Replace("<", "[", StringComparison.Ordinal)
+            .Replace(">", "]", StringComparison.Ordinal)
+            .Replace(" : ", "-", StringComparison.Ordinal)
+            .Replace(":", "-", StringComparison.Ordinal);
+
+    /// <summary>
+    /// Verifies one generated file and returns why it does not match its snapshot, or <see langword="null"/>. A
+    /// snapshot file another process holds for a moment (an indexer, a virus scanner) is read once more; what is
+    /// reported names the exception, so a file that could not be read is not taken for a content difference.
+    /// </summary>
+    private async Task<string?> MismatchOfAsync(
+        GeneratedType type,
+        string baseDir,
+        bool isTypeScript)
+    {
+        var file = Path.Combine(type.SubFolder ?? string.Empty, SafeFileName(type.TypeName));
+        try
+        {
             await VerifyGeneratedTypeAsync(type, baseDir, isTypeScript);
+            return null;
+        }
+        catch (IOException)
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(250), TestContext.Current.CancellationToken);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            return MismatchReason(file, ex);
+        }
+
+        try
+        {
+            await VerifyGeneratedTypeAsync(type, baseDir, isTypeScript);
+            return null;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            return MismatchReason(file, ex);
         }
     }
+
+    // A content difference: Verify's first line (the whole diff is in the .received file); anything else: all of it
+    private static string MismatchReason(
+        string file,
+        Exception exception)
+        => exception.GetType().Name.StartsWith("Verify", StringComparison.Ordinal)
+            ? $"{file}: {exception.Message.Split('\n')[0]}"
+            : $"{file}: {exception.GetType().Name}: {exception.Message}";
 
     /// <summary>
     /// Verifies a generated type against its verified snapshot file using Verify.
@@ -124,13 +220,7 @@ public class ScenarioTests
     {
         var directory = Path.Combine(baseDir, type.SubFolder ?? string.Empty);
 
-        // Sanitize type name for Windows filename compatibility
-        // Replace <T> with [T] and " : " (inheritance) with "-"
-        var safeTypeName = type.TypeName
-            .Replace("<", "[", StringComparison.Ordinal)
-            .Replace(">", "]", StringComparison.Ordinal)
-            .Replace(" : ", "-", StringComparison.Ordinal)
-            .Replace(":", "-", StringComparison.Ordinal);
+        var safeTypeName = SafeFileName(type.TypeName);
 
         string actualContent;
         string extension;

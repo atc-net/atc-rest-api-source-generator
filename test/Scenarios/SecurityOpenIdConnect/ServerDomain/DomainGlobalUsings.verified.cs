@@ -1,3 +1,4 @@
+#pragma warning disable CS1591
 global using SecurityOpenIdConnect.Generated.Health.Handlers;
 global using SecurityOpenIdConnect.Generated.Health.Results;
 global using SecurityOpenIdConnect.Generated.Me.Handlers;

@@ -17,8 +17,8 @@ public sealed class ElOverblikThirdPartyApiClientTests
         var sut = new ElOverblikThirdPartyApiClient(handler.CreateClient());
 
         // Act
-        var result = await sut.GetThirdpartyapiApiTokenAsync(
-            new GetThirdpartyapiApiTokenParameters(),
+        var result = await sut.GetTokenAsync(
+            new GetTokenParameters(),
             TestContext.Current.CancellationToken);
 
         // Assert
@@ -38,8 +38,8 @@ public sealed class ElOverblikThirdPartyApiClientTests
         var sut = new ElOverblikThirdPartyApiClient(handler.CreateClient());
 
         // Act
-        var act = async () => await sut.GetThirdpartyapiApiTokenAsync(
-            new GetThirdpartyapiApiTokenParameters(),
+        var act = async () => await sut.GetTokenAsync(
+            new GetTokenParameters(),
             TestContext.Current.CancellationToken);
 
         // Assert
@@ -58,8 +58,8 @@ public sealed class ElOverblikThirdPartyApiClientTests
         var sut = new ElOverblikThirdPartyApiClient(handler.CreateClient());
 
         // Act
-        await sut.GetThirdpartyapiApiAuthorizationAuthorizationMeteringpointsScopeIdentifierAsync(
-            new GetThirdpartyapiApiAuthorizationAuthorizationMeteringpointsScopeIdentifierParameters(
+        await sut.GetAuthorizedMeteringPointsAsync(
+            new GetAuthorizedMeteringPointsParameters(
                 Scope: "CVR",
                 Identifier: "12345678"),
             TestContext.Current.CancellationToken);

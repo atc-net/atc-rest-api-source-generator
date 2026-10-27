@@ -16,12 +16,11 @@ public sealed partial class GatewayService
     {
         var parameters = new Showcase.Generated.Testing.Client.GetExceptionTestParameters(Code: code);
 
-        // Use "Showcase-Testing" HttpClient which has NO resilience/retry configured
-        // This ensures we get the actual error response without retry interference
+        // The spec marks /testing with x-retry-enabled: false, so the resilience handler sends it once
+        // and the actual error response comes back without retries.
         var result = await getExceptionTestEndpoint
             .ExecuteAsync(
                 parameters,
-                httpClientName: "Showcase-Testing",
                 cancellationToken: cancellationToken)
             .ConfigureAwait(false);
 
@@ -35,16 +34,25 @@ public sealed partial class GatewayService
             return (false, (int)result.StatusCode, "Not Found - Invalid code", null);
         }
 
-        // For other status codes (400, 401, 409, 500, 501, 504), read the error message
+        // "transportFailure": "result" in the client marker: an API that cannot be reached is a result, not an exception
+        if (result.IsTransportFailure)
+        {
+            return (false, (int)result.StatusCode, "The API cannot be reached", null);
+        }
+
+        // For other status codes (400, 429, 500, 501, 504), read the error message
         var statusCode = (int)result.StatusCode;
         var message = $"Error: {result.StatusCode}";
 
         switch (result.ContentObject)
         {
-            // ContentObject may be: ProblemDetails (if registered), string (raw JSON), or JsonElement
-            // Since only 200/404 are registered, other status codes come as raw content
-            case Showcase.Generated.ProblemDetails problemDetails:
-                message = problemDetails.Detail ?? problemDetails.Title ?? message;
+            // ContentObject is the registered error type (ValidationProblemDetails for 400, ProblemDetails for the
+            // others the client knows about), or the raw content for a status the spec does not list (501, 504)
+            // ToDisplayText() is generated: a validation problem's field messages, else the detail, else a title that says
+            // more than the status. A problem that only names its status gives null - this page shows its title; an app
+            // for people words the status itself, in its own language
+            case Showcase.Generated.ProblemDetails problem:
+                message = problem.ToDisplayText() ?? problem.Title ?? message;
                 break;
             case string jsonString when !string.IsNullOrEmpty(jsonString):
                 // Try to deserialize raw JSON string to ProblemDetails
@@ -75,5 +83,85 @@ public sealed partial class GatewayService
         }
 
         return (false, statusCode, message, null);
+    }
+
+    /// <summary>
+    /// Asks the API for an error status and reads it through the generated typed accessors.
+    /// Every undeclared error body is an RFC 9457 ProblemDetails, so each accessor returns a parsed
+    /// ProblemDetails (a ValidationProblemDetails with its <c>errors</c> for 400) - no string parsing needed.
+    /// </summary>
+    public async Task<ErrorResponseTestResult> TestErrorResponseAsync(
+        int status,
+        CancellationToken cancellationToken = default)
+    {
+        var parameters = new Showcase.Generated.Testing.Client.GetErrorResponseTestParameters(Status: status, Reason: null);
+
+        var result = await getErrorResponseTestEndpoint
+            .ExecuteAsync(
+                parameters,
+                cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+
+        result.Headers.TryGetValue("Retry-After", out var retryAfter);
+
+        return result switch
+        {
+            { IsBadRequest: true } => FromValidationProblem(result.BadRequestContent),
+            { IsNotFound: true } => FromProblem(result.NotFoundContent),
+            { IsConflict: true } => FromProblem(result.ConflictContent),
+            { IsUnprocessableEntity: true } => FromProblem(result.UnprocessableEntityContent),
+            { IsTooManyRequests: true } => FromProblem(result.TooManyRequestsContent) with { RetryAfter = retryAfter?.FirstOrDefault() },
+            _ => new ErrorResponseTestResult((int)result.StatusCode, Title: null, Detail: null, Errors: null, RetryAfter: null),
+        };
+
+        static ErrorResponseTestResult FromProblem(
+            Showcase.Generated.ProblemDetails problem)
+            => new(problem.Status ?? 0, problem.Title, problem.Detail, Errors: null, RetryAfter: null);
+
+        static ErrorResponseTestResult FromValidationProblem(
+            Showcase.Generated.ValidationProblemDetails problem)
+            => new(
+                problem.Status ?? 0,
+                problem.Title,
+                problem.Detail,
+                problem.Errors is null
+                    ? null
+                    : string.Join("; ", problem.Errors.Select(e => $"{e.Key}: {string.Join(", ", e.Value)}")),
+                RetryAfter: null);
+    }
+
+    /// <summary>
+    /// Posts to an operation that declares its own 400 model (<c>TestingProblem</c>, without field errors) and reads
+    /// the answer through the generated accessors: <c>BadRequestContent</c> is always the declared model, and
+    /// <c>BadRequestValidationErrors</c> gives the field errors when the ValidationFilter rejected the request body.
+    /// </summary>
+    public async Task<DeclaredBadRequestTestResult> TestDeclaredBadRequestAsync(
+        string name,
+        int age,
+        CancellationToken cancellationToken = default)
+    {
+        var parameters = new Showcase.Generated.Testing.Client.PostDeclaredBadRequestTestParameters(
+            Request: new Showcase.Generated.Testing.Models.DeclaredBadRequestTestRequest(Name: name, Age: age));
+
+        var result = await postDeclaredBadRequestTestEndpoint
+            .ExecuteAsync(
+                parameters,
+                cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+
+        if (!result.IsBadRequest)
+        {
+            return new DeclaredBadRequestTestResult((int)result.StatusCode, Title: null, Detail: null, ValidationErrors: null);
+        }
+
+        var problem = result.BadRequestContent;
+        var errors = result.BadRequestValidationErrors;
+        return new DeclaredBadRequestTestResult(
+            problem.Status ?? 0,
+            problem.Title,
+            problem.Detail,
+            errors is null
+                ? null
+                : string.Join("; ", errors.Select(e => $"{e.Key}: {string.Join(", ", e.Value)}")));
     }
 }

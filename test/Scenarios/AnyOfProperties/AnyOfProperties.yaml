@@ -1,0 +1,52 @@
+openapi: 3.0.3
+info:
+  title: AnyOfProperties
+  version: 1.0.0
+  description: A model whose properties reference other models through anyOf and through a dictionary of arrays.
+paths:
+  /holders:
+    get:
+      operationId: getHolder
+      summary: Get a holder
+      description: Get a holder.
+      responses:
+        '200':
+          description: A holder
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Holder'
+components:
+  schemas:
+    Cat:
+      type: object
+      description: A cat.
+      properties:
+        purrs:
+          type: boolean
+    Dog:
+      type: object
+      description: A dog.
+      properties:
+        barks:
+          type: boolean
+    Bird:
+      type: object
+      description: A bird.
+      properties:
+        sings:
+          type: boolean
+    Holder:
+      type: object
+      description: Holds pets.
+      properties:
+        pet:
+          anyOf:
+            - $ref: '#/components/schemas/Cat'
+            - $ref: '#/components/schemas/Dog'
+        catsByName:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              $ref: '#/components/schemas/Bird'

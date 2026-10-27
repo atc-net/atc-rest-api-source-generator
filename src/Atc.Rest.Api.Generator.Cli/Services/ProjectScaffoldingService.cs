@@ -102,21 +102,21 @@ public sealed class ProjectScaffoldingService
 
             if (!Directory.Exists(srcPath))
             {
-                Directory.CreateDirectory(srcPath);
-                AnsiConsole.MarkupLine($"[green]✓[/] Created directory: src/");
+                TrackedFile.CreateDirectory(srcPath);
+                AnsiConsole.MarkupLine("[green]✓[/] Created directory: src/");
             }
 
             if (!Directory.Exists(testPath))
             {
-                Directory.CreateDirectory(testPath);
-                AnsiConsole.MarkupLine($"[green]✓[/] Created directory: test/");
+                TrackedFile.CreateDirectory(testPath);
+                AnsiConsole.MarkupLine("[green]✓[/] Created directory: test/");
             }
 
             return true;
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]✗[/] Error creating directory structure: {ex.Message}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Error creating directory structure: {ex.Message}");
             return false;
         }
     }
@@ -168,17 +168,17 @@ public sealed class ProjectScaffoldingService
 
             if (File.Exists(slnxPath))
             {
-                AnsiConsole.MarkupLine($"[dim]✓[/] Solution file already exists: {solutionName}.slnx");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[dim]✓[/] Solution file already exists: {solutionName}.slnx");
                 return true;
             }
 
-            File.WriteAllText(slnxPath, sb.ToString());
-            AnsiConsole.MarkupLine($"[green]✓[/] Created solution file: {solutionName}.slnx");
+            TrackedFile.WriteAllText(slnxPath, sb.ToString());
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created solution file: {solutionName}.slnx");
             return true;
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]✗[/] Error creating solution file: {ex.Message}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Error creating solution file: {ex.Message}");
             return false;
         }
     }
@@ -203,34 +203,34 @@ public sealed class ProjectScaffoldingService
         {
             if (!Directory.Exists(testProjectPath))
             {
-                Directory.CreateDirectory(testProjectPath);
+                TrackedFile.CreateDirectory(testProjectPath);
             }
 
             if (!File.Exists(csprojPath))
             {
                 var csprojContent = GenerateTestProjectContent(projectName);
-                File.WriteAllText(csprojPath, csprojContent);
-                AnsiConsole.MarkupLine($"[green]✓[/] Created test project: {testProjectName}.csproj");
+                TrackedFile.WriteAllText(csprojPath, csprojContent);
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created test project: {testProjectName}.csproj");
 
                 // Create a sample test file
                 var testFilePath = Path.Combine(testProjectPath, "UnitTest1.cs");
                 if (!File.Exists(testFilePath))
                 {
                     var testContent = GenerateTestFileContent(testProjectName);
-                    File.WriteAllText(testFilePath, testContent);
-                    AnsiConsole.MarkupLine($"[green]✓[/] Created sample test: UnitTest1.cs");
+                    TrackedFile.WriteAllText(testFilePath, testContent);
+                    AnsiConsole.MarkupLine("[green]✓[/] Created sample test: UnitTest1.cs");
                 }
             }
             else
             {
-                AnsiConsole.MarkupLine($"[dim]✓[/] Test project already exists: {testProjectName}.csproj");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[dim]✓[/] Test project already exists: {testProjectName}.csproj");
             }
 
             return true;
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]✗[/] Error creating test project: {ex.Message}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Error creating test project: {ex.Message}");
             return false;
         }
     }
@@ -249,7 +249,7 @@ public sealed class ProjectScaffoldingService
 
             if (!File.Exists(jsonPath))
             {
-                File.WriteAllText(jsonPath, CodingRulesJson);
+                TrackedFile.WriteAllText(jsonPath, CodingRulesJson);
                 AnsiConsole.MarkupLine("[green]✓[/] Created atc-coding-rules-updater.json");
             }
             else
@@ -259,7 +259,7 @@ public sealed class ProjectScaffoldingService
 
             if (!File.Exists(ps1Path))
             {
-                File.WriteAllText(ps1Path, CodingRulesPs1);
+                TrackedFile.WriteAllText(ps1Path, CodingRulesPs1);
                 AnsiConsole.MarkupLine("[green]✓[/] Created atc-coding-rules-updater.ps1");
             }
             else
@@ -271,10 +271,13 @@ public sealed class ProjectScaffoldingService
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]✗[/] Error adding coding rules files: {ex.Message}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Error adding coding rules files: {ex.Message}");
             return false;
         }
     }
+
+    // How long the coding-rules updater may take before it is stopped
+    private static readonly TimeSpan CodingRulesUpdaterTimeout = TimeSpan.FromMinutes(3);
 
     /// <summary>
     /// Runs the atc-coding-rules-updater tool to download coding rules and Directory.Build.props.
@@ -300,43 +303,32 @@ public sealed class ProjectScaffoldingService
         {
             AnsiConsole.MarkupLine("[dim]Running atc-coding-rules-updater...[/]");
 
-            // Build arguments for the tool
-            var arguments = $"run -p \"{repoPath}\" --optionsPath \"{optionsPath}\" --verbose";
+            // organizationName and repositoryName are for the initial setup only: a Directory.Build.props is kept
+            var includeNames = !File.Exists(Path.Combine(repoPath, "Directory.Build.props")) &&
+                               !string.IsNullOrWhiteSpace(organizationName) &&
+                               !string.IsNullOrWhiteSpace(repositoryName);
 
-            // Add organizationName and repositoryName only if Directory.Build.props doesn't exist
-            var propsPath = Path.Combine(repoPath, "Directory.Build.props");
-            if (!File.Exists(propsPath) &&
-                !string.IsNullOrWhiteSpace(organizationName) &&
-                !string.IsNullOrWhiteSpace(repositoryName))
+            // The updater downloads the rules: it gets its time, and then the command goes on without it
+            var run = ExternalTool.Run(
+                ExecutableResolver.Resolve("atc-coding-rules-updater"),
+                BuildCodingRulesUpdaterArguments(repoPath, optionsPath, includeNames, organizationName, repositoryName),
+                repoPath,
+                CodingRulesUpdaterTimeout);
+            var error = run.Error;
+
+            if (run.TimedOut)
             {
-                arguments += $" --organizationName \"{organizationName}\" --repositoryName \"{repositoryName}\"";
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]![/] atc-coding-rules-updater did not end within {CodingRulesUpdaterTimeout.TotalMinutes:0} minutes and was stopped");
+                AnsiConsole.MarkupLine("[dim]Run './atc-coding-rules-updater.ps1' manually to download coding rules.[/]");
+                return true; // Don't fail the whole process, just warn
             }
 
-            var startInfo = new ProcessStartInfo
+            if (run.ExitCode != 0)
             {
-                FileName = ExecutableResolver.Resolve("atc-coding-rules-updater"),
-                Arguments = arguments,
-                WorkingDirectory = repoPath,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-            };
-
-            using var process = new Process();
-            process.StartInfo = startInfo;
-            process.Start();
-
-            var output = process.StandardOutput.ReadToEnd();
-            var error = process.StandardError.ReadToEnd();
-            process.WaitForExit();
-
-            if (process.ExitCode != 0)
-            {
-                AnsiConsole.MarkupLine($"[yellow]![/] atc-coding-rules-updater exited with code {process.ExitCode}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]![/] atc-coding-rules-updater exited with code {run.ExitCode}");
                 if (!string.IsNullOrWhiteSpace(error))
                 {
-                    AnsiConsole.MarkupLine($"[dim]{Markup.Escape(error.Trim())}[/]");
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[dim]{error.Trim()}[/]");
                 }
 
                 return true; // Don't fail the whole process, just warn
@@ -347,10 +339,36 @@ public sealed class ProjectScaffoldingService
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[yellow]![/] Could not run atc-coding-rules-updater: {ex.Message}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]![/] Could not run atc-coding-rules-updater: {ex.Message}");
             AnsiConsole.MarkupLine("[dim]Run './atc-coding-rules-updater.ps1' manually to download coding rules.[/]");
             return true; // Don't fail the whole process, just warn
         }
+    }
+
+    /// <summary>
+    /// Builds the command line for atc-coding-rules-updater.
+    /// </summary>
+    /// <param name="repoPath">Root path for the repository.</param>
+    /// <param name="optionsPath">The path of atc-coding-rules-updater.json.</param>
+    /// <param name="includeNames">Whether to pass the organization and repository names (initial setup).</param>
+    /// <param name="organizationName">Organization name for initial setup.</param>
+    /// <param name="repositoryName">Repository name for initial setup.</param>
+    /// <returns>The arguments.</returns>
+    public static string BuildCodingRulesUpdaterArguments(
+        string repoPath,
+        string optionsPath,
+        bool includeNames,
+        string? organizationName,
+        string? repositoryName)
+    {
+        // A path ending in a backslash would escape the closing quote of its argument
+        var arguments = $"run -p \"{repoPath.TrimEnd('\\', '/')}\" --optionsPath \"{optionsPath.TrimEnd('\\', '/')}\" --verbose";
+        if (includeNames)
+        {
+            arguments += $" --organizationName \"{organizationName}\" --repositoryName \"{repositoryName}\"";
+        }
+
+        return arguments;
     }
 
     /// <summary>
@@ -370,13 +388,13 @@ public sealed class ProjectScaffoldingService
 
         try
         {
-            File.WriteAllText(gitignorePath, GitIgnoreContent);
+            TrackedFile.WriteAllText(gitignorePath, GitIgnoreContent);
             AnsiConsole.MarkupLine("[green]✓[/] Created .gitignore");
             return true;
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]✗[/] Error creating .gitignore: {ex.Message}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Error creating .gitignore: {ex.Message}");
             return false;
         }
     }
@@ -391,6 +409,7 @@ public sealed class ProjectScaffoldingService
     /// <param name="targetFramework">Target framework (e.g., "net10.0").</param>
     /// <param name="hostUi">API documentation UI type.</param>
     /// <param name="hostUiMode">When to enable the UI.</param>
+    /// <param name="hostNamespace">The host project's root namespace; the project name when not set.</param>
     /// <returns>True if successful, false otherwise.</returns>
     public bool GenerateHostProject(
         string srcPath,
@@ -399,7 +418,8 @@ public sealed class ProjectScaffoldingService
         string domainProjectName,
         string targetFramework,
         HostUiType hostUi,
-        HostUiModeType hostUiMode)
+        HostUiModeType hostUiMode,
+        string? hostNamespace = null)
     {
         var hostProjectPath = Path.Combine(srcPath, hostProjectName);
         var csprojPath = Path.Combine(hostProjectPath, $"{hostProjectName}.csproj");
@@ -410,8 +430,8 @@ public sealed class ProjectScaffoldingService
             // Create project directory
             if (!Directory.Exists(hostProjectPath))
             {
-                Directory.CreateDirectory(hostProjectPath);
-                AnsiConsole.MarkupLine($"[green]✓[/] Created directory: {hostProjectName}/");
+                TrackedFile.CreateDirectory(hostProjectPath);
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created directory: {hostProjectName}/");
             }
 
             // Create .csproj file
@@ -421,21 +441,22 @@ public sealed class ProjectScaffoldingService
                     contractsProjectName,
                     domainProjectName,
                     targetFramework,
-                    hostUi);
-                File.WriteAllText(csprojPath, csprojContent);
-                AnsiConsole.MarkupLine($"[green]✓[/] Created project file: {hostProjectName}.csproj");
+                    hostUi,
+                    hostNamespace);
+                TrackedFile.WriteAllText(csprojPath, csprojContent);
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created project file: {hostProjectName}.csproj");
             }
             else
             {
-                AnsiConsole.MarkupLine($"[dim]✓[/] Project file already exists: {hostProjectName}.csproj");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[dim]✓[/] Project file already exists: {hostProjectName}.csproj");
             }
 
             // Create Program.cs file
             if (!File.Exists(programPath))
             {
                 var baseName = ProjectNameHelper.ExtractSolutionName(hostProjectName);
-                var programContent = GenerateProgramContent(baseName, hostUi, hostUiMode);
-                File.WriteAllText(programPath, programContent);
+                var programContent = HostProjectFiles.ProgramContent(baseName, hostUi, hostUiMode);
+                TrackedFile.WriteAllText(programPath, programContent);
                 AnsiConsole.MarkupLine("[green]✓[/] Created Program.cs");
             }
             else
@@ -443,13 +464,15 @@ public sealed class ProjectScaffoldingService
                 AnsiConsole.MarkupLine("[dim]✓[/] Program.cs already exists");
             }
 
+            HostProjectFiles.WriteLaunchSettings(hostProjectPath, hostProjectName, hostUi);
+
             // Create GlobalUsings.cs file
             var globalUsingsPath = Path.Combine(hostProjectPath, "GlobalUsings.cs");
             if (!File.Exists(globalUsingsPath))
             {
                 var baseName = ProjectNameHelper.ExtractSolutionName(hostProjectName);
-                var globalUsingsContent = GenerateHostGlobalUsingsContent(baseName, hostUi);
-                File.WriteAllText(globalUsingsPath, globalUsingsContent);
+                var globalUsingsContent = HostProjectFiles.GlobalUsingsContent(baseName, hostUi);
+                TrackedFile.WriteAllText(globalUsingsPath, globalUsingsContent);
                 AnsiConsole.MarkupLine("[green]✓[/] Created GlobalUsings.cs");
             }
             else
@@ -461,7 +484,7 @@ public sealed class ProjectScaffoldingService
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]✗[/] Error creating host project: {ex.Message}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Error creating host project: {ex.Message}");
             return false;
         }
     }
@@ -489,27 +512,27 @@ public sealed class ProjectScaffoldingService
             // Create project directory
             if (!Directory.Exists(aspireProjectPath))
             {
-                Directory.CreateDirectory(aspireProjectPath);
-                AnsiConsole.MarkupLine($"[green]✓[/] Created directory: {aspireProjectName}/");
+                TrackedFile.CreateDirectory(aspireProjectPath);
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created directory: {aspireProjectName}/");
             }
 
             // Create .csproj file
             if (!File.Exists(csprojPath))
             {
                 var csprojContent = GenerateAspireProjectContent(apiProjectName, targetFramework);
-                File.WriteAllText(csprojPath, csprojContent);
-                AnsiConsole.MarkupLine($"[green]✓[/] Created project file: {aspireProjectName}.csproj");
+                TrackedFile.WriteAllText(csprojPath, csprojContent);
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created project file: {aspireProjectName}.csproj");
             }
             else
             {
-                AnsiConsole.MarkupLine($"[dim]✓[/] Project file already exists: {aspireProjectName}.csproj");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[dim]✓[/] Project file already exists: {aspireProjectName}.csproj");
             }
 
             // Create Program.cs file
             if (!File.Exists(programPath))
             {
                 var programContent = GenerateAspireProgramContent(apiProjectName);
-                File.WriteAllText(programPath, programContent);
+                TrackedFile.WriteAllText(programPath, programContent);
                 AnsiConsole.MarkupLine("[green]✓[/] Created Program.cs");
             }
             else
@@ -521,7 +544,7 @@ public sealed class ProjectScaffoldingService
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]✗[/] Error creating Aspire project: {ex.Message}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Error creating Aspire project: {ex.Message}");
             return false;
         }
     }
@@ -569,13 +592,20 @@ public sealed class ProjectScaffoldingService
         string contractsProjectName,
         string domainProjectName,
         string targetFramework,
-        HostUiType hostUi)
+        HostUiType hostUi,
+        string? hostNamespace)
     {
         var sb = new StringBuilder();
         sb.AppendLine("<Project Sdk=\"Microsoft.NET.Sdk.Web\">");
         sb.AppendLine();
         sb.AppendLine(2, "<PropertyGroup>");
         sb.AppendLine(4, $"<TargetFramework>{targetFramework}</TargetFramework>");
+
+        if (!string.IsNullOrWhiteSpace(hostNamespace))
+        {
+            sb.AppendLine(4, $"<RootNamespace>{hostNamespace}</RootNamespace>");
+        }
+
         sb.AppendLine(2, "</PropertyGroup>");
         sb.AppendLine();
         sb.AppendLine(2, "<ItemGroup>");
@@ -612,114 +642,6 @@ public sealed class ProjectScaffoldingService
         sb.Append("</Project>");
 
         return sb.ToString();
-    }
-
-    private static string GenerateProgramContent(
-        string baseName,
-        HostUiType hostUi,
-        HostUiModeType hostUiMode)
-    {
-        var sb = new StringBuilder();
-        sb.AppendLine("var builder = WebApplication.CreateBuilder(args);");
-        sb.AppendLine();
-
-        // Add OpenAPI services if UI is enabled
-        if (hostUi != HostUiType.None)
-        {
-            sb.AppendLine("// Configure OpenAPI document generation");
-            sb.AppendLine("builder.Services.AddOpenApi();");
-            sb.AppendLine();
-        }
-
-        sb.AppendLine("// Register handler implementations from Domain project");
-        sb.AppendLine("builder.Services.AddApiHandlersFromDomain();");
-        sb.AppendLine();
-        sb.AppendLine("var app = builder.Build();");
-        sb.AppendLine();
-
-        // Generate UI mapping based on configuration
-        if (hostUi != HostUiType.None)
-        {
-            if (hostUiMode == HostUiModeType.DevelopmentOnly)
-            {
-                sb.AppendLine("if (app.Environment.IsDevelopment())");
-                sb.AppendLine("{");
-                sb.AppendLine(4, "app.MapOpenApi();");
-                AppendUiMapping(sb, hostUi, 4);
-                sb.AppendLine("}");
-            }
-            else
-            {
-                sb.AppendLine("app.MapOpenApi();");
-                AppendUiMapping(sb, hostUi, 0);
-            }
-
-            sb.AppendLine();
-
-            // Add root redirect to UI
-            var redirectPath = hostUi == HostUiType.Swagger ? "/swagger" : "/scalar/v1";
-            sb.AppendLine("// Redirect root to API documentation");
-            sb.AppendLine("app");
-            sb.Append(4, ".MapGet(\"/\", () => Results.Redirect(\"");
-            sb.Append(redirectPath);
-            sb.AppendLine("\"))");
-            sb.AppendLine(4, ".ExcludeFromDescription();");
-
-            sb.AppendLine();
-        }
-
-        sb.AppendLine("// Configure middleware and map all endpoints");
-        sb.AppendLine("app.MapEndpoints();");
-        sb.AppendLine();
-        sb.Append("await app.RunAsync();");
-
-        return sb.ToString();
-    }
-
-    private static void AppendUiMapping(
-        StringBuilder sb,
-        HostUiType hostUi,
-        int indent)
-    {
-        switch (hostUi)
-        {
-            case HostUiType.Scalar:
-                sb.AppendLine(indent, "app.MapScalarApiReference();");
-                break;
-            case HostUiType.Swagger:
-                sb.AppendLine(indent, "app.UseSwaggerUI(options =>");
-                sb.AppendLine(indent, "{");
-                sb.AppendLine(indent + 4, "options.SwaggerEndpoint(\"/openapi/v1.json\", \"v1\");");
-                sb.AppendLine(indent, "});");
-                break;
-        }
-    }
-
-    private static string GenerateHostGlobalUsingsContent(
-        string baseName,
-        HostUiType hostUi)
-    {
-        var sb = new StringBuilder();
-
-        // Root namespace for extension methods (from Domain project DI registration)
-        sb.Append("global using ");
-        sb.Append(baseName);
-        sb.AppendLine(";");
-
-        // Generated endpoints namespace
-        sb.Append("global using ");
-        sb.Append(baseName);
-        sb.AppendLine(".Generated.Endpoints;");
-
-        // UI-specific namespaces
-        if (hostUi == HostUiType.Scalar)
-        {
-            sb.AppendLine("global using Scalar.AspNetCore;");
-        }
-
-        return sb
-            .ToString()
-            .TrimEnd();
     }
 
     private static string GenerateAspireProjectContent(

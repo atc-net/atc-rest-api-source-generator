@@ -7,7 +7,7 @@ public class TypeScriptRetryInterceptorExtractorTests
     {
         var result = TypeScriptRetryInterceptorExtractor.Generate(headerContent: null);
 
-        Assert.Contains("import type { RetryPolicy } from './retryConfig';", result, StringComparison.Ordinal);
+        Assert.Contains("import type { RequestRetry, RetryPolicy } from './retryRuntime';", result, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -76,6 +76,17 @@ public class TypeScriptRetryInterceptorExtractorTests
     }
 
     [Fact]
+    public void Generate_TimedOutAttempt_FailsWithTheTimeoutError()
+    {
+        // Axios rejects every abort with its CanceledError - the timeout's own reason is thrown instead, so a timeout
+        // never looks like the caller's cancellation.
+        var result = TypeScriptRetryInterceptorExtractor.Generate(headerContent: null);
+
+        Assert.Contains("lastError = timeoutFired ? controller.signal.reason : error;", result, StringComparison.Ordinal);
+        Assert.Contains("throw lastError;", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Generate_PerAttemptCleanup_HappensInFinally()
     {
         // The timer must be cleared and the parent listener removed in finally so each
@@ -86,5 +97,40 @@ public class TypeScriptRetryInterceptorExtractorTests
         Assert.Contains("} finally {", result, StringComparison.Ordinal);
         Assert.Contains("clearTimeout(timer)", result, StringComparison.Ordinal);
         Assert.Contains("removeEventListener('abort', onParentAbort)", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Generate_ReadsTheFinalResponseInsideTheAttempt()
+    {
+        // The body is read while the per-attempt signal and timeout are live, so a stalled body or an abort
+        // during the read is cancelled like the request; a retried attempt's unread body is released.
+        var result = TypeScriptRetryInterceptorExtractor.Generate(headerContent: null);
+
+        Assert.Contains("export async function retryWithBackoff<T = Response>(", result, StringComparison.Ordinal);
+        Assert.Contains("read: (response: Response) => Promise<T> = (response) => Promise.resolve(response as unknown as T),", result, StringComparison.Ordinal);
+        Assert.Contains("return await read(response);", result, StringComparison.Ordinal);
+        Assert.Contains("void response.body?.cancel().catch(() => undefined);", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("lastResponse", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Generate_ResolveRetryPolicy_DoesNotRetryPostOrPatchUnlessOptedIn()
+    {
+        // POST/PATCH are not idempotent; "no retry" keeps the policy (and its timeout) with zero retries.
+        var result = TypeScriptRetryInterceptorExtractor.Generate(headerContent: null);
+
+        Assert.Contains("export function resolveRetryPolicy(", result, StringComparison.Ordinal);
+        Assert.Contains("if (clientPolicy === false) return undefined;", result, StringComparison.Ordinal);
+        Assert.Contains("retry?.enabled ?? (upper !== 'POST' && upper !== 'PATCH')", result, StringComparison.Ordinal);
+        Assert.Contains("{ ...policy, maxAttempts: 0 }", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Generate_RetryAfterLongerThanThePolicyAllows_ReturnsThe429()
+    {
+        var result = TypeScriptRetryInterceptorExtractor.Generate(headerContent: null);
+
+        Assert.Contains("const MAX_RETRY_AFTER_MS = 30000;", result, StringComparison.Ordinal);
+        Assert.Contains("retryAfterMs > (policy.timeoutMs ?? MAX_RETRY_AFTER_MS)", result, StringComparison.Ordinal);
     }
 }

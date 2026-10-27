@@ -7,17 +7,16 @@ namespace Atc.Rest.Api.Generator.Extractors;
 /// </summary>
 public static class SchemaExtractor
 {
-    /// <summary>
-    /// Common property names for pagination result arrays.
-    /// These are used to detect generic pagination base schemas.
-    /// </summary>
-    private static readonly string[] PaginationArrayPropertyNames
-        = ["results", "items", "data", "values", "content"];
-
     // Cache for CollectAllOfBaseSchemas results, keyed by document. The result is a pure function
     // of the document, but ExtractIndividual is invoked once per path segment, so without this the
     // whole-document allOf pre-scan is recomputed N times. Mirrors PathSegmentHelper's cache; uses
     // ConditionalWeakTable so entries are GC'd with the document.
+    //
+    // Process-wide state keyed by document identity (one of three such caches, with PathSegmentHelper's
+    // and XmlBodyHelper's). It is correct because a document is only changed before its first
+    // extraction: the generators normalize and flatten it (idempotent - a second pass changes nothing,
+    // so an entry made after the first stays valid) and a path filter makes a new document. A change to
+    // a document after extraction has started must make a new one, not edit it in place.
     private static readonly ConditionalWeakTable<OpenApiDocument, HashSet<string>> AllOfBaseSchemasCache = new();
 
     /// <summary>
@@ -34,59 +33,18 @@ public static class SchemaExtractor
         bool includeDeprecated = false,
         bool generatePartialModels = false)
     {
-        var recordParametersList = ExtractIndividual(openApiDoc, includeDeprecated: includeDeprecated, generatePartialModels: generatePartialModels);
-
-        if (recordParametersList is null || recordParametersList.Count == 0)
+        if (openApiDoc is null)
         {
-            return null;
+            throw new ArgumentNullException(nameof(openApiDoc));
         }
 
-        var headerContent = BuildHeaderContent(recordParametersList);
-
-        return new RecordsParameters(
-            HeaderContent: headerContent,
-            Namespace: NamespaceBuilder.ForModels(projectName),
-            DocumentationTags: null,
-            Attributes: null,
-            DeclarationModifier: DeclarationModifiers.Public,
-            Parameters: recordParametersList);
-    }
-
-    /// <summary>
-    /// Extracts model records from OpenAPI document components filtered by path segment.
-    /// Only includes schemas that are used by operations in the specified path segment.
-    /// </summary>
-    /// <param name="openApiDoc">The OpenAPI document containing schema definitions.</param>
-    /// <param name="projectName">The name of the project (used for namespace).</param>
-    /// <param name="pathSegment">The path segment to filter by (e.g., "Pets").</param>
-    /// <param name="registry">Optional conflict registry for detecting naming conflicts.</param>
-    /// <param name="includeDeprecated">Whether to include deprecated schemas.</param>
-    /// <param name="generatePartialModels">Whether to generate partial records for extensibility.</param>
-    /// <returns>RecordsParameters containing filtered model record definitions, or null if no schemas exist.</returns>
-    public static RecordsParameters? Extract(
-        OpenApiDocument openApiDoc,
-        string projectName,
-        string pathSegment,
-        TypeConflictRegistry? registry = null,
-        bool includeDeprecated = false,
-        bool generatePartialModels = false)
-    {
-        var recordParametersList = ExtractIndividual(openApiDoc, pathSegment, registry, includeDeprecated, generatePartialModels: generatePartialModels);
-
-        if (recordParametersList is null || recordParametersList.Count == 0)
-        {
-            return null;
-        }
-
-        var headerContent = BuildHeaderContent(recordParametersList);
-
-        return new RecordsParameters(
-            HeaderContent: headerContent,
-            Namespace: NamespaceBuilder.ForModels(projectName, pathSegment),
-            DocumentationTags: null,
-            Attributes: null,
-            DeclarationModifier: DeclarationModifiers.Public,
-            Parameters: recordParametersList);
+        return ExtractForSchemas(
+            openApiDoc,
+            projectName,
+            new HashSet<string>(openApiDoc.Components?.Schemas?.Keys ?? Enumerable.Empty<string>(), StringComparer.Ordinal),
+            pathSegment: null,
+            includeDeprecated: includeDeprecated,
+            generatePartialModels: generatePartialModels);
     }
 
     /// <summary>
@@ -111,36 +69,15 @@ public static class SchemaExtractor
         bool includeDeprecated = false,
         bool generatePartialModels = false,
         bool includeSharedModelsUsing = false)
-    {
-        if (schemaNames is null || schemaNames.Count == 0)
-        {
-            return null;
-        }
-
-        var recordParametersList = ExtractIndividual(openApiDoc, schemaNames, registry, includeDeprecated, generatePartialModels: generatePartialModels);
-
-        if (recordParametersList is null || recordParametersList.Count == 0)
-        {
-            return null;
-        }
-
-        // Build header with optional shared models using
-        var sharedModelsNamespace = includeSharedModelsUsing && !string.IsNullOrEmpty(pathSegment)
-            ? NamespaceBuilder.ForModels(projectName)
-            : null;
-        var headerContent = BuildHeaderContent(recordParametersList, sharedModelsNamespace);
-
-        // Use shared namespace if no pathSegment, otherwise segment-specific namespace
-        var ns = NamespaceBuilder.ForModels(projectName, pathSegment);
-
-        return new RecordsParameters(
-            HeaderContent: headerContent,
-            Namespace: ns,
-            DocumentationTags: null,
-            Attributes: null,
-            DeclarationModifier: DeclarationModifiers.Public,
-            Parameters: recordParametersList);
-    }
+        => ExtractForSchemasWithInlineEnums(
+            openApiDoc,
+            projectName,
+            schemaNames,
+            pathSegment,
+            registry,
+            includeDeprecated,
+            generatePartialModels,
+            includeSharedModelsUsing).Records;
 
     /// <summary>
     /// Extracts model records from OpenAPI document components for specific schemas,
@@ -154,6 +91,8 @@ public static class SchemaExtractor
     /// <param name="includeDeprecated">Whether to include deprecated schemas.</param>
     /// <param name="generatePartialModels">Whether to generate partial records for extensibility.</param>
     /// <param name="includeSharedModelsUsing">Whether to include a using directive for the shared Models namespace.</param>
+    /// <param name="xmlModels">The schemas an XML body can carry (<see cref="XmlBodyReachability"/>); their records are added to <paramref name="xmlSources"/>.</param>
+    /// <param name="xmlSources">Receives the records that get a generated XML mapping.</param>
     /// <returns>A tuple containing RecordsParameters and a list of inline enums discovered.</returns>
     public static (RecordsParameters? Records, List<InlineEnumInfo> InlineEnums) ExtractForSchemasWithInlineEnums(
         OpenApiDocument openApiDoc,
@@ -163,7 +102,9 @@ public static class SchemaExtractor
         TypeConflictRegistry? registry = null,
         bool includeDeprecated = false,
         bool generatePartialModels = false,
-        bool includeSharedModelsUsing = false)
+        bool includeSharedModelsUsing = false,
+        ISet<string>? xmlModels = null,
+        List<XmlModelSource>? xmlSources = null)
     {
         var inlineEnums = new List<InlineEnumInfo>();
 
@@ -185,7 +126,9 @@ public static class SchemaExtractor
             registry,
             includeDeprecated,
             generatePartialModels: generatePartialModels,
-            polymorphicConfigs: PolymorphicTypeExtractor.ExtractPolymorphicConfigs(openApiDoc));
+            polymorphicConfigs: PolymorphicTypeExtractor.ExtractPolymorphicConfigs(openApiDoc),
+            xmlModels: xmlModels,
+            xmlSources: xmlSources);
 
         if (recordParametersList is null || recordParametersList.Count == 0)
         {
@@ -221,225 +164,44 @@ public static class SchemaExtractor
         OpenApiDocument openApiDoc,
         bool includeDeprecated = false,
         bool generatePartialModels = false)
-        => ExtractIndividual(openApiDoc, schemaFilter: null, includeDeprecated: includeDeprecated, generatePartialModels: generatePartialModels);
+        => Extract(openApiDoc, "Api", includeDeprecated, generatePartialModels)?.Parameters.ToList();
 
     /// <summary>
-    /// Extracts individual record parameters from OpenAPI document components filtered by path segment.
-    /// Returns a list of individual records without combined header/namespace.
+    /// Checks if a schema represents a pagination base (has results/items/data/values/content: array with empty/untyped items).
     /// </summary>
-    /// <param name="openApiDoc">The OpenAPI document containing schema definitions.</param>
-    /// <param name="pathSegment">The path segment to filter by (e.g., "Pets").</param>
-    /// <param name="registry">Optional conflict registry for detecting naming conflicts.</param>
-    /// <param name="includeDeprecated">Whether to include deprecated schemas.</param>
-    /// <param name="generatePartialModels">Whether to generate partial records for extensibility.</param>
-    /// <returns>List of RecordParameters for each model used by operations in the path segment, or null if no schemas exist.</returns>
-    public static List<RecordParameters>? ExtractIndividual(
-        OpenApiDocument openApiDoc,
-        string pathSegment,
-        TypeConflictRegistry? registry = null,
-        bool includeDeprecated = false,
-        bool generatePartialModels = false)
+    public static bool IsPaginationBaseSchema(OpenApiSchema schema)
     {
-        if (string.IsNullOrEmpty(pathSegment))
+        if (schema.Properties is null)
         {
-            return ExtractIndividual(openApiDoc, schemaFilter: null, registry: registry, includeDeprecated: includeDeprecated, generatePartialModels: generatePartialModels);
+            return false;
         }
 
-        // Get schemas used by operations in this path segment
-        var usedSchemas = PathSegmentHelper.GetSchemasUsedBySegment(openApiDoc, pathSegment);
-        return ExtractIndividual(openApiDoc, usedSchemas, registry, includeDeprecated, generatePartialModels: generatePartialModels);
-    }
+        // The page array, by the names every generator knows (PaginationConventions)
+        var resultsProp = PaginationConventions.ArrayPropertyNames
+            .Select(name => schema.Properties.FirstOrDefault(p => string.Equals(p.Key, name, StringComparison.OrdinalIgnoreCase)).Value)
+            .FirstOrDefault(p => p is not null);
 
-    /// <summary>
-    /// Extracts individual record parameters from OpenAPI document components with polymorphic support.
-    /// Returns a list of individual records without combined header/namespace.
-    /// Polymorphic base schemas are skipped; variant records include inheritance.
-    /// </summary>
-    /// <param name="openApiDoc">The OpenAPI document containing schema definitions.</param>
-    /// <param name="polymorphicConfigs">Polymorphic configurations for inheritance tracking.</param>
-    /// <param name="registry">Optional conflict registry for detecting naming conflicts.</param>
-    /// <param name="includeDeprecated">Whether to include deprecated schemas.</param>
-    /// <param name="generatePartialModels">Whether to generate partial records for extensibility.</param>
-    /// <returns>List of RecordParameters for each model, or null if no schemas exist.</returns>
-    public static List<RecordParameters>? ExtractIndividualWithPolymorphism(
-        OpenApiDocument openApiDoc,
-        Dictionary<string, PolymorphicConfig>? polymorphicConfigs,
-        TypeConflictRegistry? registry = null,
-        bool includeDeprecated = false,
-        bool generatePartialModels = false)
-        => ExtractIndividual(openApiDoc, schemaFilter: null, registry, includeDeprecated, polymorphicConfigs, generatePartialModels);
-
-    /// <summary>
-    /// Extracts individual record parameters from OpenAPI document components filtered by path segment with polymorphic support.
-    /// Returns a list of individual records without combined header/namespace.
-    /// Polymorphic base schemas are skipped; variant records include inheritance.
-    /// </summary>
-    /// <param name="openApiDoc">The OpenAPI document containing schema definitions.</param>
-    /// <param name="pathSegment">The path segment to filter by (e.g., "Pets").</param>
-    /// <param name="polymorphicConfigs">Polymorphic configurations for inheritance tracking.</param>
-    /// <param name="registry">Optional conflict registry for detecting naming conflicts.</param>
-    /// <param name="includeDeprecated">Whether to include deprecated schemas.</param>
-    /// <param name="generatePartialModels">Whether to generate partial records for extensibility.</param>
-    /// <returns>List of RecordParameters for each model used by operations in the path segment, or null if no schemas exist.</returns>
-    public static List<RecordParameters>? ExtractIndividualWithPolymorphism(
-        OpenApiDocument openApiDoc,
-        string pathSegment,
-        Dictionary<string, PolymorphicConfig>? polymorphicConfigs,
-        TypeConflictRegistry? registry = null,
-        bool includeDeprecated = false,
-        bool generatePartialModels = false)
-    {
-        if (string.IsNullOrEmpty(pathSegment))
+        if (resultsProp is not OpenApiSchema resultsSchema)
         {
-            return ExtractIndividual(openApiDoc, schemaFilter: null, registry: registry, includeDeprecated: includeDeprecated, polymorphicConfigs: polymorphicConfigs, generatePartialModels: generatePartialModels);
+            return false;
         }
 
-        // Get schemas used by operations in this path segment
-        var usedSchemas = PathSegmentHelper.GetSchemasUsedBySegment(openApiDoc, pathSegment);
-        return ExtractIndividual(openApiDoc, usedSchemas, registry, includeDeprecated, polymorphicConfigs, generatePartialModels);
-    }
-
-    /// <summary>
-    /// Extracts individual record parameters from OpenAPI document components.
-    /// Optionally filters to only include schemas in the provided set.
-    /// </summary>
-    /// <param name="openApiDoc">The OpenAPI document containing schema definitions.</param>
-    /// <param name="schemaFilter">Optional set of schema names to include. If null, all schemas are included.</param>
-    /// <param name="registry">Optional conflict registry for detecting naming conflicts.</param>
-    /// <param name="includeDeprecated">Whether to include deprecated schemas.</param>
-    /// <param name="polymorphicConfigs">Optional polymorphic configurations for adding inheritance to variant types.</param>
-    /// <param name="generatePartialModels">Whether to generate partial records for extensibility.</param>
-    /// <returns>List of RecordParameters for each model, or null if no schemas exist.</returns>
-    private static List<RecordParameters>? ExtractIndividual(
-        OpenApiDocument openApiDoc,
-        HashSet<string>? schemaFilter,
-        TypeConflictRegistry? registry = null,
-        bool includeDeprecated = false,
-        Dictionary<string, PolymorphicConfig>? polymorphicConfigs = null,
-        bool generatePartialModels = false)
-    {
-        if (openApiDoc is null)
+        // Check if it's an array type
+        if (!resultsSchema.IsOfType(JsonSchemaType.Array))
         {
-            throw new ArgumentNullException(nameof(openApiDoc));
+            return false;
         }
 
-        if (openApiDoc.Components?.Schemas is null || openApiDoc.Components.Schemas.Count == 0)
+        return resultsSchema.Items switch
         {
-            return null;
-        }
+            // Check if items are empty/untyped (items: {} or no items)
+            null => true,
 
-        // Pre-scan: collect schema names that are referenced as allOf bases
-        var allOfBaseSchemas = CollectAllOfBaseSchemas(openApiDoc);
-
-        var recordParametersList = new List<RecordParameters>();
-
-        foreach (var schema in openApiDoc.Components.Schemas)
-        {
-            var originalSchemaName = schema.Key;
-            var schemaValue = schema.Value;
-
-            // Apply schema filter if provided (uses original name from OpenAPI spec)
-            if (schemaFilter is not null && !schemaFilter.Contains(originalSchemaName))
-            {
-                continue;
-            }
-
-            // Skip schema references as they point to other schemas
-            if (schemaValue is OpenApiSchemaReference)
-            {
-                continue;
-            }
-
-            // Skip deprecated schemas if not including them
-            if (!includeDeprecated && schemaValue is OpenApiSchema { Deprecated: true })
-            {
-                continue;
-            }
-
-            // Skip polymorphic base schemas (oneOf/anyOf) - they're handled by PolymorphicTypeExtractor
-            if (schemaValue.HasPolymorphicComposition())
-            {
-                continue;
-            }
-
-            if (schemaValue is OpenApiSchema actualSchema)
-            {
-                // Skip array schemas (like "Pets"), they're handled inline
-                if (actualSchema.Type == JsonSchemaType.Array)
-                {
-                    continue;
-                }
-
-                // Skip enum schemas - handled by EnumExtractor
-                if (actualSchema is { Type: JsonSchemaType.String, Enum.Count: > 0 })
-                {
-                    continue;
-                }
-
-                // Skip tuple schemas - handled by TupleExtractor
-                if (actualSchema.HasPrefixItems())
-                {
-                    continue;
-                }
-
-                // Detect allOf base reference for inheritance
-                var allOfBaseName = DetectAllOfBaseName(actualSchema);
-
-                if (actualSchema.Type == JsonSchemaType.Object || allOfBaseName is not null)
-                {
-                    // Sanitize schema name - replace dots with underscores for valid C# identifiers
-                    var schemaName = OpenApiSchemaExtensions.SanitizeSchemaName(originalSchemaName);
-
-                    // Check if this schema is a polymorphic variant and get its base type (uses original name)
-                    var baseTypeName = PolymorphicTypeExtractor.GetBaseTypeForVariant(originalSchemaName, polymorphicConfigs);
-
-                    // Use non-sealed modifier for schemas that are allOf bases
-                    var declarationModifier = allOfBaseSchemas.Contains(originalSchemaName)
-                        ? DeclarationModifiers.PublicRecord
-                        : (generatePartialModels
-                            ? DeclarationModifiers.PublicPartialRecord
-                            : DeclarationModifiers.PublicSealedRecord);
-
-                    // Check if this is a pagination base schema (has results: array with empty items)
-                    if (IsPaginationBaseSchema(actualSchema))
-                    {
-                        var genericRecordParams = ExtractGenericPaginatedRecord(schemaName, actualSchema, registry, generatePartialModels);
-                        if (genericRecordParams is not null)
-                        {
-                            recordParametersList.Add(genericRecordParams);
-                        }
-                    }
-                    else
-                    {
-                        // For allOf schemas, merge properties from all sub-schemas
-                        var effectiveSchema = allOfBaseName is not null
-                            ? MergeAllOfProperties(actualSchema)
-                            : actualSchema;
-
-                        var recordParams = ExtractRecordFromSchema(schemaName, effectiveSchema, registry, baseTypeName, generatePartialModels, declarationModifier);
-
-                        // Add allOf inheritance info (only if not already a polymorphic variant)
-                        if (recordParams is not null && allOfBaseName is not null && string.IsNullOrEmpty(baseTypeName))
-                        {
-                            var baseName = OpenApiSchemaExtensions.SanitizeSchemaName(allOfBaseName);
-                            var baseArgs = GetBaseConstructorArguments(openApiDoc, allOfBaseName);
-                            recordParams = recordParams with
-                            {
-                                BaseTypeName = baseName,
-                                BaseConstructorArguments = baseArgs,
-                            };
-                        }
-
-                        if (recordParams is not null)
-                        {
-                            recordParametersList.Add(recordParams);
-                        }
-                    }
-                }
-            }
-        }
-
-        return recordParametersList.Count > 0 ? recordParametersList : null;
+            // Check if items schema has no type defined (empty schema)
+            OpenApiSchema itemSchema => itemSchema.Type is null ||
+                                        itemSchema.Type == JsonSchemaType.Null,
+            _ => false,
+        };
     }
 
     /// <summary>
@@ -454,7 +216,9 @@ public static class SchemaExtractor
         TypeConflictRegistry? registry = null,
         bool includeDeprecated = false,
         bool generatePartialModels = false,
-        Dictionary<string, PolymorphicConfig>? polymorphicConfigs = null)
+        Dictionary<string, PolymorphicConfig>? polymorphicConfigs = null,
+        ISet<string>? xmlModels = null,
+        List<XmlModelSource>? xmlSources = null)
     {
         if (openApiDoc is null)
         {
@@ -498,7 +262,7 @@ public static class SchemaExtractor
             }
 
             // Skip polymorphic base schemas (oneOf/anyOf) - they're handled by PolymorphicTypeExtractor
-            if (schemaValue.HasPolymorphicComposition())
+            if (schemaValue.HasPolymorphicComposition)
             {
                 continue;
             }
@@ -506,19 +270,19 @@ public static class SchemaExtractor
             if (schemaValue is OpenApiSchema actualSchema)
             {
                 // Skip array schemas (like "Pets"), they're handled inline
-                if (actualSchema.Type == JsonSchemaType.Array)
+                if (actualSchema.IsOfType(JsonSchemaType.Array))
                 {
                     continue;
                 }
 
                 // Skip enum schemas - handled by EnumExtractor
-                if (actualSchema is { Type: JsonSchemaType.String, Enum.Count: > 0 })
+                if (actualSchema.IsOfType(JsonSchemaType.String) && actualSchema.Enum is { Count: > 0 })
                 {
                     continue;
                 }
 
                 // Skip tuple schemas - handled by TupleExtractor
-                if (actualSchema.HasPrefixItems())
+                if (actualSchema.HasPrefixItems)
                 {
                     continue;
                 }
@@ -526,7 +290,7 @@ public static class SchemaExtractor
                 // Detect allOf base reference for inheritance
                 var allOfBaseName = DetectAllOfBaseName(actualSchema);
 
-                if (actualSchema.Type == JsonSchemaType.Object || allOfBaseName is not null)
+                if (actualSchema.IsOfType(JsonSchemaType.Object) || allOfBaseName is not null)
                 {
                     // Sanitize schema name - replace dots with underscores for valid C# identifiers
                     var schemaName = OpenApiSchemaExtensions.SanitizeSchemaName(originalSchemaName);
@@ -541,7 +305,7 @@ public static class SchemaExtractor
                     // Check if this is a pagination base schema (has results: array with empty items)
                     if (IsPaginationBaseSchema(actualSchema))
                     {
-                        var genericRecordParams = ExtractGenericPaginatedRecord(schemaName, actualSchema, registry, generatePartialModels);
+                        var genericRecordParams = ExtractGenericPaginatedRecord(schemaName, actualSchema, registry, generatePartialModels, allOfBaseSchemas.Contains(originalSchemaName));
                         if (genericRecordParams is not null)
                         {
                             recordParametersList.Add(genericRecordParams);
@@ -583,18 +347,18 @@ public static class SchemaExtractor
                         else if (recordParams is not null && allOfBaseName is not null)
                         {
                             // Add allOf inheritance info
-                            var baseName = OpenApiSchemaExtensions.SanitizeSchemaName(allOfBaseName);
-                            var baseArgs = GetBaseConstructorArguments(openApiDoc, allOfBaseName);
-                            recordParams = recordParams with
-                            {
-                                BaseTypeName = baseName,
-                                BaseConstructorArguments = baseArgs,
-                            };
+                            recordParams = WithAllOfBase(openApiDoc, actualSchema, allOfBaseName, recordParams, registry);
                         }
 
                         if (recordParams is not null)
                         {
                             recordParametersList.Add(recordParams);
+
+                            // A model an XML body can carry gets its XML mapping from the record as generated
+                            if (xmlSources is not null && xmlModels?.Contains(originalSchemaName) == true)
+                            {
+                                xmlSources.Add(new XmlModelSource(originalSchemaName, schemaName, actualSchema, effectiveSchema, recordParams));
+                            }
                         }
                     }
                 }
@@ -608,46 +372,58 @@ public static class SchemaExtractor
     }
 
     /// <summary>
-    /// Checks if a schema represents a pagination base (has results/items/data/values/content: array with empty/untyped items).
+    /// Makes a record derive from its allOf base and forward the base's properties to it.
+    /// <para>
+    /// A base that is a generic page (<c>PaginatedResult&lt;T&gt;</c>) needs its type argument: the items the
+    /// derived schema gives the page's array. The forwarded parameters are then the base's own, with
+    /// <c>T</c> filled in, so they match the base's properties exactly. Without an item type the record stays
+    /// flat - there is no closed base to derive from.
+    /// </para>
     /// </summary>
-    private static bool IsPaginationBaseSchema(OpenApiSchema schema)
+    private static RecordParameters WithAllOfBase(
+        OpenApiDocument openApiDoc,
+        OpenApiSchema schema,
+        string allOfBaseName,
+        RecordParameters recordParams,
+        TypeConflictRegistry? registry)
     {
-        if (schema.Properties is null)
-        {
-            return false;
-        }
+        var baseName = OpenApiSchemaExtensions.SanitizeSchemaName(allOfBaseName);
+        var baseArgs = GetBaseConstructorArguments(openApiDoc, allOfBaseName, registry);
 
-        // Look for common pagination array property names
-        IOpenApiSchema? resultsProp = null;
-        foreach (var propName in PaginationArrayPropertyNames)
+        if (openApiDoc.Components?.Schemas is null ||
+            !openApiDoc.Components.Schemas.TryGetValue(allOfBaseName, out var baseSchemaValue) ||
+            baseSchemaValue is not OpenApiSchema baseSchema ||
+            !IsPaginationBaseSchema(baseSchema))
         {
-            if (schema.Properties.TryGetValue(propName, out var propValue))
+            return recordParams with
             {
-                resultsProp = propValue;
-                break;
-            }
+                BaseTypeName = baseName,
+                BaseConstructorArguments = baseArgs,
+            };
         }
 
-        if (resultsProp is not OpenApiSchema resultsSchema)
+        var itemType = schema.GetAllOfArrayOverrideItemType(openApiDoc, registry);
+        var baseParameters = ExtractGenericPaginatedRecord(baseName, baseSchema, registry)?.Parameters;
+        if (string.IsNullOrEmpty(itemType) || baseParameters is null)
         {
-            return false;
+            return recordParams;
         }
 
-        // Check if it's an array type
-        if (resultsSchema.Type != JsonSchemaType.Array)
-        {
-            return false;
-        }
+        var forwarded = baseParameters
+            .Select(p => p with
+            {
+                TypeName = string.Equals(p.TypeName, "List<T>", StringComparison.Ordinal) ? $"List<{itemType}>" : p.TypeName,
+            })
+            .ToList();
 
-        return resultsSchema.Items switch
-        {
-            // Check if items are empty/untyped (items: {} or no items)
-            null => true,
+        var own = (recordParams.Parameters ?? [])
+            .Where(p => !forwarded.Exists(f => string.Equals(f.Name, p.Name, StringComparison.Ordinal)));
 
-            // Check if items schema has no type defined (empty schema)
-            OpenApiSchema itemSchema => itemSchema.Type is null ||
-                                        itemSchema.Type == JsonSchemaType.Null,
-            _ => false,
+        return recordParams with
+        {
+            BaseTypeName = $"{baseName}<{itemType}>",
+            BaseConstructorArguments = forwarded.Select(p => p.Name).ToList(),
+            Parameters = forwarded.Concat(own).OrderBy(p => p.DefaultValue is not null ? 1 : 0).ToList(),
         };
     }
 
@@ -659,7 +435,8 @@ public static class SchemaExtractor
         string schemaName,
         OpenApiSchema schema,
         TypeConflictRegistry? registry = null,
-        bool generatePartialModels = false)
+        bool generatePartialModels = false,
+        bool isAllOfBase = false)
     {
         var properties = schema.Properties?.ToList() ?? [];
         var required = schema.Required ?? new HashSet<string>(StringComparer.Ordinal);
@@ -680,11 +457,12 @@ public static class SchemaExtractor
             string? genericTypeName = null;
             var isGenericListType = false;
 
-            // Special handling for pagination array properties - make it generic List<T>
-            if (PaginationArrayPropertyNames.Any(name =>
-                prop.Key.Equals(name, StringComparison.OrdinalIgnoreCase)))
+            // Special handling for pagination array properties - make it generic List<T> (nullable when optional, as
+            // every optional property is)
+            var isItems = PaginationConventions.IsArrayPropertyName(prop.Key);
+            if (isItems)
             {
-                csharpType = "List<T>";
+                csharpType = isRequired ? "List<T>" : "List<T>?";
                 genericTypeName = null;
                 isGenericListType = false;
             }
@@ -700,7 +478,7 @@ public static class SchemaExtractor
                 : csharpType;
 
             // Get validation attributes from OpenAPI schema constraints
-            var validationAttributes = prop.Value.GetValidationAttributes(isRequired);
+            var validationAttributes = prop.Value.GetModelValidationAttributes(isRequired, isNullableType);
 
             // Use TypeHelpers extension methods for type classification
             var isReferenceType = cleanTypeName.IsReferenceType();
@@ -719,9 +497,28 @@ public static class SchemaExtractor
                 attributesList.AddRange(validationAttributes.Select(attr => new AttributeParameters(attr, null)));
             }
 
+            // A number the specification sends as a JSON string (type: string, format: int64): read from and written as
+            // the string, so the wire stays what the specification says
+            if (IsIntegerSentAsString(prop.Value))
+            {
+                attributesList.Add(IntegerAsStringAttribute);
+            }
+
+            // deprecated: true warns every consumer that reads or sets the property
+            if (prop.Value.Deprecated)
+            {
+                attributesList.Add(ObsoleteAttributeHelper.Attribute);
+            }
+
             IList<AttributeParameters>? attributes = attributesList.Count > 0
                 ? attributesList
                 : null;
+
+            // An optional property may be absent: null by default, as in every other generated record
+            var defaultValue = DefaultValueHelper.ForRecordParameter(
+                isItems ? null : DefaultValueHelper.ExtractSchemaDefault(prop.Value, cleanTypeName, registry),
+                isRequired,
+                isNullableType);
 
             parametersList.Add(new ParameterBaseParameters(
                 Attributes: attributes,
@@ -731,13 +528,23 @@ public static class SchemaExtractor
                 IsNullableType: isNullableType,
                 IsReferenceType: isReferenceType,
                 Name: propName,
-                DefaultValue: null));
+                DefaultValue: defaultValue));
         }
 
+        // A parameter with a default comes after every one without (CS1737)
+        parametersList = [.. parametersList.OrderBy(p => p.DefaultValue is not null ? 1 : 0)];
+
         // Return record with generic type parameter <T>
-        var declarationModifier = generatePartialModels
-            ? DeclarationModifiers.PublicPartialRecord
-            : DeclarationModifiers.PublicSealedRecord;
+        var declarationModifier = DeclarationModifiers.PublicSealedRecord;
+        if (isAllOfBase)
+        {
+            // A component extends this page (AccountPage : PaginatedResult<Account>), so it cannot be sealed
+            declarationModifier = DeclarationModifiers.PublicRecord;
+        }
+        else if (generatePartialModels)
+        {
+            declarationModifier = DeclarationModifiers.PublicPartialRecord;
+        }
 
         return new RecordParameters(
             DocumentationTags: null,
@@ -773,14 +580,17 @@ public static class SchemaExtractor
         // Generate empty records for schemas with no properties (e.g., Unit type for 204 No Content responses)
         // These are valid types in OpenAPI that need to be generated
         var parametersList = new List<ParameterBaseParameters>();
-        var seenPropertyNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        // A property's description becomes the record's <param> doc for it (what IntelliSense shows for the property)
+        var propertyDocs = new Dictionary<string, string>(StringComparer.Ordinal);
+        var undocumentedProperties = new Dictionary<string, string>(StringComparer.Ordinal);
+        var propertyNames = new PropertyNameRegistry();
 
         foreach (var prop in properties)
         {
-            var propName = prop.Key.ToPascalCaseForDotNet();
-
-            // Skip duplicate property names (OpenAPI schemas can have duplicates via allOf composition)
-            if (!seenPropertyNames.Add(propName))
+            // A valid, unique name for every property; the same key listed twice (allOf composition) is skipped
+            var propName = propertyNames.Resolve(prop.Key, prop.Key.ToPascalCaseForDotNet());
+            if (propName is null)
             {
                 continue;
             }
@@ -798,7 +608,7 @@ public static class SchemaExtractor
             // Making them optional allows omission in the context where they don't apply.
             if (isRequired)
             {
-                var resolvedPropSchema = prop.Value is OpenApiSchemaReference propRef ? propRef.Target : prop.Value;
+                var resolvedPropSchema = prop.Value.Dereferenced;
                 if (resolvedPropSchema is OpenApiSchema actualPropSchema &&
                     (actualPropSchema.ReadOnly || actualPropSchema.WriteOnly))
                 {
@@ -821,7 +631,7 @@ public static class SchemaExtractor
                 : csharpType;
 
             // Get validation attributes from OpenAPI schema constraints
-            var validationAttributes = prop.Value.GetValidationAttributes(isRequired);
+            var validationAttributes = prop.Value.GetModelValidationAttributes(isRequired, isNullableType);
 
             // Use TypeHelpers extension methods for type classification
             var isReferenceType = cleanTypeName.IsReferenceType();
@@ -841,15 +651,37 @@ public static class SchemaExtractor
                 attributesList.AddRange(validationAttributes.Select(attr => new AttributeParameters(attr, null)));
             }
 
+            // A number the specification sends as a JSON string (type: string, format: int64): read from and written as
+            // the string, so the wire stays what the specification says
+            if (IsIntegerSentAsString(prop.Value))
+            {
+                attributesList.Add(IntegerAsStringAttribute);
+            }
+
+            // deprecated: true warns every consumer that reads or sets the property
+            if (prop.Value.Deprecated)
+            {
+                attributesList.Add(ObsoleteAttributeHelper.Attribute);
+            }
+
+            if (!string.IsNullOrWhiteSpace(prop.Value.Description))
+            {
+                propertyDocs[propName] = WellFormedDocText(prop.Value.Description!.Trim());
+            }
+            else
+            {
+                undocumentedProperties[propName] = $"The {prop.Key} property.";
+            }
+
             IList<AttributeParameters>? attributes = attributesList.Count > 0
                 ? attributesList
                 : null;
 
-            // Extract default value from schema
-            var defaultValue = ExtractSchemaDefault(prop.Value, cleanTypeName);
+            // Extract default value from schema (null for an optional property: it may be absent)
+            var defaultValue = DefaultValueHelper.ForRecordParameter(DefaultValueHelper.ExtractSchemaDefault(prop.Value, cleanTypeName, registry), isRequired, isNullableType);
 
             // readOnly/writeOnly properties get a null default so they can be omitted in requests/responses
-            var resolvedPropForRw = prop.Value is OpenApiSchemaReference propRefRw ? propRefRw.Target : prop.Value;
+            var resolvedPropForRw = prop.Value.Dereferenced;
             if (resolvedPropForRw is OpenApiSchema actualPropForRw &&
                 (actualPropForRw.ReadOnly || actualPropForRw.WriteOnly) &&
                 string.IsNullOrEmpty(defaultValue))
@@ -875,20 +707,10 @@ public static class SchemaExtractor
             .OrderBy(p => p.DefaultValue is not null ? 1 : 0)
             .ToList();
 
-        // Build record name with inheritance if this is a polymorphic variant
-        var recordName = string.IsNullOrEmpty(baseTypeName)
-            ? schemaName
-            : $"{schemaName} : {baseTypeName}";
-
-        // Append x-implements interfaces (e.g., "Pet : IAnimal, ISerializable")
-        var implementedInterfaces = schema.GetImplementedInterfaces();
-        if (implementedInterfaces.Count > 0)
-        {
-            var interfaceList = string.Join(", ", implementedInterfaces);
-            recordName = recordName.Contains(" : ", StringComparison.Ordinal)
-                ? $"{recordName}, {interfaceList}"
-                : $"{recordName} : {interfaceList}";
-        }
+        // The base list - a polymorphic variant's base, then the x-implements interfaces - follows the parameter list
+        // ("record Pet(string Name) : IAnimal, ISerializable;"): kept out of the name, which names the type and its file
+        var recordName = schemaName;
+        var baseList = BaseList(baseTypeName, schema);
 
         var declarationModifier = declarationModifierOverride
             ?? (generatePartialModels
@@ -896,30 +718,122 @@ public static class SchemaExtractor
                 : DeclarationModifiers.PublicSealedRecord);
 
         // Build documentation tags from schema description and examples
-        var docTags = BuildDocumentationTags(schema);
+        var docTags = BuildDocumentationTags(schema, CompletePropertyDocs(propertyDocs, undocumentedProperties, sortedParameters));
 
         return new RecordParameters(
             DocumentationTags: docTags,
             DeclarationModifier: declarationModifier,
             Name: recordName,
             Parameters: sortedParameters,
-            Attributes: new List<AttributeParameters>
+            BaseTypeName: baseList,
+            Attributes: RecordAttributes(schema));
+    }
+
+    private static readonly AttributeParameters IntegerAsStringAttribute = new(
+        "global::System.Text.Json.Serialization.JsonNumberHandling",
+        "global::System.Text.Json.Serialization.JsonNumberHandling.AllowReadingFromString | global::System.Text.Json.Serialization.JsonNumberHandling.WriteAsString");
+
+    // type: string with an integer format: the C# type is the integer (an int or a long), the wire the string - also
+    // the items of an array and the values of a map, which the attribute on the property applies to
+    private static bool IsIntegerSentAsString(IOpenApiSchema schema)
+        => schema.Dereferenced is { } actual &&
+           (IsIntegerString(actual) ||
+            (actual.Type?.HasFlag(JsonSchemaType.Array) == true && actual.Items.Dereferenced is { } items && IsIntegerString(items)) ||
+            (actual.AdditionalProperties.Dereferenced is { } values && IsIntegerString(values)));
+
+    private static bool IsIntegerString(IOpenApiSchema schema)
+        => schema.IsString &&
+           schema.Format?.ToLowerInvariant() is "int32" or "int" or "int64" or "long";
+
+    private static readonly System.Text.RegularExpressions.Regex UnclosedLineBreak = new(
+        @"</?br\s*/?>",
+        System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant,
+        TimeSpan.FromSeconds(1));
+
+    /// <summary>
+    /// Makes a specification description fit for an XML doc comment: an HTML line break written the HTML way
+    /// (<c>&lt;br&gt;</c> or <c>&lt;/br&gt;</c>, which real specifications use) is closed, or the comment is malformed XML (CS1570).
+    /// </summary>
+    private static string WellFormedDocText(string text)
+        => UnclosedLineBreak.Replace(text, "<br/>");
+
+    /// <summary>
+    /// The base list a generated record declares after its parameter list: a polymorphic variant's base, then the
+    /// interfaces its schema's <c>x-implements</c> names - or null when it has neither.
+    /// </summary>
+    private static string? BaseList(
+        string? baseTypeName,
+        OpenApiSchema schema)
+    {
+        var bases = new List<string>();
+        if (!string.IsNullOrEmpty(baseTypeName))
+        {
+            bases.Add(baseTypeName!);
+        }
+
+        bases.AddRange(schema.GetImplementedInterfaces());
+        return bases.Count == 0 ? null : string.Join(", ", bases);
+    }
+
+    /// <summary>
+    /// The attributes of a generated record: [GeneratedCode], and [Obsolete] for a deprecated schema (generated with
+    /// includeDeprecated), so every consumer that uses the type is warned.
+    /// </summary>
+    private static List<AttributeParameters> RecordAttributes(
+        OpenApiSchema schema)
+    {
+        var attributes = new List<AttributeParameters>
+        {
+            new("GeneratedCode", $"\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\""),
+        };
+
+        if (schema.Deprecated)
+        {
+            attributes.Add(ObsoleteAttributeHelper.Attribute);
+        }
+
+        return attributes;
+    }
+
+    /// <summary>
+    /// Once one property of a record is documented every one must be (CS1573): the undocumented ones get a plain line,
+    /// and the docs follow the record's parameter order. No property documented, no parameter docs at all.
+    /// </summary>
+    private static Dictionary<string, string> CompletePropertyDocs(
+        Dictionary<string, string> propertyDocs,
+        Dictionary<string, string> undocumentedProperties,
+        IEnumerable<ParameterBaseParameters> parameters)
+    {
+        var docs = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (propertyDocs.Count == 0)
+        {
+            return docs;
+        }
+
+        foreach (var parameter in parameters)
+        {
+            if (propertyDocs.TryGetValue(parameter.Name, out var doc) ||
+                undocumentedProperties.TryGetValue(parameter.Name, out doc))
             {
-                new("GeneratedCode", $"\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\""),
-            });
+                docs[parameter.Name] = doc;
+            }
+        }
+
+        return docs;
     }
 
     /// <summary>
     /// Builds CodeDocumentationTags from an OpenAPI schema's description and example values.
     /// </summary>
     private static CodeDocumentationTags? BuildDocumentationTags(
-        OpenApiSchema schema)
+        OpenApiSchema schema,
+        IReadOnlyDictionary<string, string> propertyDocs)
     {
         var schemaSummary = schema.GetSchemaSummary();
         var hasDescription = schemaSummary is not null || !string.IsNullOrWhiteSpace(schema.Description);
         var example = ExtractExampleString(schema);
 
-        if (!hasDescription && example is null)
+        if (!hasDescription && example is null && propertyDocs.Count == 0)
         {
             return null;
         }
@@ -928,10 +842,11 @@ public static class SchemaExtractor
             ?? (string.IsNullOrWhiteSpace(schema.Description)
                 ? $"Represents a {schema.Title ?? "model"}."
                 : schema.Description!.Trim());
+        summary = WellFormedDocText(summary);
 
         return new CodeDocumentationTags(
             summary: summary,
-            parameters: null,
+            parameters: propertyDocs.Count > 0 ? propertyDocs : null,
             remark: null,
             code: null,
             example: example,
@@ -962,14 +877,6 @@ public static class SchemaExtractor
     }
 
     /// <summary>
-    /// Extracts the default value from an OpenAPI schema and formats it as a C# literal.
-    /// </summary>
-    private static string? ExtractSchemaDefault(
-        IOpenApiSchema? schemaInterface,
-        string typeName)
-        => DefaultValueHelper.ExtractSchemaDefault(schemaInterface, typeName);
-
-    /// <summary>
     /// Extracts a single record definition from an OpenAPI schema, with inline enum support.
     /// Inline enum properties are detected and tracked in the inlineEnums dictionary.
     /// </summary>
@@ -988,14 +895,17 @@ public static class SchemaExtractor
 
         // Generate empty records for schemas with no properties (e.g., Unit type for 204 No Content responses)
         var parametersList = new List<ParameterBaseParameters>();
-        var seenPropertyNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        // A property's description becomes the record's <param> doc for it (what IntelliSense shows for the property)
+        var propertyDocs = new Dictionary<string, string>(StringComparer.Ordinal);
+        var undocumentedProperties = new Dictionary<string, string>(StringComparer.Ordinal);
+        var propertyNames = new PropertyNameRegistry();
 
         foreach (var prop in properties)
         {
-            var propName = prop.Key.ToPascalCaseForDotNet();
-
-            // Skip duplicate property names (OpenAPI schemas can have duplicates via allOf composition)
-            if (!seenPropertyNames.Add(propName))
+            // A valid, unique name for every property; the same key listed twice (allOf composition) is skipped
+            var propName = propertyNames.Resolve(prop.Key, prop.Key.ToPascalCaseForDotNet());
+            if (propName is null)
             {
                 continue;
             }
@@ -1018,14 +928,14 @@ public static class SchemaExtractor
             string csharpType;
 
             // Check for inline enum before standard type resolution
-            if (InlineEnumExtractor.IsInlineEnumSchema(prop.Value))
+            if (prop.Value.IsInlineEnum)
             {
                 var actualSchema = (OpenApiSchema)prop.Value;
-                var enumTypeName = ResolveOrRegisterInlineEnum(actualSchema, schemaName, propName, ns, pathSegment, inlineEnumsByValuesKey);
+                var enumTypeName = ResolveOrRegisterInlineEnum(actualSchema, schemaName, propName, ns, pathSegment, inlineEnumsByValuesKey, registry?.ComponentTypeNames);
                 csharpType = enumTypeName ?? "string";
 
-                // Handle nullable for inline enums
-                if (!isRequired || actualSchema.IsNullable())
+                // Handle nullable for inline enums: optional without a default, or nullable by the schema
+                if ((!isRequired && !actualSchema.HasConstantDefault(registry)) || actualSchema.IsNullable)
                 {
                     csharpType += "?";
                 }
@@ -1037,12 +947,12 @@ public static class SchemaExtractor
                 // as List<T>. Dedup with scalar inline enums uses the same values-key
                 // map so identical value sets collapse to one type.
                 var actualArraySchema = (OpenApiSchema)prop.Value;
-                var enumTypeName = ResolveOrRegisterInlineEnum(arrayItemSchema!, schemaName, propName, ns, pathSegment, inlineEnumsByValuesKey);
+                var enumTypeName = ResolveOrRegisterInlineEnum(arrayItemSchema!, schemaName, propName, ns, pathSegment, inlineEnumsByValuesKey, registry?.ComponentTypeNames);
                 csharpType = enumTypeName is not null
                     ? $"List<{enumTypeName}>"
                     : prop.Value.ToCSharpTypeForModel(isRequired, registry);
 
-                if (!isRequired || actualArraySchema.IsNullable())
+                if (!isRequired || actualArraySchema.IsNullable)
                 {
                     csharpType += "?";
                 }
@@ -1062,7 +972,7 @@ public static class SchemaExtractor
                 : csharpType;
 
             // Get validation attributes from OpenAPI schema constraints
-            var validationAttributes = prop.Value.GetValidationAttributes(isRequired);
+            var validationAttributes = prop.Value.GetModelValidationAttributes(isRequired, isNullableType);
 
             // Use TypeHelpers extension methods for type classification
             var isReferenceType = cleanTypeName.IsReferenceType();
@@ -1081,15 +991,37 @@ public static class SchemaExtractor
                 attributesList.AddRange(validationAttributes.Select(attr => new AttributeParameters(attr, null)));
             }
 
+            // A number the specification sends as a JSON string (type: string, format: int64): read from and written as
+            // the string, so the wire stays what the specification says
+            if (IsIntegerSentAsString(prop.Value))
+            {
+                attributesList.Add(IntegerAsStringAttribute);
+            }
+
+            // deprecated: true warns every consumer that reads or sets the property
+            if (prop.Value.Deprecated)
+            {
+                attributesList.Add(ObsoleteAttributeHelper.Attribute);
+            }
+
+            if (!string.IsNullOrWhiteSpace(prop.Value.Description))
+            {
+                propertyDocs[propName] = WellFormedDocText(prop.Value.Description!.Trim());
+            }
+            else
+            {
+                undocumentedProperties[propName] = $"The {prop.Key} property.";
+            }
+
             IList<AttributeParameters>? attributes = attributesList.Count > 0
                 ? attributesList
                 : null;
 
-            // Extract default value from schema
-            var defaultValue = ExtractSchemaDefault(prop.Value, cleanTypeName);
+            // Extract default value from schema (null for an optional property: it may be absent)
+            var defaultValue = DefaultValueHelper.ForRecordParameter(DefaultValueHelper.ExtractSchemaDefault(prop.Value, cleanTypeName, registry), isRequired, isNullableType);
 
             // readOnly/writeOnly properties get a null default so they can be omitted in requests/responses
-            var resolvedPropForRw = prop.Value is OpenApiSchemaReference propRefRw ? propRefRw.Target : prop.Value;
+            var resolvedPropForRw = prop.Value.Dereferenced;
             if (resolvedPropForRw is OpenApiSchema actualPropForRw &&
                 (actualPropForRw.ReadOnly || actualPropForRw.WriteOnly) &&
                 string.IsNullOrEmpty(defaultValue))
@@ -1114,30 +1046,24 @@ public static class SchemaExtractor
             .OrderBy(p => p.DefaultValue is not null ? 1 : 0)
             .ToList();
 
-        // Append x-implements interfaces
+        // The x-implements interfaces follow the parameter list (see BaseList)
         var recordName = schemaName;
-        var implementedInterfaces = schema.GetImplementedInterfaces();
-        if (implementedInterfaces.Count > 0)
-        {
-            recordName = $"{schemaName} : {string.Join(", ", implementedInterfaces)}";
-        }
+        var baseList = BaseList(baseTypeName: null, schema);
 
         var declarationModifier = declarationModifierOverride
             ?? (generatePartialModels
                 ? DeclarationModifiers.PublicPartialRecord
                 : DeclarationModifiers.PublicSealedRecord);
 
-        var docTags = BuildDocumentationTags(schema);
+        var docTags = BuildDocumentationTags(schema, CompletePropertyDocs(propertyDocs, undocumentedProperties, sortedParameters));
 
         return new RecordParameters(
             DocumentationTags: docTags,
             DeclarationModifier: declarationModifier,
             Name: recordName,
             Parameters: sortedParameters,
-            Attributes: new List<AttributeParameters>
-            {
-                new("GeneratedCode", $"\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\""),
-            });
+            BaseTypeName: baseList,
+            Attributes: RecordAttributes(schema));
     }
 
     /// <summary>
@@ -1299,10 +1225,15 @@ public static class SchemaExtractor
         {
             foreach (var sub in schema.AllOf)
             {
-                // Resolve references to get the actual schema
+                // Resolve references to get the actual schema; a part that is itself an allOf (a base that
+                // extends another base) contributes everything it merges to, so the chain is flattened
                 var actualSub = sub is OpenApiSchemaReference subRef && subRef.Target is not null
                     ? subRef.Target
                     : sub;
+                if (actualSub is OpenApiSchema { AllOf.Count: > 0 } composite)
+                {
+                    actualSub = MergeAllOfProperties(composite);
+                }
 
                 if (actualSub.Properties is not null)
                 {
@@ -1360,30 +1291,34 @@ public static class SchemaExtractor
     }
 
     /// <summary>
-    /// Gets the base type's property names as constructor arguments for allOf inheritance.
+    /// Gets the base record's constructor parameter names, in the order its own extraction puts them (a base that
+    /// extends another base merges the chain first; parameters with a default value come last), so the derived
+    /// record forwards them as the base's constructor takes them.
     /// </summary>
     private static IList<string> GetBaseConstructorArguments(
         OpenApiDocument doc,
-        string baseSchemaName)
+        string baseSchemaName,
+        TypeConflictRegistry? registry)
     {
-        if (doc.Components?.Schemas is null)
+        if (doc.Components?.Schemas is null ||
+            !doc.Components.Schemas.TryGetValue(baseSchemaName, out var baseSchemaValue) ||
+            baseSchemaValue is not OpenApiSchema baseSchema)
         {
             return [];
         }
 
-        if (!doc.Components.Schemas.TryGetValue(baseSchemaName, out var baseSchema))
+        var effective = baseSchema.AllOf is { Count: > 0 }
+            ? MergeAllOfProperties(baseSchema)
+            : baseSchema;
+
+        if (effective.Properties is null || effective.Properties.Count == 0)
         {
             return [];
         }
 
-        if (baseSchema.Properties is null || baseSchema.Properties.Count == 0)
-        {
-            return [];
-        }
-
-        return baseSchema.Properties
-            .Select(p => p.Key.ToPascalCaseForDotNet())
-            .ToList();
+        var baseRecord = ExtractRecordFromSchema(OpenApiSchemaExtensions.SanitizeSchemaName(baseSchemaName), effective, registry);
+        return baseRecord?.Parameters?.Select(p => p.Name).ToList()
+               ?? effective.Properties.Select(p => p.Key.ToPascalCaseForDotNet()).ToList();
     }
 
     /// <summary>
@@ -1399,7 +1334,8 @@ public static class SchemaExtractor
         string propertyName,
         string ns,
         string pathSegment,
-        Dictionary<string, InlineEnumInfo> inlineEnumsByValuesKey)
+        Dictionary<string, InlineEnumInfo> inlineEnumsByValuesKey,
+        ISet<string>? componentTypeNames)
     {
         var valuesKey = InlineEnumExtractor.GetEnumValuesKey(enumSchema);
         if (inlineEnumsByValuesKey.TryGetValue(valuesKey, out var existing))
@@ -1407,7 +1343,7 @@ public static class SchemaExtractor
             return existing.TypeName;
         }
 
-        var enumTypeName = InlineEnumExtractor.GenerateInlineEnumTypeName(parentSchemaName, propertyName);
+        var enumTypeName = InlineEnumExtractor.GenerateInlineEnumTypeName(parentSchemaName, propertyName, componentTypeNames);
         var enumParams = InlineEnumExtractor.ExtractEnumFromInlineSchema(enumSchema, enumTypeName, ns);
         if (enumParams is null)
         {

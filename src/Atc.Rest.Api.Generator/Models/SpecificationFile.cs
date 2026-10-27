@@ -16,12 +16,6 @@ public sealed class SpecificationFile
     public string FileName => Path.GetFileName(FilePath);
 
     /// <summary>
-    /// The file name without extension.
-    /// </summary>
-    public string FileNameWithoutExtension
-        => Path.GetFileNameWithoutExtension(FilePath);
-
-    /// <summary>
     /// The YAML content of the file.
     /// </summary>
     public string Content { get; }
@@ -55,11 +49,6 @@ public sealed class SpecificationFile
     /// Number of schemas defined in this file.
     /// </summary>
     public int SchemaCount => Document?.Components?.Schemas?.Count ?? 0;
-
-    /// <summary>
-    /// Number of parameters defined in this file.
-    /// </summary>
-    public int ParameterCount => Document?.Components?.Parameters?.Count ?? 0;
 
     /// <summary>
     /// Number of operations defined in this file.
@@ -130,7 +119,9 @@ public sealed class SpecificationFile
 
         try
         {
-            document = OpenApiDocumentHelper.ParseYaml(content);
+            // Parsed (and cached) under the file's own path: every part keeps its document between
+            // generator runs, and relative references resolve against the real location.
+            (document, _) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(content, filePath);
         }
         catch
         {
@@ -139,6 +130,18 @@ public sealed class SpecificationFile
 
         return new SpecificationFile(filePath, content, document, isBase, isPart, partName);
     }
+
+    /// <summary>
+    /// Creates a SpecificationFile for an already parsed (e.g. merged) document.
+    /// </summary>
+    /// <param name="filePath">The file path the document stands for.</param>
+    /// <param name="content">The document's YAML.</param>
+    /// <param name="document">The document.</param>
+    public static SpecificationFile FromDocument(
+        string filePath,
+        string content,
+        OpenApiDocument document)
+        => new(filePath, content, document, isBaseFile: true, isPartFile: false, partName: null);
 
     /// <summary>
     /// Creates an empty SpecificationFile for error cases.

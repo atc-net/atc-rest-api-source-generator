@@ -5,11 +5,22 @@ namespace NexusSample.Api.Domain.ApiHandlers.DeviceManagement;
 /// </summary>
 public sealed class GetDeviceManagementDevicesHandler : IGetDeviceManagementDevicesHandler
 {
+    private readonly DeviceInMemoryRepository repository;
+
+    public GetDeviceManagementDevicesHandler(
+        DeviceInMemoryRepository repository)
+        => this.repository = repository;
+
     public Task<GetDeviceManagementDevicesResult> ExecuteAsync(
         GetDeviceManagementDevicesParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        // TODO: Implement getDeviceManagementDevices logic
-        throw new NotImplementedException("getDeviceManagementDevices not implemented");
+        // A continuation token from an earlier page wins over the page index
+        var pageIndex = int.TryParse(parameters.ContinuationToken, NumberStyles.Integer, CultureInfo.InvariantCulture, out var skip)
+            ? skip / parameters.PageSize
+            : parameters.PageIndex ?? 0;
+
+        return Task.FromResult(GetDeviceManagementDevicesResult.Ok(
+            repository.GetDeviceManagementPagesStreaming(parameters.PageSize, pageIndex, parameters.Filter, cancellationToken)));
     }
 }

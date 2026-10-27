@@ -85,9 +85,35 @@ public static class OAuthDependencyInjectionExtractor
         builder.AppendLine(8, "this IServiceCollection services,");
         builder.AppendLine(8, "Action<OAuthClientOptions>? configure = null)");
         builder.AppendLine(4, "{");
+
+        // Each option read by generated code, not by the reflection-based configuration binder (whose source
+        // generator never sees generated code): a value given overrides the default, a number that does not parse
+        // is an error naming the key
         builder.AppendLine(8, "// Configure options from appsettings.json");
         builder.AppendLine(8, "var optionsBuilder = services.AddOptions<OAuthClientOptions>()");
-        builder.AppendLine(12, $".BindConfiguration(\"{configSection}\");");
+        builder.AppendLine(12, ".Configure<global::Microsoft.Extensions.Configuration.IConfiguration>((options, configuration) =>");
+        builder.AppendLine(12, "{");
+        builder.AppendLine(16, $"var section = configuration.GetSection(\"{configSection}\");");
+        var textOptions = oauthConfig.SupportsRefreshTokens
+            ? new[] { "TokenUrl", "ClientId", "ClientSecret", "Scopes", "RefreshUrl" }
+            : ["TokenUrl", "ClientId", "ClientSecret", "Scopes"];
+        foreach (var option in textOptions)
+        {
+            var variable = IdentifierCasingHelper.ToLower(option[0]) + option.Substring(1);
+            builder.AppendLine(16, $"if (section[\"{option}\"] is {{ }} {variable})");
+            builder.AppendLine(16, "{");
+            builder.AppendLine(20, $"options.{option} = {variable};");
+            builder.AppendLine(16, "}");
+            builder.AppendLine();
+        }
+
+        builder.AppendLine(16, "if (section[\"RefreshBufferSeconds\"] is { } refreshBufferSeconds)");
+        builder.AppendLine(16, "{");
+        builder.AppendLine(20, "options.RefreshBufferSeconds = int.TryParse(refreshBufferSeconds, global::System.Globalization.NumberStyles.Integer, global::System.Globalization.CultureInfo.InvariantCulture, out var seconds)");
+        builder.AppendLine(24, "? seconds");
+        builder.AppendLine(24, $": throw new InvalidOperationException($\"'{{refreshBufferSeconds}}' at {configSection}:RefreshBufferSeconds is not a whole number of seconds.\");");
+        builder.AppendLine(16, "}");
+        builder.AppendLine(12, "});");
         builder.AppendLine();
         builder.AppendLine(8, "// Apply additional configuration if provided");
         builder.AppendLine(8, "if (configure is not null)");

@@ -89,9 +89,11 @@ public class GeneratorScenarioSnapshotTests
             .Select(s => s.Name + ".verified.cs")
             .ToHashSet(StringComparer.Ordinal);
 
+        // By path relative to the master folder: snapshots are written flat, so one in a subfolder is an orphan even
+        // when a file of the same name is emitted
         var orphans = Directory
             .EnumerateFiles(directory, "*.verified.cs", SearchOption.AllDirectories)
-            .Select(Path.GetFileName)
+            .Select(f => Path.GetRelativePath(directory, f))
             .Where(n => !expected.Contains(n))
             .OrderBy(n => n, StringComparer.Ordinal)
             .ToList();
@@ -100,5 +102,30 @@ public class GeneratorScenarioSnapshotTests
             orphans.Count == 0,
             $"{scenarioName}/{masterFolder}: {orphans.Count} snapshot(s) no longer emitted by the " +
             $"generator:\n  {string.Join("\n  ", orphans)}");
+    }
+
+    /// <summary>
+    /// Every folder that holds C# snapshots is a master folder whose marker makes the tests above run it: a folder
+    /// without one (a marker deleted or renamed) is never generated, so its snapshots are verified by nothing.
+    /// </summary>
+    [Fact]
+    public void EveryFolderOfCSharpSnapshots_IsAMasterFolderWithItsMarker()
+    {
+        var root = GeneratorSnapshotHarness.GetScenariosRoot();
+        var run = GeneratorSnapshotHarness
+            .GetConvertedScenarioGeneratorData()
+            .Select(row => $"{row[0]}/{row[1]}")
+            .ToHashSet(StringComparer.Ordinal);
+
+        var unverified = Directory
+            .EnumerateFiles(root, "*.verified.cs", SearchOption.AllDirectories)
+            .Select(f => Path.GetRelativePath(root, f).Replace('\\', '/').Split('/'))
+            .Select(parts => $"{parts[0]}/{(parts.Length > 2 ? parts[1] : "(scenario root)")}")
+            .Distinct(StringComparer.Ordinal)
+            .Where(folder => !run.Contains(folder))
+            .OrderBy(f => f, StringComparer.Ordinal)
+            .ToList();
+
+        Assert.True(unverified.Count == 0, "Folders of C# snapshots no test generates:\n  " + string.Join("\n  ", unverified));
     }
 }

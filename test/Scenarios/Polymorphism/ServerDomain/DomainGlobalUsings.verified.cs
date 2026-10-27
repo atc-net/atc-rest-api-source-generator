@@ -1,3 +1,4 @@
+#pragma warning disable CS1591
 global using Polymorphism.Generated.Notifications.Handlers;
 global using Polymorphism.Generated.Notifications.Parameters;
 global using Polymorphism.Generated.Notifications.Results;

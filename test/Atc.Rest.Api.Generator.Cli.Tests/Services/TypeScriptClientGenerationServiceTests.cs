@@ -3,6 +3,87 @@ namespace Atc.Rest.Api.Generator.Cli.Tests.Services;
 public class TypeScriptClientGenerationServiceTests
 {
     [Fact]
+    public void Generate_Again_RemovesTheFilesOfRemovedSchemas_AndKeepsHandWrittenFiles()
+    {
+        const string withOwner = """
+                                 openapi: 3.0.0
+                                 info:
+                                   title: Test API
+                                   version: 1.0.0
+                                 paths:
+                                   /pets:
+                                     get:
+                                       operationId: listPets
+                                       responses:
+                                         '200':
+                                           description: OK
+                                           content:
+                                             application/json:
+                                               schema:
+                                                 $ref: '#/components/schemas/Pet'
+                                 components:
+                                   schemas:
+                                     Pet:
+                                       type: object
+                                       properties:
+                                         owner:
+                                           $ref: '#/components/schemas/Owner'
+                                     Owner:
+                                       type: object
+                                       properties:
+                                         name:
+                                           type: string
+                                 """;
+        const string withoutOwner = """
+                                    openapi: 3.0.0
+                                    info:
+                                      title: Test API
+                                      version: 1.0.0
+                                    paths:
+                                      /pets:
+                                        get:
+                                          operationId: listPets
+                                          responses:
+                                            '200':
+                                              description: OK
+                                              content:
+                                                application/json:
+                                                  schema:
+                                                    $ref: '#/components/schemas/Pet'
+                                    components:
+                                      schemas:
+                                        Pet:
+                                          type: object
+                                          properties:
+                                            name:
+                                              type: string
+                                    """;
+        var output = Path.Combine(Path.GetTempPath(), "atc-ts-prune", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            var config = new TypeScriptClientConfig { GenerateFileHeaders = true, Scaffold = false };
+            TypeScriptClientGenerationService.Generate(ParseYaml(withOwner)!, output, config);
+            Assert.True(File.Exists(Path.Combine(output, "models", "Owner.ts")));
+            var handWritten = Path.Combine(output, "models", "extensions.ts");
+            File.WriteAllText(handWritten, "export const answer = 42;\n");
+
+            TypeScriptClientGenerationService.Generate(ParseYaml(withoutOwner)!, output, config);
+
+            Assert.False(File.Exists(Path.Combine(output, "models", "Owner.ts")), "the file of a schema that is gone is removed");
+            Assert.True(File.Exists(Path.Combine(output, "models", "Pet.ts")));
+            Assert.True(File.Exists(handWritten), "a file without the generated header is never removed");
+        }
+        finally
+        {
+            if (Directory.Exists(output))
+            {
+                Directory.Delete(output, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public void Generate_OperationWithCookieParameter_EmitsWarningNamingParamAndOperation()
     {
         const string yaml = """
@@ -174,6 +255,28 @@ public class TypeScriptClientGenerationServiceTests
         // The barrel must re-export './handlers' so consumers picking up the root
         // `export * from './mocks'` still see the combined handlers array.
         Assert.Contains("from './handlers'", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Generate_WithMswEnabled_HandlersMatchAnApiWithABasePath()
+    {
+        // AsyncEnumerableHooks declares `servers: - url: /api/v1`, so the client requests /api/v1/items; a handler
+        // for '/items' never matches. The handlers match any origin and base path (an MSW `*` prefix), so the mocks
+        // answer whatever base URL the ApiClient is given.
+        var document = ParseYaml(File.ReadAllText(CliTestHelper.GetScenarioYamlPath("AsyncEnumerableHooks")));
+        Assert.NotNull(document);
+
+        using var output = new TempDirectory();
+        TypeScriptClientGenerationService.Generate(
+            document,
+            output.Path,
+            new TypeScriptClientConfig { DryRun = false, GenerateMswHandlers = true });
+
+        var content = File.ReadAllText(Path.Combine(output.Path, "mocks", "items.ts"));
+
+        Assert.Contains("http.get('*/items', () => {", content, StringComparison.Ordinal);
+        Assert.Contains("http.get('*/items/:itemId/logs', () => {", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("http.get('/items'", content, StringComparison.Ordinal);
     }
 
     private sealed class TempDirectory : IDisposable

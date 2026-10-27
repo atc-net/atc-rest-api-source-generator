@@ -1,10 +1,19 @@
 namespace Atc.CodeGeneration.TypeScript.Content.Generators;
 
+/// <summary>
+/// Writes a complete TypeScript interface file: header, imports, JSDoc, the interface declaration with its
+/// <c>extends</c> clause, then properties and method signatures separated by blank lines.
+/// </summary>
 public class GenerateContentForInterface : IContentGenerator
 {
     private readonly GenerateContentWriter writer;
     private readonly TypeScriptInterfaceParameters parameters;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="GenerateContentForInterface"/> class.
+    /// </summary>
+    /// <param name="writer">Renders the file top and the members.</param>
+    /// <param name="parameters">What the interface is made of.</param>
     public GenerateContentForInterface(
         GenerateContentWriter writer,
         TypeScriptInterfaceParameters parameters)
@@ -13,6 +22,10 @@ public class GenerateContentForInterface : IContentGenerator
         this.parameters = parameters ?? throw new ArgumentNullException(nameof(parameters));
     }
 
+    /// <summary>
+    /// Renders the interface file.
+    /// </summary>
+    /// <returns>The TypeScript source of the interface, ending in a line break.</returns>
     public string Generate()
     {
         var sb = new StringBuilder();

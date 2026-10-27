@@ -5,6 +5,9 @@ namespace PetStoreFull.ApiHandlers;
 /// </summary>
 public sealed class CreateUsersWithListInputHandler : ICreateUsersWithListInputHandler
 {
+    /// <summary>
+    /// Executes the CreateUsersWithListInput operation.
+    /// </summary>
     public Task<CreateUsersWithListInputResult> ExecuteAsync(
         CreateUsersWithListInputParameters parameters,
         CancellationToken cancellationToken = default)

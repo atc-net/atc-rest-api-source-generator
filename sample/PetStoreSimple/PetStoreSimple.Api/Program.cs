@@ -3,11 +3,23 @@ var builder = WebApplication.CreateSlimBuilder(args);
 // Configure OpenAPI document generation
 builder.Services.AddOpenApi();
 
+// RFC 9457 ProblemDetails for every error
+builder.Services.AddProblemDetails();
+
 // Register PetStore dependencies
 builder.Services.AddSingleton<PetInMemoryRepository>();
 builder.Services.AddApiHandlersFromDomain();
 
 var app = builder.Build();
+
+// Outside Development an unhandled exception is a 500 ProblemDetails, not an empty 500 (Development keeps the developer exception page)
+if (!app.Environment.IsDevelopment())
+{
+    app.UseExceptionHandler();
+}
+
+// A ProblemDetails body for error responses that have none (first in the pipeline)
+app.UseStatusCodePages();
 
 if (app.Environment.IsDevelopment())
 {

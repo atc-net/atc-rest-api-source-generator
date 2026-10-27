@@ -57,4 +57,22 @@ public class DefaultValueHelperTests
         // Assert
         Assert.Null(result);
     }
+
+    // ========== ForRecordParameter Tests ==========
+    [Theory]
+    [InlineData("42", true, false, "42")] // the schema default always wins
+    [InlineData("42", false, true, "42")]
+    [InlineData(null, false, true, "null")] // optional and nullable: may be absent, so it defaults to null
+    [InlineData(null, true, true, null)] // required: the caller must supply it
+    [InlineData(null, false, false, null)] // optional but non-nullable: no C# default
+    public void ForRecordParameter_ReturnsExpectedResult(
+        string? schemaDefault,
+        bool isRequired,
+        bool isNullableType,
+        string? expected)
+    {
+        var result = DefaultValueHelper.ForRecordParameter(schemaDefault, isRequired, isNullableType);
+
+        Assert.Equal(expected, result);
+    }
 }

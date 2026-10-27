@@ -25,6 +25,21 @@ public static class PolicyNamingHelper
             result.Append(part.ToPascalCaseForDotNet());
         }
 
+        // A name of symbols only is spelled by its code units, so it is still an identifier and still its own; a name
+        // that starts with a digit gets an underscore in front
+        if (result.Length == 0)
+        {
+            result.Append("Policy");
+            foreach (var c in policyName)
+            {
+                result.Append('U').Append(((int)c).ToString("X4", System.Globalization.CultureInfo.InvariantCulture));
+            }
+        }
+        else if (char.IsDigit(result[0]))
+        {
+            result.Insert(0, '_');
+        }
+
         return result.ToString();
     }
 }

@@ -810,125 +810,6 @@ public class PolicyExtractorTests
 
     // ========== EndpointRegistrationExtractor ==========
     [Fact]
-    public void EndpointRegistrationExtractor_WithPaths_ProducesClassParameters()
-    {
-        // Arrange
-        const string yaml = """
-                            openapi: 3.0.0
-                            info:
-                              title: Test
-                              version: 1.0.0
-                            paths:
-                              /pets:
-                                get:
-                                  operationId: listPets
-                                  summary: List all pets
-                                  tags:
-                                    - Pets
-                                  responses:
-                                    '200':
-                                      description: OK
-                              /pets/{petId}:
-                                get:
-                                  operationId: getPet
-                                  summary: Get a pet by ID
-                                  parameters:
-                                    - name: petId
-                                      in: path
-                                      required: true
-                                      schema:
-                                        type: string
-                                  responses:
-                                    '200':
-                                      description: OK
-                                    '404':
-                                      description: Not found
-                            """;
-
-        var document = OpenApiDocumentHelper.ParseYaml(yaml);
-
-        // Act
-        var result = EndpointRegistrationExtractor.Extract(document, "TestApi");
-
-        // Assert
-        Assert.NotNull(result);
-        Assert.Equal("EndpointRegistration", result.ClassTypeName);
-        Assert.NotNull(result.Methods);
-        Assert.Single(result.Methods);
-
-        var method = result.Methods[0];
-        Assert.Equal("MapTestApiEndpoints", method.Name);
-        Assert.Equal("IEndpointRouteBuilder", method.ReturnTypeName);
-        Assert.NotNull(method.Content);
-        Assert.Contains("MapGet", method.Content, StringComparison.Ordinal);
-        Assert.Contains("/pets", method.Content, StringComparison.Ordinal);
-        Assert.Contains("/pets/{petId}", method.Content, StringComparison.Ordinal);
-        Assert.Contains("IListPetsHandler", method.Content, StringComparison.Ordinal);
-        Assert.Contains("IGetPetHandler", method.Content, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void EndpointRegistrationExtractor_WithPostOperation_GeneratesMapPost()
-    {
-        // Arrange
-        const string yaml = """
-                            openapi: 3.0.0
-                            info:
-                              title: Test
-                              version: 1.0.0
-                            paths:
-                              /pets:
-                                post:
-                                  operationId: createPet
-                                  requestBody:
-                                    required: true
-                                    content:
-                                      application/json:
-                                        schema:
-                                          type: object
-                                          properties:
-                                            name:
-                                              type: string
-                                  responses:
-                                    '201':
-                                      description: Created
-                            """;
-
-        var document = OpenApiDocumentHelper.ParseYaml(yaml);
-
-        // Act
-        var result = EndpointRegistrationExtractor.Extract(document, "TestApi");
-
-        // Assert
-        Assert.NotNull(result);
-        var method = result.Methods[0];
-        Assert.Contains("MapPost", method.Content, StringComparison.Ordinal);
-        Assert.Contains("CreatePetParameters", method.Content, StringComparison.Ordinal);
-        Assert.Contains("ICreatePetHandler", method.Content, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void EndpointRegistrationExtractor_WithNoPaths_ReturnsNull()
-    {
-        // Arrange
-        const string yaml = """
-                            openapi: 3.0.0
-                            info:
-                              title: Test
-                              version: 1.0.0
-                            paths: {}
-                            """;
-
-        var document = OpenApiDocumentHelper.ParseYaml(yaml);
-
-        // Act
-        var result = EndpointRegistrationExtractor.Extract(document, "TestApi");
-
-        // Assert
-        Assert.Null(result);
-    }
-
-    [Fact]
     public void EndpointRegistrationExtractor_ExtractEndpointMappingExtension_WithClassNames_ProducesMapping()
     {
         // Arrange
@@ -1057,7 +938,7 @@ public class PolicyExtractorTests
         Assert.Single(result.Methods);
 
         var method = result.Methods[0];
-        Assert.Equal("MapTestApiWebhooks", method.Name);
+        Assert.Equal("MapTestWebhooks", method.Name);
         Assert.NotNull(method.Content);
         Assert.Contains("/webhooks", method.Content, StringComparison.Ordinal);
         Assert.Contains("MapPost", method.Content, StringComparison.Ordinal);
@@ -1107,6 +988,58 @@ public class PolicyExtractorTests
         Assert.NotNull(result);
         var method = result.Methods[0];
         Assert.Contains("/api/hooks", method.Content, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A webhook's response metadata comes from the same helpers as an endpoint's: a status without a StatusCodes
+    /// constant is its number (not a constant that does not exist), and an error response is described as the shape
+    /// its body declares.
+    /// </summary>
+    [Fact]
+    public void WebhookEndpointExtractor_ResponseMetadata_SharesTheEndpointHelpers()
+    {
+        const string yaml = """
+                            openapi: 3.1.1
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths: {}
+                            webhooks:
+                              newPet:
+                                post:
+                                  operationId: onNewPet
+                                  responses:
+                                    '200':
+                                      description: OK
+                                    '599':
+                                      description: Closed
+                                    '422':
+                                      description: Rejected
+                                      content:
+                                        application/problem+json:
+                                          schema:
+                                            $ref: '#/components/schemas/ProblemDetails'
+                                    default:
+                                      description: Anything else
+                            components:
+                              schemas:
+                                ProblemDetails:
+                                  type: object
+                                  properties:
+                                    detail:
+                                      type: string
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+
+        var result = WebhookEndpointExtractor.Extract(document, "TestApi", new ServerConfig());
+
+        Assert.NotNull(result);
+        var content = result.Methods[0].Content!;
+        Assert.Contains(".ProducesProblem(599)", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("Status599", content, StringComparison.Ordinal);
+        Assert.Contains(".ProducesProblem(StatusCodes.Status422UnprocessableEntity)", content, StringComparison.Ordinal);
+        Assert.DoesNotContain(".ProducesValidationProblem()", content, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1188,7 +1121,9 @@ public class PolicyExtractorTests
         var (className, content) = result[0];
         Assert.Equal("OnNewPetWebhookParameters", className);
         Assert.Contains("Pet Payload", content, StringComparison.Ordinal);
-        Assert.Contains("[FromBody]", content, StringComparison.Ordinal);
+
+        // A JSON model payload is read by the model's generated reader, not [FromBody]
+        Assert.DoesNotContain("[FromBody]", content, StringComparison.Ordinal);
         Assert.Contains("[Required]", content, StringComparison.Ordinal);
         Assert.Contains("sealed class OnNewPetWebhookParameters", content, StringComparison.Ordinal);
     }

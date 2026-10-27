@@ -41,8 +41,10 @@ public sealed class UploadSingleObjectWithFileAsFormDataHandler : IUploadSingleO
 
             var content = memoryStream.ToArray();
 
-            // Use ItemName as base for filename, with tags info
-            var fileName = $"{itemName}-{string.Join("-", items)}.bin";
+            // Use ItemName as base for filename, with tags info - and the author from the metadata, which the client
+            // sent as an application/x-www-form-urlencoded part of the form (as the specification's encoding names)
+            var author = request.Metadata?.Author is { Length: > 0 } name ? $"{name}-" : string.Empty;
+            var fileName = $"{author}{itemName}-{string.Join("-", items)}.bin";
 
             await repository
                 .SaveAsync(fileName, "application/octet-stream", content, cancellationToken)

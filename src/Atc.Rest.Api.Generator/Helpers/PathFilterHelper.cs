@@ -44,6 +44,47 @@ public static class PathFilterHelper
     }
 
     /// <summary>
+    /// Returns a document that holds only the paths the include/exclude patterns allow.
+    /// The given document is never changed: it may be a cached instance that other
+    /// generators, projects and later builds read too. Without a filter it is returned as is.
+    /// </summary>
+    /// <param name="document">The parsed OpenAPI document.</param>
+    /// <param name="includePaths">Glob patterns to include (null = include all).</param>
+    /// <param name="excludePaths">Glob patterns to exclude (null = exclude none).</param>
+    /// <returns>The document itself, or a copy with the filtered paths.</returns>
+    public static OpenApiDocument WithFilteredPaths(
+        OpenApiDocument document,
+        IList<string>? includePaths,
+        IList<string>? excludePaths)
+    {
+        if (document is null)
+        {
+            throw new ArgumentNullException(nameof(document));
+        }
+
+        if (includePaths is not { Count: > 0 } && excludePaths is not { Count: > 0 })
+        {
+            return document;
+        }
+
+        var allowedPaths = FilterPaths(document.Paths.Keys, includePaths, excludePaths);
+
+        var filteredPaths = new OpenApiPaths();
+        foreach (var path in document.Paths)
+        {
+            if (allowedPaths.Contains(path.Key))
+            {
+                filteredPaths.Add(path.Key, path.Value);
+            }
+        }
+
+        return new OpenApiDocument(document)
+        {
+            Paths = filteredPaths,
+        };
+    }
+
+    /// <summary>
     /// Checks if a path matches any of the given glob patterns.
     /// </summary>
     public static bool MatchesAnyPattern(

@@ -1,10 +1,19 @@
 namespace Atc.CodeGeneration.TypeScript.Content.Generators;
 
+/// <summary>
+/// Writes a complete TypeScript type alias file: header, imports, JSDoc and
+/// <c>export type Name&lt;T&gt; = definition;</c>.
+/// </summary>
 public class GenerateContentForTypeAlias : IContentGenerator
 {
     private readonly TypeScriptTypeAliasParameters parameters;
     private readonly IJsDocCommentGenerator jsDocCommentGenerator;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="GenerateContentForTypeAlias"/> class.
+    /// </summary>
+    /// <param name="jsDocCommentGenerator">Renders the JSDoc of the alias.</param>
+    /// <param name="parameters">What the alias is made of.</param>
     public GenerateContentForTypeAlias(
         IJsDocCommentGenerator jsDocCommentGenerator,
         TypeScriptTypeAliasParameters parameters)
@@ -13,6 +22,10 @@ public class GenerateContentForTypeAlias : IContentGenerator
         this.parameters = parameters ?? throw new ArgumentNullException(nameof(parameters));
     }
 
+    /// <summary>
+    /// Renders the type alias file.
+    /// </summary>
+    /// <returns>The TypeScript source of the alias, ending in a line break.</returns>
     public string Generate()
     {
         var sb = new StringBuilder();

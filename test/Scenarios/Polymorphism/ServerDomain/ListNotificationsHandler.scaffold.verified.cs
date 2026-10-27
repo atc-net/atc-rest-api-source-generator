@@ -5,6 +5,9 @@ namespace Polymorphism.ApiHandlers;
 /// </summary>
 public sealed class ListNotificationsHandler : IListNotificationsHandler
 {
+    /// <summary>
+    /// Executes the ListNotifications operation.
+    /// </summary>
     public Task<ListNotificationsResult> ExecuteAsync(
         CancellationToken cancellationToken = default)
     {

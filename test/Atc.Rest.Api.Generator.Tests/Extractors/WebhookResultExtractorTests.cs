@@ -43,6 +43,34 @@ public class WebhookResultExtractorTests
     }
 
     [Fact]
+    public void Extract_ResultClass_IsANestedHttpResultOfTheResultItWraps()
+    {
+        var yaml = """
+            openapi: 3.1.1
+            info:
+              title: Test API
+              version: 1.0.0
+            paths: {}
+            webhooks:
+              notify:
+                post:
+                  operationId: onNotify
+                  responses:
+                    '200':
+                      description: Received
+            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+
+        var result = WebhookResultExtractor.Extract(document, "TestApi");
+
+        Assert.NotNull(result);
+        var (_, content) = Assert.Single(result);
+        Assert.Contains("public sealed class OnNotifyWebhookResult : IResult, INestedHttpResult", content, StringComparison.Ordinal);
+        Assert.Contains("public IResult Result => innerResult;", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Extract_DefaultStatusCode_MapsToStatusCode500()
     {
         var yaml = """

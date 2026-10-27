@@ -83,9 +83,73 @@ public static class RuleIdentifiers
     public const string HandlerStubShadowed = "ATC_API_GEN012";
 
     /// <summary>
-    /// ATC_API_GEN013: A marker file could not be deserialized; default configuration was used.
+    /// ATC_API_GEN013: A marker file could not be read - no JSON, or a setting with a value of the wrong kind (named);
+    /// nothing is generated until it is fixed. Error.
     /// </summary>
     public const string MarkerConfigParseError = "ATC_API_GEN013";
+
+    /// <summary>
+    /// ATC_API_GEN014: A marker file has a setting the generator does not have, or a value a setting does not know.
+    /// </summary>
+    public const string MarkerConfigUnknownSetting = "ATC_API_GEN014";
+
+    /// <summary>
+    /// ATC_API_GEN015: An overlay the marker file lists is not an AdditionalFiles item of the project.
+    /// </summary>
+    public const string OverlayNotFound = "ATC_API_GEN015";
+
+    /// <summary>
+    /// ATC_API_GEN016: An overlay is invalid or one of its actions cannot be applied; nothing is generated.
+    /// </summary>
+    public const string OverlayInvalid = "ATC_API_GEN016";
+
+    /// <summary>
+    /// ATC_API_GEN017: An overlay action's target selects nothing, so the action changes nothing.
+    /// </summary>
+    public const string OverlayTargetSelectsNothing = "ATC_API_GEN017";
+
+    /// <summary>
+    /// ATC_API_GEN018: An overlay file is an AdditionalFiles item, but the marker file does not list it.
+    /// </summary>
+    public const string OverlayNotListed = "ATC_API_GEN018";
+
+    /// <summary>
+    /// ATC_API_GEN019: A handler scaffold cannot be written to disk (the folder is a file, the path is too long, no
+    /// access); it is still part of the build's compilation.
+    /// </summary>
+    public const string HandlerScaffoldNotWritten = "ATC_API_GEN019";
+
+    /// <summary>
+    /// ATC_API_GEN020: A project has two marker files of one kind (two '.atc-rest-api-server', say): the generator
+    /// takes one configuration per project, and names both files; nothing is generated until one is removed. Error.
+    /// </summary>
+    public const string MultipleMarkerFiles = "ATC_API_GEN020";
+
+    /// <summary>
+    /// ATC_API_GEN021: A project has two base specifications (two files that are no part of each other, 'Api.yaml' and
+    /// 'Legacy.yaml'): the generator reads one specification per project. Nothing is generated.
+    /// </summary>
+    public const string MultipleSpecifications = "ATC_API_GEN021";
+
+    /// <summary>
+    /// ATC_API_GEN022: The marker's 'namespace' is no C# namespace ('Contoso Api', 'contoso-billing.v2') and was
+    /// written as one ('ContosoApi', 'ContosoBilling.V2'). Information: the generated code is in the namespace the
+    /// message names, not in the one the marker spells.
+    /// </summary>
+    public const string MarkerNamespaceRewritten = "ATC_API_GEN022";
+
+    /// <summary>
+    /// ATC_API_GEN023: The marker sets 'readEnumMemberNames': string enums are also read by their C# member names.
+    /// Information: the key is for a rollout next to peers built on 2.x, and should go once none is left.
+    /// </summary>
+    public const string ReadEnumMemberNamesOn = "ATC_API_GEN023";
+
+    /// <summary>
+    /// ATC_API_GEN024: An operation has no handler, and the scaffold is not written into the project because
+    /// AtcRestApiScaffoldHandlers is false (the package's default for a CI build): the stub is part of the build and
+    /// answers 501. Warning.
+    /// </summary>
+    public const string HandlerNotImplemented = "ATC_API_GEN024";
 
     // ========== Dependency Rules (DEP) ==========
 
@@ -103,11 +167,6 @@ public static class RuleIdentifiers
     /// ATC_API_DEP003: Client EndpointPerOperation mode requires Atc.Rest.Client reference.
     /// </summary>
     public const string ClientRequiresAtcRestClient = "ATC_API_DEP003";
-
-    /// <summary>
-    /// ATC_API_DEP004: Rate limiting extensions require Microsoft.AspNetCore.RateLimiting reference.
-    /// </summary>
-    public const string RateLimitingRequiresPackage = "ATC_API_DEP004";
 
     /// <summary>
     /// ATC_API_DEP005: Resilience extensions require Microsoft.Extensions.Http.Resilience reference.
@@ -139,6 +198,51 @@ public static class RuleIdentifiers
     /// </summary>
     public const string HealthChecksPackageRecommended = "ATC_API_DEP010";
 
+    /// <summary>
+    /// ATC_API_DEP011: Client EndpointPerOperation mode (and the typed client's Result style) requires Atc.Rest.Client 2.7.0 or later.
+    /// </summary>
+    public const string AtcRestClientTooOld = "ATC_API_DEP011";
+
+    /// <summary>
+    /// ATC_API_DEP012: The specification declares SignalR hubs (x-signalr-hubs) and the client project does not
+    /// reference Microsoft.AspNetCore.SignalR.Client, so the typed hub clients are not generated.
+    /// </summary>
+    public const string SignalRClientPackageRecommended = "ATC_API_DEP012";
+
+    /// <summary>
+    /// ATC_API_DEP013: The server builds on Atc.Rest.MinimalApi (its endpoint interface, ValidationFilter or error
+    /// handler) and the project references a version older than 3.1.1.
+    /// </summary>
+    public const string MinimalApiTooOld = "ATC_API_DEP013";
+
+    /// <summary>
+    /// ATC_API_DEP014: A TypedClient that uses a type of Atc.Rest.Client (a file, IFileContent; the Result style) and the
+    /// project does not reference the package.
+    /// </summary>
+    public const string TypedClientRequiresAtcRestClient = "ATC_API_DEP014";
+
+    /// <summary>
+    /// ATC_API_HUB001: A member of a SignalR hub (x-signalr-hubs) cannot be read - a payload, an answer or an argument the
+    /// generator does not understand, payload next to arguments, an argument without a name or payload, a name twice,
+    /// more arguments than SignalR's typed handlers take, an answer on an event, a member without a name.
+    /// </summary>
+    public const string SignalRHubMemberUnreadable = "ATC_API_HUB001";
+
+    /// <summary>
+    /// ATC_API_AOT001: The project turns the Request Delegate Generator on (EnableRequestDelegateGenerator, which
+    /// PublishAot sets), but that generator does not see the endpoints this one emits: they are bound by reflection
+    /// at run time, which trimming and Native AOT do not support - and the build's trim analysis does not say so.
+    /// </summary>
+    public const string RequestDelegateGeneratorDoesNotSeeTheEndpoints = "ATC_API_AOT001";
+
+    /// <summary>
+    /// ATC_API_AOT002: With the Request Delegate Generator on, the root namespace's first segment is a name found
+    /// from inside Microsoft.AspNetCore.Http.Generated (a type of Microsoft.AspNetCore.Http, a namespace of
+    /// Microsoft.AspNetCore or Microsoft). That generator writes an [AsParameters] type without 'global::', so its
+    /// output does not compile under such a namespace (CS0426).
+    /// </summary>
+    public const string RootNamespaceBindsToAnAspNetCoreName = "ATC_API_AOT002";
+
     // ========== OpenAPI Validation Rules (VAL) ==========
 
     /// <summary>
@@ -150,6 +254,12 @@ public static class RuleIdentifiers
     /// ATC_API_VAL002: OpenAPI 2.0 not supported - must use OpenAPI 3.0.x.
     /// </summary>
     public const string OpenApi20NotSupported = "ATC_API_VAL002";
+
+    /// <summary>
+    /// ATC_API_VAL003: A warning from the Microsoft.OpenApi reader (except the kinds a rule of its own reports: a
+    /// missing schema is SCH013, a reference cycle SCH023). Warning, Standard and Strict.
+    /// </summary>
+    public const string OpenApiCoreWarning = "ATC_API_VAL003";
 
     // ========== Naming Convention Rules (NAM) ==========
 
@@ -241,6 +351,13 @@ public static class RuleIdentifiers
     /// </summary>
     public const string MutualTlsSchemeNoCertInjection = "ATC_API_SEC011";
 
+    /// <summary>
+    /// ATC_API_SEC012: A 'security' requirement names a scheme that 'components/securitySchemes' does not declare
+    /// (a typo such as 'petsstore_auth'). The generated endpoint would require an authentication scheme no host
+    /// registers, so every request on it fails at run time. Error, every strategy.
+    /// </summary>
+    public const string SecuritySchemeNotDeclared = "ATC_API_SEC012";
+
     // ========== Streaming Rules (STREAM) ==========
 
     /// <summary>
@@ -248,6 +365,19 @@ public static class RuleIdentifiers
     /// The generator does not yet emit per-prefix encoding headers; this field is ignored.
     /// </summary>
     public const string StreamingPrefixEncodingUnsupported = "ATC_API_STREAM001";
+
+    /// <summary>
+    /// ATC_API_STREAM002: A request body declared only as Server-Sent Events (<c>text/event-stream</c>) or
+    /// <c>multipart/mixed</c>. No generated client sends such a body and the server does not read it, so it would be
+    /// dropped; a stream of records is sent as JSON Lines (<c>application/jsonl</c>) or a JSON Text Sequence.
+    /// </summary>
+    public const string StreamingRequestBodyFramingUnsupported = "ATC_API_STREAM002";
+
+    /// <summary>
+    /// ATC_API_STREAM003: A request body declared as JSON Lines or a JSON Text Sequence without the schema of its
+    /// records (no <c>schema</c>, no <c>itemSchema</c>). The records cannot be typed, so the body would be dropped.
+    /// </summary>
+    public const string StreamedRequestBodyWithoutRecordSchema = "ATC_API_STREAM003";
 
     // ========== Rate Limiting Rules (RL) ==========
 
@@ -302,6 +432,16 @@ public static class RuleIdentifiers
     /// </summary>
     public const string RateLimitWindowIgnoredForConcurrency = "ATC_API_RL008";
 
+    // ========== Retry Rules (RTY) ==========
+
+    /// <summary>
+    /// ATC_API_RTY001: An x-retry-* setting no generated policy reads: a policy takes its values from where its name is
+    /// first declared, inheriting operation → path → document, so a setting at a level no such declaration covers is
+    /// dropped - with no x-retry-policy in the document, every one. (The timeout of an operation that is not retried is
+    /// read.) Warning, Standard and Strict.
+    /// </summary>
+    public const string RetrySettingNotApplied = "ATC_API_RTY001";
+
     // ========== Caching Rules (CACHE) ==========
 
     /// <summary>
@@ -311,12 +451,26 @@ public static class RuleIdentifiers
     /// </summary>
     public const string OutputCacheOnNonCacheableMethod = "ATC_API_CACHE001";
 
+    /// <summary>
+    /// ATC_API_CACHE002: Output caching is configured on an operation that requires an authenticated caller. The
+    /// output-cache middleware's default policy never caches a request with an <c>Authorization</c> header or an
+    /// authenticated user, so nothing is cached - unless the answer is the same for every caller and the specification
+    /// says so with <c>x-cache-shared: true</c>.
+    /// </summary>
+    public const string OutputCacheOnAuthenticatedOperation = "ATC_API_CACHE002";
+
     // ========== Server Rules (SRV) ==========
 
     /// <summary>
     /// ATC_API_SRV001: Invalid server URL format.
     /// </summary>
     public const string InvalidServerUrl = "ATC_API_SRV001";
+
+    /// <summary>
+    /// ATC_API_SRV002: An operation declares its 400 as a string while the ValidationFilter is on: an invalid
+    /// request is answered with a ValidationProblemDetails, whose field errors the string cannot carry.
+    /// </summary>
+    public const string ValidationBadRequestDeclaredAsString = "ATC_API_SRV002";
 
     // ========== Schema Rules (SCH) ==========
 
@@ -436,12 +590,70 @@ public static class RuleIdentifiers
     /// </summary>
     public const string ProblemDetailsSchemaShadowedByBuiltIn = "ATC_API_SCH021";
 
+    /// <summary>
+    /// ATC_API_SCH022: An object schema has properties but no 'required' list, so every property is optional and
+    /// generated nullable with a '= null' default. Usually a specification gap: list the properties the API always
+    /// sends in 'required'. Info, Strict mode only.
+    /// </summary>
+    public const string SchemaWithoutRequiredProperties = "ATC_API_SCH022";
+
+    /// <summary>
+    /// ATC_API_SCH023: A component schema contains itself - through 'allOf' (it inherits itself), a bare '$ref'
+    /// (it aliases itself) or the 'items' of an array alias (it lists itself). The generators inline those three,
+    /// so the schema cannot be generated; a schema that refers to itself from a property is fine. Error, every
+    /// strategy.
+    /// </summary>
+    public const string SchemaCycle = "ATC_API_SCH023";
+
+    /// <summary>
+    /// ATC_API_SCH024: A component schema's type is only 'null' ('type: [null]' in OpenAPI 3.1): it has no values
+    /// and no C# type, so nothing is generated for it while every reference to it names a type that does not exist.
+    /// Error, every strategy.
+    /// </summary>
+    public const string SchemaTypeOnlyNull = "ATC_API_SCH024";
+
+    /// <summary>
+    /// ATC_API_SCH025: A schema constraint the generated code cannot carry - bounds the wrong way round
+    /// (minLength past maxLength, minimum past maximum, minItems past maxItems), a bound that is no finite number,
+    /// a 'pattern' that is no regular expression, an integer enum with a member that is no integer, an enum with no
+    /// member but null. The generated attribute would throw at run time, or a type be named that is never generated.
+    /// Error, every strategy.
+    /// </summary>
+    public const string SchemaConstraintNotGeneratable = "ATC_API_SCH025";
+
+    /// <summary>
+    /// ATC_API_SCH026: An enum lists a value twice (JSON Schema: the values SHOULD be unique). The value is generated
+    /// once - two members with one wire value could not both be read back. Warning, every strategy.
+    /// </summary>
+    public const string EnumValueListedTwice = "ATC_API_SCH026";
+
+    /// <summary>
+    /// ATC_API_SCH027: A reference in a form the generators cannot follow: to another file or a URL, a pointer into a
+    /// component (a property of a schema), or an OpenAPI 3.1 '$dynamicRef'. Only '#/components/{section}/{name}'
+    /// references are generated - bundle the document first. Error, every strategy.
+    /// </summary>
+    public const string UnsupportedReferenceForm = "ATC_API_SCH027";
+
+    /// <summary>
+    /// ATC_API_SCH028: A 'pattern' without '^...$'. JSON Schema matches a pattern anywhere in the value; the generated
+    /// server (ApiRegularExpression) and clients (Zod) match the whole value, as a form-field pattern means. Anchor the
+    /// pattern to say so, or widen it ('.*...' ) where a match inside the value is meant. Information, every strategy.
+    /// </summary>
+    public const string PatternNotAnchored = "ATC_API_SCH028";
+
     // ========== Path Rules (PTH) ==========
 
     /// <summary>
     /// ATC_API_PTH001: Path parameters not well-formatted (unbalanced braces).
     /// </summary>
     public const string PathParametersNotWellFormatted = "ATC_API_PTH001";
+
+    /// <summary>
+    /// ATC_API_PTH002: The specification has no operations (a models-only document, a multi-part base file whose
+    /// parts are missing, an overlay that removed 'paths'): no endpoints, handlers or client methods are generated.
+    /// Warning, every strategy.
+    /// </summary>
+    public const string NoOperations = "ATC_API_PTH002";
 
     // ========== Operation Rules (OPR) ==========
 
@@ -593,6 +805,82 @@ public static class RuleIdentifiers
     /// </summary>
     public const string QueryOperationWithMutationResponse = "ATC_API_OPR029";
 
+    /// <summary>
+    /// ATC_API_OPR030: An operation declares an informational (<c>1xx</c>) response. A 1xx is never a final
+    /// response (RFC 9110 §15.2), so no factory, endpoint metadata or client accessor is generated for it.
+    /// </summary>
+    public const string InformationalResponseStatusCode = "ATC_API_OPR030";
+
+    /// <summary>
+    /// ATC_API_OPR031: A request or response body is not generated as the specification declares it: an XML body
+    /// whose schema has no XML mapping (inline or polymorphic), the XML variant of a JSON body that is not the same
+    /// model, or a response that declares a model and a file for a status other than 200 (only its model is
+    /// generated). The body is otherwise dropped without notice.
+    /// </summary>
+    public const string BodyNotGeneratedAsDeclared = "ATC_API_OPR031";
+
+    /// <summary>
+    /// ATC_API_OPR032: Two operations have operationIds that become one C# name ('getUser' and 'get_user', or
+    /// 'GetUSER'): one handler interface, one result class and one client method for both. Error, every strategy.
+    /// </summary>
+    public const string OperationIdCollision = "ATC_API_OPR032";
+
+    /// <summary>
+    /// ATC_API_OPR033: A parameter has neither a 'schema' nor a 'content' map: it has no type, and a client would
+    /// pass an 'object' where a string belongs. Error, every strategy.
+    /// </summary>
+    public const string ParameterWithoutSchema = "ATC_API_OPR033";
+
+    /// <summary>
+    /// ATC_API_OPR034: An operation declares a response for a status range ('2XX', '4XX', '5XX'), which names no
+    /// status a server could answer or a client could read with. The range is generated as its first status (200)
+    /// unless the operation declares that status itself, in which case the range is not generated.
+    /// </summary>
+    public const string ResponseStatusRange = "ATC_API_OPR034";
+
+    /// <summary>
+    /// ATC_API_OPR035: A response declares 'links' (OpenAPI runtime expressions naming the operations a client may
+    /// call next). Nothing is generated from them; a client follows them by hand. Information, every strategy.
+    /// </summary>
+    public const string ResponseLinksDropped = "ATC_API_OPR035";
+
+    /// <summary>
+    /// ATC_API_OPR036: An OAS 3.2 'in: querystring' parameter appears more than once, or next to an 'in: query'
+    /// parameter of the operation or its path item - the specification forbids both: the querystring parameter is the
+    /// whole query string. Error, every strategy.
+    /// </summary>
+    public const string QueryStringParameterNotAlone = "ATC_API_OPR036";
+
+    /// <summary>
+    /// ATC_API_OPR037: A parameter's value is one the generated code cannot bind or send - an object other than a
+    /// flat model in the query (as deepObject or form with explode), or a 'oneOf'/'anyOf'/'allOf' without a type -
+    /// or a form field that is an object, a map or a composition and has no form encoding: in a URL-encoded form, or in a
+    /// multipart form whose encoding names only media types that do not carry it (JSON carries any such field, XML a
+    /// model, URL-encoded a model whose properties are each one value; see FormBodyHelper.PartOf). A
+    /// warning (a client leaves the parameter or the field out; a server generator raises it to an error), an error in
+    /// the path.
+    /// </summary>
+    public const string ParameterValueNotBindable = "ATC_API_OPR037";
+
+    /// <summary>
+    /// ATC_API_OPR038: An object in the query sent as 'form' with 'explode' (each property by its own name) has a
+    /// property named like another query parameter of the operation - both would be one key. Error, every strategy.
+    /// </summary>
+    public const string QueryObjectKeyCollision = "ATC_API_OPR038";
+
+    /// <summary>
+    /// ATC_API_OPR039: A HEAD operation declares content for a response. A HEAD answer has no body, so the content
+    /// is not generated: no client returns a value for it and the server's result takes none. Warning, every strategy.
+    /// </summary>
+    public const string HeadResponseContentIgnored = "ATC_API_OPR039";
+
+    /// <summary>
+    /// ATC_API_OPR040: A request body or a response declares two media types that are one for the generators -
+    /// 'application/json' and 'application/json; charset=utf-8', or a model under '*/*' next to 'application/json' -
+    /// with different schemas. The first is generated, the second is not. Warning, every strategy.
+    /// </summary>
+    public const string MediaTypeDeclaredTwice = "ATC_API_OPR040";
+
     // ========== Webhook Rules (WBH) ==========
 
     /// <summary>
@@ -633,19 +921,14 @@ public static class RuleIdentifiers
     public const string MultiPartMergeSuccessful = "ATC_API_MPT004";
 
     /// <summary>
-    /// ATC_API_MPT005: Referenced part file not found.
-    /// </summary>
-    public const string PartFileNotFound = "ATC_API_MPT005";
-
-    /// <summary>
     /// ATC_API_MPT006: Unresolved reference after merge.
     /// </summary>
     public const string UnresolvedReferenceAfterMerge = "ATC_API_MPT006";
 
     /// <summary>
-    /// ATC_API_MPT007: Part file missing openapi version - will use base file version.
+    /// ATC_API_MPT007: Part file has an info section - it is ignored, the merge takes info from the base file.
     /// </summary>
-    public const string PartFileMissingOpenApiVersion = "ATC_API_MPT007";
+    public const string PartFileInfoIgnored = "ATC_API_MPT007";
 
     /// <summary>
     /// ATC_API_MPT008: Base file not found for multi-part specification.
@@ -662,6 +945,23 @@ public static class RuleIdentifiers
     /// </summary>
     public const string NonIdenticalMergeConflict = "ATC_API_MPT010";
 
+    /// <summary>
+    /// ATC_API_MPT011: A path's operations belong to more than one split group; the path is kept whole in one part.
+    /// </summary>
+    public const string SplitPathSpansGroups = "ATC_API_MPT011";
+
+    /// <summary>
+    /// ATC_API_MPT012: A part file declares another OpenAPI version than the base file; the part is read by its own
+    /// version (a 3.0 'nullable' in a 3.1 part is an unknown keyword, say).
+    /// </summary>
+    public const string PartFileOpenApiVersionDiffers = "ATC_API_MPT012";
+
+    /// <summary>
+    /// ATC_API_MPT013: A part file contributes nothing to the merge - no paths, no components (a 'paths' that is no
+    /// map, an empty file).
+    /// </summary>
+    public const string PartFileContributesNothing = "ATC_API_MPT013";
+
     // ========== Client Rules (CLT) ==========
 
     /// <summary>
@@ -673,6 +973,18 @@ public static class RuleIdentifiers
     /// ATC_API_CLT002: 'clientName' is ignored when clientGranularity is PerArea.
     /// </summary>
     public const string ClientNameIgnoredForPerArea = "ATC_API_CLT002";
+
+    /// <summary>
+    /// ATC_API_CLT003: A System.Enum method (Enum.TryParse, Enum.Parse, Enum.GetValues(typeof(...)), ...) called on a generated
+    /// extensible enum - it compiles, as the enum is a struct, and throws at run time.
+    /// </summary>
+    public const string SystemEnumOnExtensibleEnum = "ATC_API_CLT003";
+
+    /// <summary>
+    /// ATC_API_CLT004: A generated extensible enum compared with one listed value (<c>x != T.Member</c>) - a value the
+    /// specification adds later is "not that member" there. Off by default.
+    /// </summary>
+    public const string ExtensibleEnumComparedWithOneValue = "ATC_API_CLT004";
 
     // ========== Spec Version Migration Rules (VER) ==========
 

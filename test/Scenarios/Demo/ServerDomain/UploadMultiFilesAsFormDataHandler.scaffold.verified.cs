@@ -5,6 +5,9 @@ namespace Demo.ApiHandlers;
 /// </summary>
 public sealed class UploadMultiFilesAsFormDataHandler : IUploadMultiFilesAsFormDataHandler
 {
+    /// <summary>
+    /// Executes the UploadMultiFilesAsFormData operation.
+    /// </summary>
     public System.Threading.Tasks.Task<UploadMultiFilesAsFormDataResult> ExecuteAsync(
         UploadMultiFilesAsFormDataParameters parameters,
         CancellationToken cancellationToken = default)

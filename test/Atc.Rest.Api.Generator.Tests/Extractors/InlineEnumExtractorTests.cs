@@ -33,7 +33,7 @@ public class InlineEnumExtractorTests
         var statusProperty = testSchema.Properties["status"];
 
         // Act
-        var result = InlineEnumExtractor.IsInlineEnumSchema(statusProperty);
+        var result = statusProperty.IsInlineEnum;
 
         // Assert
         Assert.True(result);
@@ -72,7 +72,7 @@ public class InlineEnumExtractorTests
         var statusProperty = testSchema.Properties["status"];
 
         // Act
-        var result = InlineEnumExtractor.IsInlineEnumSchema(statusProperty);
+        var result = statusProperty.IsInlineEnum;
 
         // Assert
         Assert.False(result);
@@ -106,7 +106,7 @@ public class InlineEnumExtractorTests
         var nameProperty = testSchema.Properties["name"];
 
         // Act
-        var result = InlineEnumExtractor.IsInlineEnumSchema(nameProperty);
+        var result = nameProperty.IsInlineEnum;
 
         // Assert
         Assert.False(result);
@@ -140,7 +140,7 @@ public class InlineEnumExtractorTests
         var countProperty = testSchema.Properties["count"];
 
         // Act
-        var result = InlineEnumExtractor.IsInlineEnumSchema(countProperty);
+        var result = countProperty.IsInlineEnum;
 
         // Assert
         Assert.False(result);
@@ -150,7 +150,7 @@ public class InlineEnumExtractorTests
     public void IsInlineEnumSchema_NullSchema_ReturnsFalse()
     {
         // Act
-        var result = InlineEnumExtractor.IsInlineEnumSchema(null);
+        var result = ((IOpenApiSchema?)null).IsInlineEnum;
 
         // Assert
         Assert.False(result);
@@ -720,7 +720,7 @@ public class InlineEnumExtractorTests
 
         Assert.True(result);
         Assert.NotNull(itemSchema);
-        Assert.True(InlineEnumExtractor.IsInlineEnumSchema(itemSchema));
+        Assert.True(itemSchema.IsInlineEnum);
     }
 
     [Fact]
@@ -772,7 +772,7 @@ public class InlineEnumExtractorTests
 
         var schema = document.Components.Schemas["Severity"] as OpenApiSchema;
         Assert.NotNull(schema);
-        Assert.True(InlineEnumExtractor.IsInlineEnumSchema(schema));
+        Assert.True(schema.IsInlineEnum);
     }
 
     [Fact]
@@ -803,6 +803,52 @@ public class InlineEnumExtractorTests
         Assert.Contains(enumParams.Values, v => v.Value == 1);
         Assert.Contains(enumParams.Values, v => v.Value == 2);
         Assert.Contains(enumParams.Values, v => v.Value == 5);
+    }
+
+    [Fact]
+    public void GenerateEnumContent_InlineStringEnum_EmitsEnumWithWireNamesAndToWireValueExtension()
+    {
+        // The inline enum's values are not PascalCase, so every member keeps its wire value through
+        // [EnumMember] + [JsonStringEnumMemberName], and the enum gets a ToWireValue() extension.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths: {}
+                            components:
+                              schemas:
+                                Order:
+                                  type: object
+                                  properties:
+                                    status:
+                                      type: string
+                                      enum: [active, pending-approval]
+                            """;
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var order = document.Components.Schemas["Order"] as OpenApiSchema;
+        Assert.NotNull(order);
+        var status = order.Properties["status"] as OpenApiSchema;
+        Assert.NotNull(status);
+
+        var enumParams = InlineEnumExtractor.ExtractEnumFromInlineSchema(status, "OrderStatus", "Demo.Generated.Models");
+        Assert.NotNull(enumParams);
+
+        var content = InlineEnumExtractor.GenerateEnumContent(enumParams);
+
+        Assert.Contains("namespace Demo.Generated.Models;", content, StringComparison.Ordinal);
+        Assert.Contains("[JsonConverter(typeof(JsonStringEnumConverter<OrderStatus>))]", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("JsonStringEnumConverter))", content, StringComparison.Ordinal);
+        Assert.Contains("public enum OrderStatus", content, StringComparison.Ordinal);
+        Assert.Contains("[EnumMember(Value = \"active\")]", content, StringComparison.Ordinal);
+        Assert.Contains("[JsonStringEnumMemberName(\"active\")]", content, StringComparison.Ordinal);
+        Assert.Contains("Active,", content, StringComparison.Ordinal);
+        Assert.Contains("[EnumMember(Value = \"pending-approval\")]", content, StringComparison.Ordinal);
+        Assert.Contains("PendingApproval,", content, StringComparison.Ordinal);
+
+        Assert.Contains("public static class OrderStatusExtensions", content, StringComparison.Ordinal);
+        Assert.Contains("public static string ToWireValue(this OrderStatus value)", content, StringComparison.Ordinal);
+        Assert.Contains("OrderStatus.PendingApproval => \"pending-approval\",", content, StringComparison.Ordinal);
     }
 
     private static OpenApiDocument? ParseYaml(string yaml)

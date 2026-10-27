@@ -112,19 +112,4 @@ public static class OpenIdConnectConfigExtractor
             }
         }
     }
-
-    /// <summary>
-    /// Checks if the OpenAPI document has OpenID Connect security that requires code generation.
-    /// </summary>
-    /// <param name="openApiDoc">The OpenAPI document.</param>
-    /// <returns>True if OpenID Connect code should be generated.</returns>
-    public static bool HasOpenIdConnectSecurity(OpenApiDocument openApiDoc)
-    {
-        if (openApiDoc is null)
-        {
-            return false;
-        }
-
-        return openApiDoc.HasOpenIdConnectSecurity();
-    }
 }

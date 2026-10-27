@@ -39,7 +39,7 @@ public static class StatisticsCollector
         {
             SpecificationName = specificationName,
             ApiVersion = document.Info?.Version ?? string.Empty,
-            OpenApiVersion = document.GetOpenApiSpecVersion().ToDisplayString(),
+            OpenApiVersion = document.SpecVersion.ToDisplayString(),
             ApiTitle = document.Info?.Title ?? string.Empty,
             GeneratorVersion = GetGeneratorVersion(),
             GeneratorType = generatorType,
@@ -54,7 +54,7 @@ public static class StatisticsCollector
             OperationsCount = CountOperations(document),
             ClientMethodsCount = GetDictionaryValue(grouped, "Client"),
             EndpointClassesCount = GetDictionaryValue(grouped, "EndpointClasses"),
-            WebhooksCount = document.GetWebhooksCount(),
+            WebhooksCount = document.WebhooksCount,
             WebhookHandlersCount = GetDictionaryValue(grouped, "WebhookHandlers"),
             ErrorCount = errors.Count,
             WarningCount = warnings.Count,
@@ -97,7 +97,7 @@ public static class StatisticsCollector
         {
             SpecificationName = specificationName,
             ApiVersion = document.Info?.Version ?? string.Empty,
-            OpenApiVersion = document.GetOpenApiSpecVersion().ToDisplayString(),
+            OpenApiVersion = document.SpecVersion.ToDisplayString(),
             ApiTitle = document.Info?.Title ?? string.Empty,
             GeneratorVersion = GetGeneratorVersion(),
             GeneratorType = generatorType,
@@ -113,7 +113,7 @@ public static class StatisticsCollector
             OperationsCount = operationsCount,
             ClientMethodsCount = generatorType == "Client" ? operationsCount : 0,
             EndpointClassesCount = 0, // Depends on generation mode
-            WebhooksCount = document.GetWebhooksCount(),
+            WebhooksCount = document.WebhooksCount,
             WebhookHandlersCount = CountWebhookOperations(document), // One handler per webhook operation
             ErrorCount = errors.Count,
             WarningCount = warnings.Count,

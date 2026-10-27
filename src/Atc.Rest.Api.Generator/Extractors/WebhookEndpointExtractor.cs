@@ -14,11 +14,14 @@ public static class WebhookEndpointExtractor
     /// <param name="openApiDoc">The OpenAPI document containing webhook definitions.</param>
     /// <param name="projectName">The name of the project (used for namespace).</param>
     /// <param name="config">The server configuration (used for webhook base path).</param>
+    /// <param name="useValidationFilter">Whether a webhook's payload is validated by the ValidationFilter, as the
+    /// operations' parameters and bodies are.</param>
     /// <returns>ClassParameters for the webhook endpoint registration class, or null if no webhooks exist.</returns>
     public static ClassParameters? Extract(
         OpenApiDocument openApiDoc,
         string projectName,
-        ServerConfig config)
+        ServerConfig config,
+        bool useValidationFilter = false)
     {
         if (openApiDoc is null)
         {
@@ -30,14 +33,14 @@ public static class WebhookEndpointExtractor
             throw new ArgumentNullException(nameof(config));
         }
 
-        if (!openApiDoc.HasWebhooks())
+        if (!openApiDoc.HasWebhooks)
         {
             return null;
         }
 
         // Generate method content
         var webhookBasePath = config.WebhookBasePath ?? "/webhooks";
-        var methodContent = GenerateMethodContent(openApiDoc, config.IncludeDeprecated, webhookBasePath);
+        var methodContent = GenerateMethodContent(openApiDoc, projectName, config.IncludeDeprecated, webhookBasePath, useValidationFilter);
         if (string.IsNullOrEmpty(methodContent))
         {
             return null;
@@ -75,7 +78,7 @@ public static class WebhookEndpointExtractor
             DeclarationModifier: DeclarationModifiers.PublicStatic,
             ReturnGenericTypeName: null,
             ReturnTypeName: "IEndpointRouteBuilder",
-            Name: $"Map{CasingHelper.GetLastNameSegment(projectName)}Webhooks",
+            Name: $"Map{CasingHelper.GetApiName(projectName, config.ApiName)}Webhooks",
             Parameters: methodParams,
             AlwaysBreakDownParameters: false,
             UseExpressionBody: false,
@@ -103,6 +106,26 @@ public static class WebhookEndpointExtractor
             GenerateToStringMethod: false);
     }
 
+    /// <summary>
+    /// The model namespaces of the webhook payloads the generated reader reads (a model, a list, a stream of records),
+    /// which the endpoints name in <c>Accepts&lt;T&gt;</c>.
+    /// </summary>
+    /// <param name="openApiDoc">The OpenAPI document.</param>
+    /// <param name="projectName">The project name.</param>
+    /// <returns>The namespaces, in order.</returns>
+    public static IReadOnlyList<string> BoundPayloadModelUsings(
+        OpenApiDocument openApiDoc,
+        string projectName)
+        => openApiDoc is null
+            ? []
+            : openApiDoc.GetAllWebhookOperations()
+                .Where(w => XmlBodyHelper.ServerBoundWebhookBody(w.Operation) is not null ||
+                            w.Operation.GetStreamedRequestBody() is not null)
+                .SelectMany(w => PathSegmentHelper.GetWebhookModelUsings(openApiDoc, projectName, w.Operation))
+                .Distinct(StringComparer.Ordinal)
+                .OrderBy(u => u, StringComparer.Ordinal)
+                .ToList();
+
     private static string GenerateHeaderContent(string projectName)
     {
         var builder = new StringBuilder();
@@ -123,8 +146,10 @@ public static class WebhookEndpointExtractor
 
     private static string GenerateMethodContent(
         OpenApiDocument openApiDoc,
+        string projectName,
         bool includeDeprecated,
-        string webhookBasePath)
+        string webhookBasePath,
+        bool useValidationFilter)
     {
         var builder = new StringBuilder();
 
@@ -143,7 +168,7 @@ public static class WebhookEndpointExtractor
                 continue;
             }
 
-            GenerateWebhookEndpoint(builder, webhookName, httpMethod, operation, isFirst);
+            GenerateWebhookEndpoint(builder, openApiDoc, projectName, webhookName, httpMethod, operation, isFirst, useValidationFilter);
             isFirst = false;
         }
 
@@ -155,14 +180,17 @@ public static class WebhookEndpointExtractor
 
     private static void GenerateWebhookEndpoint(
         StringBuilder builder,
+        OpenApiDocument openApiDoc,
+        string projectName,
         string webhookName,
         string httpMethod,
         OpenApiOperation operation,
-        bool isFirst)
+        bool isFirst,
+        bool useValidationFilter)
     {
         // Get operation ID or generate from webhook name
-        var operationId = operation.OperationId ?? $"On{webhookName.EnsureFirstCharacterToUpper()}";
-        var handlerName = operationId.EnsureFirstCharacterToUpper();
+        var operationId = OperationNamesExtractor.WebhookEndpointName(operation, webhookName);
+        var handlerName = IdentifierCasingHelper.ToUpperFirst(operationId);
         var handlerInterfaceName = $"I{handlerName}WebhookHandler";
 
         // Webhooks typically use POST, but the declared verb is what the subscriber will call.
@@ -175,8 +203,10 @@ public static class WebhookEndpointExtractor
             ? $"Map{httpMethod.ToUpperInvariant()[0]}{httpMethod.Substring(1).ToLowerInvariant()}"
             : "MapMethods";
 
-        // Determine if webhook has parameters (request body)
-        var hasParameters = operation.RequestBody is not null;
+        // The webhook binds its parameters class exactly when one is emitted (a payload with a schema - a 3.2 itemSchema
+        // too)
+        var hasParameters = WebhookParameterExtractor.HasParameters(operation, openApiDoc);
+        var streamedBody = hasParameters ? operation.GetStreamedRequestBody() : null;
         var parameterTypeName = hasParameters ? $"{handlerName}WebhookParameters" : null;
 
         // Add blank line before each endpoint except the first one
@@ -231,6 +261,23 @@ public static class WebhookEndpointExtractor
         builder.AppendLine(8, ") =>");
         builder.AppendLine(8, "{");
 
+        // A stream of records: the rules the specification declares for it are set before the handler runs
+        if (streamedBody is not null)
+        {
+            var expect = StreamedRequestBodyExtractor.ExpectStatement(
+                streamedBody,
+                useValidationFilter && ResponseBodyClassifier.IsModelSchema(streamedBody.ItemSchema),
+                "parameters.Payload",
+                useValidationFilter ? StreamedRequestBodyExtractor.RecordAttributeExpressions(streamedBody.ItemSchema) : [],
+                StreamedRequestBodyExtractor.RecordsMayBeNull(streamedBody.ItemSchema));
+            foreach (var line in expect.Split('\n'))
+            {
+                builder.AppendLine(12, line.TrimEnd('\r'));
+            }
+
+            builder.AppendLine();
+        }
+
         // Build the handler call
         builder.AppendLine(12, "return await handler.ExecuteAsync(");
         for (var i = 0; i < handlerParams.Count; i++)
@@ -244,11 +291,42 @@ public static class WebhookEndpointExtractor
         // Add operation metadata
         if (!string.IsNullOrEmpty(operation.Summary))
         {
-            var escapedSummary = operation.Summary!.Replace("\"", "\\\"");
-            builder.AppendLine(4, $".WithSummary(\"{escapedSummary}\")");
+            builder.AppendLine(4, $".WithSummary({CSharpLiteralHelper.ToStringLiteral(operation.Summary!.Trim())})");
         }
 
-        builder.AppendLine(4, $".WithName(\"{operationId}\")");
+        builder.AppendLine(4, $".WithName({OperationNamesExtractor.WebhookConstantReference(projectName, operationId)})");
+
+        // The operation's own x- extensions, for a middleware or a filter to read
+        foreach (var call in OperationExtensionMetadataExtractor.MetadataCalls(operation, projectName))
+        {
+            builder.AppendLine(4, call);
+        }
+
+        // The payload is validated as an operation's body is: its constraints, keyed by its wire names
+        if (useValidationFilter && hasParameters)
+        {
+            builder.AppendLine(4, $".AddEndpointFilter<ValidationFilter<{parameterTypeName}>>()");
+        }
+
+        // A payload the generated reader reads (a JSON model, a polymorphic base or a list): a value it cannot read is
+        // a problem naming it, and Accepts names the body for the runtime OpenAPI document
+        if (XmlBodyHelper.ServerBoundWebhookBody(operation) is { } boundBody)
+        {
+            builder.AppendLine(4, ".WithRequestBodyProblems()");
+            builder.AppendLine(4, $".Accepts<{XmlBodyHelper.ModelTypeName(operation.RequestBody!.Content!, boundBody)}>({string.Join(", ", boundBody.JsonOnlyMediaTypes!.Select(m => $"\"{m}\""))})");
+        }
+        else if (streamedBody is not null)
+        {
+            // A stream of records: a record that cannot be read or is not valid is a problem naming it
+            builder.AppendLine(4, ".WithRequestBodyProblems()");
+            builder.AppendLine(4, $".Accepts<{streamedBody.ItemSchema.ToCSharpType(isRequired: true).TrimEnd('?')}>({string.Join(", ", streamedBody.AcceptedMediaTypes.Select(m => $"\"{m}\""))})");
+        }
+        else if (TextRequestBodyExtractor.AcceptedMediaTypes(operation) is { Count: > 0 } textMediaTypes)
+        {
+            // Text: a charset the server does not know is a problem; Accepts names its media types
+            builder.AppendLine(4, ".WithRequestBodyProblems()");
+            builder.AppendLine(4, $".Accepts<string>({string.Join(", ", textMediaTypes.Select(m => $"\"{m}\""))})");
+        }
 
         // Add Produces metadata based on responses
         GenerateProducesMetadata(builder, operation);
@@ -274,42 +352,24 @@ public static class WebhookEndpointExtractor
         {
             var statusCode = response.Key;
 
-            // Handle "default" response
-            if (statusCode.Equals("default", StringComparison.OrdinalIgnoreCase))
+            // Error responses (4xx, 5xx, default): the same metadata the endpoint definitions emit
+            if (ErrorResponseShapeResolver.IsErrorStatusCode(statusCode))
             {
-                producesLines.Add("    .ProducesValidationProblem()");
+                var shape = ErrorResponseShapeResolver.Resolve(response.Value);
+                var modelTypeName = shape is { Kind: ErrorResponseKind.JsonObject or ErrorResponseKind.XmlObject, Schema: not null }
+                    ? shape.Schema.ToCSharpType(true)
+                    : null;
+                producesLines.Add("    " + ErrorResponseShapeResolver.ToProducesCall(statusCode, shape, modelTypeName));
                 continue;
             }
 
-            // Parse status code
-            if (!int.TryParse(statusCode, out var code))
+            if (!int.TryParse(statusCode, NumberStyles.Integer, CultureInfo.InvariantCulture, out var code))
             {
                 continue;
             }
 
-            var statusConstant = code switch
-            {
-                200 => "Status200OK",
-                201 => "Status201Created",
-                202 => "Status202Accepted",
-                204 => "Status204NoContent",
-                400 => "Status400BadRequest",
-                401 => "Status401Unauthorized",
-                403 => "Status403Forbidden",
-                404 => "Status404NotFound",
-                500 => "Status500InternalServerError",
-                _ => $"Status{code}",
-            };
-
-            // 4xx and 5xx use ProducesProblem
-            if (code >= 400)
-            {
-                producesLines.Add($"    .ProducesProblem(StatusCodes.{statusConstant})");
-            }
-            else
-            {
-                producesLines.Add($"    .Produces(StatusCodes.{statusConstant})");
-            }
+            // The StatusCodes constant, or the numeric literal for codes without one
+            producesLines.Add($"    .Produces({HttpStatusCodeHelper.ToStatusCodesExpression(code)})");
         }
 
         // Output all lines

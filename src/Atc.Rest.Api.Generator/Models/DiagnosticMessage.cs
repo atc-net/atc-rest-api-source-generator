@@ -13,6 +13,7 @@ namespace Atc.Rest.Api.Generator.Models;
 /// <param name="Context">Optional context identifier (e.g., operation name, schema name).</param>
 /// <param name="Suggestions">Optional list of suggestions for fixing the issue.</param>
 /// <param name="DocumentationUrl">Optional URL to documentation for this rule.</param>
+/// <param name="Scope">Optional place in the specification the rule found it at (an operation, a path or a schema; see <c>SpecSuppressions</c>), where <c>x-atc-suppress</c> can switch the rule off.</param>
 [SuppressMessage("Design", "CA1054:URI-like parameters should not be strings", Justification = "String URLs are more convenient for this use case.")]
 [SuppressMessage("Design", "CA1056:URI-like properties should not be strings", Justification = "String URLs are more convenient for this use case.")]
 public record DiagnosticMessage(
@@ -24,7 +25,8 @@ public record DiagnosticMessage(
     int? ColumnNumber = null,
     string? Context = null,
     IReadOnlyList<string>? Suggestions = null,
-    string? DocumentationUrl = null)
+    string? DocumentationUrl = null,
+    string? Scope = null)
 {
     /// <summary>
     /// Creates a simple error diagnostic message.
@@ -56,12 +58,6 @@ public record DiagnosticMessage(
         => new(ruleId, message, DiagnosticSeverity.Info, filePath);
 
     /// <summary>
-    /// Creates a new diagnostic message with additional context.
-    /// </summary>
-    public DiagnosticMessage WithContext(string context)
-        => this with { Context = context };
-
-    /// <summary>
     /// Creates a new diagnostic message with location information.
     /// </summary>
     public DiagnosticMessage WithLocation(
@@ -69,23 +65,4 @@ public record DiagnosticMessage(
         int lineNumber,
         int? columnNumber = null)
         => this with { FilePath = filePath, LineNumber = lineNumber, ColumnNumber = columnNumber };
-
-    /// <summary>
-    /// Creates a new diagnostic message with suggestions.
-    /// </summary>
-    public DiagnosticMessage WithSuggestions(params string[] suggestions)
-        => this with { Suggestions = suggestions };
-
-    /// <summary>
-    /// Creates a new diagnostic message with documentation URL.
-    /// </summary>
-    public DiagnosticMessage WithDocumentation(string url)
-        => this with { DocumentationUrl = url };
-
-    /// <summary>
-    /// Gets whether this diagnostic has rich context (location, suggestions, or documentation).
-    /// </summary>
-    public bool HasRichContext
-        => LineNumber.HasValue || ColumnNumber.HasValue || Context is not null ||
-           (Suggestions is not null && Suggestions.Count > 0) || DocumentationUrl is not null;
 }

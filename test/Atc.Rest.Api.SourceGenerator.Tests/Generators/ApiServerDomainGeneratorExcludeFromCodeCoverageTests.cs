@@ -32,7 +32,7 @@ public sealed class ApiServerDomainGeneratorExcludeFromCodeCoverageTests : IDisp
 
         var diRegistration = generatedSources
             .Select(s => s.Source)
-            .FirstOrDefault(s => s.Contains("AddApiHandlersFrom", StringComparison.Ordinal));
+            .FirstOrDefault(s => s.Contains("public static IServiceCollection AddApiHandlersFrom", StringComparison.Ordinal));
 
         Assert.NotNull(diRegistration);
         Assert.Contains("using System.Diagnostics.CodeAnalysis;", diRegistration, StringComparison.Ordinal);

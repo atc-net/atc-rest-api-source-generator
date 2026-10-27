@@ -41,4 +41,44 @@ public sealed class OperationFeatures
     /// Gets the HTTP method of the operation (GET, POST, PUT, DELETE, PATCH).
     /// </summary>
     public string HttpMethod { get; init; } = string.Empty;
+
+    /// <summary>
+    /// The error statuses the generated server answers by itself that the specification does not list - one rule for
+    /// the server's endpoint metadata and every client: 400 with parameters (validation), 401 with security, 403 with
+    /// roles or policies, 404 for GET/PUT/DELETE/PATCH with path parameters, 429 with rate limiting, and 500 and 504 (the
+    /// global error handler) unless a <c>default</c> response says what any other status carries. A 409 is not one: the
+    /// handler answers it, and declares it.
+    /// </summary>
+    /// <param name="definedCodes">The status codes the specification lists for the operation.</param>
+    /// <param name="hasDefaultResponse">Whether the operation has a <c>default</c> response.</param>
+    /// <returns>The status codes, in that order.</returns>
+    public IReadOnlyList<string> ImplicitErrorStatuses(
+        ICollection<string> definedCodes,
+        bool hasDefaultResponse)
+    {
+        if (definedCodes is null)
+        {
+            throw new ArgumentNullException(nameof(definedCodes));
+        }
+
+        var statuses = new List<string>();
+        void AddWhen(
+            bool condition,
+            string statusCode)
+        {
+            if (condition && !definedCodes.Contains(statusCode))
+            {
+                statuses.Add(statusCode);
+            }
+        }
+
+        AddWhen(HasParameters, "400");
+        AddWhen(HasSecurity, "401");
+        AddWhen(HasRolesOrPolicies, "403");
+        AddWhen(HasPathParameters && HttpMethod is "GET" or "PUT" or "DELETE" or "PATCH", "404");
+        AddWhen(HasRateLimiting, "429");
+        AddWhen(!hasDefaultResponse, "500");
+        AddWhen(!hasDefaultResponse, "504");
+        return statuses;
+    }
 }

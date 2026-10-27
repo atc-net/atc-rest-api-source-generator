@@ -48,6 +48,7 @@ public sealed class ApiGeneratorOptions
             ClientGranularity = Client.ClientGranularity,
             ClientName = Client.ClientName,
             GenerateOAuthTokenManagement = Client.GenerateOAuthTokenManagement,
+            ExtensibleEnums = Client.ExtensibleEnums,
         };
 
     /// <summary>

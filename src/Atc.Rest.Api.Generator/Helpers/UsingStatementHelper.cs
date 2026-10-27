@@ -74,6 +74,7 @@ public static class UsingStatementHelper
         ["PostAsJsonAsync"] = NamespaceConstants.SystemNetHttpJson,
         ["PutAsJsonAsync"] = NamespaceConstants.SystemNetHttpJson,
         ["GetFromJsonAsync"] = NamespaceConstants.SystemNetHttpJson,
+        ["JsonContent.Create"] = NamespaceConstants.SystemNetHttpJson,
 
         // System.Runtime.CompilerServices
         ["[EnumeratorCancellation]"] = "System.Runtime.CompilerServices",
@@ -237,6 +238,14 @@ public static class UsingStatementHelper
     };
 
     /// <summary>
+    /// Checks if any record carries a file of Atc.Rest.Client (<c>IFileContent</c>) - the one type of the package a
+    /// client's parameters or models use, so the only reason for its using.
+    /// </summary>
+    public static bool RecordsUseFileContent(
+        IEnumerable<RecordParameters> records)
+        => records.Any(r => r.Parameters?.Any(p => p.TypeName.Contains("IFileContent", StringComparison.Ordinal)) == true);
+
+    /// <summary>
     /// Checks if any record in the collection uses System types (Guid, DateTimeOffset, DateTime, etc.).
     /// </summary>
     public static bool RecordsUseSystemTypes(
@@ -334,16 +343,6 @@ public static class UsingStatementHelper
     }
 
     /// <summary>
-    /// Gets the sort order for a namespace per SA1210: System namespaces first, then all others alphabetically.
-    /// </summary>
-    /// <param name="ns">The namespace to get sort order for.</param>
-    /// <returns>A sort order value.</returns>
-    private static int GetSortOrder(string ns)
-        => ns.StartsWith("System", StringComparison.Ordinal)
-            ? 0
-            : 1;
-
-    /// <summary>
     /// Sorts global using directives with System namespaces first, then groups by namespace prefix
     /// with empty lines between groups.
     /// </summary>
@@ -400,4 +399,14 @@ public static class UsingStatementHelper
         var dotIndex = ns.IndexOf('.');
         return dotIndex > 0 ? ns.Substring(0, dotIndex) : ns;
     }
+
+    /// <summary>
+    /// Gets the sort order for a namespace per SA1210: System namespaces first, then all others alphabetically.
+    /// </summary>
+    /// <param name="ns">The namespace to get sort order for.</param>
+    /// <returns>A sort order value.</returns>
+    private static int GetSortOrder(string ns)
+        => ns.StartsWith("System", StringComparison.Ordinal)
+            ? 0
+            : 1;
 }

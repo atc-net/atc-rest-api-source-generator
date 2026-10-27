@@ -14,6 +14,7 @@ namespace Atc.OpenApi;
 /// - x-retry-backoff: Backoff strategy (constant, linear, exponential)
 /// - x-retry-use-jitter: Add randomness to delays
 /// - x-retry-timeout-seconds: Per-attempt timeout
+/// - x-retry-total-timeout-seconds: Timeout over all attempts and the waits between them
 /// - x-retry-circuit-breaker: Enable circuit breaker
 /// - x-retry-handle-429: Respect Retry-After header
 /// </remarks>
@@ -67,6 +68,13 @@ public static class RetryExtensionNameConstants
     /// Example: x-retry-timeout-seconds: 30
     /// </summary>
     public const string TimeoutSeconds = "x-retry-timeout-seconds";
+
+    /// <summary>
+    /// Extension tag for specifying the timeout over all attempts and the waits between them, in seconds.
+    /// Type: number
+    /// Example: x-retry-total-timeout-seconds: 300
+    /// </summary>
+    public const string TotalTimeoutSeconds = "x-retry-total-timeout-seconds";
 
     /// <summary>
     /// Extension tag for enabling circuit breaker.

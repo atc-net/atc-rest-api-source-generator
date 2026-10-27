@@ -62,14 +62,15 @@ public static class HttpClientInterfaceExtractor
 
     /// <summary>
     /// Strips everything that must not appear on an interface member: the declaration modifier
-    /// (interface members carry none), the body, method-level attributes and parameter-level
-    /// attributes such as <c>[EnumeratorCancellation]</c>, which is only valid on an implementation.
+    /// (interface members carry none), the body, method-level attributes (except <c>[Obsolete]</c>, which warns a
+    /// caller through the interface too) and parameter-level attributes such as <c>[EnumeratorCancellation]</c>,
+    /// which is only valid on an implementation.
     /// </summary>
     private static MethodParameters ToInterfaceMethod(MethodParameters method)
         => method with
         {
             DeclarationModifier = DeclarationModifiers.None,
-            Attributes = null,
+            Attributes = method.Attributes?.Where(a => a.Name == "Obsolete").ToList() is { Count: > 0 } obsolete ? obsolete : null,
             Content = null,
             UseExpressionBody = false,
             Parameters = method.Parameters?

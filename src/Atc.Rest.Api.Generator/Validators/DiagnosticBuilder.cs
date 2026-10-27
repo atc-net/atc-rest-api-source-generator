@@ -27,6 +27,52 @@ public static class DiagnosticBuilder
             DocumentationUrl: GetDocUrl(RuleIdentifiers.InvalidSchemaReference));
 
     /// <summary>
+    /// Creates a reference error diagnostic for a component that is not a schema (a parameter, response, request
+    /// body, header or path item).
+    /// </summary>
+    public static DiagnosticMessage ComponentReferenceError(
+        string kind,
+        string section,
+        string referenceId,
+        string jsonPath,
+        string filePath)
+        => new(
+            RuleId: RuleIdentifiers.InvalidSchemaReference,
+            Message: $"{kind} reference '{referenceId}' does not exist in components.{section}",
+            Severity: DiagnosticSeverity.Error,
+            FilePath: filePath,
+            Context: jsonPath,
+            Suggestions:
+            [
+                $"Add the missing {kind.ToLowerInvariant()} '{referenceId}' to components.{section}",
+                "Check for typos in the $ref path",
+                "Ensure the name matches exactly (case-sensitive)"
+            ],
+            DocumentationUrl: GetDocUrl(RuleIdentifiers.InvalidSchemaReference));
+
+    /// <summary>
+    /// Creates the error for a reference in a form the generators cannot follow: to another file or a URL, a pointer
+    /// into a component, or a <c>$dynamicRef</c>.
+    /// </summary>
+    public static DiagnosticMessage UnsupportedReferenceFormError(
+        string reference,
+        string jsonPath,
+        string filePath)
+        => new(
+            RuleId: RuleIdentifiers.UnsupportedReferenceForm,
+            Message: $"The reference '{reference}' is in a form the generators cannot follow: only '#/components/{{section}}/{{name}}' references are generated",
+            Severity: DiagnosticSeverity.Error,
+            FilePath: filePath,
+            Context: jsonPath,
+            Suggestions:
+            [
+                "Bundle the document so every reference points into its own components (e.g. 'redocly bundle')",
+                "Refer to the whole component, not into it: move a nested schema into components.schemas",
+                "Replace a $dynamicRef with a $ref to the component"
+            ],
+            DocumentationUrl: GetDocUrl(RuleIdentifiers.UnsupportedReferenceForm));
+
+    /// <summary>
     /// Creates a naming convention warning diagnostic.
     /// </summary>
     public static DiagnosticMessage NamingConventionWarning(
@@ -102,27 +148,6 @@ public static class DiagnosticBuilder
             DocumentationUrl: GetDocUrl(RuleIdentifiers.OperationIdMustBeCamelCase));
 
     /// <summary>
-    /// Creates a response code warning diagnostic for missing security.
-    /// </summary>
-    public static DiagnosticMessage ResponseCodeSecurityWarning(
-        string ruleId,
-        string statusCode,
-        string message,
-        string operationId,
-        string httpMethod,
-        string path,
-        string filePath,
-        params string[] suggestions)
-        => new(
-            RuleId: ruleId,
-            Message: message,
-            Severity: DiagnosticSeverity.Warning,
-            FilePath: filePath,
-            Context: $"{httpMethod.ToUpperInvariant()} {path} ({operationId})",
-            Suggestions: suggestions,
-            DocumentationUrl: GetDocUrl(ruleId));
-
-    /// <summary>
     /// Creates an OpenAPI parsing error diagnostic.
     /// </summary>
     public static DiagnosticMessage ParsingError(
@@ -150,6 +175,22 @@ public static class DiagnosticBuilder
             Suggestions: suggestions,
             DocumentationUrl: GetDocUrl(RuleIdentifiers.OpenApiCoreError));
     }
+
+    /// <summary>
+    /// Creates the warning for a warning of the Microsoft.OpenApi reader.
+    /// </summary>
+    public static DiagnosticMessage ParsingWarning(
+        string warningMessage,
+        string? jsonPointer,
+        string filePath)
+        => new(
+            RuleId: RuleIdentifiers.OpenApiCoreWarning,
+            Message: $"OpenAPI reader warning: {warningMessage}",
+            Severity: DiagnosticSeverity.Warning,
+            FilePath: filePath,
+            Context: jsonPointer,
+            Suggestions: string.IsNullOrEmpty(jsonPointer) ? [] : [$"Check the element at JSON path: {jsonPointer}"],
+            DocumentationUrl: GetDocUrl(RuleIdentifiers.OpenApiCoreWarning));
 
     /// <summary>
     /// Creates a missing required field error.

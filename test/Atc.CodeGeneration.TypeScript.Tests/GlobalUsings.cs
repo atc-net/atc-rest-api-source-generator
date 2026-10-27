@@ -1,4 +1,5 @@
 global using System;
+global using System.Text;
 
 global using Atc.CodeGeneration.TypeScript.CodeDocumentation;
 global using Atc.CodeGeneration.TypeScript.Content;

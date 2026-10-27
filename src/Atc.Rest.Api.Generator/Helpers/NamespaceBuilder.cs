@@ -11,15 +11,54 @@ public static class NamespaceBuilder
     /// </summary>
     public static class Categories
     {
+        /// <summary>
+        /// The models (records, enums) of the API.
+        /// </summary>
         public const string Models = "Models";
+
+        /// <summary>
+        /// The parameter records of the operations.
+        /// </summary>
         public const string Parameters = "Parameters";
+
+        /// <summary>
+        /// The result types the handlers return.
+        /// </summary>
         public const string Results = "Results";
+
+        /// <summary>
+        /// The handler interfaces, one per operation.
+        /// </summary>
         public const string Handlers = "Handlers";
+
+        /// <summary>
+        /// The endpoint definitions that map the routes.
+        /// </summary>
         public const string Endpoints = "Endpoints";
+
+        /// <summary>
+        /// The generated HTTP clients.
+        /// </summary>
         public const string Client = "Client";
+
+        /// <summary>
+        /// The interfaces of the generated clients.
+        /// </summary>
         public const string Interfaces = "Interfaces";
+
+        /// <summary>
+        /// The webhook handler interfaces and models.
+        /// </summary>
         public const string Webhooks = "Webhooks";
+
+        /// <summary>
+        /// The OAuth token providers and their options.
+        /// </summary>
         public const string OAuth = "OAuth";
+
+        /// <summary>
+        /// The output and hybrid cache policies.
+        /// </summary>
         public const string Caching = "Caching";
     }
 

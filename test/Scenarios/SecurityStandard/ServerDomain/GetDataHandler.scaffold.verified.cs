@@ -5,6 +5,9 @@ namespace SecurityStandard.ApiHandlers;
 /// </summary>
 public sealed class GetDataHandler : IGetDataHandler
 {
+    /// <summary>
+    /// Executes the GetData operation.
+    /// </summary>
     public Task<GetDataResult> ExecuteAsync(
         CancellationToken cancellationToken = default)
     {

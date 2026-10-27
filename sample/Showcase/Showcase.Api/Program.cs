@@ -21,6 +21,7 @@ builder.Services.AddCors(options =>
             .SetIsOriginAllowed(_ => true) // Allow any origin for SignalR
             .AllowAnyMethod()
             .AllowAnyHeader()
+            .WithExposedHeaders("Retry-After", "Content-Disposition", "ETag", "X-Stream-Format") // The 429 back-off, a download's file name, a summary's version, a stream's format
             .AllowCredentials(); // Required for SignalR
     });
 });
@@ -68,30 +69,60 @@ builder.Services.AddWebhookHandlersFromDomain();
 builder.Services.AddApiHealthChecks();
 
 // Register Showcase dependencies (repositories)
+builder.Services.AddHttpContextAccessor();
+
 builder.Services.AddSingleton<AccountInMemoryRepository>();
-builder.Services.AddSingleton<TaskInMemoryRepository>();
+builder.Services.AddSingleton<DocumentInMemoryRepository>();
 builder.Services.AddSingleton<FileInMemoryRepository>();
-builder.Services.AddSingleton<UserInMemoryRepository>();
 builder.Services.AddSingleton<SubscriptionInMemoryRepository>();
+builder.Services.AddSingleton<TaskInMemoryRepository>();
+builder.Services.AddSingleton<UserInMemoryRepository>();
+
+builder.Services.AddSingleton<Showcase.Api.Domain.ApiHandlers.Streams.LivePriceFeed>();
 
 var app = builder.Build();
 
 // Enable CORS
 app.UseCors();
 
+// ============================================
+// AUDIT - what the specification marks
+// ============================================
+// An operation's own x- extensions reach its endpoint as ApiOperationExtension metadata: the specification marks the
+// operations to audit with x-audit: true. ApiOperations names an operation in code, so renaming it in the
+// specification breaks the build here instead of silently changing what is logged.
+app.Use(async (context, next) =>
+{
+    await next(context);
+
+    var endpoint = context.GetEndpoint();
+    if (Showcase.Generated.ApiOperationExtension.Find(endpoint, "x-audit") == "true" &&
+        endpoint?.Metadata.GetMetadata<IEndpointNameMetadata>()?.EndpointName is { } operation)
+    {
+        var level = operation == Showcase.Generated.ApiOperations.DeleteAccountById
+            ? LogLevel.Warning
+            : LogLevel.Information;
+        app.Logger.Log(level, "Audit: {Operation} answered {StatusCode}", operation, context.Response.StatusCode);
+    }
+});
+
 // Map SignalR hub for real-time notifications
-app.MapHub<NotificationHub>("/hubs/notifications");
+app.MapHub<NotificationHub>(NotificationsHubContract.Url);
 
 // ============================================
 // SHOWCASE API MIDDLEWARE AND ENDPOINTS - Simplified pipeline
 // ============================================
 // Configures: rate limiter, auth, error handling, and maps all endpoints
-app.MapShowcaseApi();
+// The end-to-end tests (test/Showcase.E2ETests) drive three apps at once against this API, from one IP address and
+// as the one demo identity: the per-minute limits of the specification (50 user requests, 10 uploads) would answer
+// a full run with 429s. That run sets Showcase__DisableRateLimiter=true; the policies stay registered either way.
+var disableRateLimiter = app.Configuration.GetValue<bool>("Showcase:DisableRateLimiter");
+app.MapShowcaseApi(options => options.UseRateLimiter = !disableRateLimiter);
 
 // Map webhook endpoints (receives external webhook calls)
 app.MapShowcaseWebhooks();
 
-// Map health check endpoints (secured via api-key query/header)
+// Map health check endpoints (secured via the X-Health-Api-Key header)
 app.MapHealthCheckEndpoints();
 
 if (app.Environment.IsDevelopment())

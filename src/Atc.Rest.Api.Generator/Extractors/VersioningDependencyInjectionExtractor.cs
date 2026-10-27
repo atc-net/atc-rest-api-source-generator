@@ -56,7 +56,7 @@ public static class VersioningDependencyInjectionExtractor
             DeclarationModifier: DeclarationModifiers.PublicStatic,
             ReturnGenericTypeName: null,
             ReturnTypeName: "IServiceCollection",
-            Name: $"Add{CasingHelper.GetLastNameSegmentWithoutApiSuffix(projectName)}ApiVersioning",
+            Name: $"Add{CasingHelper.GetApiName(projectName, config.ApiName)}ApiVersioning",
             Parameters: methodParams,
             AlwaysBreakDownParameters: false,
             UseExpressionBody: false,

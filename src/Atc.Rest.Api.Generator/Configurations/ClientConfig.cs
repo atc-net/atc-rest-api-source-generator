@@ -45,6 +45,16 @@ public class ClientConfig : BaseConfig
     public TypedClientResultStyleType TypedClientResultStyle { get; set; } = TypedClientResultStyleType.Throw;
 
     /// <summary>
+    /// How an EndpointPerOperation operation answers a request that got no answer from the server (the connection
+    /// failed, a timeout the caller did not ask for, a resilience pipeline that rejected it). Default: Throw - the
+    /// exception is thrown. Result: the operation's result is returned instead, with IsTransportFailure, a 503 whose
+    /// problem has no text of its own (for the caller to word), and the exception in TransportException; the caller's own
+    /// cancellation still throws. Only applies to EndpointPerOperation generation mode.
+    /// </summary>
+    [JsonConverter(typeof(TransportFailureTypeConverter))]
+    public TransportFailureType TransportFailure { get; set; } = TransportFailureType.Throw;
+
+    /// <summary>
     /// The HTTP client name to use in IHttpClientFactory. Default: "{ProjectName}-ApiClient".
     /// </summary>
     public string? HttpClientName { get; set; }
@@ -62,6 +72,45 @@ public class ClientConfig : BaseConfig
     /// Useful for adding interfaces (via x-implements extension) or additional properties.
     /// </summary>
     public bool GeneratePartialModels { get; set; }
+
+    /// <summary>
+    /// Enforce the specification's <c>required</c> properties when reading JSON. Default: false.
+    /// When true, the required properties of the generated models get <c>[JsonRequired]</c>, so a response that
+    /// leaves one out fails with a <c>JsonException</c> naming it, instead of a <c>null</c> (or <c>0</c>) inside a
+    /// non-nullable property. Off by default: the specifications of third-party APIs often mark properties required
+    /// that the API sometimes omits.
+    /// </summary>
+    public bool StrictRequiredProperties { get; set; }
+
+    /// <summary>
+    /// Ask for XML first for an operation that offers its response as JSON and XML. Default: false.
+    /// By default the generated clients send <c>Accept: application/json, application/problem+json</c> for such an
+    /// operation; when true they send the XML media types first (and <c>application/problem+xml</c> before
+    /// <c>application/problem+json</c>), for third-party APIs that answer XML better. Either way the client reads
+    /// whatever <c>Content-Type</c> comes back.
+    /// </summary>
+    public bool PreferXml { get; set; }
+
+    /// <summary>
+    /// Generate string enums as extensible enums. Default: true.
+    /// When true, a string enum is a <c>readonly record struct</c> over the value on the wire, with the specification's
+    /// values as named members (<c>DeviceStatus.Online</c>), their constants in <c>Names</c> for a <c>switch</c>, and
+    /// <c>KnownValues</c>; a value the specification does not list is kept with <c>IsKnown</c> false instead of failing
+    /// the response, so a server can add a value without breaking clients built before it. When false, string enums
+    /// are C# enums, and an unknown value fails the response with a <c>JsonException</c>. Integer enums are C# enums
+    /// either way (they already hold any number); a server keeps strict C# enums unless its marker sets extensibleEnums.
+    /// </summary>
+    public bool ExtensibleEnums { get; set; } = true;
+
+    /// <summary>
+    /// Whether a string enum is also read by its C# member name. Default: false - only the specification's value
+    /// (<c>rtsp</c>) is read. When true, a response may also carry the member name (<c>Rtsp</c>), in another casing
+    /// when only one member matches; the value is still what is written. For a rollout: a server built on 2.x wrote
+    /// the member name for a value that is no member name (2.x wrote <c>Rtsp</c> for <c>rtsp</c>). An extensible enum
+    /// already takes a listed value in any casing; the key adds the member name (<c>InProgress</c> for
+    /// <c>in-progress</c>).
+    /// </summary>
+    public bool ReadEnumMemberNames { get; set; }
 
     /// <summary>
     /// Error response format expected from the API. Default: ProblemDetails.

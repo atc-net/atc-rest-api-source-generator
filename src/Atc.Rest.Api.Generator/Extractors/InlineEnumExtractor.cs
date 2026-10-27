@@ -4,8 +4,19 @@ namespace Atc.Rest.Api.Generator.Extractors;
 /// Extracts inline enum definitions from OpenAPI property schemas.
 /// Inline enums are defined directly on properties rather than as standalone schemas in components/schemas.
 /// </summary>
+[SuppressMessage("", "CA1034:Do not nest type", Justification = "OK - CLang14 - extension")]
 public static class InlineEnumExtractor
 {
+    /// <param name="schema">The schema.</param>
+    extension(IOpenApiSchema? schema)
+    {
+        /// <summary>
+        /// Gets a value indicating whether the schema is an inline string enum, not a <c>$ref</c> (<see cref="IsInlineEnumSchema"/>).
+        /// </summary>
+        public bool IsInlineEnum
+            => IsInlineEnumSchema(schema);
+    }
+
     /// <summary>
     /// Checks if a schema represents an inline enum (string type with enum values, not a reference).
     /// </summary>
@@ -72,11 +83,32 @@ public static class InlineEnumExtractor
     /// </summary>
     /// <param name="parentSchemaName">The name of the parent schema (e.g., "ResendEventsRequest").</param>
     /// <param name="propertyName">The property name (e.g., "resourceType").</param>
+    /// <param name="componentTypeNames">
+    /// The C# names of the component schemas: a name one of them has is taken by that schema, so the inline enum is
+    /// <c>{Parent}{Property}Enum</c> (<c>Thing.type</c> next to a component <c>ThingType</c>).
+    /// </param>
     /// <returns>The generated type name (e.g., "ResendEventsRequestResourceType").</returns>
     public static string GenerateInlineEnumTypeName(
         string parentSchemaName,
-        string propertyName)
-        => $"{parentSchemaName}{propertyName.EnsureFirstCharacterToUpper()}";
+        string propertyName,
+        ISet<string>? componentTypeNames = null)
+    {
+        var name = $"{parentSchemaName}{IdentifierCasingHelper.ToUpperFirst(propertyName)}";
+        if (componentTypeNames is null || !componentTypeNames.Contains(name))
+        {
+            return name;
+        }
+
+        var candidate = name + "Enum";
+        var suffix = 2;
+        while (componentTypeNames.Contains(candidate))
+        {
+            candidate = $"{name}Enum{suffix.ToString(CultureInfo.InvariantCulture)}";
+            suffix++;
+        }
+
+        return candidate;
+    }
 
     /// <summary>
     /// Generates a key based on sorted enum values for deduplication.
@@ -151,6 +183,17 @@ public static class InlineEnumExtractor
     /// Generates the content for a single inline enum using GenerateContentForEnum.
     /// Delegates to <see cref="EnumExtractor.GenerateEnumContent"/>.
     /// </summary>
-    public static string GenerateEnumContent(EnumParameters parameters)
-        => EnumExtractor.GenerateEnumContent(parameters);
+    /// <param name="parameters">The enum.</param>
+    /// <param name="extensible">Whether a string enum is written as an extensible enum (a generated client).</param>
+    /// <param name="stringOnTheWire">Whether a string enum always carries its string converter (the server).</param>
+    /// <param name="enumWireConverter">The <c>EnumWireConverterFactory</c> a string enum names in its
+    /// <c>[JsonConverter]</c>; <see langword="null"/> for none.</param>
+    /// <param name="readMemberNames">Whether a string enum is read by its member name too (<c>readEnumMemberNames</c>).</param>
+    public static string GenerateEnumContent(
+        EnumParameters parameters,
+        bool extensible = false,
+        bool stringOnTheWire = false,
+        string? enumWireConverter = null,
+        bool readMemberNames = false)
+        => EnumExtractor.GenerateEnumContent(parameters, extensible, stringOnTheWire, enumWireConverter, readMemberNames);
 }

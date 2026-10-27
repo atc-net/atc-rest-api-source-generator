@@ -30,6 +30,8 @@
     <None Include="$(PKGMicrosoft_OpenApi)\lib\netstandard2.0\Microsoft.OpenApi.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
     <None Include="$(PKGMicrosoft_OpenApi_YamlReader)\lib\netstandard2.0\Microsoft.OpenApi.YamlReader.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
     <None Include="$(PKGSharpYaml)\lib\netstandard2.0\SharpYaml.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+    <!-- What the generators read from the build (see build/*.props and build/*.targets) -->
+    <None Include="build\Atc.Rest.Api.SourceGenerator.props;build\Atc.Rest.Api.SourceGenerator.targets" Pack="true" PackagePath="build" />
     <!-- README -->
     <None Include="..\..\README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
@@ -39,9 +41,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Atc" Version="3.0.186" GeneratePathProperty="true" />
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.6.0" PrivateAssets="all" />
-    <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="5.6.0" PrivateAssets="all" />
+    <PackageReference Include="Atc" Version="4.0.0" GeneratePathProperty="true" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="5.9.0" PrivateAssets="all" />
     <PackageReference Include="Microsoft.OpenApi" Version="3.10.2" GeneratePathProperty="true" />
     <PackageReference Include="Microsoft.OpenApi.YamlReader" Version="3.10.2" GeneratePathProperty="true" />
     <!-- Exact pin, not a floor — SharpYaml 3.x breaks Microsoft.OpenApi.YamlReader at runtime.

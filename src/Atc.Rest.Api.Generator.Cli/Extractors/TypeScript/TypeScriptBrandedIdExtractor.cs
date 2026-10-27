@@ -109,10 +109,7 @@ public static class TypeScriptBrandedIdExtractor
         }
 
         var sb = new StringBuilder();
-        if (!string.IsNullOrEmpty(headerContent))
-        {
-            sb.Append(headerContent);
-        }
+        sb.Append(headerContent);
 
         sb.AppendLine("/**");
         sb.AppendLine(" * Branded ID types. The intersection with `{ readonly __brand: '...' }` makes");
@@ -247,7 +244,7 @@ public static class TypeScriptBrandedIdExtractor
                 return null;
             }
 
-            return ToPascalCase(fallbackEntity) + "Id";
+            return TypeScriptCasingHelper.ToUpperFirst(fallbackEntity) + "Id";
         }
 
         // `<entity>Id` or `<entity>ID` shapes. Strip the trailing Id, PascalCase the rest.
@@ -260,7 +257,7 @@ public static class TypeScriptBrandedIdExtractor
                 return null;
             }
 
-            return ToPascalCase(entity) + "Id";
+            return TypeScriptCasingHelper.ToUpperFirst(entity) + "Id";
         }
 
         if (identifier.EndsWith("ID", StringComparison.Ordinal))
@@ -271,7 +268,7 @@ public static class TypeScriptBrandedIdExtractor
                 return null;
             }
 
-            return ToPascalCase(entity) + "Id";
+            return TypeScriptCasingHelper.ToUpperFirst(entity) + "Id";
         }
 
         return null;
@@ -320,20 +317,5 @@ public static class TypeScriptBrandedIdExtractor
         }
 
         return parent;
-    }
-
-    private static string ToPascalCase(string value)
-    {
-        if (string.IsNullOrEmpty(value))
-        {
-            return value;
-        }
-
-        if (char.IsUpper(value[0]))
-        {
-            return value;
-        }
-
-        return char.ToUpperInvariant(value[0]) + value[1..];
     }
 }

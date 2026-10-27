@@ -17,7 +17,6 @@ public static class HttpStatusCodeHelper
         ["100"] = "Status100Continue",
         ["101"] = "Status101SwitchingProtocols",
         ["102"] = "Status102Processing",
-        ["103"] = "Status103EarlyHints",
 
         // 2xx Success
         ["200"] = "Status200OK",
@@ -62,16 +61,17 @@ public static class HttpStatusCodeHelper
         ["416"] = "Status416RangeNotSatisfiable",
         ["417"] = "Status417ExpectationFailed",
         ["418"] = "Status418ImATeapot",
+        ["419"] = "Status419AuthenticationTimeout",
         ["421"] = "Status421MisdirectedRequest",
         ["422"] = "Status422UnprocessableEntity",
         ["423"] = "Status423Locked",
         ["424"] = "Status424FailedDependency",
-        ["425"] = "Status425TooEarly",
         ["426"] = "Status426UpgradeRequired",
         ["428"] = "Status428PreconditionRequired",
         ["429"] = "Status429TooManyRequests",
         ["431"] = "Status431RequestHeaderFieldsTooLarge",
         ["451"] = "Status451UnavailableForLegalReasons",
+        ["499"] = "Status499ClientClosedRequest",
 
         // 5xx Server Error
         ["500"] = "Status500InternalServerError",
@@ -88,12 +88,36 @@ public static class HttpStatusCodeHelper
     };
 
     /// <summary>
+    /// Whether the status is a redirect that carries a <c>Location</c> (RFC 9110 §15.4): 301, 302, 303, 307, 308.
+    /// </summary>
+    public static bool IsRedirect(int statusCode)
+        => statusCode is 301 or 302 or 303 or 307 or 308;
+
+    /// <summary>
     /// Converts an HTTP status code integer to a valid C# identifier name.
     /// For defined codes (e.g., 200 → "OK", 404 → "NotFound"), returns the enum name.
     /// For undefined codes (e.g., 499, 529), returns "Status{code}" (e.g., "Status499").
     /// </summary>
     public static string ToEnumName(int statusCode)
     {
+        // Codes with an alias in HttpStatusCode (Ambiguous, Moved, Redirect, RedirectMethod, RedirectKeepVerb,
+        // UnprocessableContent): always one fixed name, whichever alias Enum.ToString would pick.
+        switch (statusCode)
+        {
+            case 300:
+                return "MultipleChoices";
+            case 301:
+                return "MovedPermanently";
+            case 302:
+                return "Found";
+            case 303:
+                return "SeeOther";
+            case 307:
+                return "TemporaryRedirect";
+            case 422:
+                return "UnprocessableEntity";
+        }
+
         var httpStatusCode = (System.Net.HttpStatusCode)statusCode;
 
         if (Enum.IsDefined(typeof(System.Net.HttpStatusCode), statusCode))
@@ -115,4 +139,28 @@ public static class HttpStatusCodeHelper
         string statusCode,
         out string? constant)
         => StatusCodesConstants.TryGetValue(statusCode, out constant);
+
+    /// <summary>
+    /// Gets the C# expression for a status code as a <c>System.Net.HttpStatusCode</c> value in generated
+    /// client code: the enum member when one exists (e.g. <c>HttpStatusCode.NotFound</c>), otherwise a cast
+    /// of the numeric value (e.g. <c>(HttpStatusCode)418</c>, <c>(HttpStatusCode)499</c>).
+    /// </summary>
+    /// <param name="statusCode">The numeric status code.</param>
+    /// <returns>The C# expression.</returns>
+    public static string ToHttpStatusCodeExpression(int statusCode)
+        => Enum.IsDefined(typeof(System.Net.HttpStatusCode), statusCode)
+            ? $"HttpStatusCode.{(System.Net.HttpStatusCode)statusCode}"
+            : $"(HttpStatusCode){statusCode.ToString(CultureInfo.InvariantCulture)}";
+
+    /// <summary>
+    /// Gets the C# expression for a status code in generated ASP.NET Core code: the <c>StatusCodes</c>
+    /// constant when one exists (e.g. <c>StatusCodes.Status404NotFound</c>), otherwise the numeric literal
+    /// (e.g. <c>425</c>, <c>499</c>) so that non-standard and unmapped codes are still emitted.
+    /// </summary>
+    /// <param name="statusCode">The numeric status code.</param>
+    /// <returns>The C# expression.</returns>
+    public static string ToStatusCodesExpression(int statusCode)
+        => StatusCodesConstants.TryGetValue(statusCode.ToString(CultureInfo.InvariantCulture), out var constant)
+            ? $"StatusCodes.{constant}"
+            : statusCode.ToString(CultureInfo.InvariantCulture);
 }

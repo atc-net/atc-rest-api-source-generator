@@ -1,0 +1,83 @@
+openapi: 3.1.0
+info:
+  title: Contoso Fleet
+  version: 1.0.0
+  description: >-
+    A third-party style specification as a vendor might publish it - no operationIds, an id left out of `required`,
+    a timestamp without its format, an inline object, and an internal path. Overlays.overlay.yaml fixes all of it,
+    and every generator generates from the fixed specification.
+paths:
+  /devices:
+    get:
+      tags:
+        - Devices
+      summary: List devices
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Device'
+  /devices/{deviceId}:
+    get:
+      tags:
+        - Devices
+      summary: Get a device
+      parameters:
+        - name: deviceId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+        '404':
+          description: Not Found
+  /internal/diagnostics:
+    get:
+      tags:
+        - Internal
+      summary: Vendor diagnostics, not for API consumers
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                type: string
+components:
+  schemas:
+    Device:
+      title: Device
+      type: object
+      required:
+        - name
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: The device's id - always set, but the vendor left it out of required.
+        name:
+          type: string
+        lastSeen:
+          type: string
+          description: When the device last reported in - an RFC 3339 date-time, but the vendor left out the format.
+        location:
+          type: object
+          description: Where the device is installed.
+          properties:
+            latitude:
+              type: number
+              format: double
+            longitude:
+              type: number
+              format: double

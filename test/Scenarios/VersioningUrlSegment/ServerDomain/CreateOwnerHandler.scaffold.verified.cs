@@ -5,6 +5,9 @@ namespace VersioningUrlSegment.ApiHandlers;
 /// </summary>
 public sealed class CreateOwnerHandler : ICreateOwnerHandler
 {
+    /// <summary>
+    /// Executes the CreateOwner operation.
+    /// </summary>
     public Task<CreateOwnerResult> ExecuteAsync(
         CreateOwnerParameters parameters,
         CancellationToken cancellationToken = default)

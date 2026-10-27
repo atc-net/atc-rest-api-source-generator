@@ -80,6 +80,11 @@ public static class ServiceCollectionExtensions
                 {
                     new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Name, "demo-user"),
                     new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, "demo-user-id"),
+
+                    // The generated endpoints enforce the scopes an operation's security names (createUser and
+                    // importUsers need users:write and admin): the demo user holds every scope of the oauth2 scheme,
+                    // as one space-separated claim the way a token delivers it
+                    new System.Security.Claims.Claim("scope", "users:read users:write admin"),
                 };
                 var identity = new System.Security.Claims.ClaimsIdentity(claims, Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults.AuthenticationScheme);
                 context.Principal = new System.Security.Claims.ClaimsPrincipal(identity);

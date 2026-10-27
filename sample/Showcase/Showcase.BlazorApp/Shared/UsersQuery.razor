@@ -1,0 +1,26 @@
+<MudCard Elevation="2" Class="mt-4">
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">Query users by ids</MudText>
+        </CardHeaderContent>
+    </MudCardHeader>
+    <MudCardContent>
+        <MudText Typo="Typo.body2" Class="mb-2">
+            <code>QUERY /users</code> sends the ids in the request body - a safe, idempotent read like a GET, without a
+            URL to outgrow.
+        </MudText>
+        <MudTextField @bind-Value="idsText" Label="User ids" HelperText="One id per line (or separated by commas)"
+                      Variant="Variant.Outlined" Lines="3" Immediate="true" data-testid="users-query-ids" />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-2" Disabled="isQuerying"
+                   OnClick="QueryAsync" data-testid="users-query">Query</MudButton>
+        @if (status is not null)
+        {
+            <MudText Typo="Typo.body2" Class="mt-2" data-testid="users-query-status">@status</MudText>
+        }
+
+        @foreach (var user in found)
+        {
+            <MudText Typo="Typo.body2" data-testid="users-query-row">@user</MudText>
+        }
+    </MudCardContent>
+</MudCard>

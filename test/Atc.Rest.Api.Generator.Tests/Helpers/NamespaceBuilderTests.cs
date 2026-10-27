@@ -42,6 +42,19 @@ public class NamespaceBuilderTests
         Assert.Equal("MyApi.Generated", result);
     }
 
+    // ========== ToFileName Tests ==========
+    [Theory]
+    [InlineData("My.Api.Generated.Models", "AuthorizationDto", "My.Api.Generated.Models.AuthorizationDto.g.cs")]
+    [InlineData("MyApi.Generated.Pets.Handlers", "IGetPetHandler", "MyApi.Generated.Pets.Handlers.IGetPetHandler.g.cs")]
+    public void ToFileName_MirrorsTheNamespaceAndAddsTheGeneratedSuffix(
+        string namespaceValue,
+        string typeName,
+        string expected)
+    {
+        var result = NamespaceBuilder.ToFileName(namespaceValue, typeName);
+        Assert.Equal(expected, result);
+    }
+
     // ========== Convenience Method Tests ==========
     [Fact]
     public void ForModels_WithoutSegment_ReturnsCorrectNamespace()

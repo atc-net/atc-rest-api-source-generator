@@ -12,10 +12,25 @@ public sealed partial class WebhookDemo : IAsyncDisposable
     private IConfiguration Configuration { get; set; } = null!;
 
     private readonly List<SystemNotification> notifications = [];
+
     private bool isConnecting;
+
     private bool isSubscribed;
+
     private bool isSending;
+
     private string? lastError;
+
+    public async ValueTask DisposeAsync()
+    {
+        HubService.OnSystemNotification -= HandleSystemNotification;
+        HubService.OnUserActivity -= HandleUserActivity;
+        HubService.OnDataChange -= HandleDataChange;
+        HubService.OnConnectionStateChanged -= HandleConnectionStateChanged;
+
+        // Don't dispose the hub service - it's a singleton shared across pages
+        await Task.CompletedTask;
+    }
 
     protected override void OnInitialized()
     {
@@ -113,6 +128,7 @@ public sealed partial class WebhookDemo : IAsyncDisposable
 #pragma warning disable CA5394 // Random is insecure - acceptable for demo
     private static int GetRandomIndex(int maxValue)
         => Random.Shared.Next(maxValue);
+
 #pragma warning restore CA5394
 
     private async Task SendWebhookAsync(
@@ -207,55 +223,44 @@ public sealed partial class WebhookDemo : IAsyncDisposable
         };
 
     private static string GetNotificationIcon(NotificationType type)
-        => type switch
+        => type.Value switch
         {
-            NotificationType.System => Icons.Material.Filled.Computer,
-            NotificationType.User => Icons.Material.Filled.Person,
-            NotificationType.Data => Icons.Material.Filled.Storage,
-            NotificationType.Alert => Icons.Material.Filled.Warning,
-            NotificationType.Metric => Icons.Material.Filled.Analytics,
+            NotificationType.Names.System => Icons.Material.Filled.Computer,
+            NotificationType.Names.User => Icons.Material.Filled.Person,
+            NotificationType.Names.Data => Icons.Material.Filled.Storage,
+            NotificationType.Names.Alert => Icons.Material.Filled.Warning,
+            NotificationType.Names.Metric => Icons.Material.Filled.Analytics,
             _ => Icons.Material.Filled.Notifications,
         };
 
-    private static Color GetSeverityColor(NotificationSeverity severity)
-        => severity switch
+    private static Color GetSeverityColor(NotificationSeverity? severity)
+        => severity?.Value switch
         {
-            NotificationSeverity.Info => Color.Info,
-            NotificationSeverity.Warning => Color.Warning,
-            NotificationSeverity.Error => Color.Error,
-            NotificationSeverity.Critical => Color.Error,
+            NotificationSeverity.Names.Info => Color.Info,
+            NotificationSeverity.Names.Warning => Color.Warning,
+            NotificationSeverity.Names.Error => Color.Error,
+            NotificationSeverity.Names.Critical => Color.Error,
             _ => Color.Default,
         };
 
     private static Color GetTypeChipColor(NotificationType type)
-        => type switch
+        => type.Value switch
         {
-            NotificationType.System => Color.Primary,
-            NotificationType.User => Color.Secondary,
-            NotificationType.Data => Color.Tertiary,
-            NotificationType.Alert => Color.Warning,
-            NotificationType.Metric => Color.Info,
+            NotificationType.Names.System => Color.Primary,
+            NotificationType.Names.User => Color.Secondary,
+            NotificationType.Names.Data => Color.Tertiary,
+            NotificationType.Names.Alert => Color.Warning,
+            NotificationType.Names.Metric => Color.Info,
             _ => Color.Default,
         };
 
-    private static Color GetSeverityChipColor(NotificationSeverity severity)
-        => severity switch
+    private static Color GetSeverityChipColor(NotificationSeverity? severity)
+        => severity?.Value switch
         {
-            NotificationSeverity.Info => Color.Info,
-            NotificationSeverity.Warning => Color.Warning,
-            NotificationSeverity.Error => Color.Error,
-            NotificationSeverity.Critical => Color.Dark,
+            NotificationSeverity.Names.Info => Color.Info,
+            NotificationSeverity.Names.Warning => Color.Warning,
+            NotificationSeverity.Names.Error => Color.Error,
+            NotificationSeverity.Names.Critical => Color.Dark,
             _ => Color.Default,
         };
-
-    public async ValueTask DisposeAsync()
-    {
-        HubService.OnSystemNotification -= HandleSystemNotification;
-        HubService.OnUserActivity -= HandleUserActivity;
-        HubService.OnDataChange -= HandleDataChange;
-        HubService.OnConnectionStateChanged -= HandleConnectionStateChanged;
-
-        // Don't dispose the hub service - it's a singleton shared across pages
-        await Task.CompletedTask;
-    }
 }

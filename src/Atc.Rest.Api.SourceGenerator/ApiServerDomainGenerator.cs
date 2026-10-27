@@ -11,20 +11,43 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
 {
     private static readonly Regex WhitespaceNormalizerRegex = new(@"\s+", RegexOptions.Compiled, TimeSpan.FromSeconds(1));
 
+    // The parameter list runs to its own closing parenthesis (balanced): a default value or an attribute argument
+    // with parentheses of its own is part of it, not its end
     private static readonly Regex ExecuteAsyncSignatureRegex = new(
-        @"public\s+(?:async\s+)?(?:System\.Threading\.Tasks\.)?Task<\w+Result>\s+ExecuteAsync\s*\(\s*[\s\S]*?\)",
+        @"public\s+(?:async\s+)?(?:System\.Threading\.Tasks\.)?Task<\w+Result>\s+ExecuteAsync\s*\((?:[^()]|(?<open>\()|(?<-open>\)))*(?(open)(?!))\)",
         RegexOptions.Singleline | RegexOptions.Compiled | RegexOptions.ExplicitCapture,
         TimeSpan.FromSeconds(1));
 
+    private static readonly UTF8Encoding Utf8NoBom = new(encoderShouldEmitUTF8Identifier: false);
+
+    /// <summary>
+    /// Registers the pipeline: the <c>.atc-rest-api-server-handlers</c> marker file and the specifications as additional texts, the handler interfaces the compilation already implements, and the scaffolds of the missing handlers as the output.
+    /// </summary>
+    /// <param name="context">The initialization context.</param>
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        // Extract a stable, equatable summary from the compilation.
-        // This runs on every C# edit but its output only changes when the handler set,
-        // validator set, interface namespaces, or assembly references actually change.
-        // Because DomainCompilationSummary has value equality, unchanged results
-        // prevent the downstream RegisterSourceOutput callback from firing.
-        var compilationSummary = context.CompilationProvider
-            .Select(static (compilation, _) => ExtractCompilationSummary(compilation));
+        // The project's handlers, validators and handler-interface namespaces, read per type declaration: an edit
+        // reads the edited file's declarations again, the other files' facts stay cached
+        var typeFacts = context.SyntaxProvider
+            .CreateSyntaxProvider(
+                static (node, _) => DomainTypeScanner.IsCandidate(node),
+                static (syntaxContext, cancellationToken) => DomainTypeScanner.Read(syntaxContext, cancellationToken))
+            .WithTrackingName(DomainTypeScanner.TrackingName)
+            .Where(static facts => facts is not null)
+            .Select(static (facts, _) => facts!)
+            .Collect();
+
+        // The references and the assembly name: a short look at the compilation per edit
+        var references = context.CompilationProvider
+            .Select(static (compilation, _) => new DomainReferences(
+                compilation.ReferencesAnyStartingWith("Microsoft.AspNetCore"),
+                compilation.References("Microsoft.Extensions.Logging.Abstractions"),
+                compilation.AssemblyName));
+
+        // Value equality: an unchanged summary keeps the RegisterSourceOutput callback from firing
+        var compilationSummary = typeFacts
+            .Combine(references)
+            .Select(static (pair, _) => DomainTypeScanner.Summarize(pair.Left, pair.Right));
 
         // Find marker files - marker file presence IS the trigger for this generator
         var markerFiles = context.AdditionalTextsProvider
@@ -36,58 +59,45 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
             .Select(static (array, _) => new EquatableArray<MarkerFileInfo>(array));
 
         // Find OpenAPI YAML files - collect ALL files for multi-part spec support
-        var yamlFiles = context.AdditionalTextsProvider
-            .Where(static file => file.Path.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase) ||
-                                 file.Path.EndsWith(".yml", StringComparison.OrdinalIgnoreCase))
+        var yamlFiles = SpecificationFileProvider.Create(context);
+
+        // The server markers among the AdditionalFiles - the project's own, and a sibling project's that the package's
+        // targets add (AtcRestApiSiblingMarker) - for the contracts namespace: a declared input, so a change to it runs
+        // this generator again
+        var serverMarkers = context.AdditionalTextsProvider
+            .Where(static file => MarkerFileHelper.IsServerMarker(file.Path))
             .Select(static (file, cancellationToken) =>
-                new YamlFileInfo(file.Path, file.GetText(cancellationToken)?.ToString() ?? string.Empty))
-            .Where(static file => !string.IsNullOrEmpty(file.Content))
+                new MarkerFileInfo(file.Path, file.GetText(cancellationToken)?.ToString() ?? "{}"))
             .Collect()
-            .Select(static (array, _) => new EquatableArray<YamlFileInfo>(array));
+            .Select(static (array, _) => new EquatableArray<MarkerFileInfo>(array));
+
+        // Whether the scaffolds may be written into the project: not when AtcRestApiScaffoldHandlers is false (the
+        // package's targets make it false for a CI build)
+        var writesFiles = context.AnalyzerConfigOptionsProvider
+            .Select(static (options, _) => BuildSettings.WritesScaffolds(options.GlobalOptions));
 
         // Combine ALL YAML files (as collection) with the stable compilation summary and marker files.
         // This means the callback only fires when YAML content, marker config,
         // or meaningful compilation state changes — not on every C# keystroke.
         var combined = yamlFiles
             .Combine(compilationSummary)
-            .Combine(markerFiles);
+            .Combine(markerFiles)
+            .Combine(serverMarkers)
+            .Combine(writesFiles);
 
         // Register source output for handler scaffolds
         context.RegisterSourceOutput(combined, (productionContext, combinedData) =>
         {
-            var ((yamlFiles, summary), markers) = combinedData;
+            var ((((yamlFiles, summary), markers), declaredServerMarkers), writes) = combinedData;
+            var scaffolding = new ScaffoldSettings(declaredServerMarkers.Values, writes);
 
-            // Skip if no marker file found - marker file presence IS the trigger
-            if (markers.IsEmpty)
+            if (GeneratorStartup.ReadMarker<ServerDomainConfig>(productionContext, yamlFiles, markers) is not { } started)
             {
                 return;
             }
 
-            // Skip if no YAML files found
-            if (yamlFiles.IsEmpty)
-            {
-                return;
-            }
-
-            var markerInfo = markers.Values.First();
+            var (markerInfo, config) = started;
             var markerDirectory = Path.GetDirectoryName(markerInfo.Path) ?? string.Empty;
-
-            ServerDomainConfig config;
-            try
-            {
-                config = JsonSerializer.Deserialize<ServerDomainConfig>(markerInfo.Content, JsonHelper.ConfigOptions) ?? new ServerDomainConfig();
-            }
-            catch (Exception ex)
-            {
-                DiagnosticHelpers.ReportMarkerConfigParseError(productionContext, markerInfo.Path, ex);
-                config = new ServerDomainConfig();
-            }
-
-            // Skip if generation is disabled
-            if (!config.Generate)
-            {
-                return;
-            }
 
             // Validate ASP.NET Core references - generated handlers require them
             if (!summary.HasAspNetCore)
@@ -96,137 +106,107 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
                 return;
             }
 
-            // Identify base file and part files for multi-part spec support
-            var baseFile = YamlFileHelper.IdentifyBaseFile(yamlFiles.Values);
-            if (baseFile is null)
-            {
-                return;
-            }
-
+            // Everything from here runs under the catch: a failure before the base file is known is reported on the marker
+            var filePath = markerInfo.Path;
             try
             {
-                var baseName = Path.GetFileNameWithoutExtension(baseFile.Value.Path);
-                var partFiles = yamlFiles.Values
-                    .Where(f => YamlFileHelper.IsPartFile(f.Path, baseName))
-                    .ToList();
+                GeneratorFaultInjection.ThrowIfRequested(RuleIdentifiers.HandlerScaffoldGenerationError);
 
-                if (partFiles.Count > 0)
+                if (GeneratorStartup.FindSpecification(productionContext, markerInfo.Path, config.Overlays, yamlFiles) is not { } files)
                 {
-                    // Multi-part mode: merge all files before generating scaffolds
-                    var baseSpec = SpecificationService.ReadFromContent(baseFile.Value.Content, baseFile.Value.Path);
-                    var partSpecs = partFiles
-                        .Select(p => SpecificationService.ReadFromContent(p.Content, p.Path))
-                        .ToList();
-
-                    var mergeConfig = MultiPartConfiguration.Default;
-                    var mergeResult = SpecificationService.MergeSpecifications(baseSpec, partSpecs, mergeConfig);
-
-                    foreach (var diagnostic in mergeResult.Diagnostics)
-                    {
-                        productionContext.ReportDiagnostic(DiagnosticHelpers.ToRoslynDiagnostic(diagnostic));
-                    }
-
-                    if (!mergeResult.IsSuccess || mergeResult.Document is null)
-                    {
-                        return;
-                    }
-
-                    GenerateHandlerScaffoldsFromDocument(productionContext, baseFile.Value.Path, mergeResult.Document, summary, config, markerDirectory);
+                    return;
                 }
-                else
+
+                filePath = files.BaseFile.Path;
+
+                // A multi-part specification is merged with the server marker's merge settings, so the handlers see
+                // the specification the contracts do
+                var openApiDoc = GeneratorStartup.Load(
+                    productionContext,
+                    files,
+                    config,
+                    MarkerFileHelper.MultiPartConfigurationOf(declaredServerMarkers.Values),
+                    parametersMustBind: true,
+                    DiagnosticHelpers.ReportDomainParsingError);
+                if (openApiDoc is null)
                 {
-                    // Single file mode
-                    GenerateHandlerScaffolds(productionContext, baseFile.Value.Path, baseFile.Value.Content, summary, config, markerDirectory);
+                    return;
                 }
+
+                GenerateHandlerScaffoldsFromDocument(productionContext, files.BaseFile.Path, openApiDoc, summary, config, markerDirectory, scaffolding);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                DiagnosticHelpers.ReportHandlerScaffoldGenerationError(productionContext, baseFile.Value.Path, ex);
+                DiagnosticHelpers.ReportHandlerScaffoldGenerationError(productionContext, filePath, ex);
             }
         });
     }
 
     /// <summary>
-    /// Extracts a stable, equatable summary from the compilation.
-    /// Scans for implemented handlers, interface namespaces, and validators so that
-    /// the pipeline can detect when these sets actually change.
+    /// Updates the ExecuteAsync method signature in an existing handler file if it doesn't match the expected signature.
+    /// Preserves the method body and all other code.
     /// </summary>
-    private static DomainCompilationSummary ExtractCompilationSummary(
-        Compilation compilation)
+    internal static void UpdateHandlerSignatureIfNeeded(
+        string filePath,
+        string expectedSignature)
     {
-        var hasAspNetCore = compilation.ReferencedAssemblyNames
-            .Any(a => a.Name.StartsWith("Microsoft.AspNetCore", StringComparison.OrdinalIgnoreCase));
-
-        var hasLogging = hasAspNetCore || compilation.ReferencedAssemblyNames
-            .Any(a => a.Name.Equals("Microsoft.Extensions.Logging.Abstractions", StringComparison.OrdinalIgnoreCase));
-
-        var assemblyName = compilation.AssemblyName;
-
-        // Sort all collections to ensure deterministic equality comparison. All discovered
-        // (name, namespace) pairs are kept — including duplicate names across namespaces — so
-        // the generation phase can prefer a user handler over a scaffolded stub.
-        var implementedHandlers = FindImplementedHandlers(compilation)
-            .Select(h => new HandlerInfo(h.HandlerName, h.Namespace))
-            .OrderBy(h => h.Name, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(h => h.Namespace, StringComparer.Ordinal)
-            .ToImmutableArray();
-
-        var interfaceNamespaces = FindHandlerInterfaceNamespaces(compilation)
-            .OrderBy(ns => ns, StringComparer.Ordinal)
-            .ToImmutableArray();
-
-        var validators = FindImplementedValidators(compilation)
-            .Select(v => new ValidatorInfo(v.ValidatorName, v.ValidatorNamespace, v.ModelType))
-            .OrderBy(v => v.Name, StringComparer.Ordinal)
-            .ToImmutableArray();
-
-        return new DomainCompilationSummary(
-            hasAspNetCore,
-            hasLogging,
-            assemblyName,
-            new EquatableArray<HandlerInfo>(implementedHandlers),
-            new EquatableArray<string>(interfaceNamespaces),
-            new EquatableArray<ValidatorInfo>(validators));
-    }
-
-    private static void GenerateHandlerScaffolds(
-        SourceProductionContext context,
-        string yamlPath,
-        string yamlContent,
-        DomainCompilationSummary summary,
-        ServerDomainConfig config,
-        string markerDirectory)
-    {
-        // Parse the OpenAPI YAML content
-        var (openApiDoc, openApiDiagnostic) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(yamlContent, yamlPath);
-
-        if (openApiDoc is null)
+        try
         {
-            DiagnosticHelpers.ReportDomainParsingError(context, yamlPath);
-            return;
+            var bytes = File.ReadAllBytes(filePath);
+            var hadBom = bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF;
+            var content = Encoding.UTF8.GetString(bytes, hadBom ? 3 : 0, bytes.Length - (hadBom ? 3 : 0));
+
+            // Pattern matches:
+            // - public (optional async) Task<XxxResult> ExecuteAsync(...)
+            // - Also handles fully qualified System.Threading.Tasks.Task<...>
+            // - Multi-line parameter lists (ATC201/ATC202 compliant), up to and including the closing parenthesis
+            var match = ExecuteAsyncSignatureRegex.Match(content);
+            if (!match.Success)
+            {
+                // Can't find ExecuteAsync method, skip update
+                return;
+            }
+
+            var currentSignature = match.Value;
+
+            // Check if async modifier is present in current signature
+            var hasAsync = currentSignature.Contains("async ");
+
+            // Check if fully qualified Task name is used
+            var hasFullyQualifiedTask = currentSignature.Contains("System.Threading.Tasks.Task<");
+
+            // Build the replacement signature, preserving async and fully qualified Task if present
+            var replacementSignature = expectedSignature;
+            if (hasAsync)
+            {
+                replacementSignature = replacementSignature.Replace("public Task<", "public async Task<");
+            }
+
+            if (hasFullyQualifiedTask)
+            {
+                replacementSignature = replacementSignature.Replace("Task<", "System.Threading.Tasks.Task<");
+            }
+
+            // Compare normalized signatures
+            if (NormalizeSignature(currentSignature) == NormalizeSignature(replacementSignature))
+            {
+                // Signatures match, no update needed
+                return;
+            }
+
+            // Replace that one signature while preserving everything else, and write the file back as it was read:
+            // without a BOM unless it had one
+            var updatedContent = ExecuteAsyncSignatureRegex.Replace(content, replacementSignature, 1);
+            ScaffoldFileWriter.Replace(filePath, updatedContent, hadBom ? Encoding.UTF8 : Utf8NoBom);
         }
-
-        // Validate OpenAPI document according to configured strategy
-        var validationDiagnostics = OpenApiDocumentValidator.Validate(
-            config.ValidateSpecificationStrategy,
-            openApiDoc,
-            openApiDiagnostic?.Errors ?? Array.Empty<OpenApiError>(),
-            yamlPath,
-            yamlContent);
-
-        // Report all validation diagnostics (convert from platform-agnostic to Roslyn)
-        foreach (var diagnostic in validationDiagnostics)
+        catch (IOException)
         {
-            context.ReportDiagnostic(DiagnosticHelpers.ToRoslynDiagnostic(diagnostic));
+            // File may be read-only or locked, skip update
         }
-
-        // Stop generation if there are validation errors (not warnings)
-        if (DiagnosticHelpers.HasErrors(validationDiagnostics))
+        catch (RegexMatchTimeoutException)
         {
-            return;
+            // Regex took too long, skip update
         }
-
-        GenerateHandlerScaffoldsFromDocument(context, yamlPath, openApiDoc, summary, config, markerDirectory);
     }
 
     private static void GenerateHandlerScaffoldsFromDocument(
@@ -235,11 +215,19 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         OpenApiDocument openApiDoc,
         DomainCompilationSummary summary,
         ServerDomainConfig config,
-        string markerDirectory)
+        string markerDirectory,
+        ScaffoldSettings scaffolding)
     {
+        // An inline allOf over a plain base becomes one inline object, so it gets a model of its own
+        InlineAllOfFlattener.Flatten(openApiDoc);
+
+        // The same path filter as the server's: a scaffold for an operation the server leaves out would
+        // implement a handler interface that is never generated (on a copy: the parsed document is cached and shared)
+        openApiDoc = PathFilterHelper.WithFilteredPaths(openApiDoc, config.IncludePaths, config.ExcludePaths);
+
         // Determine contracts namespace for GlobalUsings:
         // Priority: explicit config > server marker (same dir or sibling) > derive from domain namespace
-        var serverNamespace = MarkerFileHelper.TryGetServerNamespace(markerDirectory);
+        var serverNamespace = MarkerFileHelper.TryGetServerNamespace(markerDirectory, scaffolding.ServerMarkers);
         var contractsNamespace = config.ContractsNamespace ?? serverNamespace;
 
         // If we couldn't auto-detect the contracts namespace AND multiple sibling markers
@@ -248,7 +236,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         // usings (the symptom that GEN011 is meant to catch).
         if (contractsNamespace is null &&
             !string.IsNullOrEmpty(markerDirectory) &&
-            MarkerFileHelper.HasMultipleSiblingServerMarkers(markerDirectory))
+            MarkerFileHelper.HasMultipleSiblingServerMarkers(markerDirectory, scaffolding.ServerMarkers))
         {
             DiagnosticHelpers.ReportContractsNamespaceAmbiguous(
                 context,
@@ -257,11 +245,15 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         }
 
         // Determine the root namespace for GlobalUsings (contracts namespace)
+        // Without one: the handlers' own namespace without its Domain suffix, else what the server resolves from the
+        // same specification (a qualifying info.title, then the file name)
         var rootNamespace = contractsNamespace is not null
             ? contractsNamespace
-            : (config.Namespace ?? Path.GetFileNameWithoutExtension(yamlPath))
-                .Replace(".Api.Domain", string.Empty)
-                .Replace(".Domain", string.Empty);
+            : string.IsNullOrWhiteSpace(config.Namespace)
+                ? NamespaceResolver.Resolve(configNamespace: null, openApiDoc.Info?.Title, yamlPath)
+                : NamespaceResolver.ToValidNamespace(config.Namespace)
+                    .Replace(".Api.Domain", string.Empty)
+                    .Replace(".Domain", string.Empty);
 
         var assemblyName = summary.AssemblyName ?? "Generated";
 
@@ -282,9 +274,6 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
                 namespaces.Add(handler.Namespace);
             }
         }
-
-        // Get all operations from the OpenAPI document
-        var operations = openApiDoc.GetAllOperations();
 
         // Create system type conflict resolver for conditional Task qualification
         var modelNames = openApiDoc.Components?.Schemas?.Keys ?? [];
@@ -311,8 +300,9 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
             DiagnosticHelpers.ReportLoggingRequiresPackage(context);
         }
 
-        // Ensure GlobalUsings.cs is updated at project root (markerDirectory) before generating handlers
-        if (!string.IsNullOrEmpty(markerDirectory))
+        // Ensure GlobalUsings.cs is updated at project root (markerDirectory) before generating handlers - when the
+        // project's files may be written; the usings below are part of the build either way
+        if (scaffolding.WritesFiles && !string.IsNullOrEmpty(markerDirectory))
         {
             DomainGlobalUsingsHelper.EnsureUpdated(markerDirectory, interfaceNamespaces, rootNamespace, pathSegments, openApiDoc, config, rawPathSegments);
         }
@@ -326,80 +316,37 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         // Proxy over `context` that adds [ExcludeFromCodeCoverage] alongside [GeneratedCode] when
         // configured. Handler scaffolds are excluded by design (they carry no [GeneratedCode]),
         // so only the DI registration methods below (which take this proxy) are affected.
-        var generatedContext = new GeneratedSourceContext(context, config.ExcludeFromCodeCoverage);
-        generatedContext.AddSource("DomainGlobalUsings.g.cs", SourceText.From(globalUsingsContent, Encoding.UTF8));
+        var generatedContext = new GeneratedSourceContext(context, config.ExcludeFromCodeCoverage, DeprecationDetector.HasDeprecatedMembers(openApiDoc));
+        generatedContext.AddGeneratedSource("DomainGlobalUsings.g.cs", SourceText.From(globalUsingsContent, Encoding.UTF8));
 
-        // Collect all handler info for DI registration
-        var allHandlers = new List<(string OperationId, string HandlerName, string HandlerNamespace)>();
-
-        // Generate scaffolds for unimplemented handlers only
-        foreach (var (path, operationType, operation) in operations)
+        // Every operation's handler: a user-written one before a leftover stub, a stub scaffolded for the others
+        var plans = HandlerScaffoldPlanner.Plan(openApiDoc, config, assemblyName, markerDirectory, implementedHandlers);
+        foreach (var plan in plans)
         {
-            // Skip deprecated operations if not including them
-            if (operation is null || (!config.IncludeDeprecated && operation.Deprecated))
+            // A user handler shadowing a leftover stub is silent otherwise - surface it so the developer knows to
+            // delete the stale stub in the scaffold folder
+            if (plan.ShadowsStub)
             {
-                continue;
+                DiagnosticHelpers.ReportHandlerStubShadowed(context, plan.HandlerName, plan.Namespace, plan.ScaffoldNamespace);
             }
 
-            // Get the path item to access path-level parameters
-            openApiDoc.Paths.TryGetValue(path, out var pathItem);
-
-            var operationId = operation.GetOperationId(path, operationType);
-            var handlerName = $"{operationId.ToPascalCaseForDotNet()}{config.HandlerSuffix}";
-
-            // The namespace a scaffolded stub for this operation would live in.
-            var scaffoldNamespace = GetHandlerNamespace(assemblyName, path, operation, config);
-
-            // Resolve which implementation to register. When the same handler name exists in
-            // multiple namespaces (a leftover stub under the scaffold namespace PLUS a
-            // hand-written handler elsewhere), prefer the user's handler so the endpoint
-            // doesn't silently resolve to the NotImplementedException stub (HTTP 501).
-            var isImplemented = implementedHandlers.TryGetValue(handlerName, out var implementingNamespaces)
-                && implementingNamespaces.Count > 0;
-
-            string? actualNamespace = null;
-            if (isImplemented)
+            // If handler is already implemented, check if signature needs updating (when the project's files may be
+            // written; a signature that does not match fails the build either way)
+            if (plan.IsImplemented)
             {
-                actualNamespace = implementingNamespaces.FirstOrDefault(ns => !string.Equals(ns, scaffoldNamespace, StringComparison.Ordinal))
-                                  ?? implementingNamespaces[0];
-
-                // A user handler shadowing a leftover stub is silent otherwise — surface it so
-                // the developer knows to delete the stale stub in the scaffold folder.
-                if (implementingNamespaces.Count > 1 &&
-                    implementingNamespaces.Contains(scaffoldNamespace) &&
-                    !string.Equals(actualNamespace, scaffoldNamespace, StringComparison.Ordinal))
+                if (scaffolding.WritesFiles && File.Exists(plan.FilePath))
                 {
-                    DiagnosticHelpers.ReportHandlerStubShadowed(context, handlerName, actualNamespace, scaffoldNamespace);
-                }
-            }
-
-            // Use actual namespace if implemented, otherwise use config-based namespace
-            var handlerNamespace = isImplemented && !string.IsNullOrEmpty(actualNamespace)
-                ? actualNamespace!
-                : scaffoldNamespace;
-
-            // Add to all handlers list for DI registration (regardless of implementation status)
-            allHandlers.Add((operationId, handlerName, handlerNamespace));
-
-            // Determine sub-folder path for physical file (if enabled)
-            var subFolderPath = GetSubFolderPath(path, operation, config);
-
-            // If handler is already implemented, check if signature needs updating
-            if (isImplemented)
-            {
-                var handlerFilePath = GetHandlerFilePath(handlerName, markerDirectory, subFolderPath, config);
-                if (File.Exists(handlerFilePath))
-                {
-                    var expectedSignature = BuildExpectedSignature(openApiDoc, path, operation, operationId);
-                    UpdateHandlerSignatureIfNeeded(handlerFilePath, expectedSignature);
+                    UpdateHandlerSignatureIfNeeded(plan.FilePath, plan.ExpectedSignature);
                 }
 
                 continue;
             }
 
-            // Generate handler scaffold as physical file
-            GenerateHandlerScaffold(context, handlerName, handlerNamespace, operation, pathItem, operationId, config, markerDirectory, subFolderPath, systemTypeResolver);
+            GenerateHandlerScaffold(context, plan, config, markerDirectory, systemTypeResolver, scaffolding.WritesFiles);
         }
+
+        // Every handler is registered, implemented or not
+        var allHandlers = plans.Select(p => (p.OperationId, p.HandlerName, p.Namespace)).ToList();
 
         // Generate DI registration extension method for handlers
         GenerateDependencyRegistration(generatedContext, assemblyName, rootNamespace, allHandlers, config, interfaceNamespaces, pathSegments);
@@ -465,9 +412,9 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
 
         var generatedContent = contentGenerator.Generate();
 
-        context.AddSource(
+        context.AddGeneratedSource(
             "ApiHandlerDependencyRegistration.g.cs",
-            SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
+            generatedContent);
     }
 
     /// <summary>
@@ -503,299 +450,29 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
 
         var generatedContent = contentGenerator.Generate();
 
-        context.AddSource(
+        context.AddGeneratedSource(
             "ApiValidatorDependencyRegistration.g.cs",
-            SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
-    }
-
-    /// <summary>
-    /// Scans the compilation to find all handler implementations.
-    /// Returns a dictionary mapping handler class names to their actual namespaces (e.g., "CreatePetsHandler" -> "PetStoreSimple.Api.Domain.ApiHandlers").
-    /// Detection is done both by interface implementation AND by class naming convention to handle
-    /// cases where the interface isn't yet resolved during source generation.
-    /// </summary>
-    internal static List<(string HandlerName, string Namespace)> FindImplementedHandlers(
-        Compilation compilation)
-    {
-        // All discovered (name, namespace) pairs are returned WITHOUT collapsing to one
-        // namespace per name. When the same handler name exists in two namespaces — e.g. a
-        // previously scaffolded stub under "...ApiHandlers" AND a hand-written handler the
-        // user placed elsewhere — collapsing would let discovery order decide which one
-        // wins, silently registering the stub (HTTP 501). The caller, which knows the
-        // scaffold namespace per operation, picks the right one and can warn on shadowing.
-        var seen = new HashSet<(string, string)>();
-        var implementedHandlers = new List<(string HandlerName, string Namespace)>();
-
-        void Add(
-            string handlerName,
-            string ns)
-        {
-            if (seen.Add((handlerName, ns)))
-            {
-                implementedHandlers.Add((handlerName, ns));
-            }
-        }
-
-        // Get type symbols from the current assembly only (avoids scanning all referenced assemblies)
-        var allTypes = GetAllTypesFromAssembly(compilation.Assembly.GlobalNamespace);
-
-        foreach (var typeSymbol in allTypes)
-        {
-            // Skip interfaces and abstract classes
-            if (typeSymbol.TypeKind == TypeKind.Interface ||
-                typeSymbol.IsAbstract)
-            {
-                continue;
-            }
-
-            // Method 1: Check if this type implements any handler interfaces
-            foreach (var interfaceSymbol in typeSymbol.AllInterfaces)
-            {
-                var interfaceName = interfaceSymbol.Name;
-
-                // Check if it's a handler interface (e.g., ICreatePetsHandler)
-                if (interfaceName.StartsWith("I", StringComparison.Ordinal) &&
-                    interfaceName.EndsWith("Handler", StringComparison.Ordinal))
-                {
-                    // Extract handler name (e.g., CreatePetsHandler from ICreatePetsHandler)
-                    var handlerName = interfaceName.Substring(1); // Remove "I" prefix
-
-                    // Get the actual namespace of the implementation
-                    var actualNamespace = typeSymbol.ContainingNamespace?.ToDisplayString() ?? string.Empty;
-
-                    Add(handlerName, actualNamespace);
-                }
-            }
-
-            // Method 2: Check by class name convention (e.g., SetShutdownHandler)
-            // This catches handlers even when the interface isn't resolved yet during source generation
-            var className = typeSymbol.Name;
-            if (className.EndsWith("Handler", StringComparison.Ordinal))
-            {
-                // Verify it's a user-defined class (has source location in the current project)
-                var syntaxRef = typeSymbol.DeclaringSyntaxReferences.FirstOrDefault();
-                if (syntaxRef is not null)
-                {
-                    var filePath = syntaxRef.SyntaxTree.FilePath;
-
-                    // Skip generated files (obj/Generated folder or .g.cs extension)
-                    if (!filePath.Contains("obj" + Path.DirectorySeparatorChar + "Generated") &&
-                        !filePath.Contains("obj" + Path.AltDirectorySeparatorChar + "Generated") &&
-                        !filePath.EndsWith(".g.cs", StringComparison.OrdinalIgnoreCase))
-                    {
-                        var actualNamespace = typeSymbol.ContainingNamespace?.ToDisplayString() ?? string.Empty;
-                        Add(className, actualNamespace);
-                    }
-                }
-            }
-        }
-
-        return implementedHandlers;
-    }
-
-    /// <summary>
-    /// Scans the compilation to find all FluentValidation validator implementations.
-    /// Returns a list of tuples containing (ValidatorName, ValidatorNamespace, ModelType).
-    /// </summary>
-    private static List<(string ValidatorName, string ValidatorNamespace, string ModelType)> FindImplementedValidators(
-        Compilation compilation)
-    {
-        var validators = new List<(string ValidatorName, string ValidatorNamespace, string ModelType)>();
-
-        // Get type symbols from the current assembly only (avoids scanning all referenced assemblies)
-        var allTypes = GetAllTypesFromAssembly(compilation.Assembly.GlobalNamespace);
-
-        foreach (var typeSymbol in allTypes)
-        {
-            // Walk up the inheritance hierarchy to find AbstractValidator<T>
-            var baseType = typeSymbol.BaseType;
-            while (baseType is not null)
-            {
-                // Check if this is AbstractValidator<T> from FluentValidation
-                if (baseType.Name == "AbstractValidator" &&
-                    baseType.TypeArguments.Length == 1 &&
-                    baseType.ContainingNamespace?.ToDisplayString() == "FluentValidation")
-                {
-                    var modelType = baseType.TypeArguments[0].ToDisplayString();
-                    var validatorNamespace = typeSymbol.ContainingNamespace?.ToDisplayString() ?? string.Empty;
-
-                    validators.Add((typeSymbol.Name, validatorNamespace, modelType));
-                    break;
-                }
-
-                baseType = baseType.BaseType;
-            }
-        }
-
-        return validators;
-    }
-
-    /// <summary>
-    /// Determines the handler namespace based on assembly name and configuration.
-    /// Uses assembly name as the base namespace, with optional override via config.Namespace.
-    /// </summary>
-    private static string GetHandlerNamespace(
-        string assemblyName,
-        string path,
-        OpenApiOperation operation,
-        ServerDomainConfig config)
-    {
-        // Use assembly name as base namespace by default, config.Namespace only as explicit override
-        var baseNamespace = assemblyName;
-
-        // Build handler folder name from config (default: "ApiHandlers")
-        var handlerFolder = config.GenerateHandlersOutput
-            .Replace("/", ".")
-            .Replace("\\", ".");
-
-        // If no sub-folders, use handler folder directly
-        if (config.SubFolderStrategy == SubFolderStrategyType.None)
-        {
-            return $"{baseNamespace}.{handlerFolder}";
-        }
-
-        // Extract sub-folder name based on strategy
-        var subFolder = config.SubFolderStrategy switch
-        {
-            SubFolderStrategyType.FirstPathSegment => ExtractFirstPathSegment(path),
-            SubFolderStrategyType.OpenApiTag => operation.GetFirstTag(),
-            _ => string.Empty
-        };
-
-        if (string.IsNullOrEmpty(subFolder))
-        {
-            return $"{baseNamespace}.{handlerFolder}";
-        }
-
-        return $"{baseNamespace}.{handlerFolder}.{subFolder.ToPascalCaseForDotNet()}";
-    }
-
-    /// <summary>
-    /// Scans the compilation to find all handler interface namespaces.
-    /// Returns a set of unique namespaces where IXxxHandler interfaces are defined.
-    /// </summary>
-    private static HashSet<string> FindHandlerInterfaceNamespaces(
-        Compilation compilation)
-    {
-        var namespaces = new HashSet<string>(StringComparer.Ordinal);
-
-        // Get all named type symbols in the compilation (including referenced assemblies)
-        var allTypes = compilation.GetSymbolsWithName(
-            name => name.StartsWith("I", StringComparison.Ordinal) && name.EndsWith("Handler", StringComparison.Ordinal),
-            SymbolFilter.Type);
-
-        foreach (var typeSymbol in allTypes.OfType<INamedTypeSymbol>())
-        {
-            // Check if it's an interface
-            if (typeSymbol.TypeKind == TypeKind.Interface)
-            {
-                var ns = typeSymbol.ContainingNamespace?.ToDisplayString();
-                if (ns is not null && ns.Length > 0)
-                {
-                    namespaces.Add(ns);
-                }
-            }
-        }
-
-        return namespaces;
-    }
-
-    /// <summary>
-    /// Recursively collects all named type symbols from a namespace (current assembly only).
-    /// This avoids GetSymbolsWithName(_ => true) which scans all referenced assemblies.
-    /// </summary>
-    private static IEnumerable<INamedTypeSymbol> GetAllTypesFromAssembly(
-        INamespaceSymbol namespaceSymbol)
-    {
-        foreach (var member in namespaceSymbol.GetTypeMembers())
-        {
-            yield return member;
-        }
-
-        foreach (var nestedNamespace in namespaceSymbol.GetNamespaceMembers())
-        {
-            foreach (var type in GetAllTypesFromAssembly(nestedNamespace))
-            {
-                yield return type;
-            }
-        }
-    }
-
-    /// <summary>
-    /// Extracts the first path segment from an OpenAPI path (e.g., "/pets/{id}" -> "Pet").
-    /// </summary>
-    private static string ExtractFirstPathSegment(string path)
-    {
-        var segments = path.Split(['/'], StringSplitOptions.RemoveEmptyEntries);
-        if (segments.Length == 0)
-        {
-            return string.Empty;
-        }
-
-        return segments[0].ToPascalCaseForDotNet();
-    }
-
-    /// <summary>
-    /// Gets the sub-folder path for physical file generation based on configuration.
-    /// </summary>
-    private static string GetSubFolderPath(
-        string path,
-        OpenApiOperation operation,
-        ServerDomainConfig config)
-    {
-        // If no sub-folders, return empty string
-        if (config.SubFolderStrategy == SubFolderStrategyType.None)
-        {
-            return string.Empty;
-        }
-
-        // Extract sub-folder name based on strategy
-        var subFolder = config.SubFolderStrategy switch
-        {
-            SubFolderStrategyType.FirstPathSegment => ExtractFirstPathSegment(path),
-            SubFolderStrategyType.OpenApiTag => operation.GetFirstTag(),
-            _ => string.Empty
-        };
-
-        return subFolder;
+            generatedContent);
     }
 
     private static void GenerateHandlerScaffold(
         SourceProductionContext context,
-        string handlerName,
-        string handlerNamespace,
-        OpenApiOperation operation,
-        IOpenApiPathItem? pathItem,
-        string operationId,
+        Atc.Rest.Api.Generator.Models.HandlerPlan plan,
         ServerDomainConfig config,
         string markerDirectory,
-        string subFolderPath,
-        SystemTypeConflictResolver systemTypeResolver)
+        SystemTypeConflictResolver systemTypeResolver,
+        bool writesFiles)
     {
-        // Determine output directory (GenerateHandlersOutput is relative to marker file)
-        var outputDirectory = Path.Combine(markerDirectory, config.GenerateHandlersOutput);
-
-        // If no marker file found, report warning
-        if (string.IsNullOrEmpty(outputDirectory))
+        // Without a marker folder and a handler folder there is nowhere to scaffold (GenerateHandlersOutput is relative
+        // to the marker file)
+        if (string.IsNullOrEmpty(Path.Combine(markerDirectory, config.GenerateHandlersOutput)))
         {
             DiagnosticHelpers.ReportOutputDirectoryNotSpecified(context);
             return;
         }
 
-        // Apply sub-folder if configured
-        if (!string.IsNullOrEmpty(subFolderPath))
-        {
-            outputDirectory = Path.Combine(outputDirectory, subFolderPath);
-        }
-
-        // Ensure directory exists
-        Directory.CreateDirectory(outputDirectory);
-
-        // Generate file path
-        var fileName = $"{handlerName}.cs";
-        var filePath = Path.Combine(outputDirectory, fileName);
-
         // Skip if file already exists
+        var filePath = plan.FilePath;
         if (File.Exists(filePath))
         {
             return;
@@ -803,11 +480,11 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
 
         // Use HandlerScaffoldExtractor to extract class parameters
         var classParameters = HandlerScaffoldExtractor.Extract(
-            handlerName,
-            handlerNamespace,
-            operation,
-            pathItem,
-            operationId,
+            plan.HandlerName,
+            plan.Namespace,
+            plan.Operation,
+            plan.PathItem,
+            plan.OperationId,
             config.HandlerSuffix,
             config.StubImplementation,
             systemTypeResolver,
@@ -823,70 +500,28 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
 
         var content = contentGenerator.Generate();
 
-        // Write physical file
-        FileHelper.WriteCsFile(filePath, content);
+        // Write physical file - created only when no other host has written it meanwhile. A folder that is a file, a
+        // path too long or a folder without access is the project's, not a failed generation: say which scaffold, and
+        // keep it in this build. Not written at all where the project's files are not to be touched (a CI build): the
+        // stub is part of the build, and the missing handler is reported
+        if (writesFiles)
+        {
+            try
+            {
+                ScaffoldFileWriter.TryCreate(filePath, content);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+            {
+                DiagnosticHelpers.ReportHandlerScaffoldNotWritten(context, plan.HandlerName, filePath, ex);
+            }
+        }
+        else
+        {
+            DiagnosticHelpers.ReportHandlerNotImplemented(context, plan.HandlerName, filePath);
+        }
 
         // Also emit as in-memory source so the current compilation can reference this type
-        context.AddSource($"{handlerName}.scaffold.g.cs", SourceText.From(content, Encoding.UTF8));
-    }
-
-    /// <summary>
-    /// Gets the file path where a handler would be located based on configuration.
-    /// </summary>
-    private static string GetHandlerFilePath(
-        string handlerName,
-        string markerDirectory,
-        string subFolderPath,
-        ServerDomainConfig config)
-    {
-        var outputDirectory = Path.Combine(markerDirectory, config.GenerateHandlersOutput);
-
-        if (!string.IsNullOrEmpty(subFolderPath))
-        {
-            outputDirectory = Path.Combine(outputDirectory, subFolderPath);
-        }
-
-        return Path.Combine(outputDirectory, $"{handlerName}.cs");
-    }
-
-    /// <summary>
-    /// Builds the expected ExecuteAsync method signature based on the OpenAPI operation.
-    /// </summary>
-    private static string BuildExpectedSignature(
-        OpenApiDocument openApiDoc,
-        string path,
-        OpenApiOperation operation,
-        string operationId)
-    {
-        var operationIdPascal = operationId.ToPascalCaseForDotNet();
-
-        // Check if operation has parameters (operation-level)
-        var hasOperationParams = operation.Parameters is { Count: > 0 };
-
-        // Check for path-level parameters
-        var hasPathParams = false;
-        if (openApiDoc.Paths is not null &&
-            openApiDoc.Paths.TryGetValue(path, out var pathItemInterface) &&
-            pathItemInterface is { } pathItem)
-        {
-            hasPathParams = pathItem.Parameters is { Count: > 0 };
-        }
-
-        // Check for request body
-        var hasRequestBody = operation.HasRequestBody();
-        var hasParameters = hasOperationParams || hasPathParams || hasRequestBody;
-
-        if (hasParameters)
-        {
-            // Multi-line format to comply with ATC202 (multi parameters on separate lines)
-            return $"public Task<{operationIdPascal}Result> ExecuteAsync(\n" +
-                   $"        {operationIdPascal}Parameters parameters,\n" +
-                   "        CancellationToken cancellationToken = default)";
-        }
-
-        // Single parameter - use multi-line format to comply with ATC201 (line exceeds 80 chars)
-        return $"public Task<{operationIdPascal}Result> ExecuteAsync(\n" +
-               "        CancellationToken cancellationToken = default)";
+        context.AddSource($"{plan.HandlerName}.scaffold.g.cs", SourceText.From(content, Encoding.UTF8));
     }
 
     /// <summary>
@@ -894,71 +529,4 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
     /// </summary>
     private static string NormalizeSignature(string signature)
         => WhitespaceNormalizerRegex.Replace(signature.Trim(), " ");
-
-    /// <summary>
-    /// Updates the ExecuteAsync method signature in an existing handler file if it doesn't match the expected signature.
-    /// Preserves the method body and all other code.
-    /// </summary>
-    private static void UpdateHandlerSignatureIfNeeded(
-        string filePath,
-        string expectedSignature)
-    {
-        try
-        {
-            var content = File.ReadAllText(filePath);
-
-            // Pattern matches:
-            // - public (optional async) Task<XxxResult> ExecuteAsync(...)
-            // - Also handles fully qualified System.Threading.Tasks.Task<...>
-            // - Uses [\s\S]*? to match multi-line parameter lists (ATC201/ATC202 compliant)
-            // - Captures everything up to and including the closing parenthesis
-            var match = ExecuteAsyncSignatureRegex.Match(content);
-            if (!match.Success)
-            {
-                // Can't find ExecuteAsync method, skip update
-                return;
-            }
-
-            var currentSignature = match.Value;
-
-            // Check if async modifier is present in current signature
-            var hasAsync = currentSignature.Contains("async ");
-
-            // Check if fully qualified Task name is used
-            var hasFullyQualifiedTask = currentSignature.Contains("System.Threading.Tasks.Task<");
-
-            // Build the replacement signature, preserving async and fully qualified Task if present
-            var replacementSignature = expectedSignature;
-            if (hasAsync)
-            {
-                replacementSignature = replacementSignature.Replace("public Task<", "public async Task<");
-            }
-
-            if (hasFullyQualifiedTask)
-            {
-                replacementSignature = replacementSignature.Replace("Task<", "System.Threading.Tasks.Task<");
-            }
-
-            // Compare normalized signatures
-            if (NormalizeSignature(currentSignature) == NormalizeSignature(replacementSignature))
-            {
-                // Signatures match, no update needed
-                return;
-            }
-
-            // Replace the signature while preserving everything else
-            var updatedContent = ExecuteAsyncSignatureRegex.Replace(content, replacementSignature);
-
-            // Write the updated content back to the file
-            File.WriteAllText(filePath, updatedContent, Encoding.UTF8);
-        }
-        catch (IOException)
-        {
-            // File may be read-only or locked, skip update
-        }
-        catch (RegexMatchTimeoutException)
-        {
-            // Regex took too long, skip update
-        }
-    }
 }

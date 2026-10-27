@@ -60,6 +60,36 @@ public sealed class GenerateClientTypeScriptCommandTests : IDisposable
         Assert.True(File.Exists(Path.Combine(outputPath, "index.ts")), "Root index.ts should exist");
     }
 
+    /// <summary>
+    /// The root barrel exports the helpers whenever the helpers folder is written - a download's file name, the wire
+    /// names, the XML mapping - not only for pagination or retry, so a helper is imported from the client's root the same
+    /// way whatever else the specification has.
+    /// </summary>
+    [Fact]
+    public async Task GenerateClientTypeScript_HelpersForADownloadOnly_AreExportedFromTheRoot()
+    {
+        // Arrange: a file download, no pagination and no retry
+        var specPath = Path.Combine(tempOutputDir, "Downloads.yaml");
+        Directory.CreateDirectory(tempOutputDir);
+        await File.WriteAllTextAsync(
+            specPath,
+            "openapi: 3.0.3\ninfo:\n  title: Downloads\n  version: 1.0.0\npaths:\n  /reports/{id}:\n    get:\n      operationId: getReport\n      parameters:\n        - name: id\n          in: path\n          required: true\n          schema:\n            type: string\n      responses:\n        '200':\n          description: OK\n          content:\n            application/pdf:\n              schema:\n                type: string\n                format: binary\n        '404':\n          description: Not found\n",
+            TestContext.Current.CancellationToken);
+        var outputPath = Path.Combine(tempOutputDir, "DownloadsTs");
+
+        // Act
+        var (isSuccessful, output) = await ProcessHelper.Execute(
+            CliExeFile,
+            $"generate client-typescript -s \"{specPath}\" -o \"{outputPath}\"",
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.True(isSuccessful, CliTestHelper.StripAnsiCodes(output));
+        Assert.True(File.Exists(Path.Combine(outputPath, "helpers", "download.ts")), "helpers/download.ts should exist");
+        var rootIndex = await File.ReadAllTextAsync(Path.Combine(outputPath, "index.ts"), TestContext.Current.CancellationToken);
+        Assert.Contains("'./helpers'", rootIndex, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task GenerateClientTypeScript_WithShowcase_CreatesExpectedClientFiles()
     {
@@ -88,6 +118,67 @@ public sealed class GenerateClientTypeScriptCommandTests : IDisposable
         Assert.True(File.Exists(Path.Combine(clientDir, "NotificationsClient.ts")), "NotificationsClient.ts should exist");
         Assert.True(File.Exists(Path.Combine(clientDir, "TestingClient.ts")), "TestingClient.ts should exist");
         Assert.True(File.Exists(Path.Combine(clientDir, "index.ts")), "client/index.ts should exist");
+    }
+
+    [Fact]
+    public async Task GenerateClientTypeScript_EveryFile_HasLfLineEndingsOnly()
+    {
+        // Arrange - the header lines were written with \n and the body with the platform's line ending: a mix in
+        // every file on Windows
+        var yamlPath = CliTestHelper.GetScenarioYamlPath("Showcase");
+        var outputPath = Path.Combine(tempOutputDir, "ShowcaseTsLineEndings");
+        var arguments = $"generate client-typescript -s \"{yamlPath}\" -o \"{outputPath}\" --hooks ReactQuery --no-strict --scaffold";
+
+        // Act
+        var (isSuccessful, output) = await ProcessHelper.Execute(
+            CliExeFile,
+            arguments,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.True(isSuccessful, $"Expected success but got failure. Output: {CliTestHelper.StripAnsiCodes(output)}");
+        var withCarriageReturn = Directory
+            .EnumerateFiles(outputPath, "*", SearchOption.AllDirectories)
+            .Where(f => File.ReadAllText(f).Contains('\r', StringComparison.Ordinal))
+            .Select(f => Path.GetRelativePath(outputPath, f))
+            .ToList();
+        Assert.Empty(withCarriageReturn);
+    }
+
+    [Fact]
+    public async Task GenerateClientTypeScript_ACrlfCheckoutOfTheSameOutput_IsNotRewritten()
+    {
+        // Arrange - git with core.autocrlf=true checks the generated files out with CRLF
+        var yamlPath = CliTestHelper.GetScenarioYamlPath("Showcase");
+        var outputPath = Path.Combine(tempOutputDir, "ShowcaseTsCrlfCheckout");
+        var arguments = $"generate client-typescript -s \"{yamlPath}\" -o \"{outputPath}\" --hooks ReactQuery --no-strict";
+        var (firstSuccess, _) = await ProcessHelper.Execute(
+            CliExeFile,
+            arguments,
+            cancellationToken: TestContext.Current.CancellationToken);
+        Assert.True(firstSuccess, "First run should succeed");
+
+        var past = new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var files = Directory.EnumerateFiles(outputPath, "*.ts", SearchOption.AllDirectories).ToList();
+        foreach (var file in files)
+        {
+            await File.WriteAllTextAsync(file, (await File.ReadAllTextAsync(file, TestContext.Current.CancellationToken)).ReplaceLineEndings("\r\n"), TestContext.Current.CancellationToken);
+            File.SetLastWriteTimeUtc(file, past);
+        }
+
+        // Act
+        var (isSuccessful, output) = await ProcessHelper.Execute(
+            CliExeFile,
+            arguments,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.True(isSuccessful, $"Expected success but got failure. Output: {CliTestHelper.StripAnsiCodes(output)}");
+        var rewritten = files
+            .Where(f => File.GetLastWriteTimeUtc(f) != past)
+            .Select(f => Path.GetRelativePath(outputPath, f))
+            .ToList();
+        Assert.Empty(rewritten);
     }
 
     [Fact]
@@ -453,10 +544,9 @@ public sealed class GenerateClientTypeScriptCommandTests : IDisposable
     public async Task GenerateClientTypeScript_Hooks_CompileWithNoUnusedLocals(
         string hooksStyle)
     {
-        var nodeAvailable = await IsNodeAvailable(TestContext.Current.CancellationToken);
-        if (!nodeAvailable)
+        if (!NodeToolchain.IsAvailable(out var skipReason))
         {
-            return;
+            Assert.Skip(skipReason);
         }
 
         var yamlPath = CliTestHelper.GetScenarioYamlPath("Showcase");
@@ -493,19 +583,10 @@ public sealed class GenerateClientTypeScriptCommandTests : IDisposable
             tsconfigContent,
             TestContext.Current.CancellationToken);
 
-        var (npmSuccess, npmOutput) = await RunCommand(
-            "npm",
-            "install --save-dev typescript",
-            outputPath,
-            TestContext.Current.CancellationToken);
+        // The shared, pinned workspace gives the output directory its TypeScript
+        NodeWorkspace.Link(outputPath);
 
-        Assert.True(npmSuccess, $"npm install typescript should succeed. Output:\n{npmOutput}");
-
-        var (_, tscOutput) = await RunCommand(
-            "npx",
-            "tsc --noEmit",
-            outputPath,
-            TestContext.Current.CancellationToken);
+        var tscOutput = NodeToolchain.RunNpx("tsc --noEmit", outputPath, TimeSpan.FromMinutes(5)).Output;
 
         // Missing React/SWR/TanStack packages produce TS2307 "cannot find module", which is an
         // artefact of not installing them rather than a defect in the generated code. Unused
@@ -525,11 +606,9 @@ public sealed class GenerateClientTypeScriptCommandTests : IDisposable
     [Trait("Category", "RequiresNode")]
     public async Task GenerateClientTypeScript_Showcase_CompilesWithTscStrict()
     {
-        // Skip if Node.js is not available
-        var nodeAvailable = await IsNodeAvailable(TestContext.Current.CancellationToken);
-        if (!nodeAvailable)
+        if (!NodeToolchain.IsAvailable(out var skipReason))
         {
-            return;
+            Assert.Skip(skipReason);
         }
 
         // Arrange — generate TypeScript from Showcase.yaml
@@ -565,24 +644,14 @@ public sealed class GenerateClientTypeScriptCommandTests : IDisposable
             tsconfigContent,
             TestContext.Current.CancellationToken);
 
-        // Install TypeScript locally in the output directory
-        var (npmSuccess, npmOutput) = await RunCommand(
-            "npm",
-            "install --save-dev typescript",
-            outputPath,
-            TestContext.Current.CancellationToken);
-
-        Assert.True(npmSuccess, $"npm install typescript should succeed. Output:\n{npmOutput}");
+        // The shared, pinned workspace gives the output directory its TypeScript
+        NodeWorkspace.Link(outputPath);
 
         // Act — run tsc via npx
-        var (tscSuccess, tscOutput) = await RunCommand(
-            "npx",
-            "tsc --noEmit",
-            outputPath,
-            TestContext.Current.CancellationToken);
+        var tsc = NodeToolchain.RunNpx("tsc --noEmit", outputPath, TimeSpan.FromMinutes(5));
 
         // Assert
-        Assert.True(tscSuccess, $"tsc --strict should compile without errors. tsc output:\n{tscOutput}");
+        Assert.True(tsc.ExitCode == 0, $"tsc --strict should compile without errors. tsc output:\n{tsc.Output}");
     }
 
     [Fact]
@@ -781,8 +850,56 @@ public sealed class GenerateClientTypeScriptCommandTests : IDisposable
         Assert.True(File.Exists(Path.Combine(outputPath, "tsconfig.json")), "tsconfig.json should exist");
     }
 
+    /// <summary>
+    /// The scaffold files (package.json, the tsconfigs, README.md) are the user's after the first run: a second run
+    /// leaves an edited one as it is.
+    /// </summary>
     [Fact]
-    public async Task ConvertDates_GeneratesDateReviver()
+    public async Task Scaffold_ASecondRun_KeepsTheScaffoldFilesTheUserEdited()
+    {
+        var yamlPath = CliTestHelper.GetScenarioYamlPath("Demo");
+        var outputPath = Path.Combine(tempOutputDir, "DemoTsScaffoldTwice");
+        var arguments = $"generate client-typescript -s \"{yamlPath}\" -o \"{outputPath}\" --scaffold";
+        var (firstOk, firstOutput) = await ProcessHelper.Execute(CliExeFile, arguments, cancellationToken: TestContext.Current.CancellationToken);
+        Assert.True(firstOk, CliTestHelper.StripAnsiCodes(firstOutput));
+
+        var packageJsonPath = Path.Combine(outputPath, "package.json");
+        var edited = (await File.ReadAllTextAsync(packageJsonPath, TestContext.Current.CancellationToken))
+            .Replace("\"private\": true", "\"private\": true,\n  \"description\": \"edited by hand\"", StringComparison.Ordinal);
+        Assert.Contains("edited by hand", edited, StringComparison.Ordinal);
+        await File.WriteAllTextAsync(packageJsonPath, edited, TestContext.Current.CancellationToken);
+
+        var (secondOk, secondOutput) = await ProcessHelper.Execute(CliExeFile, arguments, cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.True(secondOk, CliTestHelper.StripAnsiCodes(secondOutput));
+        Assert.Contains("edited by hand", await File.ReadAllTextAsync(packageJsonPath, TestContext.Current.CancellationToken), StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A file the generator would write that exists without the generated header is somebody's own file: it is kept,
+    /// and the run says so.
+    /// </summary>
+    [Fact]
+    public async Task AFileWithoutTheGeneratedHeader_IsKept()
+    {
+        var yamlPath = CliTestHelper.GetScenarioYamlPath("Demo");
+        var outputPath = Path.Combine(tempOutputDir, "DemoTsOwnFile");
+        var ownFile = Path.Combine(outputPath, "client", "ApiClient.ts");
+        Directory.CreateDirectory(Path.GetDirectoryName(ownFile)!);
+        await File.WriteAllTextAsync(ownFile, "// mine\nexport class ApiClient {}\n", TestContext.Current.CancellationToken);
+        var arguments = $"generate client-typescript -s \"{yamlPath}\" -o \"{outputPath}\"";
+
+        var (isSuccessful, output) = await ProcessHelper.Execute(CliExeFile, arguments, cancellationToken: TestContext.Current.CancellationToken);
+
+        var cleanOutput = CliTestHelper.StripAnsiCodes(output);
+        Assert.True(isSuccessful, cleanOutput);
+        Assert.Equal("// mine\nexport class ApiClient {}\n", await File.ReadAllTextAsync(ownFile, TestContext.Current.CancellationToken));
+        Assert.Contains("ApiClient.ts", cleanOutput, StringComparison.Ordinal);
+        Assert.Contains("kept", cleanOutput, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ConvertDates_ConvertsTheDeclaredDatesThroughTheWireShapes()
     {
         // Arrange
         var yamlPath = CliTestHelper.GetScenarioYamlPath("Demo");
@@ -799,9 +916,37 @@ public sealed class GenerateClientTypeScriptCommandTests : IDisposable
         var cleanOutput = CliTestHelper.StripAnsiCodes(output);
         Assert.True(isSuccessful, $"Expected success but got failure. Output: {cleanOutput}");
 
+        // Only the declared dates are converted (helpers/wireNames.ts), not every ISO-looking string (no global reviver)
         var apiClientContent = await File.ReadAllTextAsync(
             Path.Combine(outputPath, "client", "ApiClient.ts"), TestContext.Current.CancellationToken);
-        Assert.Contains("dateReviver", apiClientContent, StringComparison.Ordinal);
+        Assert.DoesNotContain("dateReviver", apiClientContent, StringComparison.Ordinal);
+        var wireNames = await File.ReadAllTextAsync(
+            Path.Combine(outputPath, "helpers", "wireNames.ts"), TestContext.Current.CancellationToken);
+        Assert.Contains("{ date: 'date-time' }", wireNames, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task PreferXml_AsksForXmlFirst()
+    {
+        // Arrange
+        var yamlPath = CliTestHelper.GetScenarioYamlPath("PetStoreFull");
+        var outputPath = Path.Combine(tempOutputDir, "PetStoreTsPreferXml");
+        var arguments = $"generate client-typescript -s \"{yamlPath}\" -o \"{outputPath}\" --prefer-xml";
+
+        // Act
+        var (isSuccessful, output) = await ProcessHelper.Execute(
+            CliExeFile,
+            arguments,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        var cleanOutput = CliTestHelper.StripAnsiCodes(output);
+        Assert.True(isSuccessful, $"Expected success but got failure. Output: {cleanOutput}");
+
+        var petClient = await File.ReadAllTextAsync(
+            Path.Combine(outputPath, "client", "PetClient.ts"), TestContext.Current.CancellationToken);
+        Assert.Contains("accept: 'application/xml", petClient, StringComparison.Ordinal);
+        Assert.DoesNotContain("accept: 'application/json, application/problem+json'", petClient, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -898,67 +1043,37 @@ public sealed class GenerateClientTypeScriptCommandTests : IDisposable
         Assert.True(anyHasExportEnum, "At least one enum file should contain 'export enum'");
     }
 
-    private static async Task<bool> IsNodeAvailable(
-        CancellationToken cancellationToken)
+    [Theory]
+    [InlineData("", true)]
+    [InlineData(" --no-extensible-enums", false)]
+    public async Task UnionEnums_AreOpenByDefault_AndClosedWithNoExtensibleEnums(
+        string option,
+        bool open)
     {
-        try
+        // Arrange
+        var yamlPath = CliTestHelper.GetScenarioYamlPath("Demo");
+        var outputPath = Path.Combine(tempOutputDir, open ? "DemoTsOpenEnums" : "DemoTsClosedEnums");
+        var arguments = $"generate client-typescript -s \"{yamlPath}\" -o \"{outputPath}\"{option}";
+
+        // Act
+        var (isSuccessful, output) = await ProcessHelper.Execute(
+            CliExeFile,
+            arguments,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        var cleanOutput = CliTestHelper.StripAnsiCodes(output);
+        Assert.True(isSuccessful, $"Expected success but got failure. Output: {cleanOutput}");
+
+        var enumFiles = Directory.GetFiles(Path.Combine(outputPath, "enums"), "*.ts")
+            .Where(f => !f.EndsWith("index.ts", StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        Assert.NotEmpty(enumFiles);
+
+        foreach (var enumFile in enumFiles)
         {
-            var (success, _) = await RunCommand("node", "--version", Directory.GetCurrentDirectory(), cancellationToken);
-            return success;
+            var content = await File.ReadAllTextAsync(enumFile, TestContext.Current.CancellationToken);
+            Assert.Equal(open, content.Contains("| (string & {});", StringComparison.Ordinal));
         }
-        catch
-        {
-            return false;
-        }
-    }
-
-    private static async Task<(bool IsSuccessful, string Output)> RunCommand(
-        string fileName,
-        string arguments,
-        string workingDirectory,
-        CancellationToken cancellationToken)
-    {
-        // On Windows, .cmd scripts (node, npx) require cmd.exe to execute
-        var isWindows = OperatingSystem.IsWindows();
-        var actualFileName = isWindows ? "cmd.exe" : fileName;
-        var actualArguments = isWindows ? $"/c {fileName} {arguments}" : arguments;
-
-        var startInfo = new System.Diagnostics.ProcessStartInfo
-        {
-            FileName = actualFileName,
-            Arguments = actualArguments,
-            WorkingDirectory = workingDirectory,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-        };
-
-        using var process = new System.Diagnostics.Process { StartInfo = startInfo };
-        var outputBuilder = new System.Text.StringBuilder();
-
-        process.OutputDataReceived += (_, e) =>
-        {
-            if (e.Data is not null)
-            {
-                outputBuilder.AppendLine(e.Data);
-            }
-        };
-
-        process.ErrorDataReceived += (_, e) =>
-        {
-            if (e.Data is not null)
-            {
-                outputBuilder.AppendLine(e.Data);
-            }
-        };
-
-        process.Start();
-        process.BeginOutputReadLine();
-        process.BeginErrorReadLine();
-
-        await process.WaitForExitAsync(cancellationToken);
-
-        return (process.ExitCode == 0, outputBuilder.ToString());
     }
 }

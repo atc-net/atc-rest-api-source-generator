@@ -1,5 +1,9 @@
 @PetStoreFull_Api_HostAddress = http://localhost:5046
 
+# The routes carry the specification's server path (/api/v3).
+# The host accepts ANY bearer token and ANY api_key header (demo authentication only).
+@Token = demo
+
 # Get Scalar UI
 GET {{PetStoreFull_Api_HostAddress}}/
 Accept: text/html
@@ -7,11 +11,12 @@ Accept: text/html
 ###
 
 # ============================================
-# PET ENDPOINTS
+# PET ENDPOINTS (petstore_auth: Authorization: Bearer)
 # ============================================
 
 # Add a new pet to the store
-POST {{PetStoreFull_Api_HostAddress}}/pet
+POST {{PetStoreFull_Api_HostAddress}}/api/v3/pets
+Authorization: Bearer {{Token}}
 Content-Type: application/json
 
 {
@@ -26,7 +31,8 @@ Content-Type: application/json
 ###
 
 # Update an existing pet
-PUT {{PetStoreFull_Api_HostAddress}}/pet
+PUT {{PetStoreFull_Api_HostAddress}}/api/v3/pets
+Authorization: Bearer {{Token}}
 Content-Type: application/json
 
 {
@@ -41,37 +47,43 @@ Content-Type: application/json
 ###
 
 # Find pets by status
-GET {{PetStoreFull_Api_HostAddress}}/pet/findByStatus?status=available
+GET {{PetStoreFull_Api_HostAddress}}/api/v3/pets/findByStatus?status=available
+Authorization: Bearer {{Token}}
 Accept: application/json
 
 ###
 
 # Find pets by tags
-GET {{PetStoreFull_Api_HostAddress}}/pet/findByTags?tags=friendly,playful
+GET {{PetStoreFull_Api_HostAddress}}/api/v3/pets/findByTags?tags=friendly,playful
+Authorization: Bearer {{Token}}
 Accept: application/json
 
 ###
 
-# Get pet by ID
-GET {{PetStoreFull_Api_HostAddress}}/pet/1
+# Get pet by ID (api_key or petstore_auth)
+GET {{PetStoreFull_Api_HostAddress}}/api/v3/pets/1
+api_key: special-key
 Accept: application/json
 
 ###
 
 # Update pet with form data
-POST {{PetStoreFull_Api_HostAddress}}/pet/1?name=UpdatedName&status=sold
+POST {{PetStoreFull_Api_HostAddress}}/api/v3/pets/1?name=UpdatedName&status=sold
+Authorization: Bearer {{Token}}
 Accept: application/json
 
 ###
 
 # Delete a pet
-DELETE {{PetStoreFull_Api_HostAddress}}/pet/1
+DELETE {{PetStoreFull_Api_HostAddress}}/api/v3/pets/1
+Authorization: Bearer {{Token}}
 api_key: special-key
 
 ###
 
 # Upload pet image
-POST {{PetStoreFull_Api_HostAddress}}/pet/1/uploadImage?additionalMetadata=My%20pet%20photo
+POST {{PetStoreFull_Api_HostAddress}}/api/v3/pets/1/uploadImage?additionalMetadata=My%20pet%20photo
+Authorization: Bearer {{Token}}
 Content-Type: application/octet-stream
 
 < ./sample-image.jpg
@@ -82,14 +94,15 @@ Content-Type: application/octet-stream
 # STORE ENDPOINTS
 # ============================================
 
-# Get store inventory
-GET {{PetStoreFull_Api_HostAddress}}/store/inventory
+# Get store inventory (api_key)
+GET {{PetStoreFull_Api_HostAddress}}/api/v3/stores/inventory
+api_key: special-key
 Accept: application/json
 
 ###
 
 # Place an order
-POST {{PetStoreFull_Api_HostAddress}}/store/order
+POST {{PetStoreFull_Api_HostAddress}}/api/v3/stores/order
 Content-Type: application/json
 
 {
@@ -104,13 +117,13 @@ Content-Type: application/json
 ###
 
 # Get order by ID
-GET {{PetStoreFull_Api_HostAddress}}/store/order/1
+GET {{PetStoreFull_Api_HostAddress}}/api/v3/stores/order/1
 Accept: application/json
 
 ###
 
 # Delete order
-DELETE {{PetStoreFull_Api_HostAddress}}/store/order/1
+DELETE {{PetStoreFull_Api_HostAddress}}/api/v3/stores/order/1
 Accept: application/json
 
 ###
@@ -120,7 +133,7 @@ Accept: application/json
 # ============================================
 
 # Create user
-POST {{PetStoreFull_Api_HostAddress}}/user
+POST {{PetStoreFull_Api_HostAddress}}/api/v3/users
 Content-Type: application/json
 
 {
@@ -137,7 +150,7 @@ Content-Type: application/json
 ###
 
 # Create users with list
-POST {{PetStoreFull_Api_HostAddress}}/user/createWithList
+POST {{PetStoreFull_Api_HostAddress}}/api/v3/users/createWithList
 Content-Type: application/json
 
 [
@@ -166,25 +179,25 @@ Content-Type: application/json
 ###
 
 # Login user
-GET {{PetStoreFull_Api_HostAddress}}/user/login?username=johndoe&password=secret123
+GET {{PetStoreFull_Api_HostAddress}}/api/v3/users/login?username=johndoe&password=secret123
 Accept: application/json
 
 ###
 
 # Logout user
-GET {{PetStoreFull_Api_HostAddress}}/user/logout
+GET {{PetStoreFull_Api_HostAddress}}/api/v3/users/logout
 Accept: application/json
 
 ###
 
 # Get user by username
-GET {{PetStoreFull_Api_HostAddress}}/user/johndoe
+GET {{PetStoreFull_Api_HostAddress}}/api/v3/users/johndoe
 Accept: application/json
 
 ###
 
 # Update user
-PUT {{PetStoreFull_Api_HostAddress}}/user/johndoe
+PUT {{PetStoreFull_Api_HostAddress}}/api/v3/users/johndoe
 Content-Type: application/json
 
 {
@@ -201,7 +214,7 @@ Content-Type: application/json
 ###
 
 # Delete user
-DELETE {{PetStoreFull_Api_HostAddress}}/user/johndoe
+DELETE {{PetStoreFull_Api_HostAddress}}/api/v3/users/johndoe
 Accept: application/json
 
 ###

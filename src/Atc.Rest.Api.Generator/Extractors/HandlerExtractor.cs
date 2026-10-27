@@ -134,27 +134,14 @@ public static class HandlerExtractor
             return null;
         }
 
-        var normalizedPath = path
-            .Replace("/", "_")
-            .Replace("{", string.Empty)
-            .Replace("}", string.Empty);
-
-        var operationId = operation.OperationId ?? $"{httpMethod}{normalizedPath}";
+        var operationId = OperationIdHelper.Effective(operation, httpMethod, path);
         var handlerName = $"I{operationId.ToPascalCaseForDotNet()}Handler";
         var resultClassName = $"{operationId.ToPascalCaseForDotNet()}Result";
         var summary = operation.Summary ?? $"Handler for operation: {operationId}";
 
-        // Determine if operation has parameters (operation-level OR path-level)
-        var hasOperationParams = operation.Parameters is { Count: > 0 };
-        var hasPathParams = pathParameters is { Count: > 0 };
-        var hasParameters = hasOperationParams || hasPathParams;
-        var hasRequestBody = operation.HasRequestBody();
-
-        // Build method parameters
+        // Build method parameters: the Parameters record when the operation has a parameter or a request body
         var methodParameters = new List<ParameterBaseParameters>();
-
-        // Add Parameters class if operation has parameters OR request body
-        if (hasParameters || hasRequestBody)
+        if (HandlerSignature.TakesParameters(operation, pathParameters))
         {
             var parameterClassName = $"{operationId.ToPascalCaseForDotNet()}Parameters";
             methodParameters.Add(new ParameterBaseParameters(

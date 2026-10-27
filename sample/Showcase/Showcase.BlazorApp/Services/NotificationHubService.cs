@@ -1,14 +1,15 @@
 namespace Showcase.BlazorApp.Services;
 
 /// <summary>
-/// Service for connecting to the SignalR notification hub.
+/// Service for connecting to the SignalR notification hub, through the hub client generated from Showcase.yaml
+/// (<c>x-signalr-hubs</c>): its events and methods by name and type.
 /// </summary>
 #pragma warning disable CA1003 // Use generic event handler instances
 #pragma warning disable MA0046 // The delegate must have 2 parameters
 public sealed class NotificationHubService : IAsyncDisposable
 {
     private readonly IConfiguration configuration;
-    private HubConnection? hubConnection;
+    private NotificationsHubClient? hub;
     private string? currentSubscriptionId;
 
     public event Action<SystemNotification>? OnSystemNotification;
@@ -20,10 +21,10 @@ public sealed class NotificationHubService : IAsyncDisposable
     public event Action<string>? OnConnectionStateChanged;
 
     public bool IsConnected
-        => hubConnection?.State == HubConnectionState.Connected;
+        => hub?.Connection.State == HubConnectionState.Connected;
 
     public string ConnectionState
-        => hubConnection?.State.ToString() ?? "Disconnected";
+        => hub?.Connection.State.ToString() ?? "Disconnected";
 
     public NotificationHubService(IConfiguration configuration)
     {
@@ -32,35 +33,25 @@ public sealed class NotificationHubService : IAsyncDisposable
 
     public async Task ConnectAsync()
     {
-        if (hubConnection is not null)
+        if (hub is not null)
         {
             return;
         }
 
         var baseUrl = configuration["ApiBaseUrl"] ?? "https://localhost:5001";
-        var hubUrl = $"{baseUrl}/hubs/notifications";
 
-        hubConnection = new HubConnectionBuilder()
-            .WithUrl(hubUrl)
-            .WithAutomaticReconnect()
-            .Build();
+        hub = new NotificationsHubClient(
+            new HubConnectionBuilder()
+                .WithUrl(baseUrl.TrimEnd('/') + NotificationsHubClient.Url)
+                .WithAutomaticReconnect()
+                .Build());
 
-        // Register event handlers
-        hubConnection.On<SystemNotification>("SystemNotification", notification =>
-        {
-            OnSystemNotification?.Invoke(notification);
-        });
+        // The hub's events, by the names and payload types the specification declares
+        hub.OnSystemNotification(notification => OnSystemNotification?.Invoke(notification));
+        hub.OnUserActivity(activity => OnUserActivity?.Invoke(activity));
+        hub.OnDataChange(change => OnDataChange?.Invoke(change));
 
-        hubConnection.On<UserActivityEvent>("UserActivity", activity =>
-        {
-            OnUserActivity?.Invoke(activity);
-        });
-
-        hubConnection.On<DataChangeEvent>("DataChange", change =>
-        {
-            OnDataChange?.Invoke(change);
-        });
-
+        var hubConnection = hub.Connection;
         hubConnection.Reconnecting += error =>
         {
             OnConnectionStateChanged?.Invoke("Reconnecting...");
@@ -79,39 +70,39 @@ public sealed class NotificationHubService : IAsyncDisposable
             return Task.CompletedTask;
         };
 
-        await hubConnection.StartAsync();
+        await hub.StartAsync();
         OnConnectionStateChanged?.Invoke("Connected");
     }
 
     public async Task<string?> SubscribeAsync(string[] topics)
     {
-        if (hubConnection is null || hubConnection.State != HubConnectionState.Connected)
+        if (hub is null || hub.Connection.State != HubConnectionState.Connected)
         {
             return null;
         }
 
-        currentSubscriptionId = await hubConnection.InvokeAsync<string>("Subscribe", topics);
+        currentSubscriptionId = await hub.SubscribeAsync(topics);
         return currentSubscriptionId;
     }
 
     public async Task UnsubscribeAsync()
     {
-        if (hubConnection is null || currentSubscriptionId is null)
+        if (hub is null || currentSubscriptionId is null)
         {
             return;
         }
 
-        await hubConnection.InvokeAsync("Unsubscribe", currentSubscriptionId);
+        await hub.UnsubscribeAsync(currentSubscriptionId);
         currentSubscriptionId = null;
     }
 
     public async Task DisconnectAsync()
     {
-        if (hubConnection is not null)
+        if (hub is not null)
         {
-            await hubConnection.StopAsync();
-            await hubConnection.DisposeAsync();
-            hubConnection = null;
+            await hub.StopAsync();
+            await hub.DisposeAsync();
+            hub = null;
             currentSubscriptionId = null;
             OnConnectionStateChanged?.Invoke("Disconnected");
         }

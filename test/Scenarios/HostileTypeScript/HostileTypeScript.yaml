@@ -1,0 +1,179 @@
+openapi: 3.0.3
+info:
+  title: Hostile TypeScript
+  description: Names and keywords a specification may legally carry and that must never break the generated TypeScript - schemas named like the client's own helpers and the browser's globals, an operationId with a slash, parameters named like keywords, a pattern in .NET syntax, a cycle through an array alias, a description that closes a comment, a server URL with a quote.
+  version: 1.0.0
+servers:
+  - url: https://api.contoso.example/it's/v1
+paths:
+  /repos:
+    get:
+      operationId: repos/list
+      summary: Lists repositories - the operationId has a slash (as GitHub's does); the text matches **/*.yaml, which closes a JSDoc comment.
+      description: Matches every file under **/*.yaml - the text closes a JSDoc comment.
+      parameters:
+        - name: class
+          in: query
+          description: A query parameter named like a keyword.
+          schema:
+            type: string
+        - name: default
+          in: header
+          description: A header named like a keyword.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The repositories.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Response'
+  /repos/{package}/{function}:
+    get:
+      operationId: repos/get
+      summary: Reads one repository - path parameters named like keywords.
+      parameters:
+        - name: package
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: function
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The repository.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+        '404':
+          description: Not found - the error schema is named like the client's own.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Invalid - the error schema is named like the client's own.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+  /files:
+    post:
+      operationId: createFile
+      summary: Creates a file - the model is named like the browser's File.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/File'
+      responses:
+        '201':
+          description: Created - the result is named like the client's own.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResult'
+  /trees:
+    get:
+      operationId: listTrees
+      summary: Lists trees - a cycle through an array alias.
+      responses:
+        '200':
+          description: The trees.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NodeList'
+components:
+  schemas:
+    Response:
+      description: A schema named like the browser's Response, with patterns in .NET syntax.
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: string
+          pattern: '(?i)^[a-z0-9-]+$'
+        slug:
+          type: string
+          pattern: '\A[a-z]+\z'
+        headers:
+          $ref: '#/components/schemas/Headers'
+        blob:
+          $ref: '#/components/schemas/Blob'
+        form:
+          $ref: '#/components/schemas/FormData'
+        error:
+          $ref: '#/components/schemas/Error'
+    Headers:
+      type: object
+      properties:
+        etag:
+          type: string
+    Blob:
+      type: object
+      properties:
+        size:
+          type: integer
+    FormData:
+      type: object
+      properties:
+        fields:
+          type: array
+          items:
+            type: string
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+    File:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        content:
+          type: string
+          format: byte
+    ApiError:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+    ValidationError:
+      type: object
+      properties:
+        field:
+          type: string
+        message:
+          type: string
+    ApiResult:
+      type: object
+      properties:
+        ok:
+          type: boolean
+    Node:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        children:
+          $ref: '#/components/schemas/NodeList'
+    NodeList:
+      description: An array alias that closes a cycle with Node.
+      type: array
+      items:
+        $ref: '#/components/schemas/Node'

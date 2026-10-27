@@ -5,6 +5,9 @@ namespace Demo.ApiHandlers;
 /// </summary>
 public sealed class GetAccountByIdHandler : IGetAccountByIdHandler
 {
+    /// <summary>
+    /// Executes the GetAccountById operation.
+    /// </summary>
     public System.Threading.Tasks.Task<GetAccountByIdResult> ExecuteAsync(
         GetAccountByIdParameters parameters,
         CancellationToken cancellationToken = default)

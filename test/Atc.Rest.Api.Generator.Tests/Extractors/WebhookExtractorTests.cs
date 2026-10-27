@@ -144,6 +144,50 @@ public class WebhookExtractorTests
         Assert.Contains("Pet Payload", content, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("type: string", "public string? Payload { get; init; }")]
+    [InlineData("$ref: '#/components/schemas/Pet'", "public Pet? Payload { get; init; }")]
+    public void WebhookParameterExtractor_Extract_AnOptionalPayload_IsNullableOnce(
+        string schema,
+        string expected)
+    {
+        // Arrange - a request body is optional unless it says required: true
+        var yaml = $$"""
+            openapi: 3.1.0
+            info:
+              title: Contoso
+              version: 1.0.0
+            paths: {}
+            webhooks:
+              orderShipped:
+                post:
+                  operationId: onOrderShipped
+                  requestBody:
+                    content:
+                      application/json:
+                        schema:
+                          {{schema}}
+                  responses:
+                    '200':
+                      description: OK
+            components:
+              schemas:
+                Pet:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+            """;
+
+        // Act
+        var result = WebhookParameterExtractor.Extract(OpenApiDocumentHelper.ParseYaml(yaml), "TestApi", new SystemTypeConflictResolver([]));
+
+        // Assert
+        var (_, content) = Assert.Single(result!);
+        Assert.Contains(expected, content, StringComparison.Ordinal);
+        Assert.DoesNotContain("??", content, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void WebhookParameterExtractor_Extract_NoBodyWebhook_NoParameters()
     {
@@ -238,22 +282,6 @@ public class WebhookExtractorTests
         Assert.DoesNotContain("MapMethods(", content, StringComparison.Ordinal);
     }
 
-    // ========== WebhookDependencyInjectionExtractor ==========
-    [Fact]
-    public void WebhookDependencyInjectionExtractor_Extract_ProducesDIClass()
-    {
-        // Arrange
-        var document = OpenApiDocumentHelper.ParseYaml(WebhookYaml);
-
-        // Act
-        var result = WebhookDependencyInjectionExtractor.Extract(document, "TestApi");
-
-        // Assert
-        Assert.NotNull(result);
-        Assert.NotNull(result.Methods);
-        Assert.True(result.Methods.Count > 0);
-    }
-
     // ========== No Webhooks ==========
     [Fact]
     public void AllWebhookExtractors_NoWebhooks_ReturnNull()
@@ -282,6 +310,5 @@ public class WebhookExtractorTests
         Assert.Null(WebhookResultExtractor.Extract(document, "TestApi"));
         Assert.Null(WebhookParameterExtractor.Extract(document, "TestApi", resolver));
         Assert.Null(WebhookEndpointExtractor.Extract(document, "TestApi", config));
-        Assert.Null(WebhookDependencyInjectionExtractor.Extract(document, "TestApi"));
     }
 }

@@ -100,6 +100,8 @@ public sealed class UserInMemoryRepository
         "HR professional building great company cultures."
     ];
 
+    // Requests run in parallel: every change happens under the gate, and every read works on a copy
+    private readonly Lock gate = new();
     private readonly List<UserEntity> users = [];
 
     public UserInMemoryRepository()
@@ -125,6 +127,190 @@ public sealed class UserInMemoryRepository
         // Generate 10 USA users
         GenerateUsaUsers(random, usedEmails, 10);
     }
+
+    public Task<List<UserEntity>> GetAll(
+        string? search = null,
+        string? country = null,
+        UserRoleType? role = null,
+        bool? isActive = null,
+        int? limit = null)
+    {
+        var query = Snapshot().AsEnumerable();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            query = query.Where(u =>
+                u.FirstName.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                u.LastName.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                u.Email.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                $"{u.FirstName} {u.LastName}".Contains(search, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (!string.IsNullOrWhiteSpace(country))
+        {
+            query = query.Where(u =>
+                u.Address.Country.Contains(country, StringComparison.OrdinalIgnoreCase) ||
+                (u.Address.CountryCode?.Equals(country, StringComparison.OrdinalIgnoreCase) ?? false));
+        }
+
+        if (role.HasValue)
+        {
+            query = query.Where(u => u.Role == role.Value);
+        }
+
+        if (isActive.HasValue)
+        {
+            query = query.Where(u => u.IsActive == isActive.Value);
+        }
+
+        if (limit.HasValue)
+        {
+            query = query.Take(limit.Value);
+        }
+
+        return Task.FromResult(query.ToList());
+    }
+
+    public Task<UserEntity?> GetById(Guid id)
+        => Task.FromResult(Snapshot().FirstOrDefault(u => u.Id == id));
+
+    /// <summary>
+    /// Fetches every user in the given id set. Unknown ids are skipped rather than erroring, so a
+    /// caller can ask about a large set without first knowing which ids still exist.
+    /// </summary>
+    /// <remarks>
+    /// This backs the OpenAPI 3.2 <c>QUERY /users</c> operation, whose whole reason to exist is
+    /// that the id set is too large to put in a URL. The lookup is set-based rather than a loop of
+    /// <see cref="GetById"/> calls so that asking for 1000 ids stays a single pass.
+    /// </remarks>
+    public Task<List<UserEntity>> GetByIds(IEnumerable<Guid> ids)
+    {
+        var idSet = ids as HashSet<Guid> ?? [.. ids];
+
+        return Task.FromResult(Snapshot().Where(u => idSet.Contains(u.Id)).ToList());
+    }
+
+    public Task<UserEntity?> GetByEmail(string email)
+        => Task.FromResult(Snapshot().FirstOrDefault(u => u.Email.Equals(email, StringComparison.OrdinalIgnoreCase)));
+
+    /// <summary>
+    /// Whether another user has this first and last name (in any letter case) - the user with
+    /// <paramref name="exceptUserId"/>, the one being updated, does not count.
+    /// </summary>
+    public Task<bool> ExistsWithName(
+        string firstName,
+        string lastName,
+        Guid? exceptUserId = null)
+        => Task.FromResult(Snapshot().Any(u =>
+            u.Id != exceptUserId &&
+            u.FirstName.Equals(firstName, StringComparison.OrdinalIgnoreCase) &&
+            u.LastName.Equals(lastName, StringComparison.OrdinalIgnoreCase)));
+
+    public Task<UserEntity> Create(
+        string firstName,
+        string lastName,
+        string email,
+        string? phone,
+        string? website,
+        DateOnly dateOfBirth,
+        string? bio,
+        string? avatarUrl,
+        bool isActive,
+        UserRoleType role,
+        AddressEntity address)
+    {
+        var user = new UserEntity(
+            Id: Guid.NewGuid(),
+            FirstName: firstName,
+            LastName: lastName,
+            Email: email,
+            Phone: phone,
+            Website: website,
+            DateOfBirth: dateOfBirth,
+            Age: CalculateAge(dateOfBirth),
+            Bio: bio,
+            AvatarUrl: avatarUrl ?? $"https://api.dicebear.com/7.x/avataaars/svg?seed={firstName}{lastName}",
+            IsActive: isActive,
+            Role: role,
+            Address: address,
+            CreatedAt: DateTime.UtcNow,
+            UpdatedAt: DateTime.UtcNow);
+
+        lock (gate)
+        {
+            users.Add(user);
+        }
+
+        return Task.FromResult(user);
+    }
+
+    public Task<UserEntity?> Update(
+        Guid id,
+        string firstName,
+        string lastName,
+        string email,
+        string? phone,
+        string? website,
+        DateOnly dateOfBirth,
+        string? bio,
+        string? avatarUrl,
+        bool? isActive,
+        UserRoleType role,
+        AddressEntity address)
+    {
+        lock (gate)
+        {
+            var index = users.FindIndex(u => u.Id == id);
+            if (index < 0)
+            {
+                return Task.FromResult<UserEntity?>(null);
+            }
+
+            var existing = users[index];
+            var updated = new UserEntity(
+                Id: id,
+                FirstName: firstName,
+                LastName: lastName,
+                Email: email,
+                Phone: phone,
+                Website: website,
+                DateOfBirth: dateOfBirth,
+                Age: CalculateAge(dateOfBirth),
+                Bio: bio,
+                AvatarUrl: avatarUrl ?? existing.AvatarUrl,
+                IsActive: isActive ?? existing.IsActive,
+                Role: role,
+                Address: address,
+                CreatedAt: existing.CreatedAt,
+                UpdatedAt: DateTime.UtcNow);
+
+            users[index] = updated;
+            return Task.FromResult<UserEntity?>(updated);
+        }
+    }
+
+    public Task<UserEntity?> Delete(Guid id)
+    {
+        lock (gate)
+        {
+            var index = users.FindIndex(u => u.Id == id);
+            if (index < 0)
+            {
+                return Task.FromResult<UserEntity?>(null);
+            }
+
+            var user = users[index];
+            users.RemoveAt(index);
+            return Task.FromResult<UserEntity?>(user);
+        }
+    }
+
+    public Task<string[]> GetDistinctCountries()
+        => Task.FromResult(Snapshot()
+            .Select(u => u.Address.Country)
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(c => c, StringComparer.Ordinal)
+            .ToArray());
 
     private void GenerateUsers(
         Random random,
@@ -275,164 +461,11 @@ public sealed class UserInMemoryRepository
         return age;
     }
 
-    public Task<List<UserEntity>> GetAll(
-        string? search = null,
-        string? country = null,
-        UserRoleType? role = null,
-        bool? isActive = null,
-        int? limit = null)
+    private List<UserEntity> Snapshot()
     {
-        var query = users.AsEnumerable();
-
-        if (!string.IsNullOrWhiteSpace(search))
+        lock (gate)
         {
-            query = query.Where(u =>
-                u.FirstName.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                u.LastName.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                u.Email.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                $"{u.FirstName} {u.LastName}".Contains(search, StringComparison.OrdinalIgnoreCase));
+            return [.. users];
         }
-
-        if (!string.IsNullOrWhiteSpace(country))
-        {
-            query = query.Where(u =>
-                u.Address.Country.Contains(country, StringComparison.OrdinalIgnoreCase) ||
-                (u.Address.CountryCode?.Equals(country, StringComparison.OrdinalIgnoreCase) ?? false));
-        }
-
-        if (role.HasValue)
-        {
-            query = query.Where(u => u.Role == role.Value);
-        }
-
-        if (isActive.HasValue)
-        {
-            query = query.Where(u => u.IsActive == isActive.Value);
-        }
-
-        if (limit.HasValue)
-        {
-            query = query.Take(limit.Value);
-        }
-
-        return Task.FromResult(query.ToList());
     }
-
-    public Task<UserEntity?> GetById(Guid id)
-        => Task.FromResult(users.FirstOrDefault(u => u.Id == id));
-
-    /// <summary>
-    /// Fetches every user in the given id set. Unknown ids are skipped rather than erroring, so a
-    /// caller can ask about a large set without first knowing which ids still exist.
-    /// </summary>
-    /// <remarks>
-    /// This backs the OpenAPI 3.2 <c>QUERY /users</c> operation, whose whole reason to exist is
-    /// that the id set is too large to put in a URL. The lookup is set-based rather than a loop of
-    /// <see cref="GetById"/> calls so that asking for 1000 ids stays a single pass.
-    /// </remarks>
-    public Task<List<UserEntity>> GetByIds(IEnumerable<Guid> ids)
-    {
-        var idSet = ids as HashSet<Guid> ?? [.. ids];
-
-        return Task.FromResult(users.Where(u => idSet.Contains(u.Id)).ToList());
-    }
-
-    public Task<UserEntity?> GetByEmail(string email)
-        => Task.FromResult(users.FirstOrDefault(u => u.Email.Equals(email, StringComparison.OrdinalIgnoreCase)));
-
-    public Task<UserEntity> Create(
-        string firstName,
-        string lastName,
-        string email,
-        string? phone,
-        string? website,
-        DateOnly dateOfBirth,
-        string? bio,
-        string? avatarUrl,
-        bool isActive,
-        UserRoleType role,
-        AddressEntity address)
-    {
-        var user = new UserEntity(
-            Id: Guid.NewGuid(),
-            FirstName: firstName,
-            LastName: lastName,
-            Email: email,
-            Phone: phone,
-            Website: website,
-            DateOfBirth: dateOfBirth,
-            Age: CalculateAge(dateOfBirth),
-            Bio: bio,
-            AvatarUrl: avatarUrl ?? $"https://api.dicebear.com/7.x/avataaars/svg?seed={firstName}{lastName}",
-            IsActive: isActive,
-            Role: role,
-            Address: address,
-            CreatedAt: DateTime.UtcNow,
-            UpdatedAt: DateTime.UtcNow);
-
-        users.Add(user);
-        return Task.FromResult(user);
-    }
-
-    public Task<UserEntity?> Update(
-        Guid id,
-        string firstName,
-        string lastName,
-        string email,
-        string? phone,
-        string? website,
-        DateOnly dateOfBirth,
-        string? bio,
-        string? avatarUrl,
-        bool isActive,
-        UserRoleType role,
-        AddressEntity address)
-    {
-        var index = users.FindIndex(u => u.Id == id);
-        if (index < 0)
-        {
-            return Task.FromResult<UserEntity?>(null);
-        }
-
-        var existing = users[index];
-        var updated = new UserEntity(
-            Id: id,
-            FirstName: firstName,
-            LastName: lastName,
-            Email: email,
-            Phone: phone,
-            Website: website,
-            DateOfBirth: dateOfBirth,
-            Age: CalculateAge(dateOfBirth),
-            Bio: bio,
-            AvatarUrl: avatarUrl ?? existing.AvatarUrl,
-            IsActive: isActive,
-            Role: role,
-            Address: address,
-            CreatedAt: existing.CreatedAt,
-            UpdatedAt: DateTime.UtcNow);
-
-        users[index] = updated;
-        return Task.FromResult<UserEntity?>(updated);
-    }
-
-    public Task<UserEntity?> Delete(Guid id)
-    {
-        var index = users.FindIndex(u => u.Id == id);
-        if (index < 0)
-        {
-            return Task.FromResult<UserEntity?>(null);
-        }
-
-        var user = users[index];
-        users.RemoveAt(index);
-        return Task.FromResult<UserEntity?>(user);
-    }
-
-    public Task<string[]> GetDistinctCountries()
-        => Task.FromResult(users
-            .Select(u => u.Address.Country)
-            .Distinct(StringComparer.Ordinal)
-            .OrderBy(c => c, StringComparer.Ordinal)
-            .ToArray());
 }

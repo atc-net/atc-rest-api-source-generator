@@ -77,19 +77,20 @@ public static class TypeScriptMswHandlerExtractor
     {
         var sb = new StringBuilder();
 
-        if (headerContent is not null)
-        {
-            sb.Append(headerContent);
-        }
+        sb.Append(headerContent);
 
         sb.AppendLine("import { http, HttpResponse } from 'msw';");
         sb.AppendLine();
 
         var segmentLower = segment.Length > 0
-            ? char.ToLowerInvariant(segment[0]) + segment.Substring(1)
+            ? TypeScriptCasingHelper.ToLower(segment[0]) + segment.Substring(1)
             : segment;
 
         sb.Append("export const ").Append(segmentLower).AppendLine("Handlers = [");
+
+        // MSW answers with the first handler that matches: a literal route goes before a parameterized one that
+        // would also match it (/pets/mine before /pets/{id}).
+        operations = OrderLiteralRoutesFirst(operations);
 
         for (var i = 0; i < operations.Count; i++)
         {
@@ -119,7 +120,14 @@ public static class TypeScriptMswHandlerExtractor
                 sb.Append("    if (request.method !== '").Append(method.ToUpperInvariant()).AppendLine("') return;");
             }
 
-            if (mockBody is not null)
+            if (StreamedMockBody(operation, openApiDoc, namingStrategy) is { } streamed)
+            {
+                // A stream (JSON Lines, a JSON Text Sequence, Server-Sent Events): two mock records in its framing, with
+                // its media type - what the client's stream reader reads
+                sb.Append("    return new HttpResponse(").Append(streamed.Body).Append(", { status: ").Append(statusCode)
+                    .Append(", headers: { 'Content-Type': ").Append(TypeScriptLiteralHelper.ToStringLiteral(streamed.MediaType)).AppendLine(" } });");
+            }
+            else if (mockBody is not null)
             {
                 if (statusCode != 200)
                 {
@@ -158,18 +166,15 @@ public static class TypeScriptMswHandlerExtractor
     {
         var sb = new StringBuilder();
 
-        if (headerContent is not null)
-        {
-            sb.Append(headerContent);
-        }
+        sb.Append(headerContent);
 
         // Import each segment handler
         foreach (var (segmentName, _) in segments)
         {
             var segmentLower = segmentName.Length > 0
-                ? char.ToLowerInvariant(segmentName[0]) + segmentName.Substring(1)
+                ? TypeScriptCasingHelper.ToLower(segmentName[0]) + segmentName.Substring(1)
                 : segmentName;
-            var segmentKebab = segmentName.EnsureFirstCharacterToLower();
+            var segmentKebab = TypeScriptCasingHelper.ToLowerFirst(segmentName);
             sb.Append("import { ").Append(segmentLower).Append("Handlers } from './").Append(segmentKebab).AppendLine("';");
         }
 
@@ -179,7 +184,7 @@ public static class TypeScriptMswHandlerExtractor
         for (var i = 0; i < segments.Count; i++)
         {
             var segmentLower = segments[i].SegmentName.Length > 0
-                ? char.ToLowerInvariant(segments[i].SegmentName[0]) + segments[i].SegmentName.Substring(1)
+                ? TypeScriptCasingHelper.ToLower(segments[i].SegmentName[0]) + segments[i].SegmentName.Substring(1)
                 : segments[i].SegmentName;
             sb.Append("  ...").Append(segmentLower).Append("Handlers");
             sb.AppendLine(i < segments.Count - 1 ? "," : string.Empty);
@@ -190,20 +195,78 @@ public static class TypeScriptMswHandlerExtractor
         return sb.ToString();
     }
 
+    /// <summary>
+    /// The operations in their order, except that an operation moves before the first one of the same method whose
+    /// route would also match all its requests: <c>/pets/{id}</c> matches <c>/pets/mine</c>, so <c>/pets/mine</c>
+    /// goes first. Routes that cannot match the same request keep their order.
+    /// </summary>
+    private static List<(string Path, string Method, OpenApiOperation Operation)> OrderLiteralRoutesFirst(
+        List<(string Path, string Method, OpenApiOperation Operation)> operations)
+    {
+        var ordered = new List<(string Path, string Method, OpenApiOperation Operation)>(operations.Count);
+        foreach (var operation in operations)
+        {
+            var index = ordered.FindIndex(placed =>
+                string.Equals(placed.Method, operation.Method, StringComparison.OrdinalIgnoreCase) &&
+                Shadows(placed.Path, operation.Path));
+            ordered.Insert(index < 0 ? ordered.Count : index, operation);
+        }
+
+        return ordered;
+
+        // Whether every request of `path` also matches `route`, and `route` has a parameter where `path` has a literal
+        static bool Shadows(
+            string route,
+            string path)
+        {
+            var routeSegments = route.Split('/');
+            var pathSegments = path.Split('/');
+            if (routeSegments.Length != pathSegments.Length)
+            {
+                return false;
+            }
+
+            var widens = false;
+            for (var i = 0; i < routeSegments.Length; i++)
+            {
+                var routeIsParameter = routeSegments[i].StartsWith('{') && routeSegments[i].EndsWith('}');
+                var pathIsParameter = pathSegments[i].StartsWith('{') && pathSegments[i].EndsWith('}');
+                if (routeIsParameter)
+                {
+                    widens |= !pathIsParameter;
+                }
+                else if (pathIsParameter || !string.Equals(routeSegments[i], pathSegments[i], StringComparison.Ordinal))
+                {
+                    return false;
+                }
+            }
+
+            return widens;
+        }
+    }
+
+    /// <summary>
+    /// The MSW route of an OpenAPI path: <c>{petId}</c> -> <c>:petId</c>. MSW names a parameter with word characters
+    /// only (<c>:pet-id</c> would be the parameter <c>pet</c> followed by the text <c>-id</c>), so other characters
+    /// of the name become <c>_</c>; the handlers do not read the parameters.
+    /// </summary>
     private static string ConvertPathToMswFormat(string path)
     {
         var sb = new StringBuilder(path.Length);
+        var inParameter = false;
         foreach (var c in path)
         {
             switch (c)
             {
                 case '{':
+                    inParameter = true;
                     sb.Append(':');
                     break;
                 case '}':
+                    inParameter = false;
                     break;
                 default:
-                    sb.Append(c);
+                    sb.Append(inParameter && !(char.IsAsciiLetterOrDigit(c) || c == '_') ? '_' : c);
                     break;
             }
         }
@@ -219,23 +282,54 @@ public static class TypeScriptMswHandlerExtractor
             return (200, false);
         }
 
-        // Try 200, then 201, then 204
-        if (operation.Responses.TryGetValue("200", out var resp200))
+        // The success response: 200, else the lowest other 2xx the operation declares (201 Created, 202 Accepted with a
+        // receipt, 204 No Content, ...)
+        var successStatus = operation.Responses.ContainsKey("200")
+            ? "200"
+            : operation.Responses.Keys
+                .Where(k => k.Length == 3 && k[0] == '2' && char.IsDigit(k[1]) && char.IsDigit(k[2]))
+                .OrderBy(k => k, StringComparer.Ordinal)
+                .FirstOrDefault();
+        if (successStatus is null)
         {
-            return (200, resp200?.Content?.ContainsKey("application/json") == true);
+            return (200, false);
         }
 
-        if (operation.Responses.TryGetValue("201", out var resp201))
+        var response = operation.Responses[successStatus];
+        return (int.Parse(successStatus, CultureInfo.InvariantCulture), response?.Content?.ContainsKey("application/json") == true);
+    }
+
+    /// <summary>
+    /// The mock body of a streamed response in its framing - two records, as JSON Lines, a JSON Text Sequence or
+    /// Server-Sent Events - and its media type; <see langword="null"/> for any other response (a streamed JSON array is
+    /// a JSON array).
+    /// </summary>
+    private static (string Body, string MediaType)? StreamedMockBody(
+        OpenApiOperation operation,
+        OpenApiDocument openApiDoc,
+        TypeScriptNamingStrategy namingStrategy)
+    {
+        if (!operation.IsStreamingResponse() ||
+            operation.GetStreamingResponse() is not { } streaming)
         {
-            return (201, resp201?.Content?.ContainsKey("application/json") == true);
+            return null;
         }
 
-        if (operation.Responses.ContainsKey("204"))
+        var (prefix, suffix) = StreamingMediaType.Classify(streaming.MediaType) switch
         {
-            return (204, false);
+            StreamingFraming.JsonLines => (string.Empty, "\\n"),
+            StreamingFraming.JsonSequence => ("\\u001e", "\\n"),
+            StreamingFraming.ServerSentEvents => ("data: ", "\\n\\n"),
+            _ => ((string?)null, (string?)null),
+        };
+        if (prefix is null)
+        {
+            return null;
         }
 
-        return (200, false);
+        var item = GenerateMockValue(streaming.ItemSchema, "item", openApiDoc, namingStrategy, new Dictionary<string, int>(StringComparer.Ordinal));
+        var body = $"[{item}, {item}].map((record) => '{prefix}' + JSON.stringify(record) + '{suffix}').join('')";
+        return (body, streaming.MediaType);
     }
 
     private static string? GenerateMockBody(
@@ -243,39 +337,26 @@ public static class TypeScriptMswHandlerExtractor
         OpenApiDocument openApiDoc,
         TypeScriptNamingStrategy namingStrategy)
     {
-        var schema = operation.GetResponseSchema("200") ?? operation.GetResponseSchema("201");
+        var (statusCode, _) = GetPrimaryResponse(operation);
+        var schema = operation.GetResponseSchema(statusCode.ToString(CultureInfo.InvariantCulture));
         if (schema is null)
         {
             return null;
         }
 
-        // For array responses, wrap in []
-        if (schema is OpenApiSchema { Type: JsonSchemaType.Array } arraySchema)
-        {
-            var itemMock = GenerateMockObject(arraySchema.Items, openApiDoc, namingStrategy);
-            return $"[{itemMock}]";
-        }
-
-        // For $ref, resolve and generate
-        if (schema is OpenApiSchemaReference schemaRef)
-        {
-            var resolved = schemaRef.Target;
-            if (resolved is not null)
-            {
-                return GenerateMockObject(resolved, openApiDoc, namingStrategy);
-            }
-        }
-
-        return GenerateMockObject(schema, openApiDoc, namingStrategy);
+        // The body has the declared shape all the way down: an array of strings is ['sample-item'], a number a number,
+        // a model an object with its properties. Only a model that refers to itself is cut - after one level (see
+        // GenerateMockValue), so a tree shows one child - the path of component names keeps count.
+        return GenerateMockValue(schema, "item", openApiDoc, namingStrategy, new Dictionary<string, int>(StringComparer.Ordinal));
     }
 
     private static string GenerateMockObject(
         IOpenApiSchema? schema,
         OpenApiDocument openApiDoc,
         TypeScriptNamingStrategy namingStrategy,
-        int depth = 0)
+        Dictionary<string, int> onPath)
     {
-        if (schema is null || depth > 3)
+        if (schema is null)
         {
             return "{}";
         }
@@ -285,7 +366,7 @@ public static class TypeScriptMswHandlerExtractor
         {
             var target = schemaRef.Target;
             return target is not null
-                ? GenerateMockObject(target, openApiDoc, namingStrategy, depth)
+                ? GenerateMockObject(target, openApiDoc, namingStrategy, onPath)
                 : "{}";
         }
 
@@ -300,7 +381,7 @@ public static class TypeScriptMswHandlerExtractor
             var mergedProps = new Dictionary<string, IOpenApiSchema>(StringComparer.Ordinal);
             foreach (var sub in actualSchema.AllOf)
             {
-                var resolved = sub is OpenApiSchemaReference r ? r.Target : sub;
+                var resolved = sub.Dereferenced;
                 if (resolved is OpenApiSchema s && s.Properties is not null)
                 {
                     foreach (var p in s.Properties)
@@ -310,7 +391,7 @@ public static class TypeScriptMswHandlerExtractor
                 }
             }
 
-            return GenerateMockFromProperties(mergedProps, openApiDoc, namingStrategy, depth);
+            return GenerateMockFromProperties(mergedProps, openApiDoc, namingStrategy, onPath);
         }
 
         if (actualSchema.Properties is null || actualSchema.Properties.Count == 0)
@@ -318,14 +399,14 @@ public static class TypeScriptMswHandlerExtractor
             return "{}";
         }
 
-        return GenerateMockFromProperties(actualSchema.Properties, openApiDoc, namingStrategy, depth);
+        return GenerateMockFromProperties(actualSchema.Properties, openApiDoc, namingStrategy, onPath);
     }
 
     private static string GenerateMockFromProperties(
         IDictionary<string, IOpenApiSchema> properties,
         OpenApiDocument openApiDoc,
         TypeScriptNamingStrategy namingStrategy,
-        int depth)
+        Dictionary<string, int> onPath)
     {
         var sb = new StringBuilder();
         sb.Append("{ ");
@@ -339,8 +420,13 @@ public static class TypeScriptMswHandlerExtractor
             }
 
             first = false;
-            var propName = prop.Key.ApplyNamingStrategy(namingStrategy);
-            var value = GenerateMockValue(prop.Value, prop.Key, openApiDoc, namingStrategy, depth + 1);
+
+            // The mock stands in for the server, so it answers with the API's property names - the client renames
+            // them to the models' names like any real response.
+            var propName = Regex.IsMatch(prop.Key, "^[A-Za-z_$][A-Za-z0-9_$]*$", RegexOptions.None, TimeSpan.FromSeconds(1))
+                ? prop.Key
+                : "'" + prop.Key.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("'", "\\'", StringComparison.Ordinal) + "'";
+            var value = GenerateMockValue(prop.Value, prop.Key, openApiDoc, namingStrategy, onPath);
             sb.Append(propName).Append(": ").Append(value);
         }
 
@@ -354,22 +440,43 @@ public static class TypeScriptMswHandlerExtractor
         string propertyName,
         OpenApiDocument openApiDoc,
         TypeScriptNamingStrategy namingStrategy,
-        int depth)
+        Dictionary<string, int> onPath)
     {
         // Resolve references
         if (schema is OpenApiSchemaReference schemaRef)
         {
             var target = schemaRef.Target;
-            if (target is OpenApiSchema { Type: JsonSchemaType.String, Enum.Count: > 0 } enumSchema)
+            if (target is OpenApiSchema { Enum.Count: > 0 } enumSchema && enumSchema.IsOfType(JsonSchemaType.String))
             {
                 // Return first enum value
                 var firstValue = enumSchema.Enum.FirstOrDefault();
                 return firstValue is not null ? $"'{firstValue}'" : "'unknown'";
             }
 
-            return target is not null
-                ? GenerateMockObject(target, openApiDoc, namingStrategy, depth)
-                : "{}";
+            if (target is null)
+            {
+                return "{}";
+            }
+
+            // A model that refers to itself (a parent link, a tree) is sampled one level deep, then stops with an
+            // empty object; a list of it stops with an empty list (the array branch below)
+            if (IsOnPathTwice(schemaRef, onPath))
+            {
+                return "{}";
+            }
+
+            // A named array, primitive or model: mocked by its own shape
+            var id = RefId(schemaRef);
+            onPath.TryGetValue(id, out var visits);
+            onPath[id] = visits + 1;
+            try
+            {
+                return GenerateMockValue(target, propertyName, openApiDoc, namingStrategy, onPath);
+            }
+            finally
+            {
+                onPath[id] = visits;
+            }
         }
 
         if (schema is not OpenApiSchema actualSchema)
@@ -377,8 +484,22 @@ public static class TypeScriptMswHandlerExtractor
             return "null";
         }
 
+        // A model without a type (properties or allOf only)
+        if (actualSchema.Type is null &&
+            (actualSchema.Properties is { Count: > 0 } || actualSchema.AllOf is { Count: > 0 }))
+        {
+            return GenerateMockObject(actualSchema, openApiDoc, namingStrategy, onPath);
+        }
+
+        // oneOf / anyOf: the first alternative
+        if (actualSchema.Type is null &&
+            (actualSchema.OneOf ?? actualSchema.AnyOf) is { Count: > 0 } alternatives)
+        {
+            return GenerateMockValue(alternatives[0], propertyName, openApiDoc, namingStrategy, onPath);
+        }
+
         // Handle enums
-        if (actualSchema is { Type: JsonSchemaType.String, Enum.Count: > 0 })
+        if (actualSchema.IsOfType(JsonSchemaType.String) && actualSchema.Enum is { Count: > 0 })
         {
             var firstValue = actualSchema.Enum.FirstOrDefault();
             return firstValue is not null ? $"'{firstValue}'" : "'unknown'";
@@ -416,22 +537,32 @@ public static class TypeScriptMswHandlerExtractor
 
         if (actualSchema.Type?.HasFlag(JsonSchemaType.Array) == true)
         {
-            if (depth > 2)
+            // A list of a model already sampled twice on this path (children of a child) is empty
+            if (actualSchema.Items is OpenApiSchemaReference itemsRef && IsOnPathTwice(itemsRef, onPath))
             {
                 return "[]";
             }
 
             var itemMock = actualSchema.Items is not null
-                ? GenerateMockValue(actualSchema.Items, propertyName, openApiDoc, namingStrategy, depth + 1)
+                ? GenerateMockValue(actualSchema.Items, propertyName, openApiDoc, namingStrategy, onPath)
                 : "null";
             return $"[{itemMock}]";
         }
 
         if (actualSchema.Type?.HasFlag(JsonSchemaType.Object) == true)
         {
-            return depth > 2 ? "{}" : GenerateMockObject(actualSchema, openApiDoc, namingStrategy, depth);
+            return GenerateMockObject(actualSchema, openApiDoc, namingStrategy, onPath);
         }
 
         return "null";
     }
+
+    private static string RefId(OpenApiSchemaReference reference)
+        => reference.Reference.Id ?? string.Empty;
+
+    // The component is already sampled twice on the current path: once, and once more inside itself
+    private static bool IsOnPathTwice(
+        OpenApiSchemaReference reference,
+        Dictionary<string, int> onPath)
+        => onPath.TryGetValue(RefId(reference), out var visits) && visits >= 2;
 }

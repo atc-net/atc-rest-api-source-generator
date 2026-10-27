@@ -71,7 +71,8 @@ public static class EndpointDefinitionExtractor
         VersioningStrategyType versioningStrategy = VersioningStrategyType.None,
         string? defaultApiVersion = null,
         bool useServersBasePath = true,
-        string? namespaceSegment = null)
+        string? namespaceSegment = null,
+        bool useAntiforgery = false)
     {
         if (openApiDoc is null)
         {
@@ -108,7 +109,7 @@ public static class EndpointDefinitionExtractor
         {
             var groupName = kvp.Key;
             var operations = kvp.Value;
-            var classParams = GenerateEndpointDefinitionClass(openApiDoc, projectName, effectiveNamespaceSegment, groupName, operations, registry, systemTypeResolver, useMinimalApiPackage, useValidationFilter, versioningStrategy, defaultApiVersion, useServersBasePath);
+            var classParams = GenerateEndpointDefinitionClass(openApiDoc, projectName, effectiveNamespaceSegment, groupName, operations, registry, systemTypeResolver, useMinimalApiPackage, useValidationFilter, versioningStrategy, defaultApiVersion, useServersBasePath, useAntiforgery);
             if (classParams is not null)
             {
                 classes.Add(classParams);
@@ -116,6 +117,166 @@ public static class EndpointDefinitionExtractor
         }
 
         return (interfaceParams, classes.Count > 0 ? classes : null);
+    }
+
+    internal static string GetCommonPathPrefix(List<string> paths)
+    {
+        if (paths.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        if (paths.Count == 1)
+        {
+            // For single path, use only the first segment (the group identity).
+            // This avoids overly specific MapGroup bases and is consistent with
+            // multi-path groups where additional paths would narrow the prefix.
+            var path = paths[0];
+            var allSegments = path
+                .Split('/')
+                .Where(s => !string.IsNullOrEmpty(s))
+                .ToArray();
+
+            var firstSegment = allSegments.FirstOrDefault(s => !s.StartsWith("{", StringComparison.Ordinal));
+            return firstSegment is not null ? "/" + firstSegment : "/";
+        }
+
+        // Find common prefix among all paths
+        var firstPath = paths[0];
+        var firstSegments = firstPath
+            .Split('/')
+            .Where(s => !string.IsNullOrEmpty(s))
+            .ToArray();
+
+        var commonSegments = new List<string>();
+        for (var i = 0; i < firstSegments.Length; i++)
+        {
+            var segment = firstSegments[i];
+
+            // Skip path parameters
+            if (segment.StartsWith("{", StringComparison.Ordinal))
+            {
+                break;
+            }
+
+            // Check if this segment exists in all other paths at the same position
+            var allMatch = true;
+            foreach (var path in paths.Skip(1))
+            {
+                var pathSegments = path
+                    .Split('/')
+                    .Where(s => !string.IsNullOrEmpty(s))
+                    .ToArray();
+
+                if (i >= pathSegments.Length || !pathSegments[i].Equals(segment, StringComparison.Ordinal))
+                {
+                    allMatch = false;
+                    break;
+                }
+            }
+
+            if (allMatch)
+            {
+                commonSegments.Add(segment);
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        return commonSegments.Count > 0 ? "/" + string.Join("/", commonSegments) : "/";
+    }
+
+    /// <summary>
+    /// The request's constructor argument of a form field: as bound (an optional one stays null when absent), with a
+    /// fallback for a required one - the wire-form-binding step answered a problem when it was missing.
+    /// </summary>
+    /// <param name="field">The form field.</param>
+    /// <returns>The argument expression.</returns>
+    internal static string FormArgumentExpression(FormField field)
+        {
+            // A field sent as JSON: as the wire-form-binding step read it (it answered a problem when a required one
+            // was missing)
+            if (field.JsonValue is not null)
+            {
+                return field.IsRequired ? field.JsonValue + "!" : field.JsonValue;
+            }
+
+            var cleanTypeName = field.TypeName.TrimEnd('?');
+
+            // A field of many files: its own files out of the form's (an absent field is no files)
+            var fieldFiles = $"{field.ParamName}?.GetFiles({CSharpLiteralHelper.ToStringLiteral(field.WireName)}).ToList()";
+            if (!field.IsRequired)
+            {
+                return cleanTypeName == "IFormFileCollection"
+                    ? fieldFiles
+                    : field.ParamName;
+            }
+
+            // A required value: the wire-form-binding step answered a problem when it was missing
+            if (field.IsValueType)
+            {
+                return $"{field.ParamName}!.Value";
+            }
+
+            // IFormFile types - handle collection conversion if needed
+            if (cleanTypeName.Contains("IFormFile", StringComparison.Ordinal))
+            {
+                // IFormFileCollection needs conversion to List<IFormFile> for model compatibility
+                // The model uses List<IFormFile> but ASP.NET Core binds to IFormFileCollection
+                if (cleanTypeName == "IFormFileCollection")
+                {
+                    return $"{fieldFiles} ?? new List<IFormFile>()";
+                }
+
+                return field.ParamName + "!";
+            }
+
+            // String parameters - use null-coalescing with empty string
+            if (cleanTypeName.Equals("string", StringComparison.OrdinalIgnoreCase))
+            {
+                return $"{field.ParamName} ?? string.Empty";
+            }
+
+            // List parameters - use null-coalescing with empty list (a parsable list is a List<T>)
+            if (cleanTypeName.StartsWith("List<", StringComparison.Ordinal))
+            {
+                return $"{field.ParamName} ?? new {cleanTypeName}()";
+            }
+
+            if (cleanTypeName.StartsWith("ParsableList<", StringComparison.Ordinal) ||
+                cleanTypeName.StartsWith("ParsableEnumList<", StringComparison.Ordinal))
+            {
+                return $"{field.ParamName} ?? new List<{cleanTypeName.Substring(cleanTypeName.IndexOf('<') + 1).TrimEnd('>')}>()";
+            }
+
+            return field.ParamName;
+        }
+
+    // The body of an endpoint with a stream of records: the rules the specification declares for it before the handler
+    private static string StreamedBody(
+        StreamedRequestBody streamed,
+        bool useValidationFilter)
+    {
+        // A stream of records: the rules the specification declares for it (media types, required, count, the
+        // validation of each record) are set before the handler runs; a body of another media type or a missing one
+        // is answered here
+        var validateRecords = useValidationFilter && ResponseBodyClassifier.IsModelSchema(streamed.ItemSchema);
+        var recordAttributes = useValidationFilter ? StreamedRequestBodyExtractor.RecordAttributeExpressions(streamed.ItemSchema) : [];
+        var expect = StreamedRequestBodyExtractor.ExpectStatement(
+            streamed,
+            validateRecords,
+            recordAttributes: recordAttributes,
+            nullRecords: StreamedRequestBodyExtractor.RecordsMayBeNull(streamed.ItemSchema));
+        return $"""
+                   {expect}
+
+                   return (await handler.ExecuteAsync(
+                           parameters,
+                           cancellationToken))
+                       .Result;
+                   """;
     }
 
     private static Dictionary<string, List<(string Path, string Method, OpenApiOperation Operation, IList<IOpenApiParameter>? PathParameters)>> GroupOperationsByStrategy(
@@ -206,7 +367,7 @@ public static class EndpointDefinitionExtractor
 
             // Extract first path segment (e.g., "/pets/{id}" -> "Pets")
             // PathSegmentHelper returns PascalCase, pluralized name
-            var segment = GetFirstPathSegment(pathKey);
+            var segment = PathSegmentHelper.GetFirstPathSegment(pathKey);
 
             if (!groups.TryGetValue(segment, out var operationList))
             {
@@ -277,7 +438,7 @@ public static class EndpointDefinitionExtractor
                 if (string.IsNullOrEmpty(groupName))
                 {
                     // GetFirstPathSegment already returns properly formatted name from PathSegmentHelper
-                    groupName = GetFirstPathSegment(pathKey);
+                    groupName = PathSegmentHelper.GetFirstPathSegment(pathKey);
                 }
 
                 if (groupName is null)
@@ -297,9 +458,6 @@ public static class EndpointDefinitionExtractor
 
         return groups;
     }
-
-    private static string GetFirstPathSegment(string path)
-        => PathSegmentHelper.GetFirstPathSegment(path);
 
     private static InterfaceParameters GenerateInterface(
         string projectName,
@@ -361,7 +519,8 @@ using Microsoft.AspNetCore.Builder;
         bool useValidationFilter = false,
         VersioningStrategyType versioningStrategy = VersioningStrategyType.None,
         string? defaultApiVersion = null,
-        bool useServersBasePath = true)
+        bool useServersBasePath = true,
+        bool useAntiforgery = false)
     {
         var className = $"{segment}EndpointDefinition";
 
@@ -378,7 +537,7 @@ using Microsoft.AspNetCore.Builder;
         var methods = new List<MethodParameters>();
 
         // Add DefineEndpoints method
-        var defineEndpointsContent = GenerateDefineEndpointsContent(openApiDoc, operations, projectName, segment, apiRouteBase, originalPrefix, systemTypeResolver, registry, useValidationFilter, versioningStrategy, defaultApiVersion);
+        var defineEndpointsContent = GenerateDefineEndpointsContent(openApiDoc, operations, projectName, segment, apiRouteBase, originalPrefix, systemTypeResolver, registry, useValidationFilter, versioningStrategy, defaultApiVersion, useAntiforgery);
         var defineEndpointsMethod = new MethodParameters(
             DocumentationTags: null,
             Attributes: null,
@@ -406,7 +565,7 @@ using Microsoft.AspNetCore.Builder;
         // Add internal endpoint methods for each operation
         foreach (var (path, httpMethod, operation, pathParameters) in operations)
         {
-            var endpointMethod = GenerateEndpointMethod(path, httpMethod, operation, pathParameters, systemTypeResolver);
+            var endpointMethod = GenerateEndpointMethod(path, httpMethod, operation, pathParameters, systemTypeResolver, useValidationFilter, registry);
             if (endpointMethod is not null)
             {
                 methods.Add(endpointMethod);
@@ -576,75 +735,6 @@ using Microsoft.AspNetCore.Builder;
         return (routeBase, commonPrefix);
     }
 
-    internal static string GetCommonPathPrefix(List<string> paths)
-    {
-        if (paths.Count == 0)
-        {
-            return string.Empty;
-        }
-
-        if (paths.Count == 1)
-        {
-            // For single path, use only the first segment (the group identity).
-            // This avoids overly specific MapGroup bases and is consistent with
-            // multi-path groups where additional paths would narrow the prefix.
-            var path = paths[0];
-            var allSegments = path
-                .Split('/')
-                .Where(s => !string.IsNullOrEmpty(s))
-                .ToArray();
-
-            var firstSegment = allSegments.FirstOrDefault(s => !s.StartsWith("{", StringComparison.Ordinal));
-            return firstSegment is not null ? "/" + firstSegment : "/";
-        }
-
-        // Find common prefix among all paths
-        var firstPath = paths[0];
-        var firstSegments = firstPath
-            .Split('/')
-            .Where(s => !string.IsNullOrEmpty(s))
-            .ToArray();
-
-        var commonSegments = new List<string>();
-        for (var i = 0; i < firstSegments.Length; i++)
-        {
-            var segment = firstSegments[i];
-
-            // Skip path parameters
-            if (segment.StartsWith("{", StringComparison.Ordinal))
-            {
-                break;
-            }
-
-            // Check if this segment exists in all other paths at the same position
-            var allMatch = true;
-            foreach (var path in paths.Skip(1))
-            {
-                var pathSegments = path
-                    .Split('/')
-                    .Where(s => !string.IsNullOrEmpty(s))
-                    .ToArray();
-
-                if (i >= pathSegments.Length || !pathSegments[i].Equals(segment, StringComparison.Ordinal))
-                {
-                    allMatch = false;
-                    break;
-                }
-            }
-
-            if (allMatch)
-            {
-                commonSegments.Add(segment);
-            }
-            else
-            {
-                break;
-            }
-        }
-
-        return commonSegments.Count > 0 ? "/" + string.Join("/", commonSegments) : "/";
-    }
-
     private static string GenerateDefineEndpointsContent(
         OpenApiDocument openApiDoc,
         List<(string Path, string Method, OpenApiOperation Operation, IList<IOpenApiParameter>? PathParameters)> operations,
@@ -656,7 +746,8 @@ using Microsoft.AspNetCore.Builder;
         TypeConflictRegistry? registry = null,
         bool useValidationFilter = false,
         VersioningStrategyType versioningStrategy = VersioningStrategyType.None,
-        string? defaultApiVersion = null)
+        string? defaultApiVersion = null,
+        bool useAntiforgery = false)
     {
         var builder = new StringBuilder();
         var hasVersioning = versioningStrategy != VersioningStrategyType.None;
@@ -725,7 +816,7 @@ using Microsoft.AspNetCore.Builder;
                 pathItem = item;
             }
 
-            GenerateEndpointRegistration(builder, openApiDoc, path, httpMethod, operation, pathItem, projectName, segment, originalPrefix, systemTypeResolver, groupSecurity, groupRateLimit, groupOutputCache, registry, useValidationFilter);
+            GenerateEndpointRegistration(builder, openApiDoc, path, httpMethod, operation, pathItem, projectName, segment, originalPrefix, systemTypeResolver, groupSecurity, groupRateLimit, groupOutputCache, registry, useValidationFilter, useAntiforgery);
         }
 
         return builder
@@ -944,14 +1035,10 @@ using Microsoft.AspNetCore.Builder;
         RateLimitConfiguration? groupRateLimit,
         CacheConfiguration? groupOutputCache,
         TypeConflictRegistry? registry = null,
-        bool useValidationFilter = false)
+        bool useValidationFilter = false,
+        bool useAntiforgery = false)
     {
-        var normalizedPath = path
-            .Replace("/", "_")
-            .Replace("{", string.Empty)
-            .Replace("}", string.Empty);
-
-        var operationId = operation.OperationId ?? $"{httpMethod}{normalizedPath}";
+        var operationId = OperationIdHelper.Effective(operation, httpMethod, path);
         var methodName = operationId.ToPascalCaseForDotNet();
 
         // Calculate relative path from original prefix (without server base path)
@@ -961,22 +1048,43 @@ using Microsoft.AspNetCore.Builder;
         builder.AppendLine();
         builder.Append($"    .{EndpointMapHelper.BuildSingleLineMapCall(httpMethod, relativePath, methodName)}");
         builder.AppendLine();
-        builder.Append($"    .WithName(\"{methodName}\")");
+        builder.Append($"    .WithName({OperationNamesExtractor.ConstantReference(projectName, methodName)})");
 
         // Add summary if present
         if (!string.IsNullOrEmpty(operation.Summary))
         {
             builder.AppendLine();
-            builder.Append($"    .WithSummary(\"{operation.Summary!.Replace("\"", "\\\"")}\")");
+            builder.Append($"    .WithSummary({CSharpLiteralHelper.ToStringLiteral(operation.Summary!.Trim())})");
+        }
+
+        // The operation's own x- extensions, for a middleware or a filter to read
+        foreach (var call in OperationExtensionMetadataExtractor.MetadataCalls(operation, projectName))
+        {
+            builder.AppendLine();
+            builder.Append($"    {call}");
         }
 
         // Add Produces metadata based on responses (includes auto-apply for common errors)
-        GenerateProducesMetadata(builder, openApiDoc, operation, pathItem!, httpMethod, projectName, segment, systemTypeResolver, registry);
+        GenerateProducesMetadata(builder, openApiDoc, operation, operationId, pathItem!, httpMethod, projectName, segment, systemTypeResolver, registry);
 
         // Add ValidationFilter if enabled and operation has parameters or request body
         if (useValidationFilter)
         {
             GenerateValidationFilterMetadata(builder, operation, pathItem, methodName);
+        }
+
+        // The step before the framework binds the parameters: enum wire values, cookies, array items, a 400 that names
+        // the parameter
+        GenerateWireBindingMetadata(builder, operation, pathItem, methodName, useValidationFilter, registry);
+
+        // A body the generated reader reads (XML, or JSON next to it): one it cannot read is a problem with its status,
+        // not the host exception handler's 500
+        if (XmlBodyHelper.ServerBoundRequestBody(operation.RequestBody?.Content) is not null ||
+            operation.GetStreamedRequestBody() is not null ||
+            operation.GetTextRequestBodyMediaType() is not null)
+        {
+            builder.AppendLine();
+            builder.Append("    .WithRequestBodyProblems()");
         }
 
         // Add security metadata if needed (only if different from group-level)
@@ -997,26 +1105,105 @@ using Microsoft.AspNetCore.Builder;
             GenerateOutputCachingMetadata(builder, httpMethod, operation, pathItem, openApiDoc, groupOutputCache);
         }
 
+        // A model bound by Content-Type (JSON and/or XML): Accepts names the media types (the runtime OpenAPI document
+        // has no body otherwise - BindAsync is not [FromBody])
+        if (XmlBodyHelper.ServerBoundRequestBody(operation.RequestBody?.Content) is { } boundBody)
+        {
+            var mediaTypes = boundBody.IsAlternative
+                ? new[] { "application/json" }.Concat(boundBody.AlternativeMediaTypes!)
+                : boundBody.JsonOnlyMediaTypes ?? [boundBody.MediaType];
+            builder.AppendLine();
+            builder.Append($"    .Accepts<{XmlBodyHelper.ModelTypeName(operation.RequestBody!.Content!, boundBody, registry)}>({string.Join(", ", mediaTypes.Select(m => $"\"{m}\""))})");
+        }
+
+        // A stream of records: Accepts names its media types with the record (the runtime OpenAPI document describes
+        // the body as the specification does - a schema of one record under a sequential media type)
+        if (operation.GetStreamedRequestBody() is { } streamedBody)
+        {
+            // Routing answers a media type Accepts does not name with a 415 before the endpoint runs: every JSON Lines name
+            // is listed when one is declared
+            builder.AppendLine();
+            builder.Append($"    .Accepts<{GetStreamedRecordTypeName(streamedBody, registry)}>({string.Join(", ", streamedBody.AcceptedMediaTypes.Select(m => $"\"{m}\""))})");
+        }
+
+        // Text: Accepts names its media types (routing answers another with a 415, and the runtime OpenAPI document
+        // describes the body - BindAsync is not [FromBody])
+        if (TextRequestBodyExtractor.AcceptedMediaTypes(operation) is { Count: > 0 } textMediaTypes)
+        {
+            builder.AppendLine();
+            builder.Append($"    .Accepts<string>({string.Join(", ", textMediaTypes.Select(m => $"\"{m}\""))})");
+        }
+
         // Add Accepts and DisableAntiforgery for file upload endpoints
         if (operation.HasFileUpload())
         {
             var contentType = operation.GetFileUploadContentType();
             builder.AppendLine();
-            if (contentType is "application/octet-stream")
+            if (OpenApiOperationExtensions.IsRawFileUploadContentType(contentType))
             {
-                builder.Append("    .Accepts<Stream>(\"application/octet-stream\")");
+                // A raw file body of its declared media types (octet-stream, PDF, PNG, an Office document, ...): every one
+                // of them - an undeclared one is a 415
+                var rawMediaTypes = operation.RequestBody?.Content?.Keys.Where(OpenApiOperationExtensions.IsRawFileUploadContentType).ToList() is { Count: > 0 } declared
+                    ? declared
+                    : [contentType!];
+                builder.Append($"    .Accepts<Stream>({string.Join(", ", rawMediaTypes.Select(m => $"\"{m}\""))})");
             }
             else
             {
-                builder.Append("    .Accepts<IFormFile>(\"multipart/form-data\")");
+                // A form that may also be posted URL-encoded is accepted as both (form binding reads both)
+                builder.Append($"    .Accepts<IFormFile>({string.Join(", ", operation.GetFormBodyMediaTypes().Select(m => $"\"{m}\""))})");
             }
 
+            // Form binding opts the endpoint into antiforgery validation: off for an API (useAntiforgery: false, the
+            // default - its callers send a token in a header, not a cookie), on for a host that validates it
+            if (!useAntiforgery)
+            {
+                builder.AppendLine();
+                builder.Append("    .DisableAntiforgery()");
+            }
+            else if (HasJsonParts(operation))
+            {
+                // A field sent as an application/json part is read by the form step, not bound by the framework: a form
+                // of only such fields binds nothing from the form, so the endpoint asks for the validation itself
+                builder.AppendLine();
+                builder.Append("    .WithMetadata(new global::Microsoft.AspNetCore.Antiforgery.RequireAntiforgeryTokenAttribute())");
+            }
+        }
+        else if (operation.RequiresFormBindingFlattening() && operation.GetFormBodyMediaTypes() is { Count: > 0 } formMediaTypes)
+        {
+            // A URL-encoded form: the model's fields, read by form binding - which opts the endpoint into antiforgery
+            // validation, as a file upload does; an undeclared media type is a 415
+            var (formSchemaName, _, _) = operation.GetFormBodySchemaInfo();
             builder.AppendLine();
-            builder.Append("    .DisableAntiforgery()");
+            builder.Append($"    .Accepts<{(formSchemaName is null ? "object" : OpenApiSchemaExtensions.SanitizeSchemaName(formSchemaName))}>({string.Join(", ", formMediaTypes.Select(m => $"\"{m}\""))})");
+            if (!useAntiforgery)
+            {
+                builder.AppendLine();
+                builder.Append("    .DisableAntiforgery()");
+            }
         }
 
         builder.AppendLine(";");
     }
+
+    /// <summary>
+    /// The C# type of one record of a streamed request body, as the parameters record names it.
+    /// </summary>
+    private static string GetStreamedRecordTypeName(
+        StreamedRequestBody streamedBody,
+        TypeConflictRegistry? registry)
+        => streamedBody.ItemSchema.ToCSharpType(isRequired: true, registry).TrimEnd('?');
+
+    // Whether a field of the operation's form body is an object part - JSON, XML or URL-encoded (read by the form step)
+    private static bool HasJsonParts(OpenApiOperation operation)
+        => operation.GetFormBodySchemaInfo().Properties is { } properties &&
+           properties.Any(p => IsObjectPart(operation, p.Key, p.Value));
+
+    private static bool IsObjectPart(
+        OpenApiOperation operation,
+        string fieldName,
+        IOpenApiSchema field)
+        => FormBodyHelper.MultipartPartOf(operation, fieldName, field)?.Encoding is MultipartPartEncoding.Json or MultipartPartEncoding.Xml or MultipartPartEncoding.UrlEncoded;
 
     private static void GenerateSecurityMetadata(
         StringBuilder builder,
@@ -1160,6 +1347,53 @@ using Microsoft.AspNetCore.Builder;
         }
     }
 
+    /// <summary>
+    /// Whether a form field's C# type is a value type (a nullable one on the handler, read with <c>.Value</c>): a
+    /// number, a boolean, a date, a time, a uuid, or a string enum.
+    /// </summary>
+    private static bool IsFormValueType(IOpenApiSchema schema)
+        => schema.IsOfType(JsonSchemaType.Integer) ||
+           schema.IsOfType(JsonSchemaType.Number) ||
+           schema.IsOfType(JsonSchemaType.Boolean) ||
+           WireValueHelper.IsStringEnum(schema) ||
+           (schema.IsOfType(JsonSchemaType.String) &&
+            schema.Format?.ToLowerInvariant() is "date" or "date-time" or "time" or "uuid" or "guid" or "duration");
+
+    private static void GenerateWireBindingMetadata(
+        StringBuilder builder,
+        OpenApiOperation operation,
+        IOpenApiPathItem? pathItem,
+        string methodName,
+        bool useValidationFilter,
+        TypeConflictRegistry? registry)
+    {
+        // A form bound field by field: the fields are checked by name (a required one is there, a value parses, an
+        // enum by its wire value) - there is no [AsParameters] record to read the parameters from
+        if (operation.RequiresFormBindingFlattening())
+        {
+            builder.AppendLine();
+            builder.Append($"    .WithWireFormBinding({string.Join(", ", WireBindingHelper.FormFieldArguments(operation, registry))})");
+            return;
+        }
+
+        if (!WireBindingHelper.IsNeeded(operation, pathItem))
+        {
+            return;
+        }
+
+        builder.AppendLine();
+
+        // Without a validation filter the step also answers a required parameter that was not sent: the framework's
+        // own 400 names none
+        var wireArguments = new List<string> { $"{methodName}ParametersWire.Parameters" };
+        if (!useValidationFilter)
+        {
+            wireArguments.Add("requireParameters: true");
+        }
+
+        builder.Append($"    .WithWireBinding({string.Join(", ", wireArguments.Concat(WireBindingHelper.DelimitedArrayArguments(operation, pathItem)))})");
+    }
+
     private static void GenerateValidationFilterMetadata(
         StringBuilder builder,
         OpenApiOperation operation,
@@ -1187,6 +1421,17 @@ using Microsoft.AspNetCore.Builder;
 
         var parameterClassName = $"{methodName}Parameters";
 
+        // A cookie is validated through the header it is bound from: the step around the filter names it by its own
+        // name in the 400
+        var hasCookie = (operation.Parameters ?? [])
+            .Concat(pathItem?.Parameters ?? [])
+            .Any(p => p?.In == ParameterLocation.Cookie);
+        if (hasCookie)
+        {
+            builder.AppendLine();
+            builder.Append("    .WithCookieValidationNames()");
+        }
+
         builder.AppendLine();
         builder.Append($"    .AddEndpointFilter<ValidationFilter<{parameterClassName}>>()");
     }
@@ -1203,32 +1448,39 @@ using Microsoft.AspNetCore.Builder;
 
         if (hasRoles && hasSchemes)
         {
-            var rolesString = string.Join("\", \"", security.Roles);
-            var schemesString = string.Join("\", \"", security.Schemes);
+            var rolesString = string.Join("\", \"", security.Roles.Select(CSharpLiteralHelper.EscapeString));
+            var schemesString = string.Join("\", \"", security.Schemes.Select(CSharpLiteralHelper.EscapeString));
             builder.AppendLine(4, ".RequireAuthorization(policy => policy");
             builder.AppendLine(8, $".RequireRole(\"{rolesString}\")");
             builder.Append(8, $".AddAuthenticationSchemes(\"{schemesString}\"))");
         }
         else if (hasRoles)
         {
-            var rolesString = string.Join("\", \"", security.Roles);
+            var rolesString = string.Join("\", \"", security.Roles.Select(CSharpLiteralHelper.EscapeString));
             builder.Append(4, $".RequireAuthorization(policy => policy.RequireRole(\"{rolesString}\"))");
         }
         else if (hasSchemes)
         {
-            var schemesString = string.Join("\", \"", security.Schemes);
+            var schemesString = string.Join("\", \"", security.Schemes.Select(CSharpLiteralHelper.EscapeString));
             builder.AppendLine(4, ".RequireAuthorization(policy => policy");
             builder.AppendLine(8, $".AddAuthenticationSchemes(\"{schemesString}\")");
             builder.Append(8, ".RequireAuthenticatedUser())");
         }
         else if (hasPolicies)
         {
-            var policiesString = string.Join("\", \"", security.Policies);
+            var policiesString = string.Join("\", \"", security.Policies.Select(CSharpLiteralHelper.EscapeString));
             builder.Append(4, $".RequireAuthorization(\"{policiesString}\")");
         }
         else
         {
             builder.Append(4, ".RequireAuthorization()");
+        }
+
+        // The scopes the requirements ask for: the generated policy, combined with the authorization above
+        if (SecurityPoliciesExtractor.OperationPolicyName(security.Requirements) is { } scopePolicy)
+        {
+            builder.AppendLine();
+            builder.Append(4, $".RequireAuthorization(SecurityPolicies.{SecurityPoliciesExtractor.GenerateConstantName(scopePolicy)})");
         }
     }
 
@@ -1253,6 +1505,7 @@ using Microsoft.AspNetCore.Builder;
         StringBuilder builder,
         OpenApiDocument openApiDoc,
         OpenApiOperation operation,
+        string operationId,
         IOpenApiPathItem pathItem,
         string httpMethod,
         string projectName,
@@ -1263,11 +1516,14 @@ using Microsoft.AspNetCore.Builder;
         // Track which response codes are defined in the spec
         var definedCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+        string? TypeOf(IOpenApiSchema? schema)
+            => GetResponseContentType(schema, openApiDoc, operationId, projectName, segment, systemTypeResolver, registry);
+
         if (operation.Responses is not null)
         {
             foreach (var response in operation.Responses)
             {
-                if (response.Value is not OpenApiResponse openApiResponse)
+                if (response.Value is not { } openApiResponse)
                 {
                     continue;
                 }
@@ -1275,33 +1531,15 @@ using Microsoft.AspNetCore.Builder;
                 var statusCode = response.Key;
                 definedCodes.Add(statusCode);
 
-                // Handle "default" response
-                if (statusCode.Equals("default", StringComparison.OrdinalIgnoreCase))
+                // Error responses (4xx, 5xx, default): describe exactly what the result factories write.
+                if (ErrorResponseShapeResolver.IsErrorStatusCode(statusCode))
                 {
                     builder.AppendLine();
-                    builder.Append("    .ProducesValidationProblem()");
+                    builder.Append(BuildErrorProducesCall(statusCode, openApiResponse, openApiDoc, operationId, projectName, segment, systemTypeResolver, registry));
                     continue;
                 }
 
-                // Get the StatusCodes constant name
-                if (!HttpStatusCodeHelper.TryGetStatusCodesConstant(statusCode, out var statusCodeConstant))
-                {
-                    continue;
-                }
-
-                // Get response content type - handle inline schemas properly
-                string? contentType = null;
-                string? textResponseMediaType = null;
-                if (openApiResponse.Content is not null && openApiResponse.Content.TryGetValue("application/json", out var mediaType))
-                {
-                    contentType = GetResponseContentType(mediaType.Schema, openApiDoc, operation, projectName, segment, systemTypeResolver, registry);
-                }
-                else if (openApiResponse.TryGetTextResponseMediaType(out var matchedTextMediaType, out _))
-                {
-                    // text/plain, text/csv, application/xml, ... — surface as a raw string body.
-                    contentType = "string";
-                    textResponseMediaType = matchedTextMediaType;
-                }
+                var (contentType, textResponseMediaType, negotiatedMediaTypes, fileMediaTypes) = ResolveProducesBody(statusCode, openApiResponse, TypeOf);
 
                 // Parse the status code to determine the category
                 if (!int.TryParse(statusCode, out var statusCodeInt))
@@ -1309,63 +1547,17 @@ using Microsoft.AspNetCore.Builder;
                     continue;
                 }
 
-                builder.AppendLine();
-
-                switch (statusCodeInt)
+                // An informational (1xx) status is never a final response: nothing to describe.
+                if (statusCodeInt < 200)
                 {
-                    // 4xx and 5xx use ProducesProblem
-                    case >= 400:
-                        builder.Append($"    .ProducesProblem(StatusCodes.{statusCodeConstant})");
-                        break;
-
-                    // 2xx success codes: 204 and 205 never have content
-                    case >= 200 and < 300 when statusCodeInt == 204 || statusCodeInt == 205:
-                        builder.Append($"    .Produces(StatusCodes.{statusCodeConstant})");
-                        break;
-                    case >= 200 and < 300 when statusCodeInt == 200:
-                    {
-                        // Text responses: must explicitly pass contentType because Produces<T>()
-                        // defaults to "application/json".
-                        if (textResponseMediaType is not null)
-                        {
-                            builder.Append($"    .Produces<{contentType}>(StatusCodes.{statusCodeConstant}, contentType: \"{textResponseMediaType}\")");
-                        }
-                        else if (string.IsNullOrEmpty(contentType) &&
-                                 operation.IsStreamingResponse() &&
-                                 operation.GetStreamingResponse() is { } streamingResponse)
-                        {
-                            // Wire-framed streaming responses (SSE, JSON Lines, ...) advertise their
-                            // declared media type (text/event-stream, application/jsonl, ...) so
-                            // OpenAPI/Swagger reflects the actual streamed framing rather than the
-                            // application/json default.
-                            builder.Append($"    .Produces(StatusCodes.{statusCodeConstant}, contentType: \"{streamingResponse.MediaType}\")");
-                        }
-                        else
-                        {
-                            // 200 is the default status code for Produces<T>()
-                            builder.Append(string.IsNullOrEmpty(contentType)
-                                ? $"    .Produces(StatusCodes.{statusCodeConstant})"
-                                : $"    .Produces<{contentType}>()");
-                        }
-
-                        break;
-                    }
-
-                    // Other 2xx codes need explicit status code
-                    case >= 200 and < 300 when textResponseMediaType is not null:
-                        builder.Append($"    .Produces<{contentType}>(StatusCodes.{statusCodeConstant}, contentType: \"{textResponseMediaType}\")");
-                        break;
-                    case >= 200 and < 300 when !string.IsNullOrEmpty(contentType):
-                        builder.Append($"    .Produces<{contentType}>(StatusCodes.{statusCodeConstant})");
-                        break;
-                    case >= 200 and < 300:
-                        builder.Append($"    .Produces(StatusCodes.{statusCodeConstant})");
-                        break;
-                    default:
-                        // 1xx and 3xx use simple Produces
-                        builder.Append($"    .Produces(StatusCodes.{statusCodeConstant})");
-                        break;
+                    continue;
                 }
+
+                // The StatusCodes constant, or the numeric literal for codes without one (425, 499, ...)
+                var statusCodeExpression = HttpStatusCodeHelper.ToStatusCodesExpression(statusCodeInt);
+
+                builder.AppendLine();
+                AppendProducesCall(builder, operation, openApiResponse, statusCodeInt, statusCodeExpression, contentType, textResponseMediaType, negotiatedMediaTypes, fileMediaTypes, TypeOf);
             }
         }
 
@@ -1373,64 +1565,199 @@ using Microsoft.AspNetCore.Builder;
         // This ensures Swagger documentation shows all possible responses
         var features = OperationFeaturesHelper.DetectOperationFeatures(operation, pathItem, openApiDoc, httpMethod);
 
-        // 400 - Has parameters but no 400 defined
-        if (features.HasParameters && !definedCodes.Contains("400"))
+        foreach (var statusCode in features.ImplicitErrorStatuses(definedCodes, hasDefaultResponse: definedCodes.Contains("default")))
         {
             builder.AppendLine();
-            builder.Append("    .ProducesValidationProblem()");
+            builder.Append(statusCode == "400"
+                ? "    .ProducesValidationProblem()"
+                : $"    .ProducesProblem(StatusCodes.Status{statusCode}{ImplicitStatusName(statusCode)})");
+        }
+    }
+
+    /// <summary>
+    /// A success response's body as Produces describes it: the type, the media type of a text or XML-only body, the
+    /// media types a negotiated body lists, and those of a file it may be instead.
+    /// </summary>
+    private static (string? ContentType, string? TextResponseMediaType, string NegotiatedMediaTypes, string FileMediaTypes) ResolveProducesBody(
+        string statusCode,
+        IOpenApiResponse openApiResponse,
+        Func<IOpenApiSchema?, string?> typeOf)
+    {
+        string? contentType = null;
+        string? textResponseMediaType = null;
+
+        // A JSON body offered as XML too lists both media types (Produces<T>() alone means JSON only); so does a
+        // model or a file, with its file media types (the endpoint metadata holds one type per status: a second
+        // Produces for the file would replace the model's)
+        var negotiatedMediaTypes = string.Empty;
+        var fileAlternatives = statusCode == "200" ? ResponseBodyClassifier.FileAlternatives(openApiResponse.Content) : [];
+        var fileMediaTypes = string.Concat(fileAlternatives.Select(m => $", \"{m}\""));
+        if (openApiResponse.Content is not null && openApiResponse.Content.JsonBody is { } mediaType)
+        {
+            // A JSON body under another JSON media type (application/hal+json, a vendor +json) is advertised with it
+            contentType = typeOf(mediaType.Schema);
+            var jsonMediaType = $", \"{openApiResponse.Content.JsonBodyMediaType}\"";
+            if (openApiResponse.Content.XmlAlternative?.AlternativeMediaTypes is { } xmlMediaTypes)
+            {
+                negotiatedMediaTypes = jsonMediaType + string.Concat(xmlMediaTypes.Select(m => $", \"{m}\"")) + fileMediaTypes;
+            }
+            else if (fileAlternatives.Count > 0)
+            {
+                negotiatedMediaTypes = jsonMediaType + fileMediaTypes;
+            }
+            else if (openApiResponse.Content.OtherJsonBodyMediaType is not null)
+            {
+                negotiatedMediaTypes = jsonMediaType;
+            }
+        }
+        else if (openApiResponse.Content.XmlOnlyBody is { } xmlBody)
+        {
+            // An XML-only model body: the model, with its XML media type (Produces<T>() alone means JSON)
+            contentType = typeOf(openApiResponse.Content![xmlBody.MediaType].Schema);
+            textResponseMediaType = xmlBody.MediaType;
+        }
+        else if (openApiResponse.TryGetTextResponseMediaType(out var matchedTextMediaType, out _))
+        {
+            // text/plain, text/csv, application/xml, ... — surface as a raw string body.
+            contentType = "string";
+            textResponseMediaType = matchedTextMediaType;
         }
 
-        // 401 - Has security but no 401 defined
-        if (features.HasSecurity && !definedCodes.Contains("401"))
-        {
-            builder.AppendLine();
-            builder.Append("    .ProducesProblem(StatusCodes.Status401Unauthorized)");
-        }
+        return (contentType, textResponseMediaType, negotiatedMediaTypes, fileMediaTypes);
+    }
 
-        // 403 - Has roles/policies but no 403 defined
-        if (features.HasRolesOrPolicies && !definedCodes.Contains("403"))
+    /// <summary>
+    /// The Produces call of one non-error status: Produces&lt;T&gt; with its media types, a file as a Stream, a
+    /// stream with its framing, or the status alone.
+    /// </summary>
+    private static void AppendProducesCall(
+        StringBuilder builder,
+        OpenApiOperation operation,
+        IOpenApiResponse openApiResponse,
+        int statusCodeInt,
+        string statusCodeExpression,
+        string? contentType,
+        string? textResponseMediaType,
+        string negotiatedMediaTypes,
+        string fileMediaTypes,
+        Func<IOpenApiSchema?, string?> typeOf)
+    {
+        switch (statusCodeInt)
         {
-            builder.AppendLine();
-            builder.Append("    .ProducesProblem(StatusCodes.Status403Forbidden)");
-        }
+            // 4xx and 5xx use ProducesProblem
+            case >= 400:
+                builder.Append($"    .ProducesProblem({statusCodeExpression})");
+                break;
 
-        // 404 - GET/PUT/DELETE/PATCH with path params but no 404 defined
-        if (features.HasPathParameters &&
-            features.HttpMethod is "GET" or "PUT" or "DELETE" or "PATCH" &&
-            !definedCodes.Contains("404"))
-        {
-            builder.AppendLine();
-            builder.Append("    .ProducesProblem(StatusCodes.Status404NotFound)");
-        }
+            // 2xx success codes: 204 and 205 never have content
+            case >= 200 and < 300 when statusCodeInt == 204 || statusCodeInt == 205:
+                builder.Append($"    .Produces({statusCodeExpression})");
+                break;
+            case >= 200 and < 300 when statusCodeInt == 200:
+            {
+                // Text responses: must explicitly pass contentType because Produces<T>()
+                // defaults to "application/json".
+                if (textResponseMediaType is not null)
+                {
+                    builder.Append($"    .Produces<{contentType}>({statusCodeExpression}, contentType: \"{textResponseMediaType}\"{fileMediaTypes})");
+                }
+                else if (operation.GetFileDownloadContentType() is { } fileMediaType)
+                {
+                    // A file: its declared media types, as a Stream (a binary body in the OpenAPI document) - without a
+                    // type the endpoint metadata drops the media type
+                    var downloadMediaTypes = ResponseBodyClassifier.ClassifyContent(openApiResponse.Content)
+                        .Where(b => b.Kind == ResponseBodyKind.Binary)
+                        .Select(b => $"\"{b.MediaType}\"")
+                        .DefaultIfEmpty($"\"{fileMediaType}\"");
+                    builder.Append($"    .Produces({statusCodeExpression}, typeof(System.IO.Stream), {string.Join(", ", downloadMediaTypes)})");
+                }
+                else if (string.IsNullOrEmpty(contentType) &&
+                         operation.IsStreamingResponse() &&
+                         operation.GetStreamingResponse() is { } streamingResponse)
+                {
+                    // Wire-framed streaming responses (SSE, JSON Lines, ...) advertise their
+                    // declared media type (text/event-stream, application/jsonl, ...) so
+                    // OpenAPI/Swagger reflects the actual streamed framing rather than the
+                    // application/json default - with the item type (an itemSchema), as the endpoint
+                    // metadata drops the media type of an untyped Produces.
+                    var itemType = operation.GetStreamingItemSchema() is { } itemSchema
+                        ? typeOf(itemSchema)
+                        : null;
+                    builder.Append(string.IsNullOrEmpty(itemType)
+                        ? $"    .Produces({statusCodeExpression}, contentType: \"{streamingResponse.MediaType}\")"
+                        : $"    .Produces<{itemType}>({statusCodeExpression}, \"{streamingResponse.MediaType}\")");
+                }
+                else
+                {
+                    // 200 is the default status code for Produces<T>()
+                    builder.Append(string.IsNullOrEmpty(contentType)
+                        ? $"    .Produces({statusCodeExpression})"
+                        : negotiatedMediaTypes.Length > 0
+                            ? $"    .Produces<{contentType}>({statusCodeExpression}{negotiatedMediaTypes})"
+                            : $"    .Produces<{contentType}>()");
+                }
 
-        // 409 - POST/PUT but no 409 defined
-        if (features.HttpMethod is "POST" or "PUT" && !definedCodes.Contains("409"))
-        {
-            builder.AppendLine();
-            builder.Append("    .ProducesProblem(StatusCodes.Status409Conflict)");
-        }
+                break;
+            }
 
-        // 429 - Has rate limiting but no 429 defined
-        if (features.HasRateLimiting && !definedCodes.Contains("429"))
-        {
-            builder.AppendLine();
-            builder.Append("    .ProducesProblem(StatusCodes.Status429TooManyRequests)");
-        }
+            // Other 2xx codes need explicit status code
+            case >= 200 and < 300 when textResponseMediaType is not null:
+                builder.Append($"    .Produces<{contentType}>({statusCodeExpression}, contentType: \"{textResponseMediaType}\")");
+                break;
+            case >= 200 and < 300 when !string.IsNullOrEmpty(contentType):
+                builder.Append($"    .Produces<{contentType}>({statusCodeExpression}{negotiatedMediaTypes})");
+                break;
+            case >= 200 and < 300:
+                builder.Append($"    .Produces({statusCodeExpression})");
+                break;
 
-        // 500 - Always add if not defined (GlobalErrorHandler)
-        if (!definedCodes.Contains("500") && !definedCodes.Contains("default"))
-        {
-            builder.AppendLine();
-            builder.Append("    .ProducesProblem(StatusCodes.Status500InternalServerError)");
+            // A 3xx with a body (e.g. 300 Multiple Choices) - never 304, which has none.
+            case >= 300 and < 400 when statusCodeInt != 304 && textResponseMediaType is not null && !HttpStatusCodeHelper.IsRedirect(statusCodeInt):
+                builder.Append($"    .Produces<{contentType}>({statusCodeExpression}, contentType: \"{textResponseMediaType}\")");
+                break;
+            case >= 300 and < 400 when statusCodeInt != 304 && !string.IsNullOrEmpty(contentType) && !HttpStatusCodeHelper.IsRedirect(statusCodeInt):
+                builder.Append($"    .Produces<{contentType}>({statusCodeExpression})");
+                break;
+            default:
+                // Other 3xx: the status only (a redirect's Location is a header)
+                builder.Append($"    .Produces({statusCodeExpression})");
+                break;
         }
+    }
 
-        // 504 - Always add if not defined (GlobalErrorHandler maps TimeoutException
-        // and OperationCanceledException to 504 Gateway Timeout)
-        if (!definedCodes.Contains("504") && !definedCodes.Contains("default"))
+    // The StatusCodes / result names of the statuses the server adds by itself
+    private static string ImplicitStatusName(string statusCode)
+        => statusCode switch
         {
-            builder.AppendLine();
-            builder.Append("    .ProducesProblem(StatusCodes.Status504GatewayTimeout)");
-        }
+            "401" => "Unauthorized",
+            "403" => "Forbidden",
+            "404" => "NotFound",
+            "409" => "Conflict",
+            "429" => "TooManyRequests",
+            "500" => "InternalServerError",
+            _ => "GatewayTimeout",
+        };
+
+    /// <summary>
+    /// The <c>.Produces*</c> call describing one error response exactly as the result factories write it
+    /// (see <see cref="ErrorResponseShapeResolver.ToProducesCall"/>).
+    /// </summary>
+    private static string BuildErrorProducesCall(
+        string statusCode,
+        IOpenApiResponse response,
+        OpenApiDocument openApiDoc,
+        string operationId,
+        string projectName,
+        string segment,
+        SystemTypeConflictResolver systemTypeResolver,
+        TypeConflictRegistry? registry)
+    {
+        var shape = ErrorResponseShapeResolver.Resolve(response);
+        var modelTypeName = shape.Kind is ErrorResponseKind.JsonObject or ErrorResponseKind.XmlObject
+            ? GetResponseContentType(shape.Schema, openApiDoc, operationId, projectName, segment, systemTypeResolver, registry, ErrorResponseShapeResolver.InlineTypeContext(statusCode))
+            : null;
+
+        return "    " + ErrorResponseShapeResolver.ToProducesCall(statusCode, shape, modelTypeName);
     }
 
     private static MethodParameters GenerateEndpointMethod(
@@ -1438,180 +1765,47 @@ using Microsoft.AspNetCore.Builder;
         string httpMethod,
         OpenApiOperation operation,
         IList<IOpenApiParameter>? pathParameters,
-        SystemTypeConflictResolver systemTypeResolver)
+        SystemTypeConflictResolver systemTypeResolver,
+        bool useValidationFilter = false,
+        TypeConflictRegistry? registry = null)
     {
-        var normalizedPath = path
-            .Replace("/", "_")
-            .Replace("{", string.Empty)
-            .Replace("}", string.Empty);
-
-        var operationId = operation.OperationId ?? $"{httpMethod}{normalizedPath}";
+        var operationId = OperationIdHelper.Effective(operation, httpMethod, path);
         var methodName = operationId.ToPascalCaseForDotNet();
-        var resultClassName = $"{methodName}Result";
 
-        // Determine if operation has parameters (operation-level OR path-level)
-        var hasOperationParams = operation.Parameters is not null && operation.Parameters.Count > 0;
-        var hasPathParams = pathParameters is not null && pathParameters.Count > 0;
-        var hasParameters = hasOperationParams || hasPathParams;
-        var hasRequestBody = operation.HasRequestBody();
+        var takesParameters = HandlerSignature.TakesParameters(operation, pathParameters);
 
-        // Check if this is a multipart/form-data with complex schema that needs flattening
-        var requiresFormFlattening = operation.RequiresFormBindingFlattening();
-
-        // Build method parameters
-        var methodParameters = new List<ParameterBaseParameters>();
-
-        // Add handler parameter with [FromServices]
-        methodParameters.Add(new ParameterBaseParameters(
-            Attributes: new List<AttributeParameters> { new("FromServices", null) },
-            GenericTypeName: null,
-            IsGenericListType: false,
-            TypeName: $"I{methodName}Handler",
-            IsNullableType: false,
-            IsReferenceType: true,
-            Name: "handler",
-            DefaultValue: null));
-
-        // For form flattening, add individual form parameters instead of [AsParameters]
-        var formParameterNames = new List<(string ParamName, string PropName, string TypeName)>();
-        var routeParameterNames = new List<(string ParamName, string PropName)>();
-        if (requiresFormFlattening)
+        // The handler, the form's fields or the [AsParameters] record, the cancellation token
+        var methodParameters = new List<ParameterBaseParameters>
         {
-            var (schemaName, properties) = operation.GetMultipartFormDataSchemaInfo();
-            if (properties is not null)
-            {
-                foreach (var kvp in properties)
-                {
-                    var propName = kvp.Key;
-                    var propSchema = kvp.Value;
-                    var pascalPropName = propName.ToPascalCaseForDotNet();
+            new(
+                Attributes: new List<AttributeParameters> { new("FromServices", null) },
+                GenericTypeName: null,
+                IsGenericListType: false,
+                TypeName: $"I{methodName}Handler",
+                IsNullableType: false,
+                IsReferenceType: true,
+                Name: "handler",
+                DefaultValue: null),
+        };
 
-                    // Convert to camelCase for parameter name
-                    var paramName = char.ToLowerInvariant(pascalPropName[0]) + pascalPropName.Substring(1);
-                    var (isFile, isCollection) = propSchema.GetFileUploadInfo();
-
-                    string typeName;
-                    List<AttributeParameters>? attributes = null;
-
-                    if (isFile)
-                    {
-                        // File property - use IFormFile (no attribute needed, ASP.NET Core binds it automatically)
-                        typeName = isCollection ? "IFormFileCollection" : "IFormFile";
-
-                        // Make nullable since file is often optional
-                        typeName += "?";
-                    }
-                    else
-                    {
-                        // Non-file property - needs [FromForm] attribute
-                        // Use ToCSharpType for proper type mapping (handles format, nullable, etc.)
-                        typeName = propSchema.ToCSharpType(isRequired: false, registry: null);
-
-                        attributes = new List<AttributeParameters>
-                        {
-                            new("FromForm", $"Name = \"{propName}\""),
-                        };
-                    }
-
-                    methodParameters.Add(new ParameterBaseParameters(
-                        Attributes: attributes,
-                        GenericTypeName: null,
-                        IsGenericListType: typeName.StartsWith("List<", StringComparison.Ordinal),
-                        TypeName: typeName.TrimEnd('?'),
-                        IsNullableType: typeName.EndsWith("?", StringComparison.Ordinal),
-                        IsReferenceType: true,
-                        Name: paramName,
-                        DefaultValue: null));
-
-                    formParameterNames.Add((paramName, pascalPropName, typeName));
-                }
-            }
-
-            // Also add path-level and operation-level parameters (e.g., {pizzaId}) to the method signature
-            var allNonFormParameters = new List<IOpenApiParameter>();
-            if (pathParameters is not null)
-            {
-                allNonFormParameters.AddRange(pathParameters);
-            }
-
-            if (operation.Parameters is not null)
-            {
-                foreach (var opParam in operation.Parameters)
-                {
-                    var opParamName = opParam.GetName();
-                    if (!string.IsNullOrEmpty(opParamName))
-                    {
-                        allNonFormParameters.RemoveAll(p => p.GetName() == opParamName);
-                    }
-
-                    allNonFormParameters.Add(opParam);
-                }
-            }
-
-            foreach (var paramOrRef in allNonFormParameters)
-            {
-                var resolved = paramOrRef.Resolve();
-                var parameter = resolved.Parameter;
-                if (parameter is null || string.IsNullOrEmpty(parameter.Name))
-                {
-                    continue;
-                }
-
-                var propName = parameter.Name!.ToPascalCaseForDotNet();
-                var paramName = char.ToLowerInvariant(propName[0]) + propName.Substring(1);
-                var paramType = parameter.Schema!.ToCSharpType(isRequired: parameter.Required, registry: null);
-                var isNullable = paramType.EndsWith("?", StringComparison.Ordinal);
-                var cleanType = isNullable ? paramType.Substring(0, paramType.Length - 1) : paramType;
-
-                var paramLocation = parameter.In ?? ParameterLocation.Query;
-
-                // ASP.NET Core has no [FromCookie] attribute — skip cookie params.
-                if (paramLocation == ParameterLocation.Cookie)
-                {
-                    continue;
-                }
-
-                var bindingAttrName = paramLocation switch
-                {
-                    ParameterLocation.Path => "FromRoute",
-                    ParameterLocation.Header => "FromHeader",
-                    _ => "FromQuery",
-                };
-
-                var attributes = new List<AttributeParameters>
-                {
-                    new(bindingAttrName, $"Name = \"{parameter.Name}\""),
-                };
-
-                methodParameters.Add(new ParameterBaseParameters(
-                    Attributes: attributes,
-                    GenericTypeName: null,
-                    IsGenericListType: false,
-                    TypeName: cleanType,
-                    IsNullableType: isNullable,
-                    IsReferenceType: false,
-                    Name: paramName,
-                    DefaultValue: null));
-
-                routeParameterNames.Add((paramName, propName));
-            }
-        }
-        else if (hasParameters || hasRequestBody)
+        // A multipart/form-data body with a complex schema is bound field by field, with the path and query parameters
+        // beside it
+        var form = operation.RequiresFormBindingFlattening()
+            ? AddFlattenedFormParameters(methodParameters, operation, pathParameters, useValidationFilter, registry)
+            : ((List<FormField> Fields, List<(string ParamName, string PropName)> RouteParameters)?)null;
+        if (form is null && takesParameters)
         {
-            // Standard case: use [AsParameters] with the parameters class
-            var parameterClassName = $"{methodName}Parameters";
             methodParameters.Add(new ParameterBaseParameters(
                 Attributes: new List<AttributeParameters> { new("AsParameters", null) },
                 GenericTypeName: null,
                 IsGenericListType: false,
-                TypeName: parameterClassName,
+                TypeName: $"{methodName}Parameters",
                 IsNullableType: false,
                 IsReferenceType: true,
                 Name: "parameters",
                 DefaultValue: null));
         }
 
-        // Add CancellationToken
         methodParameters.Add(new ParameterBaseParameters(
             Attributes: null,
             GenericTypeName: null,
@@ -1622,97 +1816,42 @@ using Microsoft.AspNetCore.Builder;
             Name: "cancellationToken",
             DefaultValue: null));
 
-        // Build method content
-        string content;
-        if (requiresFormFlattening)
+        if (form is { } flattened)
         {
-            // For form flattening, construct the request object and parameters manually
-            var (schemaName, _) = operation.GetMultipartFormDataSchemaInfo();
-            var requestTypeName = schemaName?.ToPascalCaseForDotNet() ?? "Request";
-            var parameterClassName = $"{methodName}Parameters";
-
-            // Build constructor arguments for the request object
-            // Add null-coalescing for required parameters to handle nullable form binding
-            var requestArgs = string.Join(", ", formParameterNames.Select(p =>
-            {
-                var cleanTypeName = p.TypeName.TrimEnd('?');
-
-                // IFormFile types - handle collection conversion if needed
-                if (cleanTypeName.Contains("IFormFile", StringComparison.Ordinal))
-                {
-                    // IFormFileCollection needs conversion to List<IFormFile> for model compatibility
-                    // The model uses List<IFormFile> but ASP.NET Core binds to IFormFileCollection
-                    if (cleanTypeName == "IFormFileCollection")
-                    {
-                        return $"{p.ParamName}?.ToList() ?? new List<IFormFile>()";
-                    }
-
-                    return p.ParamName + "!";
-                }
-
-                // String parameters - use null-coalescing with empty string
-                if (cleanTypeName.Equals("string", StringComparison.OrdinalIgnoreCase))
-                {
-                    return $"{p.ParamName} ?? string.Empty";
-                }
-
-                // List parameters - use null-coalescing with empty list
-                if (cleanTypeName.StartsWith("List<", StringComparison.Ordinal))
-                {
-                    return $"{p.ParamName} ?? new {cleanTypeName}()";
-                }
-
-                return p.ParamName;
-            }));
-
-            // Build constructor arguments: path/query params first, then request (matching record order)
-            var constructorArgs = string.Join(
-                ", ",
-                routeParameterNames.Select(r => r.ParamName).Append("request"));
-
-            // Use block body since we need to construct objects
-            // Note: Content should NOT include braces - the code generator adds them
-            content = $"""
-                       var request = new {requestTypeName}({requestArgs});
-                       var parameters = new {parameterClassName}({constructorArgs});
-                       return {resultClassName}.ToIResult(
-                           await handler.ExecuteAsync(
-                               parameters,
-                               cancellationToken));
-                       """;
-
-            return new MethodParameters(
-                DocumentationTags: null,
-                Attributes: null,
-                DeclarationModifier: DeclarationModifiers.InternalAsync,
-                ReturnGenericTypeName: systemTypeResolver.EnsureFullNamespaceIfNeeded(nameof(Task)),
-                ReturnTypeName: "IResult",
-                Name: methodName,
-                Parameters: methodParameters,
-                AlwaysBreakDownParameters: true,
-                UseExpressionBody: false,
-                Content: content);
+            return EndpointMethod(methodName, methodParameters, FlattenedFormBody(operation, methodName, flattened, useValidationFilter), expressionBody: false, systemTypeResolver);
         }
 
-        if (hasParameters || hasRequestBody)
+        // The handler's result is not named (its Result is what ToIResult returns): an operation named like an MVC result
+        // (signIn, redirect, file, ...) has a result whose name Microsoft.AspNetCore.Mvc, imported by this file, also has
+        if (operation.GetStreamedRequestBody() is { } streamed)
         {
-            content = $"""
-                       {resultClassName}.ToIResult(
-                                   await handler.ExecuteAsync(
-                                       parameters,
-                                       cancellationToken))
-                       """;
-        }
-        else
-        {
-            content = $"""
-                       {resultClassName}.ToIResult(
-                                   await handler.ExecuteAsync(
-                                       cancellationToken))
-                       """;
+            return EndpointMethod(methodName, methodParameters, StreamedBody(streamed, useValidationFilter), expressionBody: false, systemTypeResolver);
         }
 
-        return new MethodParameters(
+        var content = takesParameters
+            ? """
+              (await handler.ExecuteAsync(
+                      parameters,
+                      cancellationToken))
+                  .Result
+              """
+            : """
+              (await handler.ExecuteAsync(
+                      cancellationToken))
+                  .Result
+              """;
+
+        return EndpointMethod(methodName, methodParameters, content, expressionBody: true, systemTypeResolver);
+    }
+
+    // An endpoint's method: internal async, an IResult, its parameters each on a line
+    private static MethodParameters EndpointMethod(
+        string methodName,
+        List<ParameterBaseParameters> methodParameters,
+        string content,
+        bool expressionBody,
+        SystemTypeConflictResolver systemTypeResolver)
+        => new(
             DocumentationTags: null,
             Attributes: null,
             DeclarationModifier: DeclarationModifiers.InternalAsync,
@@ -1721,69 +1860,263 @@ using Microsoft.AspNetCore.Builder;
             Name: methodName,
             Parameters: methodParameters,
             AlwaysBreakDownParameters: true,
-            UseExpressionBody: true,
+            UseExpressionBody: expressionBody,
             Content: content);
+
+    // The handler parameters of a flattened form: [FromForm] fields (a field sent as an object part is read from the
+    // HttpContext), then the path, query and header parameters
+    private static (List<FormField> Fields, List<(string ParamName, string PropName)> RouteParameters) AddFlattenedFormParameters(
+        List<ParameterBaseParameters> methodParameters,
+        OpenApiOperation operation,
+        IList<IOpenApiParameter>? pathParameters,
+        bool useValidationFilter,
+        TypeConflictRegistry? registry)
+    {
+        var formParameterNames = new List<FormField>();
+        var routeParameterNames = new List<(string ParamName, string PropName)>();
+
+        // A form field named like a path, query or header parameter (PUT /user/{username} with a username field)
+        // gets a prefixed handler parameter; the [FromForm] name stays the field's
+        var otherParameterNames = new HashSet<string>(
+            (pathParameters ?? []).Concat(operation.Parameters ?? [])
+                .Select(p => p.GetName())
+                .Where(n => !string.IsNullOrEmpty(n))
+                .Select(n => n!.ToPascalCaseForDotNet())
+                .Select(n => char.ToLowerInvariant(n[0]) + n.Substring(1)),
+            StringComparer.Ordinal);
+
+        var (_, properties, formRequired) = operation.GetFormBodySchemaInfo();
+        if (properties is not null)
+        {
+            // A field sent as an object part (JSON, XML, URL-encoded) is no form binding's: the wire-form-binding step
+            // reads it from the part's text and keeps it on the request (WireBindingExtensions.FormPart)
+            var hasJsonParts = properties.Any(p => IsObjectPart(operation, p.Key, p.Value));
+
+            // The HttpContext: a JSON part is read from it, and the request is validated with its services (the
+            // validators, the ValidationFilterOptions, the JSON naming policy)
+            if (hasJsonParts || useValidationFilter)
+            {
+                methodParameters.Add(new ParameterBaseParameters(
+                    Attributes: null,
+                    GenericTypeName: null,
+                    IsGenericListType: false,
+                    TypeName: "HttpContext",
+                    IsNullableType: false,
+                    IsReferenceType: true,
+                    Name: "httpContext",
+                    DefaultValue: null));
+                otherParameterNames.Add("httpContext");
+            }
+
+            foreach (var kvp in properties)
+            {
+                var propName = kvp.Key;
+                var propSchema = kvp.Value;
+                var pascalPropName = propName.ToPascalCaseForDotNet();
+
+                if (IsObjectPart(operation, propName, propSchema))
+                {
+                    var valueType = FormBodyHelper.JsonPartValueType(propSchema);
+                    var accessor = propSchema.IsOfType(JsonSchemaType.Array) ? "FormPartList" : "FormPart";
+                    formParameterNames.Add(new FormField(string.Empty, pascalPropName, valueType, formRequired.Contains(propName), false, propName, $"WireBindingExtensions.{accessor}<{valueType}>(httpContext, {CSharpLiteralHelper.ToStringLiteral(propName)})"));
+                    continue;
+                }
+
+                // Convert to camelCase for parameter name
+                var paramName = char.ToLowerInvariant(pascalPropName[0]) + pascalPropName.Substring(1);
+                if (otherParameterNames.Contains(paramName))
+                {
+                    paramName = "form" + pascalPropName;
+                }
+
+                var (isFile, isCollection) = propSchema.GetFileUploadInfo();
+
+                string typeName;
+                List<AttributeParameters>? attributes = null;
+
+                if (isFile)
+                {
+                    // File property - IFormFile, bound by the field name the specification gives it (upload_file),
+                    // not by the C# parameter name derived from it. ASP.NET Core binds an IFormFileCollection to
+                    // every file of the form and refuses a name on it, so the request takes that field's files
+                    // from it by name (GetFiles).
+                    typeName = isCollection ? "IFormFileCollection" : "IFormFile";
+                    attributes = isCollection
+                        ? [new("FromForm", null)]
+                        : [new("FromForm", $"Name = {CSharpLiteralHelper.ToStringLiteral(propName)}")];
+
+                    // Make nullable since file is often optional
+                    typeName += "?";
+                }
+                else
+                {
+                    // Non-file property - needs [FromForm] attribute
+                    // Use ToCSharpType for proper type mapping (handles format, nullable, etc.)
+                    typeName = propSchema.ToCSharpType(isRequired: false, registry: null);
+
+                    // Every field is nullable: a required one is checked by the wire-form-binding step, which
+                    // answers a problem naming it; the framework's own check answers a bare 400.
+                    if (!typeName.EndsWith("?", StringComparison.Ordinal))
+                    {
+                        typeName += "?";
+                    }
+
+                    // A list is bound as one value with the items joined by the wire-form-binding step (form
+                    // binding reads a List<T> as a complex type, from indexed keys): the generated parsable list
+                    if (typeName.StartsWith("List<", StringComparison.Ordinal))
+                    {
+                        typeName = (WireValueHelper.IsStringEnum(propSchema) && !ExtensibleEnumHelper.IsExtensibleEnum(propSchema, registry) ? "ParsableEnum" : "Parsable") + typeName;
+                    }
+
+                    attributes = new List<AttributeParameters>
+                    {
+                        new("FromForm", $"Name = {CSharpLiteralHelper.ToStringLiteral(propName)}"),
+                    };
+                }
+
+                methodParameters.Add(new ParameterBaseParameters(
+                    Attributes: attributes,
+                    GenericTypeName: null,
+                    IsGenericListType: typeName.StartsWith("List<", StringComparison.Ordinal),
+                    TypeName: typeName.TrimEnd('?'),
+                    IsNullableType: typeName.EndsWith("?", StringComparison.Ordinal),
+                    IsReferenceType: true,
+                    Name: paramName,
+                    DefaultValue: null));
+
+                formParameterNames.Add(new FormField(paramName, pascalPropName, typeName, formRequired.Contains(propName), !isFile && IsFormValueType(propSchema), propName, null));
+            }
+        }
+
+        // Also add path-level and operation-level parameters (e.g., {pizzaId}) to the method signature
+        var allNonFormParameters = operation.EffectiveParameters(pathParameters);
+
+        var propertyNames = ParameterPropertyNames.For(operation, pathParameters);
+        foreach (var paramOrRef in allNonFormParameters)
+        {
+            var resolved = paramOrRef.Resolve();
+            var parameter = resolved.Parameter;
+            if (parameter is null || string.IsNullOrEmpty(parameter.Name))
+            {
+                continue;
+            }
+
+            var propName = propertyNames.Get(parameter, resolved.ReferenceId);
+            var paramName = char.ToLowerInvariant(propName[0]) + propName.Substring(1);
+            var paramType = parameter.Schema!.ToCSharpType(isRequired: parameter.Required, registry: null);
+            var isNullable = paramType.EndsWith("?", StringComparison.Ordinal);
+            var cleanType = isNullable ? paramType.Substring(0, paramType.Length - 1) : paramType;
+
+            var paramLocation = parameter.In ?? ParameterLocation.Query;
+
+            // ASP.NET Core has no [FromCookie] attribute — skip cookie params.
+            if (paramLocation == ParameterLocation.Cookie)
+            {
+                continue;
+            }
+
+            var bindingAttrName = paramLocation switch
+            {
+                ParameterLocation.Path => "FromRoute",
+                ParameterLocation.Header => "FromHeader",
+                _ => "FromQuery",
+            };
+
+            var attributes = new List<AttributeParameters>
+            {
+                new(bindingAttrName, $"Name = {CSharpLiteralHelper.ToStringLiteral(parameter.Name!)}"),
+            };
+
+            methodParameters.Add(new ParameterBaseParameters(
+                Attributes: attributes,
+                GenericTypeName: null,
+                IsGenericListType: false,
+                TypeName: cleanType,
+                IsNullableType: isNullable,
+                IsReferenceType: false,
+                Name: paramName,
+                DefaultValue: null));
+
+            routeParameterNames.Add((paramName, propName));
+        }
+
+        return (formParameterNames, routeParameterNames);
+    }
+
+    // The body of a flattened form's endpoint: the request built from the fields, the parameters from the request and
+    // the path and query parameters
+    private static string FlattenedFormBody(
+        OpenApiOperation operation,
+        string methodName,
+        (List<FormField> Fields, List<(string ParamName, string PropName)> RouteParameters) form,
+        bool useValidationFilter)
+    {
+        // For form flattening, construct the request object and parameters manually
+        var (schemaName, _, _) = operation.GetFormBodySchemaInfo();
+        var requestTypeName = schemaName is null ? "Request" : OpenApiSchemaExtensions.SanitizeSchemaName(schemaName);
+        var parameterClassName = $"{methodName}Parameters";
+
+        // Build constructor arguments for the request object, by name (the record lists required properties first).
+        // A required value gets a fallback for nullable form binding; an optional one stays null when absent.
+        var requestArgs = string.Join(", ", form.Fields.Select(f => $"{f.PropName}: {FormArgumentExpression(f)}"));
+
+        // Build constructor arguments: path/query params first, then request (matching record order)
+        var constructorArgs = string.Join(
+            ", ",
+            form.RouteParameters.Select(r => r.ParamName).Append("request"));
+
+        // Use block body since we need to construct objects
+        // Note: Content should NOT include braces - the code generator adds them
+        // With the ValidationFilter: a form binds no [AsParameters] record the filter could validate, so the endpoint
+        // validates the one it builds - the same keys and validators as a JSON body of the same model
+        return useValidationFilter
+            ? $$"""
+               var request = new {{requestTypeName}}({{requestArgs}});
+               var parameters = new {{parameterClassName}}({{constructorArgs}});
+               if (await RequestValidation.ValidateAsync(parameters, httpContext) is { } invalid)
+               {
+                   return invalid;
+               }
+
+               return (await handler.ExecuteAsync(
+                       parameters,
+                       cancellationToken))
+                   .Result;
+               """
+            : $"""
+               var request = new {requestTypeName}({requestArgs});
+               var parameters = new {parameterClassName}({constructorArgs});
+               return (await handler.ExecuteAsync(
+                       parameters,
+                       cancellationToken))
+                   .Result;
+               """;
     }
 
     /// <summary>
-    /// Gets the C# type for a response schema, handling inline object schemas properly.
+    /// The C# type of a response body - the result class's type (<see cref="SchemaTypeResolver"/>), a model that shadows
+    /// a System type written in full.
     /// </summary>
     private static string? GetResponseContentType(
         IOpenApiSchema? schema,
         OpenApiDocument openApiDoc,
-        OpenApiOperation operation,
+        string operationId,
         string projectName,
         string segment,
         SystemTypeConflictResolver systemTypeResolver,
-        TypeConflictRegistry? registry)
-    {
-        if (schema is null)
-        {
-            return null;
-        }
-
-        var operationId = operation.OperationId ?? "Unknown";
-        var schemaType = schema.GetSchemaType();
-
-        // Handle array types
-        if (schemaType == "array" && schema.Items is not null)
-        {
-            var itemType = GetSchemaItemType(schema.Items, openApiDoc, operationId, projectName, segment, systemTypeResolver, registry);
-            return $"List<{itemType}>";
-        }
-
-        // Handle schema reference ($ref)
-        if (schema is OpenApiSchemaReference schemaRef)
-        {
-            var refName = schemaRef.Reference?.Id ?? schemaRef.Id;
-            if (!string.IsNullOrEmpty(refName))
-            {
-                var typeName = refName!.ToPascalCaseForDotNet();
-                if (registry?.IsConflicting(typeName) == true)
-                {
-                    return registry.GetFullyQualifiedName(typeName);
-                }
-
-                return ResolveModelTypeConflict(typeName, projectName, segment, systemTypeResolver);
-            }
-        }
-
-        // Handle inline object schema
-        if (schemaType == "object" && schema.Properties is not null && schema.Properties.Count > 0)
-        {
-            // Generate inline type name using the same pattern as ResultClassExtractor
-            return InlineSchemaExtractor.GenerateInlineTypeName(operationId, "Response");
-        }
-
-        // Fall back to ToCSharpTypeWithGenericSupport for other cases (allOf, primitives, etc.)
-        var fallbackType = schema.ToCSharpTypeWithGenericSupport(openApiDoc, isRequired: true, registry);
-        if (fallbackType is not null)
-        {
-            return ResolveModelTypeConflict(fallbackType, projectName, segment, systemTypeResolver);
-        }
-
-        return fallbackType;
-    }
+        TypeConflictRegistry? registry,
+        string inlineContext = "Response")
+        => schema is null
+            ? null
+            : SchemaTypeResolver.Resolve(
+                schema,
+                openApiDoc,
+                registry,
+                collection: "List",
+                topCollection: null,
+                inlineContext,
+                (_, context) => InlineSchemaExtractor.GenerateInlineTypeName(operationId, context),
+                typeName => ResolveModelTypeConflict(typeName, projectName, segment, systemTypeResolver));
 
     /// <summary>
     /// Resolves model type conflicts with System types by using full namespace.
@@ -1803,68 +2136,5 @@ using Microsoft.AspNetCore.Builder;
         }
 
         return typeName;
-    }
-
-    /// <summary>
-    /// Gets the C# type for array item schema.
-    /// </summary>
-    private static string GetSchemaItemType(
-        IOpenApiSchema itemSchema,
-        OpenApiDocument openApiDoc,
-        string operationId,
-        string projectName,
-        string segment,
-        SystemTypeConflictResolver systemTypeResolver,
-        TypeConflictRegistry? registry)
-    {
-        // Handle reference
-        if (itemSchema is OpenApiSchemaReference itemRef)
-        {
-            var refName = itemRef.Reference?.Id ?? itemRef.Id;
-            if (!string.IsNullOrEmpty(refName))
-            {
-                var typeName = refName!.ToPascalCaseForDotNet();
-                if (registry?.IsConflicting(typeName) == true)
-                {
-                    return registry.GetFullyQualifiedName(typeName);
-                }
-
-                return ResolveModelTypeConflict(typeName, projectName, segment, systemTypeResolver);
-            }
-        }
-
-        var itemSchemaType = itemSchema.GetSchemaType();
-
-        // Handle inline object - use "ResponseItem" suffix for array items
-        if (itemSchemaType == "object" && itemSchema.Properties is not null && itemSchema.Properties.Count > 0)
-        {
-            return InlineSchemaExtractor.GenerateInlineTypeName(operationId, "ResponseItem");
-        }
-
-        // Try to find schema by Title property in components
-        if (itemSchema is OpenApiSchema openApiSchema && !string.IsNullOrEmpty(openApiSchema.Title))
-        {
-            var schemas = openApiDoc.Components?.Schemas;
-            if (schemas is not null)
-            {
-                foreach (var kvp in schemas)
-                {
-                    if (kvp.Value is OpenApiSchema componentSchema &&
-                        string.Equals(componentSchema.Title, openApiSchema.Title, StringComparison.Ordinal))
-                    {
-                        var typeName = kvp.Key.ToPascalCaseForDotNet();
-                        if (registry?.IsConflicting(typeName) == true)
-                        {
-                            return registry.GetFullyQualifiedName(typeName);
-                        }
-
-                        return ResolveModelTypeConflict(typeName, projectName, segment, systemTypeResolver);
-                    }
-                }
-            }
-        }
-
-        // Fall back to ToCSharpType for primitives
-        return itemSchema.ToCSharpType(isRequired: true, registry);
     }
 }

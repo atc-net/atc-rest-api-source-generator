@@ -17,63 +17,63 @@ public static class OpenApiRateLimitExtensions
         /// </summary>
         /// <returns>The policy name, or null if not specified.</returns>
         public string? ExtractRateLimitPolicy()
-            => ExtractStringValue(extensions, RateLimitExtensionNameConstants.Policy);
+            => extensions.ReadString(RateLimitExtensionNameConstants.Policy);
 
         /// <summary>
         /// Extracts the x-ratelimit-enabled value from extensions.
         /// </summary>
         /// <returns>True if enabled, false if explicitly disabled, null if not specified.</returns>
         public bool? ExtractRateLimitEnabled()
-            => ExtractBoolValue(extensions, RateLimitExtensionNameConstants.Enabled);
+            => extensions.ReadBool(RateLimitExtensionNameConstants.Enabled);
 
         /// <summary>
         /// Extracts the x-ratelimit-permit-limit value from extensions.
         /// </summary>
         /// <returns>The permit limit, or null if not specified.</returns>
         public int? ExtractPermitLimit()
-            => ExtractIntValue(extensions, RateLimitExtensionNameConstants.PermitLimit);
+            => extensions.ReadInt(RateLimitExtensionNameConstants.PermitLimit);
 
         /// <summary>
         /// Extracts the x-ratelimit-window-seconds value from extensions.
         /// </summary>
         /// <returns>The window in seconds, or null if not specified.</returns>
         public int? ExtractWindowSeconds()
-            => ExtractIntValue(extensions, RateLimitExtensionNameConstants.WindowSeconds);
+            => extensions.ReadInt(RateLimitExtensionNameConstants.WindowSeconds);
 
         /// <summary>
         /// Extracts the x-ratelimit-queue-limit value from extensions.
         /// </summary>
         /// <returns>The queue limit, or null if not specified.</returns>
         public int? ExtractQueueLimit()
-            => ExtractIntValue(extensions, RateLimitExtensionNameConstants.QueueLimit);
+            => extensions.ReadInt(RateLimitExtensionNameConstants.QueueLimit);
 
         /// <summary>
         /// Extracts the x-ratelimit-algorithm value from extensions.
         /// </summary>
         /// <returns>The algorithm name, or null if not specified.</returns>
         public string? ExtractRateLimitAlgorithm()
-            => ExtractStringValue(extensions, RateLimitExtensionNameConstants.Algorithm);
+            => extensions.ReadString(RateLimitExtensionNameConstants.Algorithm);
 
         /// <summary>
         /// Extracts the x-ratelimit-emit-retry-after value from extensions.
         /// </summary>
         /// <returns>True if the Retry-After header should be emitted, false if explicitly disabled, null if not specified.</returns>
         public bool? ExtractRateLimitEmitRetryAfter()
-            => ExtractBoolValue(extensions, RateLimitExtensionNameConstants.EmitRetryAfter);
+            => extensions.ReadBool(RateLimitExtensionNameConstants.EmitRetryAfter);
 
         /// <summary>
         /// Extracts the x-ratelimit-partition value from extensions.
         /// </summary>
         /// <returns>The partition strategy name, or null if not specified.</returns>
         public string? ExtractRateLimitPartition()
-            => ExtractStringValue(extensions, RateLimitExtensionNameConstants.Partition);
+            => extensions.ReadString(RateLimitExtensionNameConstants.Partition);
 
         /// <summary>
         /// Extracts the x-ratelimit-partition-claim value from extensions.
         /// </summary>
         /// <returns>The claim type, or null if not specified.</returns>
         public string? ExtractRateLimitPartitionClaim()
-            => ExtractStringValue(extensions, RateLimitExtensionNameConstants.PartitionClaim);
+            => extensions.ReadString(RateLimitExtensionNameConstants.PartitionClaim);
     }
 
     /// <summary>
@@ -96,10 +96,24 @@ public static class OpenApiRateLimitExtensions
             return new RateLimitConfiguration { Enabled = false };
         }
 
+        return ResolveRateLimit(new OpenApiExtensionScope(operation.Extensions, pathItem.Extensions, document.Extensions));
+    }
+
+    /// <summary>
+    /// The rate limit configuration the <c>x-ratelimit-*</c> settings give, each read from the nearest level that sets
+    /// it.
+    /// </summary>
+    /// <param name="inherited">The operation's, path item's and document's extensions.</param>
+    /// <returns>The configuration, or <see langword="null"/> when no level names a rate limit policy.</returns>
+    public static RateLimitConfiguration? ResolveRateLimit(OpenApiExtensionScope inherited)
+    {
+        if (inherited is null)
+        {
+            throw new ArgumentNullException(nameof(inherited));
+        }
+
         // Get effective policy (operation → path → document)
-        var policy = operation.Extensions.ExtractRateLimitPolicy()
-                     ?? pathItem.Extensions.ExtractRateLimitPolicy()
-                     ?? document.Extensions.ExtractRateLimitPolicy();
+        var policy = inherited.First(e => e.ExtractRateLimitPolicy());
 
         if (string.IsNullOrEmpty(policy))
         {
@@ -107,42 +121,28 @@ public static class OpenApiRateLimitExtensions
         }
 
         // Get configuration values (operation → path → document)
-        var permitLimit = operation.Extensions.ExtractPermitLimit()
-                          ?? pathItem.Extensions.ExtractPermitLimit()
-                          ?? document.Extensions.ExtractPermitLimit()
+        var permitLimit = inherited.First(e => e.ExtractPermitLimit())
                           ?? 100;
 
-        var windowSeconds = operation.Extensions.ExtractWindowSeconds()
-                            ?? pathItem.Extensions.ExtractWindowSeconds()
-                            ?? document.Extensions.ExtractWindowSeconds()
+        var windowSeconds = inherited.First(e => e.ExtractWindowSeconds())
                             ?? 60;
 
-        var queueLimit = operation.Extensions.ExtractQueueLimit()
-                         ?? pathItem.Extensions.ExtractQueueLimit()
-                         ?? document.Extensions.ExtractQueueLimit()
+        var queueLimit = inherited.First(e => e.ExtractQueueLimit())
                          ?? 0;
 
-        var algorithmString = operation.Extensions.ExtractRateLimitAlgorithm()
-                              ?? pathItem.Extensions.ExtractRateLimitAlgorithm()
-                              ?? document.Extensions.ExtractRateLimitAlgorithm()
+        var algorithmString = inherited.First(e => e.ExtractRateLimitAlgorithm())
                               ?? "fixed";
 
         var algorithm = ParseAlgorithm(algorithmString);
 
-        var emitRetryAfter = operation.Extensions.ExtractRateLimitEmitRetryAfter()
-                             ?? pathItem.Extensions.ExtractRateLimitEmitRetryAfter()
-                             ?? document.Extensions.ExtractRateLimitEmitRetryAfter()
+        var emitRetryAfter = inherited.First(e => e.ExtractRateLimitEmitRetryAfter())
                              ?? true;
 
-        var partitionString = operation.Extensions.ExtractRateLimitPartition()
-                              ?? pathItem.Extensions.ExtractRateLimitPartition()
-                              ?? document.Extensions.ExtractRateLimitPartition();
+        var partitionString = inherited.First(e => e.ExtractRateLimitPartition());
 
         var partition = ParsePartitionStrategy(partitionString);
 
-        var partitionClaim = operation.Extensions.ExtractRateLimitPartitionClaim()
-                             ?? pathItem.Extensions.ExtractRateLimitPartitionClaim()
-                             ?? document.Extensions.ExtractRateLimitPartitionClaim();
+        var partitionClaim = inherited.First(e => e.ExtractRateLimitPartitionClaim());
 
         return new RateLimitConfiguration
         {
@@ -206,116 +206,6 @@ public static class OpenApiRateLimitExtensions
         }
 
         return false;
-    }
-
-    /// <summary>
-    /// Extracts a string value from an OpenAPI extension.
-    /// </summary>
-    private static string? ExtractStringValue(
-        IDictionary<string, IOpenApiExtension>? extensions,
-        string key)
-    {
-        if (extensions is null ||
-            !extensions.TryGetValue(key, out var extension) ||
-            extension is null)
-        {
-            return null;
-        }
-
-        // Use reflection to access Node property (Microsoft.OpenApi v3.0.1 pattern)
-        var extensionType = extension.GetType();
-        var nodeProperty = extensionType.GetProperty("Node");
-        if (nodeProperty is null)
-        {
-            return null;
-        }
-
-        var node = nodeProperty.GetValue(extension);
-        if (node is JsonValue jsonValue && jsonValue.TryGetValue<string>(out var stringValue))
-        {
-            return stringValue;
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Extracts a boolean value from an OpenAPI extension.
-    /// </summary>
-    private static bool? ExtractBoolValue(
-        IDictionary<string, IOpenApiExtension>? extensions,
-        string key)
-    {
-        if (extensions is null ||
-            !extensions.TryGetValue(key, out var extension) ||
-            extension is null)
-        {
-            return null;
-        }
-
-        // Use reflection to access Node property (Microsoft.OpenApi v3.0.1 pattern)
-        var extensionType = extension.GetType();
-        var nodeProperty = extensionType.GetProperty("Node");
-        if (nodeProperty is null)
-        {
-            return null;
-        }
-
-        var node = nodeProperty.GetValue(extension);
-        if (node is JsonValue jsonValue && jsonValue.TryGetValue<bool>(out var boolValue))
-        {
-            return boolValue;
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Extracts an integer value from an OpenAPI extension.
-    /// </summary>
-    private static int? ExtractIntValue(
-        IDictionary<string, IOpenApiExtension>? extensions,
-        string key)
-    {
-        if (extensions is null ||
-            !extensions.TryGetValue(key, out var extension) ||
-            extension is null)
-        {
-            return null;
-        }
-
-        // Use reflection to access Node property (Microsoft.OpenApi v3.0.1 pattern)
-        var extensionType = extension.GetType();
-        var nodeProperty = extensionType.GetProperty("Node");
-        if (nodeProperty is null)
-        {
-            return null;
-        }
-
-        var node = nodeProperty.GetValue(extension);
-        if (node is JsonValue jsonValue)
-        {
-            if (jsonValue.TryGetValue<int>(out var intValue))
-            {
-                return intValue;
-            }
-
-            // Also try long and clamp to int range
-            if (jsonValue.TryGetValue<long>(out var longValue))
-            {
-                return longValue > int.MaxValue ? int.MaxValue : longValue < int.MinValue ? int.MinValue : (int)longValue;
-            }
-
-            // YAML-sourced integer scalars are boxed as decimal (JsonValuePrimitive<decimal>)
-            // by the OpenAPI YAML reader, not int/long, so neither branch above ever matches
-            // for a document parsed from YAML (the common case for this generator).
-            if (jsonValue.TryGetValue<decimal>(out var decimalValue))
-            {
-                return decimalValue > int.MaxValue ? int.MaxValue : decimalValue < int.MinValue ? int.MinValue : (int)decimalValue;
-            }
-        }
-
-        return null;
     }
 
     /// <summary>

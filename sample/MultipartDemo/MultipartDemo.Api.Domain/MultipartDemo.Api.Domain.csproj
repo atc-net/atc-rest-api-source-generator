@@ -9,7 +9,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.2.0" />
   </ItemGroup>
 
   <ItemGroup>
@@ -22,6 +22,7 @@
 
   <ItemGroup>
     <AdditionalFiles Include="..\MultipartDemo.yaml" />
+    <AdditionalFiles Include="..\MultipartDemo_*.yaml" />
     <AdditionalFiles Include=".atc-rest-api-server-handlers" />
   </ItemGroup>
 

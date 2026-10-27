@@ -21,11 +21,10 @@ public partial class FilesUpload
     private IBrowserFile? metadataFile;
     private string itemName = string.Empty;
     private string itemsText = string.Empty;
+    private string author = string.Empty;
 
     // Batch files with metadata
     private IReadOnlyList<IBrowserFile>? batchFiles;
-    private string batchItemName = string.Empty;
-    private string batchItemsText = string.Empty;
 
     private async Task OnMultipleFilesSelected()
     {
@@ -148,11 +147,12 @@ public partial class FilesUpload
 
             var items = itemsText.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
-            await Gateway.UploadSingleObjectWithFileAsync(ms, metadataFile.Name, metadataFile.ContentType, itemName, items);
+            await Gateway.UploadSingleObjectWithFileAsync(ms, metadataFile.Name, metadataFile.ContentType, itemName, items, author);
             Snackbar.Add($"Uploaded: {metadataFile.Name} with metadata", Severity.Success);
             metadataFile = null;
             itemName = string.Empty;
             itemsText = string.Empty;
+            author = string.Empty;
         }
         catch (Exception ex)
         {
@@ -168,12 +168,6 @@ public partial class FilesUpload
     {
         if (batchFiles is null || batchFiles.Count == 0)
         {
-            return;
-        }
-
-        if (string.IsNullOrWhiteSpace(batchItemName))
-        {
-            Snackbar.Add("Item Name is required", Severity.Warning);
             return;
         }
 
@@ -193,9 +187,7 @@ public partial class FilesUpload
                 files.Add((ms, file.Name, file.ContentType));
             }
 
-            var items = batchItemsText.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-
-            await Gateway.UploadSingleObjectWithMultipleFilesAsync(files, batchItemName, items);
+            await Gateway.UploadSingleObjectWithMultipleFilesAsync(files);
 
             foreach (var ms in memoryStreams)
             {
@@ -204,8 +196,6 @@ public partial class FilesUpload
 
             Snackbar.Add($"Uploaded {batchFiles.Count} files with metadata", Severity.Success);
             batchFiles = null;
-            batchItemName = string.Empty;
-            batchItemsText = string.Empty;
         }
         catch (Exception ex)
         {

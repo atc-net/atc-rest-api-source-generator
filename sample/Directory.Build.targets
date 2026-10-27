@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project>
+
+  <!-- The samples reference the generator as a project: its package targets come in here, as a package's would -->
+  <Import Project="$(MSBuildThisFileDirectory)../src/Atc.Rest.Api.SourceGenerator/build/Atc.Rest.Api.SourceGenerator.targets" />
+
+</Project>

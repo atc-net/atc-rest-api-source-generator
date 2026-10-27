@@ -37,18 +37,10 @@ public static class HandlerScaffoldExtractor
         var interfaceName = $"I{operationIdPascal}{handlerSuffix}";
         var resultTypeName = $"{operationIdPascal}Result";
 
-        // Determine method signature based on parameters and request body
-        // Check both operation-level AND path-level parameters
-        var hasOperationParams = operation.HasParameters();
-        var hasPathParams = pathItem?.Parameters?.Count > 0;
-        var hasParameters = hasOperationParams || hasPathParams;
-        var hasRequestBody = operation.HasRequestBody();
-
-        // Build ExecuteAsync method parameters
+        // Build ExecuteAsync method parameters: the Parameters record when the operation has a parameter (its own or
+        // its path's) or a request body
         var methodParams = new List<ParameterBaseParameters>();
-
-        // Add Parameters class if operation has parameters OR request body
-        if (hasParameters || hasRequestBody)
+        if (HandlerSignature.TakesParameters(operation, pathItem?.Parameters))
         {
             var parametersTypeName = $"{operationIdPascal}Parameters";
             methodParams.Add(new ParameterBaseParameters(
@@ -82,7 +74,7 @@ public static class HandlerScaffoldExtractor
         var shouldBreakDownParams = methodParams.Count > 1 || ExceedsLineLength(taskTypeName, resultTypeName, methodParams, maxLineLength);
 
         var method = new MethodParameters(
-            DocumentationTags: null,
+            DocumentationTags: new CodeDocumentationTags($"Executes the {operationIdPascal} operation."),
             Attributes: null,
             DeclarationModifier: DeclarationModifiers.Public,
             ReturnGenericTypeName: taskTypeName,
@@ -102,7 +94,7 @@ public static class HandlerScaffoldExtractor
             constructors =
             [
                 new ConstructorParameters(
-                    DocumentationTags: null,
+                    DocumentationTags: new CodeDocumentationTags($"Initializes a new instance of the <see cref=\"{handlerName}\"/> class."),
                     DeclarationModifier: DeclarationModifiers.Public,
                     GenericTypeName: null,
                     TypeName: handlerName,

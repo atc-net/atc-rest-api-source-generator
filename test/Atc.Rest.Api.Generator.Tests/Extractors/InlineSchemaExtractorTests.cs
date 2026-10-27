@@ -193,6 +193,21 @@ public class InlineSchemaExtractorTests
             nameProp.Attributes.All(a => a.Name != "JsonPropertyName"));
     }
 
+    [Theory]
+    [InlineData("listReports", "Response", null, "ListReportsResponse")]
+    [InlineData("listReports", "ResponseItem", "200", "ListReportsResponseItem")]
+    [InlineData("list-reports", "Request", "default", "ListReportsRequest")]
+    [InlineData("createReport", "Response", "201", "CreateReportResponse201")]
+    [InlineData("getReport", "Response", "404", "GetReportResponse404")]
+    public void GenerateInlineTypeName_OperationContextAndStatusCode_OnlyNonSuccessCodesAreSuffixed(
+        string operationId,
+        string context,
+        string? statusCode,
+        string expected)
+    {
+        Assert.Equal(expected, InlineSchemaExtractor.GenerateInlineTypeName(operationId, context, statusCode));
+    }
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document

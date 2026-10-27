@@ -28,8 +28,8 @@ public sealed class UpdateUserByIdHandler : IUpdateUserByIdHandler
             PostalCode: request.Address.PostalCode,
             Country: request.Address.Country,
             CountryCode: request.Address.CountryCode,
-            Latitude: request.Address.Latitude ?? 0,
-            Longitude: request.Address.Longitude ?? 0);
+            Latitude: request.Address.Latitude,
+            Longitude: request.Address.Longitude);
 
         // Map API role to domain role
         var role = Enum.TryParse<UserRoleType>(request.Role.ToString(), ignoreCase: true, out var parsedRole)
@@ -43,7 +43,7 @@ public sealed class UpdateUserByIdHandler : IUpdateUserByIdHandler
             email: request.Email,
             phone: request.Phone,
             website: request.Website?.ToString(),
-            dateOfBirth: DateOnly.FromDateTime(request.DateOfBirth.DateTime),
+            dateOfBirth: request.DateOfBirth,
             bio: request.Bio,
             avatarUrl: request.AvatarUrl?.ToString(),
             isActive: request.IsActive,
@@ -66,7 +66,7 @@ public sealed class UpdateUserByIdHandler : IUpdateUserByIdHandler
             Email: user.Email,
             Phone: user.Phone,
             Website: string.IsNullOrEmpty(user.Website) ? null : new Uri(user.Website),
-            DateOfBirth: new DateTimeOffset(user.DateOfBirth.ToDateTime(TimeOnly.MinValue)),
+            DateOfBirth: user.DateOfBirth,
             Age: user.Age,
             Bio: user.Bio,
             AvatarUrl: string.IsNullOrEmpty(user.AvatarUrl) ? null : new Uri(user.AvatarUrl),

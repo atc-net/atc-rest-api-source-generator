@@ -24,7 +24,32 @@ public sealed class TypeConflictRegistry
         nameof(TimeSpan),   // System.TimeSpan
         nameof(Uri),        // System.Uri
         nameof(Version),    // System.Version
+
+        // Types the generated code names unqualified (a schema with one of these names is ambiguous there)
+        "Stream",                // System.IO.Stream
+        "CancellationToken",     // System.Threading.CancellationToken
+        "DateTimeOffset",        // System.DateTimeOffset
+        "DateOnly",              // System.DateOnly
+        "TimeOnly",              // System.TimeOnly
+        "HttpClient",            // System.Net.Http.HttpClient
+        "HttpContext",           // Microsoft.AspNetCore.Http.HttpContext
+        "HttpRequestMessage",    // System.Net.Http.HttpRequestMessage
+        "HttpResponseMessage",   // System.Net.Http.HttpResponseMessage
+        "IResult",               // Microsoft.AspNetCore.Http.IResult
+        "TypedResults",          // Microsoft.AspNetCore.Http.TypedResults
+        "JsonSerializer",        // System.Text.Json.JsonSerializer
+        "Attribute",             // System.Attribute
+        "Enum",                  // System.Enum
+        "File",                  // System.IO.File (the generated code has a using for Stream)
+        "Path",                  // System.IO.Path
+        "Directory",             // System.IO.Directory
     };
+
+    /// <summary>
+    /// The segments every generated namespace has: a schema named like one of them is "a namespace used like a type"
+    /// wherever the generated code names it.
+    /// </summary>
+    private static readonly string[] GeneratedNamespaceSegments = ["Generated", "Models", "Endpoints", "Results", "Handlers", "Parameters", "Client", "Security"];
 
     /// <summary>
     /// Set of schema names that conflict with reserved .NET types.
@@ -41,15 +66,47 @@ public sealed class TypeConflictRegistry
     /// </summary>
     private readonly string? pathSegment;
 
+    /// <summary>
+    /// Schemas generated into the shared <c>{Project}.Generated.Models</c> namespace (used by more than one
+    /// path segment); null when the caller does not know, and every type is taken to live in this registry's segment.
+    /// </summary>
+    private readonly ISet<string>? sharedSchemaNames;
+
+    /// <summary>
+    /// The C# names of the document's component schemas (see <see cref="ComponentTypeNamesOf"/>); null when the
+    /// caller does not know.
+    /// </summary>
+    private readonly ISet<string>? componentTypeNames;
+
     private TypeConflictRegistry(
         ISet<string> conflictingSchemaNames,
         string projectName,
-        string? pathSegment)
+        string? pathSegment,
+        ISet<string>? sharedSchemaNames = null,
+        bool extensibleEnums = false,
+        ISet<string>? componentTypeNames = null)
     {
         this.conflictingSchemaNames = conflictingSchemaNames;
         this.projectName = projectName;
         this.pathSegment = pathSegment;
+        this.sharedSchemaNames = sharedSchemaNames;
+        this.componentTypeNames = componentTypeNames;
+        ExtensibleEnums = extensibleEnums;
     }
+
+    /// <summary>
+    /// The C# names of the document's component schemas - what a generated name of its own (an inline enum) must not
+    /// take; null when the caller did not pass them.
+    /// </summary>
+    public ISet<string>? ComponentTypeNames
+        => componentTypeNames;
+
+    /// <summary>
+    /// Whether the string enums are generated as extensible enums (a client): a <c>readonly record struct</c> whose
+    /// members are no compile-time constants, so an enum default cannot be a parameter default or a
+    /// <c>[DefaultValue]</c>. Integer enums are C# enums either way.
+    /// </summary>
+    public bool ExtensibleEnums { get; }
 
     /// <summary>
     /// Scans an OpenAPI document once and returns the set of schema names that conflict with reserved .NET types
@@ -58,10 +115,16 @@ public sealed class TypeConflictRegistry
     /// </summary>
     /// <param name="doc">The OpenAPI document to scan.</param>
     /// <param name="projectNamespace">Optional project namespace; segments are checked for conflicts with schema names.</param>
+    /// <param name="pathSegmentNamespaces">
+    /// Optional names of the path-segment namespaces (<c>Pet</c> for <c>/pet</c>): inside
+    /// <c>{Project}.Generated.Pet.*</c> the simple name <c>Pet</c> is that namespace, so a schema of the same
+    /// name must be written fully qualified.
+    /// </param>
     /// <returns>Set of conflicting schema names.</returns>
     public static ISet<string> ScanForConflicts(
         OpenApiDocument doc,
-        string? projectNamespace = null)
+        string? projectNamespace = null,
+        IEnumerable<string>? pathSegmentNamespaces = null)
     {
         var conflicts = new HashSet<string>(StringComparer.Ordinal);
 
@@ -70,18 +133,30 @@ public sealed class TypeConflictRegistry
             return conflicts;
         }
 
-        HashSet<string>? namespaceSegments = null;
+        var namespaceSegments = new HashSet<string>(GeneratedNamespaceSegments, StringComparer.Ordinal);
         if (!string.IsNullOrEmpty(projectNamespace))
         {
-            namespaceSegments = new HashSet<string>(
-                projectNamespace!.Split('.'),
-                StringComparer.Ordinal);
+            namespaceSegments.UnionWith(projectNamespace!.Split('.'));
+        }
+
+        if (pathSegmentNamespaces is not null)
+        {
+            foreach (var segment in pathSegmentNamespaces)
+            {
+                if (!string.IsNullOrEmpty(segment))
+                {
+                    namespaceSegments.Add(segment);
+                }
+            }
         }
 
         foreach (var schema in doc.Components.Schemas)
         {
+            // Only a schema that becomes a type can clash with a namespace: an array or primitive alias
+                // (Accounts: array of Account) is replaced by the type it names wherever it is referenced.
+            // A model's XML mapping is {Model}Xml: a namespace of that name hides it as well
             if (ReservedSystemTypes.Contains(schema.Key) ||
-                namespaceSegments?.Contains(schema.Key) == true)
+                ((namespaceSegments.Contains(schema.Key) || namespaceSegments.Contains(schema.Key + "Xml")) && IsGeneratedType(schema.Value)))
             {
                 conflicts.Add(schema.Key);
             }
@@ -91,18 +166,61 @@ public sealed class TypeConflictRegistry
     }
 
     /// <summary>
+    /// Whether a component schema is generated as a C# type. A component that only names an array or a
+    /// primitive (<c>Accounts: array of Account</c>, <c>ExternalId: string</c>) is not - its users take the
+    /// aliased type itself.
+    /// </summary>
+    public static bool IsGeneratedType(IOpenApiSchema schemaValue)
+    {
+        if (schemaValue is not OpenApiSchema schema || schema.Type is not { } type)
+        {
+            return true;
+        }
+
+        if (schema.Enum is { Count: > 0 } ||
+            schema.AllOf is { Count: > 0 } ||
+            schema.OneOf is { Count: > 0 } ||
+            schema.AnyOf is { Count: > 0 } ||
+            schema.HasPrefixItems)
+        {
+            return true;
+        }
+
+        var withoutNull = type & ~JsonSchemaType.Null;
+        return withoutNull == default || withoutNull == JsonSchemaType.Object;
+    }
+
+    /// <summary>
     /// Creates a registry for a specific path segment using pre-scanned conflicts.
     /// This is a lightweight operation - O(1) - as the conflict detection was already done.
     /// </summary>
     /// <param name="conflicts">The pre-scanned set of conflicting schema names from <see cref="ScanForConflicts"/>.</param>
     /// <param name="projectName">The project name for namespace construction.</param>
     /// <param name="pathSegment">Optional path segment for segmented namespaces.</param>
+    /// <param name="sharedSchemaNames">Optional names of the schemas generated into the shared models namespace.</param>
+    /// <param name="extensibleEnums">Whether the string enums are extensible enums (a generated client); see <see cref="ExtensibleEnums"/>.</param>
+    /// <param name="componentTypeNames">The C# names of the component schemas (<see cref="ComponentTypeNamesOf"/>).</param>
     /// <returns>A registry configured for the specified path segment.</returns>
     public static TypeConflictRegistry ForSegment(
         ISet<string> conflicts,
         string projectName,
-        string? pathSegment = null)
-        => new(conflicts, projectName, pathSegment);
+        string? pathSegment = null,
+        ISet<string>? sharedSchemaNames = null,
+        bool extensibleEnums = false,
+        ISet<string>? componentTypeNames = null)
+        => new(conflicts, projectName, pathSegment, sharedSchemaNames, extensibleEnums, componentTypeNames);
+
+    /// <summary>
+    /// The C# names the document's component schemas are generated with (sanitized: <c>Pageable.Mode</c> is
+    /// <c>PageableMode</c>).
+    /// </summary>
+    /// <param name="doc">The OpenAPI document.</param>
+    /// <returns>The names.</returns>
+    public static ISet<string> ComponentTypeNamesOf(
+        OpenApiDocument doc)
+        => new HashSet<string>(
+            (doc?.Components?.Schemas?.Keys ?? []).Select(OpenApiSchemaExtensions.SanitizeSchemaName),
+            StringComparer.Ordinal);
 
     /// <summary>
     /// Builds a conflict registry by scanning OpenAPI document schemas.
@@ -142,7 +260,8 @@ public sealed class TypeConflictRegistry
 
         // Compute namespace on-demand. Callers normalize a redundant/collapsed segment to
         // string.Empty, so guard on emptiness (not just null) to avoid emitting "Generated..Models".
-        return !string.IsNullOrEmpty(pathSegment)
+        // A schema used by several segments lives in the shared models namespace, whatever segment asks.
+        return !string.IsNullOrEmpty(pathSegment) && sharedSchemaNames?.Contains(typeName) != true
             ? $"{projectName}.Generated.{pathSegment}.Models.{typeName}"
             : $"{projectName}.Generated.Models.{typeName}";
     }

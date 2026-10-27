@@ -35,17 +35,23 @@ internal static class NodeToolchain
         TimeSpan timeout)
         => Run("npm", arguments, workingDirectory, timeout);
 
+    /// <param name="arguments">The npx arguments.</param>
+    /// <param name="workingDirectory">The working directory.</param>
+    /// <param name="timeout">How long the process may run.</param>
+    /// <param name="environment">Environment variables set for the process (e.g. <c>TZ</c>), on top of the inherited ones.</param>
     public static ProcessResult RunNpx(
         string arguments,
         string workingDirectory,
-        TimeSpan timeout)
-        => Run("npx", arguments, workingDirectory, timeout);
+        TimeSpan timeout,
+        IReadOnlyDictionary<string, string>? environment = null)
+        => Run("npx", arguments, workingDirectory, timeout, environment);
 
     private static ProcessResult Run(
         string tool,
         string arguments,
         string workingDirectory,
-        TimeSpan timeout)
+        TimeSpan timeout,
+        IReadOnlyDictionary<string, string>? environment = null)
     {
         // On Windows npm / npx are .cmd batch shims that ProcessStartInfo cannot launch
         // by bare name when UseShellExecute is false, so route everything through
@@ -64,6 +70,11 @@ internal static class NodeToolchain
             UseShellExecute = false,
             CreateNoWindow = true,
         };
+
+        foreach (var (key, value) in environment ?? new Dictionary<string, string>(StringComparer.Ordinal))
+        {
+            psi.Environment[key] = value;
+        }
 
         using var process = new Process { StartInfo = psi };
         var output = new StringBuilder();

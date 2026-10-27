@@ -1,4 +1,5 @@
 {
+    "$schema": "https://raw.githubusercontent.com/atc-net/atc-rest-api-source-generator/main/schemas/atc-rest-api-server.schema.json",
     "namespace": "Contoso.Data.Nexus.Api.Contracts",
     "validateSpecificationStrategy": "Strict",
     "includeDeprecated": false,

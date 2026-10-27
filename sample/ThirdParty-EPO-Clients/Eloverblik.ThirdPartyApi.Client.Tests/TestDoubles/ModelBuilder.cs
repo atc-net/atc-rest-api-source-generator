@@ -5,7 +5,7 @@ namespace Eloverblik.ThirdPartyApi.Client.Tests.TestDoubles;
 /// <para>
 /// ⚠️ Generated models are positional records where <b>no</b> parameter has a default value,
 /// so a test that only cares about three fields still has to pass all 23 arguments.
-/// This helper hides that noise. See issues/client-testing.md (Phase 2 follow-up).
+/// This helper hides that noise.
 /// </para>
 /// </summary>
 public static class ModelBuilder

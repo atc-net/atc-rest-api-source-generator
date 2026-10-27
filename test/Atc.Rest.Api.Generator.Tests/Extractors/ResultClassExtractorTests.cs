@@ -58,6 +58,46 @@ public class ResultClassExtractorTests
     }
 
     [Fact]
+    public void Extract_ResultClass_IsANestedHttpResultOfTheResultItWraps()
+    {
+        // Arrange
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /login:
+                                post:
+                                  operationId: loginUser
+                                  responses:
+                                    '200':
+                                      description: successful operation
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var resultClasses = ResultClassExtractor.Extract(
+            document,
+            "TestApi",
+            registry: null,
+            systemTypeResolver: new SystemTypeConflictResolver([]),
+            includeDeprecated: false);
+
+        // Assert - one test helper unwraps any operation's result through INestedHttpResult.Result, no reflection
+        Assert.NotNull(resultClasses);
+        var resultClass = Assert.Single(resultClasses);
+        Assert.Equal("IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, global::TestApi.Generated.IApiResult", resultClass.InheritedInterfaceTypeName);
+        Assert.Contains(resultClass.Properties ?? [], p => p is { Name: "Result", TypeName: "IResult" });
+        Assert.Contains(resultClass.Properties ?? [], p => p is { Name: "StatusCode", TypeName: "int" });
+        Assert.Contains(resultClass.Properties ?? [], p => p is { Name: "Problem" });
+        Assert.Contains(resultClass.Properties ?? [], p => p is { Name: "Location" });
+        Assert.Contains(resultClass.Properties ?? [], p => p is { Name: "Headers" });
+    }
+
+    [Fact]
     public void Extract_WithComplexTypeResponse_UsesResponseParameterName()
     {
         // Arrange
@@ -242,8 +282,70 @@ public class ResultClassExtractorTests
         Assert.True(param.IsNullableType);
         Assert.Equal("null", param.DefaultValue);
 
-        // Verify Content uses TypedResults.NotFound(message)
-        Assert.Contains("TypedResults.NotFound(message)", notFoundMethod.Content, StringComparison.Ordinal);
+        // Verify Content writes an RFC 9457 ProblemDetails with the message as detail
+        Assert.Contains("TypedResults.Problem(detail: message, statusCode: 404)", notFoundMethod.Content, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A status whose declared model can hold a ProblemDetails (here a <c>title</c>) takes the model optionally: called
+    /// without it, the response has no body of its own and the host writes its ProblemDetails - which fills only the
+    /// model's ProblemDetails fields. The factory says so where a handler author reads it. (A model that cannot hold a
+    /// ProblemDetails is a required argument, see DeclaredErrorModelFactoryTests.)
+    /// </summary>
+    [Fact]
+    public void Extract_With404DeclaringAModel_DocumentsWhatTheEmptyCallWrites()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /users/{id}:
+                                get:
+                                  operationId: getUserById
+                                  parameters:
+                                    - name: id
+                                      in: path
+                                      required: true
+                                      schema:
+                                        type: string
+                                  responses:
+                                    '200':
+                                      description: OK
+                                    '404':
+                                      description: Not Found
+                                      content:
+                                        application/json:
+                                          schema:
+                                            $ref: '#/components/schemas/Missing'
+                                    '409':
+                                      description: Conflict
+                            components:
+                              schemas:
+                                Missing:
+                                  type: object
+                                  properties:
+                                    title:
+                                      type: string
+                                    code:
+                                      type: string
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var resultClass = ResultClassExtractor.Extract(document, "TestApi", registry: null, systemTypeResolver: new SystemTypeConflictResolver([]), includeDeprecated: false)![0];
+
+        var notFound = resultClass.Methods!.Single(m => m.Name == "NotFound");
+        Assert.Equal("Missing", notFound.Parameters![0].TypeName);
+        var remark = notFound.DocumentationTags?.Remark;
+        Assert.NotNull(remark);
+        Assert.Contains("ProblemDetails", remark, StringComparison.Ordinal);
+        Assert.Contains("Missing", remark, StringComparison.Ordinal);
+
+        // No declared body: the message becomes the ProblemDetails' detail, nothing to point out
+        Assert.Null(resultClass.Methods!.Single(m => m.Name == "Conflict").DocumentationTags?.Remark);
     }
 
     // ========== 409 Conflict Tests ==========
@@ -306,8 +408,8 @@ public class ResultClassExtractorTests
         Assert.True(param.IsNullableType);
         Assert.Equal("null", param.DefaultValue);
 
-        // Verify Content uses TypedResults.Conflict(message)
-        Assert.Contains("TypedResults.Conflict(message)", conflictMethod.Content, StringComparison.Ordinal);
+        // Verify Content writes an RFC 9457 ProblemDetails with the message as detail
+        Assert.Contains("TypedResults.Problem(detail: message, statusCode: 409)", conflictMethod.Content, StringComparison.Ordinal);
     }
 
     // ========== 410 Gone Tests (Generic Fallback) ==========
@@ -355,7 +457,7 @@ public class ResultClassExtractorTests
         var method = resultClass.Methods?.FirstOrDefault(m => m.Name == "Gone");
         Assert.NotNull(method);
 
-        Assert.Contains("TypedResults.Problem(message, statusCode: 410)", method.Content, StringComparison.Ordinal);
+        Assert.Contains("TypedResults.Problem(detail: message, statusCode: 410)", method.Content, StringComparison.Ordinal);
         Assert.NotNull(method.DocumentationTags);
         Assert.Contains("410", method.DocumentationTags.Summary, StringComparison.Ordinal);
     }
@@ -417,11 +519,12 @@ public class ResultClassExtractorTests
         var preconditionFailedMethod = resultClass.Methods?.FirstOrDefault(m => m.Name == "PreconditionFailed");
         Assert.NotNull(preconditionFailedMethod);
 
-        // Verify no parameters
-        Assert.Null(preconditionFailedMethod.Parameters);
+        // Verify the optional message (2.x "PreconditionFailed()" still compiles)
+        Assert.NotNull(preconditionFailedMethod.Parameters);
+        Assert.Equal("message", Assert.Single(preconditionFailedMethod.Parameters).Name);
 
-        // Verify Content uses TypedResults.StatusCode(StatusCodes.Status412PreconditionFailed)
-        Assert.Contains("TypedResults.StatusCode(StatusCodes.Status412PreconditionFailed)", preconditionFailedMethod.Content, StringComparison.Ordinal);
+        // Verify Content writes an RFC 9457 ProblemDetails
+        Assert.Contains("TypedResults.Problem(detail: message, statusCode: 412)", preconditionFailedMethod.Content, StringComparison.Ordinal);
 
         // Verify documentation
         Assert.NotNull(preconditionFailedMethod.DocumentationTags);
@@ -539,7 +642,7 @@ public class ResultClassExtractorTests
         Assert.True(param.IsNullableType);
         Assert.Equal("null", param.DefaultValue);
 
-        Assert.Contains("TypedResults.Problem(message, statusCode: 413)", method.Content, StringComparison.Ordinal);
+        Assert.Contains("TypedResults.Problem(detail: message, statusCode: 413)", method.Content, StringComparison.Ordinal);
         Assert.NotNull(method.DocumentationTags);
         Assert.Contains("413", method.DocumentationTags.Summary, StringComparison.Ordinal);
     }
@@ -609,8 +712,8 @@ public class ResultClassExtractorTests
         Assert.True(param.IsNullableType);
         Assert.Equal("null", param.DefaultValue);
 
-        // Verify Content uses TypedResults.UnprocessableEntity(message)
-        Assert.Contains("TypedResults.UnprocessableEntity(message)", unprocessableEntityMethod.Content, StringComparison.Ordinal);
+        // Verify Content writes an RFC 9457 ProblemDetails with the message as detail
+        Assert.Contains("TypedResults.Problem(detail: message, statusCode: 422)", unprocessableEntityMethod.Content, StringComparison.Ordinal);
 
         // Verify documentation
         Assert.NotNull(unprocessableEntityMethod.DocumentationTags);
@@ -734,7 +837,7 @@ public class ResultClassExtractorTests
         Assert.True(param.IsNullableType);
         Assert.Equal("null", param.DefaultValue);
 
-        Assert.Contains("TypedResults.Problem(message, statusCode: 503)", method.Content, StringComparison.Ordinal);
+        Assert.Contains("TypedResults.Problem(detail: message, statusCode: 503)", method.Content, StringComparison.Ordinal);
         Assert.NotNull(method.DocumentationTags);
         Assert.Contains("503", method.DocumentationTags.Summary, StringComparison.Ordinal);
         Assert.Contains("Service Unavailable", method.DocumentationTags.Summary, StringComparison.Ordinal);
@@ -857,8 +960,8 @@ public class ResultClassExtractorTests
         var param = okMethod.Parameters[0];
         Assert.Equal("IAsyncEnumerable<Event>", param.TypeName);
 
-        // text/event-stream framing emits the first-party SSE writer, not TypedResults.Ok.
-        Assert.Contains("TypedResults.ServerSentEvents(response)", okMethod.Content, StringComparison.Ordinal);
+        // text/event-stream framing emits the first-party SSE writer, not TypedResults.Ok, started before the first item
+        Assert.Contains("StartedStreamResult<Event>(response, static items => TypedResults.ServerSentEvents(items))", okMethod.Content, StringComparison.Ordinal);
     }
 
     // ========== 202 Accepted Tests ==========
@@ -903,8 +1006,343 @@ public class ResultClassExtractorTests
         Assert.DoesNotContain("TypedResults.Accepted()", acceptedMethod.Content, StringComparison.Ordinal);
     }
 
+    // ========== Path segment overload / inline schemas ==========
+
+    [Fact]
+    public void Extract_WithPathSegment_KeepsOnlyThatSegmentsOperationsInItsNamespace()
+    {
+        // Arrange
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /pets:
+                                get:
+                                  operationId: listPets
+                                  responses:
+                                    '200':
+                                      description: OK
+                              /users:
+                                get:
+                                  operationId: listUsers
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var resultClasses = ResultClassExtractor.Extract(
+            document,
+            "TestApi",
+            pathSegment: "Pets",
+            registry: null,
+            systemTypeResolver: new SystemTypeConflictResolver([]),
+            includeDeprecated: false);
+
+        // Assert
+        Assert.NotNull(resultClasses);
+        var resultClass = Assert.Single(resultClasses);
+        Assert.Equal("ListPetsResult", resultClass.ClassTypeName);
+        Assert.Equal("TestApi.Generated.Pets.Results", resultClass.Namespace);
+    }
+
+    [Fact]
+    public void Extract_WithUnknownPathSegment_ReturnsNull()
+    {
+        // Arrange
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /pets:
+                                get:
+                                  operationId: listPets
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var resultClasses = ResultClassExtractor.Extract(
+            document,
+            "TestApi",
+            pathSegment: "Orders",
+            registry: null,
+            systemTypeResolver: new SystemTypeConflictResolver([]),
+            includeDeprecated: false);
+
+        // Assert
+        Assert.Null(resultClasses);
+    }
+
+    [Fact]
+    public void ExtractWithInlineSchemas_InlineResponseObject_RecordsTheInlineTypeUnderThePathSegment()
+    {
+        // Arrange
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /status:
+                                get:
+                                  operationId: getStatus
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: object
+                                            properties:
+                                              healthy:
+                                                type: boolean
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var (resultClasses, inlineSchemas) = ResultClassExtractor.ExtractWithInlineSchemas(
+            document,
+            "TestApi",
+            pathSegment: "Status",
+            registry: null,
+            systemTypeResolver: new SystemTypeConflictResolver([]),
+            includeDeprecated: false);
+
+        // Assert
+        Assert.NotNull(resultClasses);
+        var resultClass = Assert.Single(resultClasses);
+        Assert.Equal("TestApi.Generated.Status.Results", resultClass.Namespace);
+        var okMethod = resultClass.Methods?.FirstOrDefault(m => m.Name == "Ok");
+        Assert.NotNull(okMethod);
+        Assert.Equal("GetStatusResponse", okMethod.Parameters![0].TypeName);
+
+        var inline = Assert.Single(inlineSchemas);
+        Assert.Equal("GetStatusResponse", inline.Key);
+        Assert.Equal("GetStatusResponse", inline.Value.TypeName);
+        Assert.Equal("Status", inline.Value.PathSegment);
+        Assert.Equal("GetStatusResponse", inline.Value.RecordParameters.Name);
+        var property = Assert.Single(inline.Value.RecordParameters.Parameters!);
+        Assert.Equal("Healthy", property.Name);
+        Assert.Equal("bool", property.TypeName);
+    }
+
+    [Fact]
+    public void ExtractWithInlineSchemas_WithNamespaceSegment_DrivesNamespaceAndInlineSegmentWithoutChangingTheFilter()
+    {
+        // Arrange - the raw path segment filters operations, the namespace segment is where the files are emitted
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /status:
+                                get:
+                                  operationId: getStatus
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: object
+                                            properties:
+                                              healthy:
+                                                type: boolean
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var (resultClasses, inlineSchemas) = ResultClassExtractor.ExtractWithInlineSchemas(
+            document,
+            "TestApi",
+            pathSegment: "Status",
+            registry: null,
+            systemTypeResolver: new SystemTypeConflictResolver([]),
+            includeDeprecated: false,
+            namespaceSegment: "Shared");
+
+        // Assert
+        Assert.NotNull(resultClasses);
+        Assert.Equal("TestApi.Generated.Shared.Results", Assert.Single(resultClasses).Namespace);
+        Assert.Equal("Shared", Assert.Single(inlineSchemas).Value.PathSegment);
+    }
+
+    [Fact]
+    public void ExtractWithInlineSchemas_NoInlineSchemas_ReturnsEmptyDictionary()
+    {
+        // Arrange
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /pets:
+                                get:
+                                  operationId: listPets
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            $ref: '#/components/schemas/Pet'
+                            components:
+                              schemas:
+                                Pet:
+                                  type: object
+                                  properties:
+                                    name:
+                                      type: string
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var (resultClasses, inlineSchemas) = ResultClassExtractor.ExtractWithInlineSchemas(
+            document,
+            "TestApi",
+            pathSegment: null,
+            registry: null,
+            systemTypeResolver: new SystemTypeConflictResolver([]));
+
+        // Assert
+        Assert.NotNull(resultClasses);
+        Assert.Equal("Pet", Assert.Single(resultClasses).Methods!.First(m => m.Name == "Ok").Parameters![0].TypeName);
+        Assert.Empty(inlineSchemas);
+    }
+
+    // ========== Shared IResult sources ==========
+
+    [Fact]
+    public void LocationHttpResultSource_WrapsAResultWithALocationHeader()
+    {
+        var source = ResultClassExtractor.LocationHttpResultSource();
+
+        Assert.Contains("internal sealed class LocationHttpResult : IResult, IStatusCodeHttpResult, IValueHttpResult, INestedHttpResult", source, StringComparison.Ordinal);
+        Assert.Contains($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]", source, StringComparison.Ordinal);
+        Assert.Contains("httpContext.Response.Headers.Location = Location;", source, StringComparison.Ordinal);
+        Assert.Contains("return Result.ExecuteAsync(httpContext);", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void XmlHttpResultSource_WritesTheBytesWithStatusAndUtf8MediaType()
+    {
+        var source = ResultClassExtractor.XmlHttpResultSource();
+
+        Assert.Contains("internal sealed class XmlHttpResult : IResult, IStatusCodeHttpResult, IValueHttpResult, IContentTypeHttpResult", source, StringComparison.Ordinal);
+        Assert.Contains("ContentType = mediaType + \"; charset=utf-8\";", source, StringComparison.Ordinal);
+        Assert.Contains("httpContext.Response.StatusCode = StatusCode;", source, StringComparison.Ordinal);
+        Assert.Contains("httpContext.Response.ContentLength = body.Length;", source, StringComparison.Ordinal);
+        Assert.Contains("return httpContext.Response.Body.WriteAsync(body, httpContext.RequestAborted).AsTask();", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void NegotiatedHttpResultSource_PicksXmlOnlyWhenAcceptPrefersIt()
+    {
+        var source = ResultClassExtractor.NegotiatedHttpResultSource();
+
+        Assert.Contains("internal sealed class NegotiatedHttpResult : IResult, IStatusCodeHttpResult", source, StringComparison.Ordinal);
+        Assert.Contains("params string[] xmlMediaTypes)", source, StringComparison.Ordinal);
+        Assert.Contains("=> (json as IStatusCodeHttpResult)?.StatusCode;", source, StringComparison.Ordinal);
+        Assert.Contains("? xml(mediaType).ExecuteAsync(httpContext)", source, StringComparison.Ordinal);
+        Assert.Contains(": json.ExecuteAsync(httpContext);", source, StringComparison.Ordinal);
+
+        // */* and a tie are JSON, never a 406; media types compare case-insensitively; a cache keys on Accept
+        Assert.Contains("string.Equals(type, \"application/json\", global::System.StringComparison.OrdinalIgnoreCase)", source, StringComparison.Ordinal);
+        Assert.Contains("httpContext.Response.Headers.Append(\"Vary\", \"Accept\");", source, StringComparison.Ordinal);
+        Assert.Contains("return xmlQuality > jsonQuality ? chosen : null;", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void RetryAfterHttpResultSource_SetsRetryAfterInSecondsOnlyWhenGiven()
+    {
+        var source = ResultClassExtractor.RetryAfterHttpResultSource();
+
+        Assert.Contains("internal sealed class RetryAfterHttpResult : IResult, IStatusCodeHttpResult, IValueHttpResult, INestedHttpResult, IHeaderWritingHttpResult", source, StringComparison.Ordinal);
+        Assert.Contains("private readonly int? retryAfterSeconds;", source, StringComparison.Ordinal);
+        Assert.Contains("if (retryAfterSeconds is not null)", source, StringComparison.Ordinal);
+        Assert.Contains("httpContext.Response.Headers.RetryAfter = retryAfterSeconds.Value.ToString(global::System.Globalization.CultureInfo.InvariantCulture);", source, StringComparison.Ordinal);
+        Assert.Contains("return Result.ExecuteAsync(httpContext);", source, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A success body declared only under another JSON media type (<c>application/hal+json</c>, a vendor
+    /// <c>+json</c>) is written with it - <c>TypedResults.Ok</c> and the other JSON results send
+    /// <c>application/json</c> - by the factory of every success status with a body.
+    /// </summary>
+    [Theory]
+    [InlineData("200", "Ok")]
+    [InlineData("201", "Created")]
+    [InlineData("202", "Accepted")]
+    [InlineData("203", "NonAuthoritativeInformation")]
+    [InlineData("206", "PartialContent")]
+    [InlineData("207", "MultiStatus")]
+    [InlineData("208", "AlreadyReported")]
+    [InlineData("226", "IMUsed")]
+    public void Extract_ASuccessBodyUnderAnotherJsonMediaType_IsWrittenWithIt(
+        string statusCode,
+        string factory)
+    {
+        foreach (var mediaType in new[] { "application/hal+json", "application/vnd.contoso.v1+json" })
+        {
+            var resultClass = ResultClassExtractor.Extract(SuccessBodyUnder(statusCode, mediaType), "TestApi", registry: null, systemTypeResolver: new SystemTypeConflictResolver([]), includeDeprecated: false)![0];
+
+            var method = resultClass.Methods!.Single(m => m.Name == factory && m.Parameters is { Count: > 0 } && m.Parameters[0].TypeName == "Pet");
+            Assert.Contains($"JsonTypeInfoHttpResult.Of(response, \"{mediaType}\", {statusCode})", method.Content, StringComparison.Ordinal);
+        }
+
+        // Under application/json the JSON result keeps its default media type
+        var plain = ResultClassExtractor.Extract(SuccessBodyUnder(statusCode, "application/json"), "TestApi", registry: null, systemTypeResolver: new SystemTypeConflictResolver([]), includeDeprecated: false)![0];
+        Assert.DoesNotContain("+json", plain.Methods!.Single(m => m.Name == factory && m.Parameters is { Count: > 0 } && m.Parameters[0].TypeName == "Pet").Content, StringComparison.Ordinal);
+    }
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document
             : null;
+
+    private static OpenApiDocument SuccessBodyUnder(
+        string statusCode,
+        string mediaType)
+        => OpenApiDocumentHelper.ParseYaml($$"""
+            openapi: 3.0.0
+            info: { title: T, version: 1.0.0 }
+            paths:
+              /pets/{petId}:
+                get:
+                  operationId: getPet
+                  parameters:
+                    - { name: petId, in: path, required: true, schema: { type: string } }
+                  responses:
+                    '{{statusCode}}':
+                      description: The pet
+                      content:
+                        '{{mediaType}}':
+                          schema: { $ref: '#/components/schemas/Pet' }
+            components:
+              schemas:
+                Pet:
+                  type: object
+                  properties:
+                    name: { type: string }
+            """);
 }

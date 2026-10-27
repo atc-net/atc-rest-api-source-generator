@@ -5,6 +5,9 @@ namespace PetStoreSimple.ApiHandlers;
 /// </summary>
 public sealed class CreatePetsHandler : ICreatePetsHandler
 {
+    /// <summary>
+    /// Executes the CreatePets operation.
+    /// </summary>
     public Task<CreatePetsResult> ExecuteAsync(
         CancellationToken cancellationToken = default)
     {

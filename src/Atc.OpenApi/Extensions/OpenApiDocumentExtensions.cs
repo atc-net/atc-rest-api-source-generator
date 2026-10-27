@@ -31,7 +31,7 @@ public static class OpenApiDocumentExtensions
         /// document was not parsed through <c>OpenApiDocumentHelper</c> (e.g. constructed
         /// in-memory) and therefore carries no version metadata.
         /// </returns>
-        public OpenApiSpecVersion? GetOpenApiSpecVersion()
+        public OpenApiSpecVersion? SpecVersion
             => document?.Metadata is not null &&
                document.Metadata.TryGetValue(SpecVersionMetadataKey, out var value) &&
                value is OpenApiSpecVersion specVersion
@@ -47,24 +47,24 @@ public static class OpenApiDocumentExtensions
                 ? throw new ArgumentNullException(nameof(document))
                 : GetAllOperationsIterator(document);
 
+        /// <summary>
+        /// Gets the operations of every path and every webhook - each operation a request can reach the generated code
+        /// through.
+        /// </summary>
+        /// <returns>The operations, paths first.</returns>
+        public IEnumerable<OpenApiOperation> GetAllOperationsAndWebhooks()
+            => (document?.Paths?.Values ?? Enumerable.Empty<IOpenApiPathItem>())
+                .Concat(document?.Webhooks?.Values ?? Enumerable.Empty<IOpenApiPathItem>())
+                .SelectMany(p => p?.Operations?.Values.Where(o => o is not null) ?? Enumerable.Empty<OpenApiOperation>());
+
         // ========== Webhooks Support (OpenAPI 3.1) ==========
 
         /// <summary>
         /// Checks if the document has any webhooks defined (OpenAPI 3.1 feature).
         /// </summary>
         /// <returns>True if the document has webhooks.</returns>
-        public bool HasWebhooks()
+        public bool HasWebhooks
             => document?.Webhooks?.Count > 0;
-
-        /// <summary>
-        /// Gets all webhooks from the document (OpenAPI 3.1 feature).
-        /// Webhooks are callback-style operations where the API sends data to a consumer's endpoint.
-        /// </summary>
-        /// <returns>Enumerable of tuples containing webhook name and path item.</returns>
-        public IEnumerable<(string Name, IOpenApiPathItem PathItem)> GetAllWebhooks()
-            => document is null
-                ? throw new ArgumentNullException(nameof(document))
-                : GetAllWebhooksIterator(document);
 
         /// <summary>
         /// Gets all webhook operations from the document (OpenAPI 3.1 feature).
@@ -79,9 +79,7 @@ public static class OpenApiDocumentExtensions
         /// Gets the count of webhooks in the document.
         /// </summary>
         /// <returns>The number of webhooks.</returns>
-#pragma warning disable CA1024 // Use properties where appropriate - extension method cannot be a property
-        public int GetWebhooksCount()
-#pragma warning restore CA1024
+        public int WebhooksCount
             => document?.Webhooks?.Count ?? 0;
     }
 
@@ -106,23 +104,6 @@ public static class OpenApiDocumentExtensions
                 method = method.ToUpperInvariant();
 
                 yield return (path.Key, method, operation.Value);
-            }
-        }
-    }
-
-    private static IEnumerable<(string Name, IOpenApiPathItem PathItem)> GetAllWebhooksIterator(
-        OpenApiDocument document)
-    {
-        if (document.Webhooks is null)
-        {
-            yield break;
-        }
-
-        foreach (var webhook in document.Webhooks)
-        {
-            if (webhook.Value is not null)
-            {
-                yield return (webhook.Key, webhook.Value);
             }
         }
     }

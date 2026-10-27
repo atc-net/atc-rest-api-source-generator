@@ -9,7 +9,8 @@ public sealed partial class GatewayService
 {
     /// <summary>
     /// Get file by ID and return as byte array with content type.
-    /// Uses BinaryEndpointResponse which provides direct access to binary content.
+    /// The generated result gives the file as <c>OkContent</c> (bytes, content type, file name) and the errors as typed
+    /// accessors, like any other operation.
     /// </summary>
     public async Task<(byte[] Content, string ContentType, string? FileName)?> GetFileByIdAsync(
         string id,
@@ -20,12 +21,13 @@ public sealed partial class GatewayService
             .ExecuteAsync(parameters, cancellationToken: cancellationToken)
             .ConfigureAwait(false);
 
-        if (!result.IsSuccess || result.Content is null)
+        if (!result.IsOk)
         {
             return null;
         }
 
-        return (result.Content, result.ContentType ?? "application/octet-stream", result.FileName);
+        var file = result.OkContent;
+        return (file.Content, file.ContentType ?? "application/octet-stream", file.FileName);
     }
 
     /// <summary>
@@ -81,10 +83,14 @@ public sealed partial class GatewayService
         string contentType,
         string itemName,
         string[] items,
+        string? author = null,
         CancellationToken cancellationToken = default)
     {
         var fileContent = new StreamFileContent(fileStream, fileName, contentType);
-        var request = new FileAsFormDataRequest(itemName, fileContent, [..items]);
+
+        // The metadata goes as a URL-encoded part (author=Ada), as the form's encoding names
+        var metadata = string.IsNullOrWhiteSpace(author) ? null : new FileMetadata(Author: author, Confidential: null);
+        var request = new FileAsFormDataRequest(ItemName: itemName, File: fileContent, Items: [..items], Metadata: metadata);
         var parameters = new UploadSingleObjectWithFileAsFormDataParameters(Request: request);
 
         var result = await uploadSingleObjectWithFileAsFormDataEndpoint
@@ -98,14 +104,10 @@ public sealed partial class GatewayService
     }
 
     /// <summary>
-    /// Upload multiple files with metadata (item name and items).
-    /// Note: The FilesAsFormDataRequest only takes Files array.
-    /// ItemName and Items metadata are not part of this request type.
+    /// Upload multiple files as the files of a FilesAsFormDataRequest model (its one property).
     /// </summary>
     public async Task UploadSingleObjectWithMultipleFilesAsync(
         IEnumerable<(Stream Stream, string FileName, string ContentType)> files,
-        string itemName,
-        string[] items,
         CancellationToken cancellationToken = default)
     {
         var request = new FilesAsFormDataRequest([..files.Select(f => (Atc.Rest.Client.IFileContent)new StreamFileContent(f.Stream, f.FileName, f.ContentType))]);

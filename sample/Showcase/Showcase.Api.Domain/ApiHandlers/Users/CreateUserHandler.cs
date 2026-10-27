@@ -18,15 +18,21 @@ public sealed class CreateUserHandler : ICreateUserHandler
         using var activity = ActivitySource.StartActivity("CreateUser");
         ArgumentNullException.ThrowIfNull(parameters);
 
-        var request = parameters.Request;
+        // An existing email answers the existing user - for now Created with that user; a real app would return 409
+        return CreateUserResult.Created(await CreateOrGetAsync(repository, parameters.Request));
+    }
 
-        // Check if email already exists
+    /// <summary>
+    /// Creates the user of a request, or - when its email exists - returns the existing user.
+    /// </summary>
+    internal static async Task<User> CreateOrGetAsync(
+        UserInMemoryRepository repository,
+        CreateUserRequest request)
+    {
         var existingUser = await repository.GetByEmail(request.Email);
         if (existingUser is not null)
         {
-            // Return conflict - for now use Created with same user
-            // In real app, would return 409 Conflict
-            return CreateUserResult.Created(MapToApiModel(existingUser));
+            return MapToApiModel(existingUser);
         }
 
         // Create address
@@ -37,8 +43,8 @@ public sealed class CreateUserHandler : ICreateUserHandler
             PostalCode: request.Address.PostalCode,
             Country: request.Address.Country,
             CountryCode: request.Address.CountryCode,
-            Latitude: request.Address.Latitude ?? 0,
-            Longitude: request.Address.Longitude ?? 0);
+            Latitude: request.Address.Latitude,
+            Longitude: request.Address.Longitude);
 
         // Map API role to domain role
         var role = Enum.TryParse<UserRoleType>(request.Role.ToString(), ignoreCase: true, out var parsedRole)
@@ -51,14 +57,14 @@ public sealed class CreateUserHandler : ICreateUserHandler
             email: request.Email,
             phone: request.Phone,
             website: request.Website?.ToString(),
-            dateOfBirth: DateOnly.FromDateTime(request.DateOfBirth.DateTime),
+            dateOfBirth: request.DateOfBirth,
             bio: request.Bio,
             avatarUrl: request.AvatarUrl?.ToString(),
             isActive: request.IsActive,
             role: role,
             address: address);
 
-        return CreateUserResult.Created(MapToApiModel(user));
+        return MapToApiModel(user);
     }
 
     private static User MapToApiModel(UserEntity user)
@@ -69,7 +75,7 @@ public sealed class CreateUserHandler : ICreateUserHandler
             Email: user.Email,
             Phone: user.Phone,
             Website: string.IsNullOrEmpty(user.Website) ? null : new Uri(user.Website),
-            DateOfBirth: new DateTimeOffset(user.DateOfBirth.ToDateTime(TimeOnly.MinValue)),
+            DateOfBirth: user.DateOfBirth,
             Age: user.Age,
             Bio: user.Bio,
             AvatarUrl: string.IsNullOrEmpty(user.AvatarUrl) ? null : new Uri(user.AvatarUrl),

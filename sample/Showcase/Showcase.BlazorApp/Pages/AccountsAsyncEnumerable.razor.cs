@@ -9,8 +9,16 @@ public partial class AccountsAsyncEnumerable : IDisposable
     private ISnackbar Snackbar { get; set; } = null!;
 
     private readonly List<Account> accounts = [];
+
     private bool isLoading;
+
     private CancellationTokenSource? cts;
+
+    public void Dispose()
+    {
+        cts?.Cancel();
+        cts?.Dispose();
+    }
 
     private async Task LoadAsyncEnumerableAsync()
     {
@@ -55,11 +63,5 @@ public partial class AccountsAsyncEnumerable : IDisposable
     private void ClearAccounts()
     {
         accounts.Clear();
-    }
-
-    public void Dispose()
-    {
-        cts?.Cancel();
-        cts?.Dispose();
     }
 }

@@ -26,6 +26,104 @@ public class StreamingWireFramingTests
         Assert.Equal("b", items[1].GetProperty("id").GetString());
     }
 
+    /// <summary>
+    /// What a real event stream carries besides the items: a comment (keep-alive), an event without data, a heartbeat
+    /// (<c>event: ping</c>, with data that is no item, with data that is JSON, without data) and other named events.
+    /// The item event is the unnamed one, as for a browser's <c>EventSource.onmessage</c> - also right after a named
+    /// event without data; the rest is read past instead of failing the stream or being taken for an item.
+    /// </summary>
+    [Fact]
+    public async Task StreamReaders_ServerSentEvents_SkipsWhatIsNoItem()
+    {
+        var streamReaders = LoadGeneratedType("StreamReaders");
+        var read = streamReaders
+            .GetMethod("ReadServerSentEventsAsync")
+            .MakeGenericMethod(typeof(JsonElement));
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(EventStreamWithNamedEvents));
+
+        var items = await EnumerateAsync<JsonElement>(read, stream, new JsonSerializerOptions());
+
+        Assert.Equal(["b", "c", "d"], items.Select(i => i.GetProperty("id").GetString()), StringComparer.Ordinal);
+    }
+
+    /// <summary>
+    /// A byte order mark in front of the first field is no part of its name, and an <c>event:</c> field without a
+    /// value names no event: both events are the item event.
+    /// </summary>
+    [Fact]
+    public async Task StreamReaders_ServerSentEvents_AByteOrderMarkAndAnEmptyEventName_AreNoName()
+    {
+        var read = LoadGeneratedType("StreamReaders")
+            .GetMethod("ReadServerSentEventsAsync")
+            .MakeGenericMethod(typeof(JsonElement));
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes("\uFEFFdata: {\"id\":\"a\"}\n\nevent:\ndata: {\"id\":\"b\"}\n\nevent: \ndata: {\"id\":\"c\"}\n\n"));
+
+        var items = await EnumerateAsync<JsonElement>(read, stream, new JsonSerializerOptions());
+
+        Assert.Equal(["a", "b", "c"], items.Select(i => i.GetProperty("id").GetString()), StringComparer.Ordinal);
+    }
+
+    /// <summary>
+    /// An API whose items come in named events says so with <c>x-sse-item-events</c>: those events are items too,
+    /// by their exact name, and every other named event is still read past.
+    /// </summary>
+    [Fact]
+    public async Task StreamReaders_ServerSentEvents_TheNamedEventsOfTheOperation_AreItems()
+    {
+        var streamReaders = LoadGeneratedType("StreamReaders");
+        var read = streamReaders
+            .GetMethod("ReadServerSentEventsOfAsync")
+            .MakeGenericMethod(typeof(JsonElement));
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(EventStreamWithNamedEvents));
+
+        var items = await EnumerateWithArgsAsync<JsonElement>(read, [stream, new JsonSerializerOptions(), new[] { "update" }, CancellationToken.None]);
+
+        Assert.Equal(["a", "b", "c", "d"], items.Select(i => i.GetProperty("id").GetString()), StringComparer.Ordinal);
+    }
+
+    /// <summary>
+    /// A JSON array with no body - a 204, a 200 without content - is no items; an array after whitespace, and one
+    /// behind a byte order mark, is read as ever, and what is no array is still the serializer's to refuse.
+    /// </summary>
+    [Theory]
+    [InlineData("", "")]
+    [InlineData(" \r\n\t ", "")]
+    [InlineData("[]", "")]
+    [InlineData(" \n [ {\"id\":\"a\"} , {\"id\":\"b\"} ] ", "a,b")]
+    [InlineData("\uFEFF[{\"id\":\"a\"}]", "a")]
+    public async Task StreamReaders_JsonArray_ABodyOfNothing_IsNoItems(
+        string body,
+        string expected)
+    {
+        var read = LoadGeneratedType("StreamReaders")
+            .GetMethod("ReadJsonArrayAsync")
+            .MakeGenericMethod(typeof(JsonElement));
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(body));
+
+        var items = await EnumerateAsync<JsonElement>(read, stream, new JsonSerializerOptions());
+
+        Assert.Equal(expected, string.Join(",", items.Select(i => i.GetProperty("id").GetString())));
+
+        using var noArray = new MemoryStream(Encoding.UTF8.GetBytes("{}"));
+        await Assert.ThrowsAnyAsync<JsonException>(() => EnumerateAsync<JsonElement>(read, noArray, new JsonSerializerOptions()));
+    }
+
+    /// <summary>
+    /// An unnamed event - the item event of a stream - whose data is no JSON is the server's mistake and fails the
+    /// stream, as before: only named events (control frames) are skipped.
+    /// </summary>
+    [Fact]
+    public async Task StreamReaders_ServerSentEvents_AnUnnamedEventThatIsNoJson_Throws()
+    {
+        var streamReaders = LoadGeneratedType("StreamReaders");
+        var read = streamReaders
+            .GetMethod("ReadServerSentEventsAsync")
+            .MakeGenericMethod(typeof(JsonElement));
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes("data: not json\n\n"));
+
+        await Assert.ThrowsAnyAsync<JsonException>(() => EnumerateAsync<JsonElement>(read, stream, new JsonSerializerOptions()));
+    }
+
     [Fact]
     public async Task JsonLines_WriteThenRead_RoundTrips()
     {
@@ -90,7 +188,7 @@ public class StreamingWireFramingTests
         };
         httpContext.Response.Body = new ThrowOnSyncWriteStream(innerStream);
 
-        // C1: must NOT throw (the writer uses WriteAsync, not the sync WriteByte that Kestrel rejects).
+        // Must NOT throw (the writer uses WriteAsync, not the sync WriteByte that Kestrel rejects).
         var executeAsync = jsonLinesResultType.GetMethod("ExecuteAsync");
         await (Task)executeAsync.Invoke(result, [httpContext]);
 
@@ -99,7 +197,7 @@ public class StreamingWireFramingTests
         var text = Encoding.UTF8.GetString(innerStream.ToArray());
         Assert.EndsWith("\n", text, StringComparison.Ordinal);
 
-        // C2: camelCase property names prove the configured IOptions<JsonOptions> was used, not the
+        // camelCase property names prove the configured IOptions<JsonOptions> was used, not the
         // bare-default fallback (which would emit PascalCase "Id"/"Type").
         using var doc = JsonDocument.Parse(text.TrimEnd('\n'));
         Assert.True(doc.RootElement.TryGetProperty("id", out var idProp));
@@ -165,6 +263,81 @@ public class StreamingWireFramingTests
         Assert.Equal("b", items[1].GetProperty("id").GetString());
     }
 
+    /// <summary>
+    /// A record past <c>StreamReaders.MaxRecordLength</c> (a server that never ends one) is an
+    /// <see cref="InvalidDataException"/>, not a buffer that grows until the process runs out of memory.
+    /// </summary>
+    [Theory]
+    [InlineData("ReadJsonSequenceAsync", "\u001e{\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}\n")]
+    [InlineData("ReadMultipartMixedAsync", "--b\r\nContent-Type: application/json\r\n\r\n{\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}\r\n--b--\r\n")]
+    [InlineData("ReadMultipartMixedAsync", "--b\r\nContent-Type: application/json; a-parameter-that-never-ends-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+    [InlineData("ReadJsonLinesAsync", "{\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}\n")]
+    [InlineData("ReadJsonLinesAsync", "{\"id\":\"a line that never ends aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+    [InlineData("ReadServerSentEventsAsync", "data: {\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}\n\n")]
+    [InlineData("ReadServerSentEventsAsync", ": a comment that never ends aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+    [InlineData("ReadServerSentEventsAsync", "data: [1,\ndata: 2,\ndata: 3,\ndata: 4,\ndata: 5]\n\n")]
+    [InlineData("ReadServerSentEventsAsync", "data: [1,\r\ndata: 2,\r\ndata: 3,\r\ndata: 4,\r\ndata: 5,\r\n")]
+    [InlineData("ReadJsonArrayAsync", "[{\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}]")]
+    [InlineData("ReadJsonArrayAsync", "[1, {\"id\":\"an element that never ends aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+    [InlineData("ReadJsonArrayAsync", "[\"a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r\"]")]
+    public async Task Reader_ARecordPastTheMaximum_IsInvalidData(
+        string readerName,
+        string wire)
+    {
+        var readerType = LoadGeneratedType("StreamReaders");
+        readerType.GetProperty("MaxRecordLength")!.SetValue(null, 16);
+        var read = readerType.GetMethods().Single(m => m.Name == readerName && m.GetParameters()[0].ParameterType == typeof(Stream)).MakeGenericMethod(typeof(JsonElement));
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(wire));
+
+        var arguments = read.GetParameters().Length switch
+        {
+            3 => new object?[] { stream, new JsonSerializerOptions(), CancellationToken.None },
+            _ => new object?[] { stream, "b", new JsonSerializerOptions(), CancellationToken.None },
+        };
+        var items = (IAsyncEnumerable<JsonElement>)read.Invoke(null, arguments)!;
+
+        await Assert.ThrowsAsync<InvalidDataException>(async () =>
+        {
+            await foreach (var item in items)
+            {
+                Assert.NotEqual(JsonValueKind.Undefined, item.ValueKind);
+            }
+        });
+    }
+
+    /// <summary>
+    /// The limit is per record, not per stream: records that each fit are all read from a stream longer than the
+    /// limit - whichever line ending the server writes.
+    /// </summary>
+    [Theory]
+    [InlineData("ReadJsonLinesAsync", "1234567\n1234567\n1234567\n1234567\n")]
+    [InlineData("ReadJsonLinesAsync", "1234567\r\n1234567\r\n1234567\r\n1234567")]
+    [InlineData("ReadServerSentEventsAsync", "data: 1234567\n\ndata: 1234567\n\ndata: 1234567\n\ndata: 1234567\n\n")]
+    [InlineData("ReadServerSentEventsAsync", "data: 1234567\r\n\r\ndata: 1234567\r\n\r\ndata: 1234567\r\n\r\ndata: 1234567\r\n\r\n")]
+    [InlineData("ReadServerSentEventsAsync", "data: 1234567\r\rdata: 1234567\r\rdata: 1234567\r\rdata: 1234567\r\r")]
+    [InlineData("ReadServerSentEventsAsync", ": keep-alive\n\nid:1\ndata:1234567\n\n: keep-alive\n\ndata: 1234567\n\ndata: 1234567\n\ndata: 1234567\n\n")]
+    [InlineData("ReadJsonArrayAsync", "[1234567,1234567,1234567,1234567]")]
+    [InlineData("ReadJsonArrayAsync", "[\n  1234567,\n  1234567,\n  1234567,\n  1234567\n]")]
+    public async Task Reader_RecordsWithinTheMaximum_AreAllRead(
+        string readerName,
+        string wire)
+    {
+        var readerType = LoadGeneratedType("StreamReaders");
+        readerType.GetProperty("MaxRecordLength")!.SetValue(null, 16);
+        var read = readerType.GetMethods().Single(m => m.Name == readerName && m.GetParameters()[0].ParameterType == typeof(Stream)).MakeGenericMethod(typeof(JsonElement));
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(wire));
+
+        var items = (IAsyncEnumerable<JsonElement>)read.Invoke(null, [stream, new JsonSerializerOptions(), CancellationToken.None])!;
+
+        var numbers = new List<int>();
+        await foreach (var item in items)
+        {
+            numbers.Add(item.GetInt32());
+        }
+
+        Assert.Equal([1234567, 1234567, 1234567, 1234567], numbers);
+    }
+
     [Fact]
     public async Task JsonSequenceResult_ExecuteAsync_UsesConfiguredOptions_AndAsyncIo()
     {
@@ -198,7 +371,7 @@ public class StreamingWireFramingTests
         };
         httpContext.Response.Body = new ThrowOnSyncWriteStream(innerStream);
 
-        // C1: must NOT throw (the writer uses WriteAsync, not the sync WriteByte that Kestrel rejects).
+        // Must NOT throw (the writer uses WriteAsync, not the sync WriteByte that Kestrel rejects).
         var executeAsync = jsonSequenceResultType.GetMethod("ExecuteAsync");
         await (Task)executeAsync.Invoke(result, [httpContext]);
 
@@ -209,7 +382,7 @@ public class StreamingWireFramingTests
         // RFC 7464 framing: the body starts with the RS byte (0x1E).
         Assert.Equal(0x1E, bytes[0]);
 
-        // C2: camelCase property names prove the configured IOptions<JsonOptions> was used, not the
+        // camelCase property names prove the configured IOptions<JsonOptions> was used, not the
         // bare-default fallback (which would emit PascalCase "Id"/"Type"). Parse from the first JSON
         // brace so the leading RS framing byte and trailing LF are ignored without a control-char literal.
         var text = Encoding.UTF8.GetString(bytes);
@@ -310,7 +483,7 @@ public class StreamingWireFramingTests
         };
         httpContext.Response.Body = new ThrowOnSyncWriteStream(innerStream);
 
-        // C1: must NOT throw (the writer uses WriteAsync, not the sync WriteByte that Kestrel rejects).
+        // Must NOT throw (the writer uses WriteAsync, not the sync WriteByte that Kestrel rejects).
         var executeAsync = multipartResultType.GetMethod("ExecuteAsync");
         await (Task)executeAsync.Invoke(result, [httpContext]);
 
@@ -319,7 +492,7 @@ public class StreamingWireFramingTests
         var text = Encoding.UTF8.GetString(innerStream.ToArray());
         Assert.Contains("--atc-stream-boundary", text, StringComparison.Ordinal);
 
-        // C2: camelCase property names prove the configured IOptions<JsonOptions> was used, not the
+        // camelCase property names prove the configured IOptions<JsonOptions> was used, not the
         // bare-default fallback (which would emit PascalCase "Id"/"Type"). Parse from the first JSON
         // brace so the multipart framing (boundary + part headers) is ignored.
         var jsonStart = text.IndexOf('{', StringComparison.Ordinal);
@@ -329,6 +502,87 @@ public class StreamingWireFramingTests
         Assert.Equal(eventId.ToString(), idProp.GetString());
         Assert.True(doc.RootElement.TryGetProperty("type", out _));
         Assert.False(doc.RootElement.TryGetProperty("Id", out _));
+    }
+
+    /// <summary>
+    /// A boundary line is the boundary and nothing else: with the boundary <c>b</c> the preamble line
+    /// <c>--b--x</c> is not the closing boundary (the parts after it are read), and <c>--b</c> followed by spaces
+    /// or tabs is the boundary.
+    /// </summary>
+    [Fact]
+    public async Task MultipartMixed_Reader_ALineThatOnlyStartsLikeTheBoundary_IsNoBoundary()
+    {
+        var (read, serializer) = Reader("ReadMultipartMixedAsync");
+        const string padded = "--b \t\r\nContent-Type: application/json\r\n\r\n[1,\r\n2]\r\n--b-- \r\n";
+        const string lookalike = "--b--x\r\n--bx\r\n--b\r\n\r\n[1,\r\n2,3]\r\n--b--\r\n";
+
+        using var paddedStream = new MemoryStream(Encoding.UTF8.GetBytes(padded));
+        var items = await EnumerateWithArgsAsync<JsonElement>(read, [paddedStream, "b", serializer, CancellationToken.None]);
+        Assert.Equal(2, Assert.Single(items).GetArrayLength());
+
+        using var lookalikeStream = new MemoryStream(Encoding.UTF8.GetBytes(lookalike));
+        items = await EnumerateWithArgsAsync<JsonElement>(read, [lookalikeStream, "b", serializer, CancellationToken.None]);
+        Assert.Equal(3, Assert.Single(items).GetArrayLength());
+    }
+
+    /// <summary>
+    /// The limit of a multipart part is in bytes, as for every other framing: a part of 15 characters that is 23
+    /// bytes on the wire is past a limit of 16.
+    /// </summary>
+    [Fact]
+    public async Task MultipartMixed_Reader_ThePartLimit_IsInBytes()
+    {
+        var (read, serializer) = Reader("ReadMultipartMixedAsync", maxRecordLength: 16);
+        const string wire = "--b\r\n\r\n[\r\n\"\u00e6\u00e6\u00e6\u00e6\",\r\n\"\u00e6\u00e6\u00e6\u00e6\"\r\n]\r\n--b--\r\n";
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(wire));
+
+        var exception = await Assert.ThrowsAnyAsync<Exception>(()
+            => EnumerateWithArgsAsync<JsonElement>(read, [stream, "b", serializer, CancellationToken.None]));
+        Assert.IsType<InvalidDataException>(exception.InnerException ?? exception);
+    }
+
+    /// <summary>
+    /// What stands between two records and is only whitespace is no record: an empty line or a line of spaces in
+    /// JSON Lines, a stray line feed between two records of a JSON Text Sequence.
+    /// </summary>
+    [Theory]
+    [InlineData("ReadJsonLinesAsync", "1\n\n \t\r\n2\n   \n")]
+    [InlineData("ReadJsonSequenceAsync", "\u001e1\n\n\u001e2\n\r\n \n")]
+    [InlineData("ReadJsonSequenceAsync", "\u001e\n\u001e1\n\u001e \u001e2")]
+    public async Task Reader_WhitespaceBetweenRecords_IsNoRecord(
+        string readerName,
+        string wire)
+    {
+        var (read, serializer) = Reader(readerName);
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(wire));
+
+        var items = await EnumerateWithArgsAsync<JsonElement>(read, [stream, serializer, CancellationToken.None]);
+
+        Assert.Equal([1, 2], items.Select(x => x.GetInt32()));
+    }
+
+    /// <summary>
+    /// A pretty-printed record or part of many lines is one item: whether it is complete is kept up as it arrives
+    /// (not found by reading all of it again at every line), through strings that hold quotes, brackets and braces.
+    /// </summary>
+    [Theory]
+    [InlineData("ReadJsonSequenceAsync")]
+    [InlineData("ReadMultipartMixedAsync")]
+    public async Task Reader_ARecordOfManyLines_IsOneItem(string readerName)
+    {
+        const int count = 20_000;
+        var (read, serializer) = Reader(readerName);
+        var json = "[\n" + string.Join(",\n", Enumerable.Range(0, count).Select(i => "\"a \\\" [ { " + i.ToString(CultureInfo.InvariantCulture) + "\"")) + "\n]\n";
+        var isMultipart = readerName == "ReadMultipartMixedAsync";
+        var wire = isMultipart ? "--b\r\n\r\n" + json + "--b--\r\n" : "\u001e" + json;
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(wire));
+
+        object?[] arguments = isMultipart
+            ? [stream, "b", serializer, CancellationToken.None]
+            : [stream, serializer, CancellationToken.None];
+        var items = await EnumerateWithArgsAsync<JsonElement>(read, arguments);
+
+        Assert.Equal(count, Assert.Single(items).GetArrayLength());
     }
 
     /// <summary>
@@ -367,6 +621,33 @@ public class StreamingWireFramingTests
             await Task.Yield();
             yield return (T)item;
         }
+    }
+
+    private const string EventStreamWithNamedEvents =
+        ": keep-alive\n\n" +
+        "event: update\ndata: {\"id\":\"a\"}\n\n" +
+        "data:\n\n" +
+        "event: ping\ndata: ping\n\n" +
+        "event: ping\ndata: {\"id\":\"no item\"}\n\n" +
+        "event: ping\n\n" +
+        "data: {\"id\":\"b\"}\n\n" +
+        "event: message\ndata: {\"id\":\"c\"}\n\n" +
+        "event: Update\ndata: {\"id\":\"no item\"}\n\n" +
+        "id: 4\nretry: 100\ndata: {\"id\":\r\ndata: \"d\"}\r\n\r\n";
+
+    // A reader of the typed client, with the options it deserializes through. (The EndpointPerOperation client has no
+    // readers of its own: Atc.Rest.Client reads its streamed responses.)
+    private static (MethodInfo Read, JsonSerializerOptions Serializer) Reader(
+        string name,
+        int maxRecordLength = 16 * 1024 * 1024)
+    {
+        var readerType = LoadGeneratedType("StreamReaders");
+        readerType.GetProperty("MaxRecordLength")!.SetValue(null, maxRecordLength);
+        var read = readerType
+            .GetMethods()
+            .Single(m => m.Name == name && m.GetParameters()[0].ParameterType == typeof(Stream))
+            .MakeGenericMethod(typeof(JsonElement));
+        return (read, new JsonSerializerOptions());
     }
 
     /// <summary>

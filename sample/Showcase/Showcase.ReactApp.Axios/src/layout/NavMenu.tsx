@@ -42,13 +42,20 @@ const navGroups: NavGroup[] = [
       { label: 'List Accounts', href: '/accounts', icon: <ListIcon /> },
       { label: 'Paginated', href: '/accounts/paginated', icon: <TableChartIcon /> },
       { label: 'Async Enumerable', href: '/accounts/async-enumerable', icon: <StreamIcon /> },
+      { label: 'Infinite Scroll', href: '/accounts/infinite', icon: <TableChartIcon /> },
     ],
+  },
+  {
+    title: 'Streams',
+    icon: <StreamIcon />,
+    items: [{ label: 'Live Streams', href: '/streams/prices', icon: <StreamIcon /> }],
   },
   {
     title: 'Tasks',
     icon: <TaskIcon />,
     items: [
       { label: 'List Tasks', href: '/tasks', icon: <ListIcon /> },
+      { label: 'SWR Hooks', href: '/tasks/swr', icon: <ListIcon /> },
     ],
   },
   {
@@ -65,6 +72,7 @@ const navGroups: NavGroup[] = [
     items: [
       { label: 'Download Files', href: '/files', icon: <DownloadIcon /> },
       { label: 'Upload Files', href: '/files/upload', icon: <UploadIcon /> },
+      { label: 'Documents', href: '/documents', icon: <DownloadIcon /> },
     ],
   },
   {

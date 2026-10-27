@@ -18,7 +18,8 @@ internal static class CompilationVerificationHarness
             scenarioName,
             yamlFileName,
             ".atc-rest-api-client",
-            "Client-Typed").GeneratedSources;
+            "Client-Typed",
+            references: GetMinimalClientReferences()).GeneratedSources;
 
     /// <summary>
     /// Runs the server generator for a scenario (with full references) and returns the generated sources.
@@ -46,16 +47,29 @@ internal static class CompilationVerificationHarness
         string masterFolder,
         bool useFullReferences = false,
         string assemblyName = "TestAssembly",
-        string? markerDirectoryOverride = null)
+        string? markerDirectoryOverride = null,
+        string? defaultMarkerContent = null,
+        Func<string, string>? markerTransform = null,
+        IReadOnlyList<(string Path, string Content)>? extraFiles = null,
+        Func<string, string>? yamlTransform = null,
+        IReadOnlyList<MetadataReference>? references = null)
     {
         var yamlPath = GetScenarioPath(scenarioName, yamlFileName);
         var yamlContent = File.ReadAllText(yamlPath);
+        if (yamlTransform is not null)
+        {
+            yamlContent = yamlTransform(yamlContent.Replace("\r\n", "\n", StringComparison.Ordinal));
+        }
 
         var markerPath = Path.Combine(
             Path.GetDirectoryName(yamlPath),
             masterFolder,
             markerFileName);
-        var markerContent = File.Exists(markerPath) ? File.ReadAllText(markerPath) : "{}";
+        var markerContent = File.Exists(markerPath) ? File.ReadAllText(markerPath) : defaultMarkerContent ?? "{}";
+        if (markerTransform is not null)
+        {
+            markerContent = markerTransform(markerContent);
+        }
 
         // The server-domain generator writes handler scaffolds as physical files next to the marker
         // file rather than emitting them as source. Giving the marker an absolute path lets a caller
@@ -64,17 +78,35 @@ internal static class CompilationVerificationHarness
             ? markerFileName
             : Path.Combine(markerDirectoryOverride, markerFileName);
 
+        // A multi-part specification is the base file plus its "{Base}_{Part}.yaml" files, as in a project.
+        var partFiles = new DirectoryInfo(Path.GetDirectoryName(yamlPath))
+            .EnumerateFiles(Path.GetFileNameWithoutExtension(yamlFileName) + "_*.yaml")
+            .OrderBy(f => f.Name, StringComparer.Ordinal)
+            .Select(f => (AdditionalText)new InMemoryAdditionalText(f.Name, File.ReadAllText(f.FullName)));
+
+        // A scenario's overlays (*.overlay.yaml next to the specification) are AdditionalFiles like in a project, next to
+        // the marker that lists them
+        var overlayFiles = new DirectoryInfo(Path.GetDirectoryName(yamlPath))
+            .EnumerateFiles("*.overlay.yaml")
+            .OrderBy(f => f.Name, StringComparer.Ordinal)
+            .Select(f => (AdditionalText)new InMemoryAdditionalText(
+                markerDirectoryOverride is null ? f.Name : Path.Combine(markerDirectoryOverride, f.Name),
+                File.ReadAllText(f.FullName)));
+
         var additionalTexts = ImmutableArray.Create<AdditionalText>(
-            new InMemoryAdditionalText(yamlFileName, yamlContent),
-            new InMemoryAdditionalText(markerAdditionalTextPath, markerContent));
+                new InMemoryAdditionalText(yamlFileName, yamlContent),
+                new InMemoryAdditionalText(markerAdditionalTextPath, markerContent))
+            .AddRange(partFiles)
+            .AddRange(overlayFiles)
+            .AddRange((extraFiles ?? []).Select(f => (AdditionalText)new InMemoryAdditionalText(f.Path, f.Content)));
 
         // The server generator gates on ASP.NET Core references being present; supply the
         // full reference set when the caller needs the generator to actually emit output.
         var compilation = CSharpCompilation.Create(
             assemblyName,
-            references: useFullReferences
+            references: references ?? (useFullReferences
                 ? GetFullFrameworkReferences(ScenarioReferencesMinimalApi(scenarioName))
-                : GetMinimalReferences(),
+                : GetMinimalReferences()),
             options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
         var driver = CSharpGeneratorDriver
@@ -99,13 +131,32 @@ internal static class CompilationVerificationHarness
     /// </summary>
     public static List<string> CompileGeneratedSources(
         List<(string HintName, string Source)> generatedSources,
-        bool includeMinimalApi = false)
+        bool includeMinimalApi = false,
+        IReadOnlyList<MetadataReference>? references = null)
     {
-        var compilation = CreateCompilation(generatedSources, includeMinimalApi);
+        var compilation = CreateCompilation(generatedSources, includeMinimalApi, references: references);
 
         return compilation
             .GetDiagnostics(TestContext.Current.CancellationToken)
             .Where(d => d.Severity == DiagnosticSeverity.Error)
+            .Select(d => d.ToString())
+            .ToList();
+    }
+
+    /// <summary>
+    /// Compiles the generated sources the way a strict consumer does - nullable enabled and XML documentation
+    /// checked - and returns the compiler warnings. A consumer that builds with <c>TreatWarningsAsErrors</c>
+    /// cannot build at all when generated code warns.
+    /// </summary>
+    public static List<string> CompileGeneratedSourcesForWarnings(
+        List<(string HintName, string Source)> generatedSources,
+        bool includeMinimalApi = false)
+    {
+        var compilation = CreateCompilation(generatedSources, includeMinimalApi, DocumentationMode.Diagnose);
+
+        return compilation
+            .GetDiagnostics(TestContext.Current.CancellationToken)
+            .Where(d => d.Severity == DiagnosticSeverity.Warning)
             .Select(d => d.ToString())
             .ToList();
     }
@@ -134,39 +185,12 @@ internal static class CompilationVerificationHarness
         return Assembly.Load(ms.ToArray());
     }
 
-    private static CSharpCompilation CreateCompilation(
-        List<(string HintName, string Source)> generatedSources,
-        bool includeMinimalApi = false)
-    {
-        // Generated code assumes the host project's ImplicitUsings; supply the standard set
-        // so BCL types (Task, IAsyncEnumerable, HttpClient, ...) resolve without per-file usings.
-        const string implicitUsings = """
-            global using System;
-            global using System.Collections.Generic;
-            global using System.IO;
-            global using System.Linq;
-            global using System.Net.Http;
-            global using System.Threading;
-            global using System.Threading.Tasks;
-            """;
-
-        var trees = generatedSources
-            .Select(s => CSharpSyntaxTree.ParseText(
-                SourceText.From(s.Source, Encoding.UTF8),
-                cancellationToken: TestContext.Current.CancellationToken))
-            .Append(CSharpSyntaxTree.ParseText(
-                SourceText.From(implicitUsings, Encoding.UTF8),
-                cancellationToken: TestContext.Current.CancellationToken))
-            .ToList();
-
-        return CSharpCompilation.Create(
-            "GeneratedCodeCompileTest",
-            trees,
-            GetFullFrameworkReferences(includeMinimalApi),
-            new CSharpCompilationOptions(
-                OutputKind.DynamicallyLinkedLibrary,
-                nullableContextOptions: NullableContextOptions.Enable));
-    }
+    /// <summary>
+    /// The minimal reference set plus Atc.Rest.Client: a client project as the samples have it, so a client that uploads
+    /// a file or uses the Result style is generated (without the package that is ATC_API_DEP014).
+    /// </summary>
+    public static List<MetadataReference> GetMinimalClientReferences()
+        => [.. GetMinimalReferences(), .. GetFullFrameworkReferences().Where(r => r is PortableExecutableReference pe && string.Equals(Path.GetFileName(pe.FilePath), "Atc.Rest.Client.dll", StringComparison.OrdinalIgnoreCase))];
 
     public static List<MetadataReference> GetMinimalReferences()
     {
@@ -194,16 +218,17 @@ internal static class CompilationVerificationHarness
     /// </summary>
     public static List<MetadataReference> GetFullFrameworkReferences(
         bool includeMinimalApi = false)
-    {
-        var tpa = (string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES");
-        return tpa
-            .Split(Path.PathSeparator)
-            .Where(p => p.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
-            .Where(p => includeMinimalApi ||
-                        !string.Equals(Path.GetFileName(p), MinimalApiAssemblyFileName, StringComparison.OrdinalIgnoreCase))
-            .Select(p => (MetadataReference)MetadataReference.CreateFromFile(p))
-            .ToList();
-    }
+        => [.. FullFrameworkReferences.Value.Where(r => includeMinimalApi || !IsMinimalApiAssembly(r))];
+
+    /// <summary>
+    /// The full reference set without the assemblies whose file name starts with one of the prefixes - a project that
+    /// does not reference a package.
+    /// </summary>
+    public static List<MetadataReference> GetFullFrameworkReferencesWithout(
+        params string[] assemblyNamePrefixes)
+        => [.. GetFullFrameworkReferences()
+            .Where(r => r is not PortableExecutableReference pe ||
+                        !assemblyNamePrefixes.Any(p => Path.GetFileNameWithoutExtension(pe.FilePath ?? string.Empty).StartsWith(p, StringComparison.OrdinalIgnoreCase)))];
 
     /// <summary>
     /// Whether a scenario stands for a project that references <c>Atc.Rest.MinimalApi</c>, which
@@ -226,7 +251,29 @@ internal static class CompilationVerificationHarness
             string.Equals(value.GetString(), "Enabled", StringComparison.OrdinalIgnoreCase));
     }
 
+    public static string GetScenarioPath(
+        string scenarioName,
+        string fileName)
+    {
+        var testDir = AppContext.BaseDirectory;
+        return Path.GetFullPath(
+            Path.Combine(testDir, "..", "..", "..", "..", "Scenarios", scenarioName, fileName));
+    }
+
     private const string MinimalApiAssemblyFileName = "Atc.Rest.MinimalApi.dll";
+
+    // One reference per assembly for the whole run: a reference carries its parsed metadata, so every compilation
+    // after the first reuses it instead of reading two hundred assemblies again
+    private static readonly Lazy<List<MetadataReference>> FullFrameworkReferences = new(
+        () => ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES"))
+            .Split(Path.PathSeparator)
+            .Where(p => p.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
+            .Select(p => (MetadataReference)MetadataReference.CreateFromFile(p))
+            .ToList(),
+        LazyThreadSafetyMode.ExecutionAndPublication);
+
+    private static bool IsMinimalApiAssembly(MetadataReference reference)
+        => string.Equals(Path.GetFileName(reference.Display), MinimalApiAssemblyFileName, StringComparison.OrdinalIgnoreCase);
 
     private static readonly string[] MinimalApiModeProperties =
     [
@@ -235,13 +282,34 @@ internal static class CompilationVerificationHarness
         "useGlobalErrorHandler",
     ];
 
-    public static string GetScenarioPath(
-        string scenarioName,
-        string fileName)
+    internal static CSharpCompilation CreateCompilation(
+        List<(string HintName, string Source)> generatedSources,
+        bool includeMinimalApi = false,
+        DocumentationMode documentationMode = DocumentationMode.Parse,
+        IReadOnlyList<MetadataReference>? references = null)
     {
-        var testDir = AppContext.BaseDirectory;
-        return Path.GetFullPath(
-            Path.Combine(testDir, "..", "..", "..", "..", "Scenarios", scenarioName, fileName));
+        var parseOptions = CSharpParseOptions.Default.WithDocumentationMode(documentationMode);
+
+        // No implicit usings: a generated file (*.g.cs) compiles in a project with ImplicitUsings off too. A test's own
+        // code beside it (a probe standing in for the consumer's) gets them in its own file only - never global, so
+        // they cannot cover for a generated file
+        var trees = generatedSources
+            .Select(s => CSharpSyntaxTree.ParseText(
+                SourceText.From(
+                    s.HintName.EndsWith(".g.cs", StringComparison.Ordinal) ? s.Source : ImplicitUsingsHelper.AddImplicitUsings(s.Source),
+                    Encoding.UTF8),
+                parseOptions,
+                path: s.HintName,
+                TestContext.Current.CancellationToken))
+            .ToList();
+
+        return CSharpCompilation.Create(
+            "GeneratedCodeCompileTest",
+            trees,
+            references ?? GetFullFrameworkReferences(includeMinimalApi),
+            new CSharpCompilationOptions(
+                OutputKind.DynamicallyLinkedLibrary,
+                nullableContextOptions: NullableContextOptions.Enable));
     }
 
     /// <summary>

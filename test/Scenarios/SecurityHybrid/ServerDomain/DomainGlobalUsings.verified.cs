@@ -1,3 +1,4 @@
+#pragma warning disable CS1591
 global using SecurityHybrid.Generated.Admin.Handlers;
 global using SecurityHybrid.Generated.Admin.Parameters;
 global using SecurityHybrid.Generated.Admin.Results;

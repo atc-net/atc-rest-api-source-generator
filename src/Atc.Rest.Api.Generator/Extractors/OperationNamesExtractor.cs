@@ -1,0 +1,204 @@
+namespace Atc.Rest.Api.Generator.Extractors;
+
+/// <summary>
+/// The <c>ApiOperations</c> class of a generated project: one constant per operation, holding the name its endpoint has
+/// on the server (<c>.WithName(…)</c>, what <c>LinkGenerator</c>, <c>CreatedAtRoute</c> and endpoint metadata use),
+/// so code that singles out operations does not repeat them as strings. The server and both C# clients share the rule:
+/// the effective operationId in PascalCase; a webhook keeps its operationId as written (<c>ApiOperations.Webhooks</c>).
+/// </summary>
+public static class OperationNamesExtractor
+{
+    /// <summary>
+    /// The class name of the generated constants.
+    /// </summary>
+    public const string ClassName = "ApiOperations";
+
+    /// <summary>
+    /// The class name of the webhook constants, nested in <see cref="ClassName"/>.
+    /// </summary>
+    public const string WebhooksClassName = "Webhooks";
+
+    /// <summary>
+    /// The endpoint name of an operation.
+    /// </summary>
+    /// <param name="operation">The operation.</param>
+    /// <param name="httpMethod">Its HTTP method.</param>
+    /// <param name="path">Its path template.</param>
+    /// <returns>The effective operationId in PascalCase.</returns>
+    public static string EndpointName(
+        OpenApiOperation operation,
+        string httpMethod,
+        string path)
+        => OperationIdHelper.Effective(operation, httpMethod, path).ToPascalCaseForDotNet();
+
+    /// <summary>
+    /// The endpoint name of a webhook operation.
+    /// </summary>
+    /// <param name="operation">The operation.</param>
+    /// <param name="webhookName">The webhook's name.</param>
+    /// <returns>Its operationId as written, or <c>On{WebhookName}</c>.</returns>
+    public static string WebhookEndpointName(
+        OpenApiOperation operation,
+        string webhookName)
+        => operation?.OperationId ?? $"On{IdentifierCasingHelper.ToUpperFirst(webhookName ?? string.Empty)}";
+
+    /// <summary>
+    /// The constant that holds an operation's endpoint name: <c>global::{project}.Generated.ApiOperations.{Name}</c>.
+    /// </summary>
+    /// <param name="projectName">The project name (root namespace).</param>
+    /// <param name="endpointName">The endpoint name, from <see cref="EndpointName"/>.</param>
+    /// <returns>The fully qualified constant.</returns>
+    public static string ConstantReference(
+        string projectName,
+        string endpointName)
+        => $"global::{projectName}.Generated.{ClassName}.{ConstantName(endpointName, nested: false)}";
+
+    /// <summary>
+    /// The constant that holds a webhook's endpoint name: <c>global::{project}.Generated.ApiOperations.Webhooks.{Name}</c>.
+    /// </summary>
+    /// <param name="projectName">The project name (root namespace).</param>
+    /// <param name="endpointName">The endpoint name, from <see cref="WebhookEndpointName"/>.</param>
+    /// <returns>The fully qualified constant.</returns>
+    public static string WebhookConstantReference(
+        string projectName,
+        string endpointName)
+        => $"global::{projectName}.Generated.{ClassName}.{WebhooksClassName}.{ConstantName(endpointName, nested: true)}";
+
+    /// <summary>
+    /// The file content: the constants of the operations (and webhooks) the project generates endpoints or methods for.
+    /// </summary>
+    /// <param name="openApiDoc">The specification.</param>
+    /// <param name="projectName">The project name (root namespace).</param>
+    /// <param name="includeDeprecated">Whether deprecated operations are generated.</param>
+    /// <param name="includeWebhooks">Whether webhook endpoints are generated (a server with webhooks).</param>
+    /// <returns>The file content, or <see langword="null"/> when there is no operation.</returns>
+    public static string? Extract(
+        OpenApiDocument openApiDoc,
+        string projectName,
+        bool includeDeprecated,
+        bool includeWebhooks)
+    {
+        if (openApiDoc is null)
+        {
+            throw new ArgumentNullException(nameof(openApiDoc));
+        }
+
+        var operations = openApiDoc
+            .GetAllOperations()
+            .Where(o => includeDeprecated || !o.Operation.Deprecated)
+            .Select(o => (Name: EndpointName(o.Operation, o.Method, o.Path), Label: $"{o.Method} {o.Path}", o.Operation.Summary))
+            .ToList();
+
+        var webhooks = includeWebhooks && openApiDoc.HasWebhooks
+            ? openApiDoc
+                .GetAllWebhookOperations()
+                .Where(o => includeDeprecated || !o.Operation.Deprecated)
+                .Select(o => (Name: WebhookEndpointName(o.Operation, o.WebhookName), Label: $"{o.Method} webhook {o.WebhookName}", o.Operation.Summary))
+                .ToList()
+            : [];
+
+        if (operations.Count == 0 && webhooks.Count == 0)
+        {
+            return null;
+        }
+
+        var builder = new StringBuilder();
+        builder.AppendLine("// <auto-generated />");
+        builder.AppendLine("#nullable enable");
+        builder.AppendLine();
+        builder.AppendLine("using System.CodeDom.Compiler;");
+        builder.AppendLine();
+        builder.AppendLine($"namespace {projectName}.Generated;");
+        builder.AppendLine();
+        builder.AppendLine("/// <summary>");
+        builder.AppendLine("/// The name of each operation: the name its endpoint has on the server (<c>WithName</c>), for code that singles");
+        builder.AppendLine("/// out operations - in endpoint metadata, a middleware, a <c>LinkGenerator</c> call or a client's request options.");
+        builder.AppendLine("/// </summary>");
+        builder.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
+        builder.AppendLine($"public static class {ClassName}");
+        builder.AppendLine("{");
+
+        var written = AppendConstants(builder, 4, operations, nested: false, webhooksClass: webhooks.Count > 0);
+        if (webhooks.Count > 0)
+        {
+            if (written)
+            {
+                builder.AppendLine();
+            }
+
+            builder.AppendLine(4, "/// <summary>");
+            builder.AppendLine(4, "/// The name of each webhook endpoint.");
+            builder.AppendLine(4, "/// </summary>");
+            builder.AppendLine(4, $"public static class {WebhooksClassName}");
+            builder.AppendLine(4, "{");
+            AppendConstants(builder, 8, webhooks, nested: true, webhooksClass: false);
+            builder.AppendLine(4, "}");
+        }
+
+        builder.Append('}');
+        return builder.ToString();
+    }
+
+    /// <summary>
+    /// The member an operation has in a generated class of one member per operation: an identifier, and never the name
+    /// of the class it is in (CS0542).
+    /// </summary>
+    /// <param name="endpointName">The endpoint name.</param>
+    /// <param name="enclosingClass">The class the member is in.</param>
+    /// <returns>The member name.</returns>
+    public static string MemberName(
+        string endpointName,
+        string enclosingClass)
+    {
+        var name = CSharpLiteralHelper.ToEnumMemberName((endpointName ?? string.Empty).ToPascalCaseForDotNet());
+        return string.Equals(name, enclosingClass, StringComparison.Ordinal)
+            ? name + "Operation"
+            : name;
+    }
+
+    private static bool AppendConstants(
+        StringBuilder builder,
+        int indent,
+        List<(string Name, string Label, string? Summary)> operations,
+        bool nested,
+        bool webhooksClass)
+    {
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var any = false;
+        foreach (var (name, label, summary) in operations)
+        {
+            var constant = ConstantName(name, nested);
+            if (webhooksClass && string.Equals(constant, WebhooksClassName, StringComparison.Ordinal))
+            {
+                constant += "Operation";
+            }
+
+            // Two operations with one endpoint name are one endpoint name (the server refuses the second at start-up)
+            if (!seen.Add(constant))
+            {
+                continue;
+            }
+
+            if (any)
+            {
+                builder.AppendLine();
+            }
+
+            any = true;
+            var text = string.IsNullOrWhiteSpace(summary)
+                ? $"<c>{CSharpLiteralHelper.ToXmlDocText(label)}</c>"
+                : $"<c>{CSharpLiteralHelper.ToXmlDocText(label)}</c>: {CSharpLiteralHelper.ToXmlDocText(summary!.Trim())}";
+            builder.AppendLine(indent, "/// <summary>");
+            builder.AppendLine(indent, $"/// {text}");
+            builder.AppendLine(indent, "/// </summary>");
+            builder.AppendLine(indent, $"public const string {constant} = {CSharpLiteralHelper.ToStringLiteral(name)};");
+        }
+
+        return any;
+    }
+
+    private static string ConstantName(
+        string endpointName,
+        bool nested)
+        => MemberName(endpointName, nested ? WebhooksClassName : ClassName);
+}

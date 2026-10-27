@@ -17,6 +17,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useNavigate, useParams } from 'react-router';
+import UserXmlView from '../components/UserXmlView';
 import { useUser, useDeleteUser } from '../hooks/useUsers';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 
@@ -241,6 +242,8 @@ export default function UserDetailsPage() {
           )}
         </Grid2>
       </Grid2>
+
+      <UserXmlView userId={user.id} />
 
       <ConfirmDialog
         open={showDeleteDialog}

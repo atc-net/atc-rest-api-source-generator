@@ -5,6 +5,9 @@ namespace PetStoreFull.ApiHandlers;
 /// </summary>
 public sealed class GetUserByNameHandler : IGetUserByNameHandler
 {
+    /// <summary>
+    /// Executes the GetUserByName operation.
+    /// </summary>
     public Task<GetUserByNameResult> ExecuteAsync(
         GetUserByNameParameters parameters,
         CancellationToken cancellationToken = default)

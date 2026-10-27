@@ -41,7 +41,7 @@ public static class SpecVersionMigrationValidator
         }
 
         var lines = SplitLines(sourceText!);
-        var specVersion = document.GetOpenApiSpecVersion();
+        var specVersion = document.SpecVersion;
 
         if (specVersion == OpenApiSpecVersion.OpenApi3_0)
         {

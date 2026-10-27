@@ -1,5 +1,8 @@
 # Changelog
 
+> ⬆️ **Upgrading from 2.x?** The entries below list the commits of each release. What to change in a project, and
+> why, is in the wiki: [Upgrading to v3](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Upgrading-to-v3).
+
 ## [2.1.1](https://github.com/atc-net/atc-rest-api-source-generator/compare/v2.1.0...v2.1.1) (2026-09-28)
 
 

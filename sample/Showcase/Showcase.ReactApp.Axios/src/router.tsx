@@ -4,12 +4,16 @@ import IndexPage from './pages/IndexPage';
 import AccountsPage from './pages/AccountsPage';
 import AccountsPaginatedPage from './pages/AccountsPaginatedPage';
 import AccountsStreamingPage from './pages/AccountsStreamingPage';
+import AccountsInfinitePage from './pages/AccountsInfinitePage';
+import LiveStreamsPage from './pages/LiveStreamsPage';
 import TasksPage from './pages/TasksPage';
+import SwrTasksPage from './pages/SwrTasksPage';
 import UsersPage from './pages/UsersPage';
 import UserFormPage from './pages/UserFormPage';
 import UserDetailsPage from './pages/UserDetailsPage';
 import FilesPage from './pages/FilesPage';
 import FilesUploadPage from './pages/FilesUploadPage';
+import DocumentsPage from './pages/DocumentsPage';
 import NotificationsPage from './pages/NotificationsPage';
 import NotificationSubscriptionsPage from './pages/NotificationSubscriptionsPage';
 import WebhookDemoPage from './pages/WebhookDemoPage';
@@ -24,13 +28,17 @@ export const router = createBrowserRouter([
       { path: '/accounts', element: <AccountsPage /> },
       { path: '/accounts/paginated', element: <AccountsPaginatedPage /> },
       { path: '/accounts/async-enumerable', element: <AccountsStreamingPage /> },
+      { path: '/accounts/infinite', element: <AccountsInfinitePage /> },
+      { path: '/streams/prices', element: <LiveStreamsPage /> },
       { path: '/tasks', element: <TasksPage /> },
+      { path: '/tasks/swr', element: <SwrTasksPage /> },
       { path: '/users', element: <UsersPage /> },
       { path: '/users/create', element: <UserFormPage /> },
       { path: '/users/:userId', element: <UserDetailsPage /> },
       { path: '/users/:userId/edit', element: <UserFormPage /> },
       { path: '/files', element: <FilesPage /> },
       { path: '/files/upload', element: <FilesUploadPage /> },
+      { path: '/documents', element: <DocumentsPage /> },
       { path: '/notifications', element: <NotificationsPage /> },
       { path: '/notifications/subscriptions', element: <NotificationSubscriptionsPage /> },
       { path: '/webhooks/demo', element: <WebhookDemoPage /> },

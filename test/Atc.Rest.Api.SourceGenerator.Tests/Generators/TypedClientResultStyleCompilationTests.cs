@@ -34,7 +34,7 @@ public class TypedClientResultStyleCompilationTests
         Assert.Contains("Task<EndpointResponse<List<Device>>> ListDevicesAsync", client, StringComparison.Ordinal);
         Assert.Contains("Task<EndpointResponse<Device>> GetDeviceByIdAsync", client, StringComparison.Ordinal);
         Assert.Contains("Task<EndpointResponse> DeleteDeviceAsync", client, StringComparison.Ordinal);
-        Assert.Contains("Task<EndpointResponse<byte[]>> DownloadFirmwareAsync", client, StringComparison.Ordinal);
+        Assert.Contains("Task<EndpointResponse<DownloadedFile>> DownloadFirmwareAsync", client, StringComparison.Ordinal);
         Assert.Contains("Task<EndpointResponse<string>> GetDeviceLogAsync", client, StringComparison.Ordinal);
     }
 
@@ -70,8 +70,9 @@ public class TypedClientResultStyleCompilationTests
 
         // Assert - EndpointResponse<T>.SuccessContent casts contentObject and throws on a mismatch,
         // so an error body must never be deserialized into TSuccess.
+        Assert.Contains("var isSuccess = response.IsSuccessStatusCode;", client, StringComparison.Ordinal);
         Assert.Contains(
-            "if (response.IsSuccessStatusCode && !string.IsNullOrEmpty(content))",
+            "if (isSuccess && !string.IsNullOrEmpty(content))",
             client,
             StringComparison.Ordinal);
     }

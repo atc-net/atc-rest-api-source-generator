@@ -35,7 +35,10 @@ public class GenerateContentForEnum : IContentGenerator
         }
 
         sb.Append($"{EnumDescriptionHelper.GetDescription(parameters.DeclarationModifier)} enum ");
-        sb.AppendLine($"{parameters.EnumTypeName}");
+
+        // A value outside the range of an int needs a 64-bit enum - an int enum would silently hold another number
+        var needsLong = parameters.Values.Any(v => v.Value is < int.MinValue or > int.MaxValue);
+        sb.AppendLine(needsLong ? $"{parameters.EnumTypeName} : long" : $"{parameters.EnumTypeName}");
 
         sb.AppendLine("{");
         foreach (var parametersValue in parameters.Values)
@@ -51,7 +54,12 @@ public class GenerateContentForEnum : IContentGenerator
             // Add EnumMember attribute if EnumMemberValue is specified
             if (!string.IsNullOrEmpty(parametersValue.EnumMemberValue))
             {
-                sbLine.AppendLine($"[EnumMember(Value = \"{parametersValue.EnumMemberValue}\")]");
+                // [EnumMember] names the wire value for whoever reads it by reflection; System.Text.Json does not
+                // read it and takes the wire value from [JsonStringEnumMemberName]
+                var wireValue = CSharpLiteralHelper.ToStringLiteral(parametersValue.EnumMemberValue!);
+                sbLine.AppendLine($"[EnumMember(Value = {wireValue})]");
+                sbLine.Append(4, $"[JsonStringEnumMemberName({wireValue})]");
+                sbLine.AppendLine();
                 sbLine.Append(4, parametersValue.Name);
             }
             else
@@ -76,7 +84,55 @@ public class GenerateContentForEnum : IContentGenerator
 
         sb.Append('}');
 
+        AppendWireValueExtensions(sb);
+
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// A string enum gets <c>ToWireValue()</c>: the value as the specification writes it, for the places a
+    /// value is written as text without a serializer (a path, a query string, a header, a cookie).
+    /// </summary>
+    private void AppendWireValueExtensions(StringBuilder sb)
+    {
+        if (parameters.UseFlags || parameters.Values.Any(v => v.Value is not null))
+        {
+            return;
+        }
+
+        var enumName = parameters.EnumTypeName;
+        var modifier = EnumDescriptionHelper.GetDescription(parameters.DeclarationModifier);
+
+        sb.AppendLine();
+        sb.AppendLine();
+        sb.AppendLine("/// <summary>");
+        sb.AppendLine($"/// The values of <see cref=\"{enumName}\"/> as the specification writes them.");
+        sb.AppendLine("/// </summary>");
+
+        var generatedCode = parameters.Attributes?.FirstOrDefault(a => a.Name == "GeneratedCode");
+        if (generatedCode is not null)
+        {
+            sb.AppendAttribute(usePropertyPrefix: false, generatedCode);
+            sb.AppendLine();
+        }
+
+        sb.AppendLine($"{modifier} static class {enumName}Extensions");
+        sb.AppendLine("{");
+        sb.AppendLine(4, $"public static string ToWireValue(this {enumName} value)");
+        sb.AppendLine(8, "=> value switch");
+        sb.AppendLine(8, "{");
+        foreach (var value in parameters.Values)
+        {
+            var wireValue = CSharpLiteralHelper.ToStringLiteral(value.EnumMemberValue ?? value.Name);
+            sb.AppendLine(12, $"{enumName}.{value.Name} => {wireValue},");
+        }
+
+        sb.AppendLine(12, "_ => value.ToString(),");
+        sb.AppendLine(8, "};");
+        sb.AppendLine();
+        sb.AppendLine(4, $"public static string? ToWireValue(this {enumName}? value)");
+        sb.AppendLine(8, "=> value is { } known ? known.ToWireValue() : null;");
+        sb.Append('}');
     }
 
     private IList<AttributeParameters>? GetAttributeParametersList()

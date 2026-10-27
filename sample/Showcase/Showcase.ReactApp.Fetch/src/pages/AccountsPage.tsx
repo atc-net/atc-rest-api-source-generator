@@ -17,9 +17,12 @@ import {
   Stack,
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
+import EditIcon from '@mui/icons-material/Edit';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import { useAccountsList, useCreateAccount, useDeleteAccount } from '../hooks/useAccounts';
+import { useUpdateAccountById } from '../api/hooks/useAccounts';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { EditNameTagDialog } from '../components/EditNameTagDialog';
 import type { Account } from '../api/models/Account';
 
 export default function AccountsPage() {
@@ -33,6 +36,8 @@ export default function AccountsPage() {
   const [errorMsg, setErrorMsg] = useState('');
 
   const [deleteTarget, setDeleteTarget] = useState<Account | null>(null);
+  const [editTarget, setEditTarget] = useState<Account | null>(null);
+  const updateAccount = useUpdateAccountById(String(editTarget?.id ?? ''));
 
   const handleCreate = async () => {
     if (!name.trim()) return;
@@ -61,6 +66,21 @@ export default function AccountsPage() {
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : 'Failed to delete account.');
       setDeleteTarget(null);
+    }
+  };
+
+  const handleUpdate = async (newName: string, newTag: string) => {
+    if (!editTarget) return;
+    setSuccessMsg('');
+    setErrorMsg('');
+    try {
+      const updated = await updateAccount.mutateAsync({ id: editTarget.id, name: newName, tag: newTag || undefined });
+      setSuccessMsg(`Account updated: ${updated.name}`);
+      setEditTarget(null);
+      refetch();
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'Failed to update account.');
+      setEditTarget(null);
     }
   };
 
@@ -144,7 +164,11 @@ export default function AccountsPage() {
                 <TableCell>{account.name}</TableCell>
                 <TableCell>{account.tag ?? ''}</TableCell>
                 <TableCell align="right">
+                  <IconButton aria-label="Edit" onClick={() => setEditTarget(account)} disabled={updateAccount.isPending}>
+                    <EditIcon />
+                  </IconButton>
                   <IconButton
+                    aria-label="Delete"
                     color="error"
                     onClick={() => setDeleteTarget(account)}
                     disabled={deleteAccount.isPending}
@@ -164,6 +188,16 @@ export default function AccountsPage() {
           </TableBody>
         </Table>
       </TableContainer>
+
+      <EditNameTagDialog
+        open={editTarget !== null}
+        title="Edit Account"
+        name={editTarget?.name ?? ''}
+        tag={editTarget?.tag}
+        saving={updateAccount.isPending}
+        onSave={handleUpdate}
+        onCancel={() => setEditTarget(null)}
+      />
 
       <ConfirmDialog
         open={deleteTarget !== null}

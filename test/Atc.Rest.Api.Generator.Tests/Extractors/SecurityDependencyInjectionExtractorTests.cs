@@ -120,6 +120,81 @@ public class SecurityDependencyInjectionExtractorTests
         Assert.Contains("options.AddPolicy(SecurityPolicies.", result, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// A scope is matched the way token handlers deliver it: one claim per scope, or one space-separated claim
+    /// (<c>scope</c>, <c>scp</c>, or the URI Microsoft.Identity.Web maps it to) - never a bare RequireClaim.
+    /// </summary>
+    [Fact]
+    public void Extract_WithScopes_MatchesScopeClaimsAsTokensCarryThem()
+    {
+        // Arrange
+        var document = OpenApiDocumentHelper.ParseYaml(ScopesYaml);
+
+        // Act
+        var result = SecurityDependencyInjectionExtractor.Extract(document, ProjectName);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.DoesNotContain("RequireClaim(", result, StringComparison.Ordinal);
+        Assert.Contains("options.AddPolicy(SecurityPolicies.Oauth2OrdersRead, policy =>", result, StringComparison.Ordinal);
+        Assert.Contains("HasScope(context.User, \"orders:read\")", result, StringComparison.Ordinal);
+        Assert.Contains("private static bool HasScope(", result, StringComparison.Ordinal);
+        Assert.Contains("\"scp\"", result, StringComparison.Ordinal);
+        Assert.Contains("Split(' ')", result, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Alternatives (OR): a requirement without scopes is met by a caller the scheme authenticated, one with scopes
+    /// by a caller its scheme authenticated who has them all - the policy asks each scheme itself.
+    /// </summary>
+    [Fact]
+    public void Extract_WithAnAlternativeWithoutScopes_AuthenticatesWithItsScheme()
+    {
+        // Arrange
+        var document = OpenApiDocumentHelper.ParseYaml("""
+            openapi: 3.0.0
+            info:
+              title: Test
+              version: 1.0.0
+            paths:
+              /orders:
+                get:
+                  operationId: listOrders
+                  security:
+                    - api_key: []
+                    - oauth2: ["orders:read", admin]
+                  responses:
+                    '200':
+                      description: OK
+            components:
+              securitySchemes:
+                api_key:
+                  type: apiKey
+                  in: header
+                  name: X-API-Key
+                oauth2:
+                  type: oauth2
+                  x-authentication-scheme: Bearer
+                  flows:
+                    clientCredentials:
+                      tokenUrl: https://auth.example.com/token
+                      scopes:
+                        "orders:read": Read orders
+                        admin: Everything
+            """);
+
+        // Act
+        var result = SecurityDependencyInjectionExtractor.Extract(document, ProjectName);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Contains("options.AddPolicy(SecurityPolicies.ApiKeyOrOauth2AdminAndOrdersRead, policy =>", result, StringComparison.Ordinal);
+        Assert.Contains("await AuthenticatedWith(context, \"api_key\")", result, StringComparison.Ordinal);
+        Assert.Contains("await AuthenticatedWith(context, \"Bearer\") && HasScope(context.User, \"admin\") && HasScope(context.User, \"orders:read\")", result, StringComparison.Ordinal);
+        Assert.Contains("private static async Task<bool> AuthenticatedWith(", result, StringComparison.Ordinal);
+        Assert.Contains("AuthenticateAsync(scheme)", result, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void Extract_WithoutSecuritySchemes_ReturnsNull()
     {

@@ -28,5 +28,6 @@ public sealed class ServerDomainOptions
     /// Options: "throw-not-implemented", "error-501", "default-value".
     /// Default: "throw-not-implemented".
     /// </summary>
+    [MarkerValues("throw-not-implemented", "error-501", "default-value")]
     public string StubImplementation { get; set; } = "throw-not-implemented";
 }

@@ -5,6 +5,9 @@ namespace SecurityHybrid.ApiHandlers;
 /// </summary>
 public sealed class GetProductByIdHandler : IGetProductByIdHandler
 {
+    /// <summary>
+    /// Executes the GetProductById operation.
+    /// </summary>
     public Task<GetProductByIdResult> ExecuteAsync(
         GetProductByIdParameters parameters,
         CancellationToken cancellationToken = default)

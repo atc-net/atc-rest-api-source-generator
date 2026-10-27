@@ -286,6 +286,57 @@ public class EndpointDefinitionExtractorTests
         Assert.Equal("/api/v1/charge-points", result);
     }
 
+    // ========== Validation: cookie names, the JSON-only body reader ==========
+    private const string ValidationYaml = """
+                                          openapi: 3.0.3
+                                          info: { title: Shop, version: 1.0.0 }
+                                          paths:
+                                            /carts:
+                                              get:
+                                                operationId: getCart
+                                                parameters:
+                                                  - { name: session, in: cookie, schema: { type: string, minLength: 8 } }
+                                                responses: { '204': { description: OK } }
+                                            /products:
+                                              get:
+                                                operationId: listProducts
+                                                parameters:
+                                                  - { name: code, in: query, schema: { $ref: '#/components/schemas/ProductCode' } }
+                                                responses: { '204': { description: OK } }
+                                            /orders:
+                                              post:
+                                                operationId: createOrder
+                                                requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/Order' } } } }
+                                                responses: { '204': { description: OK } }
+                                          components:
+                                            schemas:
+                                              ProductCode: { type: string, pattern: '^[A-Z]{2}\d{4}$' }
+                                              Order:
+                                                type: object
+                                                properties:
+                                                  productCode: { $ref: '#/components/schemas/ProductCode' }
+                                          """;
+
+    [Fact]
+    public void Extract_ACookieParameter_NamesTheCookieInTheValidationProblem()
+    {
+        var bodies = EndpointBodies(ValidationYaml);
+
+        Assert.Contains(".WithCookieValidationNames()\n    .AddEndpointFilter<ValidationFilter<GetCartParameters>>()", bodies["GetCart"], StringComparison.Ordinal);
+        Assert.DoesNotContain("WithCookieValidationNames", bodies["ListProducts"], StringComparison.Ordinal);
+        Assert.DoesNotContain("WithCookieValidationNames", bodies["CreateOrder"], StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_AJsonOnlyModelBody_IsReadByTheGeneratedReader()
+    {
+        var bodies = EndpointBodies(ValidationYaml);
+
+        Assert.Contains(".WithRequestBodyProblems()", bodies["CreateOrder"], StringComparison.Ordinal);
+        Assert.Contains(".Accepts<Order>(\"application/json\")", bodies["CreateOrder"], StringComparison.Ordinal);
+        Assert.DoesNotContain("WithRequestBodyProblems", bodies["ListProducts"], StringComparison.Ordinal);
+    }
+
     // ========== Namespace Segment Conflict Tests ==========
     [Fact]
     public void Extract_SchemaNameMatchingNamespaceSegment_ProducesFullyQualifiedType()
@@ -529,4 +580,291 @@ public class EndpointDefinitionExtractorTests
         Assert.Contains(".RequireRateLimiting(RateLimitPolicies.OrdersStrict)", defineEndpoints.Content, StringComparison.Ordinal);
         Assert.DoesNotContain("\"orders-strict\"", defineEndpoints.Content, StringComparison.Ordinal);
     }
+
+    private const string ScopedSecurityYaml = """
+                                             openapi: 3.0.0
+                                             info:
+                                               title: Test
+                                               version: 1.0.0
+                                             paths:
+                                               /orders:
+                                                 get:
+                                                   operationId: listOrders
+                                                   security:
+                                                     - oauth2: ["orders:read"]
+                                                   responses:
+                                                     '200':
+                                                       description: OK
+                                               /orders/{orderId}:
+                                                 get:
+                                                   operationId: getOrderById
+                                                   parameters:
+                                                     - { name: orderId, in: path, required: true, schema: { type: string } }
+                                                   security:
+                                                     - api_key: []
+                                                     - oauth2: ["orders:read"]
+                                                   responses:
+                                                     '200':
+                                                       description: OK
+                                                 delete:
+                                                   operationId: deleteOrder
+                                                   parameters:
+                                                     - { name: orderId, in: path, required: true, schema: { type: string } }
+                                                   security:
+                                                     - api_key: []
+                                                   responses:
+                                                     '204':
+                                                       description: No Content
+                                             components:
+                                               securitySchemes:
+                                                 api_key:
+                                                   type: apiKey
+                                                   in: header
+                                                   name: X-API-Key
+                                                 oauth2:
+                                                   type: oauth2
+                                                   flows:
+                                                     clientCredentials:
+                                                       tokenUrl: https://auth.example.com/token
+                                                       scopes:
+                                                         "orders:read": Read orders
+                                             """;
+
+    /// <summary>
+    /// A requirement with scopes is enforced: next to the authentication policy, the endpoint requires the generated
+    /// scope policy (registered by AddApiSecurityPolicies). A requirement without scopes requires authentication only.
+    /// </summary>
+    [Fact]
+    public void Extract_WithScopedSecurity_RequiresTheScopePolicy()
+    {
+        // Arrange
+        var document = OpenApiDocumentHelper.ParseYaml(ScopedSecurityYaml);
+        var resolver = new SystemTypeConflictResolver([]);
+
+        // Act
+        var (_, classes) = EndpointDefinitionExtractor.Extract(
+            document,
+            "TestApi",
+            registry: null,
+            systemTypeResolver: resolver);
+
+        // Assert
+        var defineEndpoints = Assert.Single(classes!.SelectMany(c => c.Methods ?? []), m => m.Name == "DefineEndpoints");
+        var listOrders = Registration(defineEndpoints.Content, "ListOrders");
+        Assert.Contains(".AddAuthenticationSchemes(\"oauth2\")", listOrders, StringComparison.Ordinal);
+        Assert.Contains(".RequireAuthorization(SecurityPolicies.Oauth2OrdersRead)", listOrders, StringComparison.Ordinal);
+
+        // Alternatives: the key alone, or a token with the scope - one any-of policy
+        var getOrderById = Registration(defineEndpoints.Content, "GetOrderById");
+        Assert.Contains(".AddAuthenticationSchemes(\"api_key\", \"oauth2\")", getOrderById, StringComparison.Ordinal);
+        Assert.Contains(".RequireAuthorization(SecurityPolicies.ApiKeyOrOauth2OrdersRead)", getOrderById, StringComparison.Ordinal);
+
+        var deleteOrder = Registration(defineEndpoints.Content, "DeleteOrder");
+        Assert.DoesNotContain("SecurityPolicies.", deleteOrder, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_UrlEncodedFormBody_BindsTheFieldsAndAcceptsTheForm()
+    {
+        // A URL-encoded form is bound field by field like a multipart one: the handler takes [FromForm] parameters,
+        // builds the model, and the route accepts the form's media type (form binding opts the endpoint into
+        // antiforgery validation, so it is disabled as for a file upload)
+        var document = OpenApiDocumentHelper.ParseYaml("""
+            openapi: 3.0.0
+            info: { title: T, version: 1.0.0 }
+            paths:
+              /login:
+                post:
+                  operationId: login
+                  requestBody:
+                    required: true
+                    content:
+                      application/x-www-form-urlencoded:
+                        schema: { $ref: '#/components/schemas/Credentials' }
+                  responses:
+                    '204': { description: ok }
+            components:
+              schemas:
+                Credentials:
+                  type: object
+                  required: [user]
+                  properties:
+                    user: { type: string }
+                    remember: { type: boolean }
+            """);
+
+        var (_, classes) = EndpointDefinitionExtractor.Extract(document, "TestApi", registry: null, systemTypeResolver: new SystemTypeConflictResolver([]));
+
+        var methods = classes!.SelectMany(c => c.Methods ?? []).ToList();
+        var login = Registration(Assert.Single(methods, m => m.Name == "DefineEndpoints").Content, "Login");
+        Assert.Contains(".Accepts<Credentials>(\"application/x-www-form-urlencoded\")", login, StringComparison.Ordinal);
+        Assert.Contains(".DisableAntiforgery()", login, StringComparison.Ordinal);
+
+        var handler = Assert.Single(methods, m => m.Name == "Login");
+        var user = Assert.Single(handler.Parameters!, p => p.Name == "user");
+        Assert.Equal("FromForm", Assert.Single(user.Attributes!).Name);
+        Assert.Contains("new Credentials(User: user ?? string.Empty, Remember: remember)", handler.Content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_InlineResponsesOfAnOperationWithoutOperationId_ProducesTheResultClassTypes()
+    {
+        // Arrange: no operationId, so both name the inline records after method + path
+        const string yaml = """
+                            openapi: 3.1.0
+                            info:
+                              title: Reports
+                              version: 1.0.0
+                            paths:
+                              /reports:
+                                get:
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: array
+                                            items:
+                                              type: object
+                                              properties:
+                                                name:
+                                                  type: string
+                                post:
+                                  responses:
+                                    '201':
+                                      description: Created
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: object
+                                            properties:
+                                              id:
+                                                type: string
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+        var registry = TypeConflictRegistry.Build(document, "Contoso", "Reports");
+        var systemTypeResolver = new SystemTypeConflictResolver([]);
+
+        // Act
+        var (_, inlineSchemas) = ResultClassExtractor.ExtractWithInlineSchemas(document, "Contoso", "Reports", registry, systemTypeResolver);
+        var (_, classes) = EndpointDefinitionExtractor.Extract(document, "Contoso", "Reports", registry, systemTypeResolver);
+
+        // Assert
+        Assert.NotNull(classes);
+        var content = string.Join("\n", classes.SelectMany(c => c.Methods ?? []).Select(m => m.Content ?? string.Empty));
+        Assert.Equal(2, inlineSchemas.Count);
+        foreach (var typeName in inlineSchemas.Keys)
+        {
+            Assert.Contains(typeName, content, StringComparison.Ordinal);
+        }
+
+        Assert.DoesNotContain("Unknown", content, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A success body declared only under another JSON media type (<c>application/hal+json</c>, a vendor
+    /// <c>+json</c>) is advertised with it - <c>Produces&lt;T&gt;()</c> alone means <c>application/json</c> - for every
+    /// success status with a body; one under <c>application/json</c> keeps the default.
+    /// </summary>
+    [Theory]
+    [InlineData("200")]
+    [InlineData("201")]
+    [InlineData("202")]
+    [InlineData("203")]
+    [InlineData("206")]
+    [InlineData("207")]
+    [InlineData("208")]
+    [InlineData("226")]
+    public void Extract_ASuccessBodyUnderAnotherJsonMediaType_IsAdvertisedWithIt(
+        string statusCode)
+    {
+        foreach (var (mediaType, expected) in new[] { ("application/hal+json", ", \"application/hal+json\")"), ("application/vnd.contoso.v1+json", ", \"application/vnd.contoso.v1+json\")"), ("application/json", null) })
+        {
+            var (_, classes) = EndpointDefinitionExtractor.Extract(SuccessBodyUnder(statusCode, mediaType), "TestApi", "Pets", registry: null, new SystemTypeConflictResolver(["Pet"]));
+            var produces = classes!
+                .SelectMany(c => c.Methods ?? [])
+                .Select(m => m.Content ?? string.Empty)
+                .SelectMany(c => c.Split('\n'))
+                .Single(line => line.Contains(".Produces<", StringComparison.Ordinal)).Trim();
+
+            if (expected is null)
+            {
+                Assert.DoesNotContain("+json", produces, StringComparison.Ordinal);
+            }
+            else
+            {
+                Assert.EndsWith(expected, produces, StringComparison.Ordinal);
+            }
+        }
+    }
+
+    /// <summary>
+    /// The chained calls of one endpoint registration: from its MapX up to the next blank line.
+    /// </summary>
+    private static string Registration(
+        string content,
+        string methodName)
+    {
+        var start = content.IndexOf($", {methodName})", StringComparison.Ordinal);
+        Assert.True(start >= 0, $"no registration for {methodName}");
+        var end = content.IndexOf("\n\n", start, StringComparison.Ordinal);
+        return end < 0 ? content[start..] : content[start..end];
+    }
+
+    private static Dictionary<string, string> EndpointBodies(string yaml)
+    {
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+        var registry = TypeConflictRegistry.Build(document, "Shop", "Shop");
+        var (_, classes) = EndpointDefinitionExtractor.Extract(
+            document,
+            "Shop",
+            registry,
+            new SystemTypeConflictResolver(document.Components?.Schemas?.Keys ?? []),
+            useMinimalApiPackage: true,
+            useValidationFilter: true);
+
+        Assert.NotNull(classes);
+        var content = string.Join("\n", classes.SelectMany(c => c.Methods ?? []).Select(m => (m.Content ?? string.Empty).Replace("\r\n", "\n", StringComparison.Ordinal)));
+
+        // Each operation's registration, from its Map call to the next one
+        return new[] { "GetCart", "ListProducts", "CreateOrder" }.ToDictionary(
+            name => name,
+            name =>
+            {
+                var start = content.IndexOf($"{name}Parameters", StringComparison.Ordinal);
+                Assert.True(start >= 0, $"{name} is not mapped:\n{content}");
+                var mapStart = content.LastIndexOf(".Map", start, StringComparison.Ordinal);
+                var next = content.IndexOf(".Map", start, StringComparison.Ordinal);
+                return content[mapStart..(next < 0 ? content.Length : next)];
+            },
+            StringComparer.Ordinal);
+    }
+
+    private static OpenApiDocument SuccessBodyUnder(
+        string statusCode,
+        string mediaType)
+        => OpenApiDocumentHelper.ParseYaml($$"""
+            openapi: 3.0.0
+            info: { title: T, version: 1.0.0 }
+            paths:
+              /pets/{petId}:
+                get:
+                  operationId: getPet
+                  parameters:
+                    - { name: petId, in: path, required: true, schema: { type: string } }
+                  responses:
+                    '{{statusCode}}':
+                      description: The pet
+                      content:
+                        '{{mediaType}}':
+                          schema: { $ref: '#/components/schemas/Pet' }
+            components:
+              schemas:
+                Pet:
+                  type: object
+                  properties:
+                    name: { type: string }
+            """);
 }

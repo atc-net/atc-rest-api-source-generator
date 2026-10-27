@@ -10,356 +10,245 @@ internal static class DiagnosticHelpers
     /// <summary>
     /// ATC_API_GEN001: Server generation error.
     /// </summary>
-    public static readonly DiagnosticDescriptor ServerGenerationError = new(
-        RuleIdentifiers.ServerGenerationError,
-        "OpenAPI Generation Error",
-        "Failed to generate API from {0}: {1}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Error,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor ServerGenerationError = Descriptor(RuleIdentifiers.ServerGenerationError);
 
     /// <summary>
     /// ATCAPI002: Server parsing error.
     /// </summary>
-    public static readonly DiagnosticDescriptor ServerParsingError = new(
-        RuleIdentifiers.ServerParsingError,
-        "OpenAPI Parsing Error",
-        "Failed to parse OpenAPI document from {0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Error,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor ServerParsingError = Descriptor(RuleIdentifiers.ServerParsingError);
 
     /// <summary>
     /// ATCAPI003: Client generation error.
     /// </summary>
-    public static readonly DiagnosticDescriptor ClientGenerationError = new(
-        RuleIdentifiers.ClientGenerationError,
-        "OpenAPI Client Generation Error",
-        "Failed to generate API client from {0}: {1}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Error,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor ClientGenerationError = Descriptor(RuleIdentifiers.ClientGenerationError);
 
     /// <summary>
     /// ATCAPI004: Client parsing error.
     /// </summary>
-    public static readonly DiagnosticDescriptor ClientParsingError = new(
-        RuleIdentifiers.ClientParsingError,
-        "OpenAPI Client Parsing Error",
-        "Failed to parse OpenAPI document for client from {0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Error,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor ClientParsingError = Descriptor(RuleIdentifiers.ClientParsingError);
 
     /// <summary>
     /// ATCAPI005: Handler scaffold generation error.
     /// </summary>
-    public static readonly DiagnosticDescriptor HandlerScaffoldGenerationError = new(
-        RuleIdentifiers.HandlerScaffoldGenerationError,
-        "Handler Scaffold Generation Error",
-        "Failed to generate handler scaffolds from {0}: {1}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Error,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor HandlerScaffoldGenerationError = Descriptor(RuleIdentifiers.HandlerScaffoldGenerationError);
 
     /// <summary>
     /// ATCAPI006: Domain parsing error.
     /// </summary>
-    public static readonly DiagnosticDescriptor DomainParsingError = new(
-        RuleIdentifiers.DomainParsingError,
-        "OpenAPI Parsing Error for Domain Generator",
-        "Failed to parse OpenAPI document from {0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Error,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor DomainParsingError = Descriptor(RuleIdentifiers.DomainParsingError);
 
     /// <summary>
     /// ATCAPI007: Output directory not specified.
     /// </summary>
-    public static readonly DiagnosticDescriptor OutputDirectoryNotSpecified = new(
-        RuleIdentifiers.OutputDirectoryNotSpecified,
-        "Output Directory Not Specified",
-        "Cannot generate handler scaffolds: no marker file found and no outputPath configured",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor OutputDirectoryNotSpecified = Descriptor(RuleIdentifiers.OutputDirectoryNotSpecified);
 
     /// <summary>
     /// ATCAPI008: Server generator requires ASP.NET Core references.
     /// </summary>
-    public static readonly DiagnosticDescriptor ServerRequiresAspNetCore = new(
-        RuleIdentifiers.ServerRequiresAspNetCore,
-        "ASP.NET Core References Required",
-        "The .atc-rest-api-server marker file requires ASP.NET Core references. Add a reference to Microsoft.AspNetCore.App or remove the marker file.",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Error,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor ServerRequiresAspNetCore = Descriptor(RuleIdentifiers.ServerRequiresAspNetCore);
+
+    /// <summary>
+    /// ATC_API_GEN022: The marker's namespace is no C# namespace and was written as one.
+    /// </summary>
+    public static readonly DiagnosticDescriptor MarkerNamespaceRewritten = Descriptor(RuleIdentifiers.MarkerNamespaceRewritten);
+
+    /// <summary>
+    /// ATC_API_GEN023: The marker sets readEnumMemberNames.
+    /// </summary>
+    public static readonly DiagnosticDescriptor ReadEnumMemberNamesOn = Descriptor(RuleIdentifiers.ReadEnumMemberNamesOn);
+
+    /// <summary>
+    /// ATC_API_AOT001: The Request Delegate Generator is on and does not see the generated endpoints.
+    /// </summary>
+    public static readonly DiagnosticDescriptor RequestDelegateGeneratorDoesNotSeeTheEndpoints = Descriptor(RuleIdentifiers.RequestDelegateGeneratorDoesNotSeeTheEndpoints);
+
+    /// <summary>
+    /// ATC_API_AOT002: The root namespace's first segment binds to an ASP.NET Core name inside RDG's generated file.
+    /// </summary>
+    public static readonly DiagnosticDescriptor RootNamespaceBindsToAnAspNetCoreName = Descriptor(RuleIdentifiers.RootNamespaceBindsToAnAspNetCoreName);
 
     /// <summary>
     /// ATCAPI009: Domain generator requires ASP.NET Core references.
     /// </summary>
-    public static readonly DiagnosticDescriptor DomainRequiresAspNetCore = new(
-        RuleIdentifiers.DomainRequiresAspNetCore,
-        "ASP.NET Core References Required",
-        "The .atc-rest-api-server-handlers marker file requires ASP.NET Core references. Add a reference to Microsoft.AspNetCore.App or remove the marker file.",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Error,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor DomainRequiresAspNetCore = Descriptor(RuleIdentifiers.DomainRequiresAspNetCore);
 
     /// <summary>
     /// ATCAPI010: Endpoint injection generation error.
     /// </summary>
-    public static readonly DiagnosticDescriptor EndpointInjectionGenerationError = new(
-        RuleIdentifiers.EndpointInjectionGenerationError,
-        "Endpoint Injection Generation Error",
-        "Failed to generate endpoint injection for {0}: {1}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Error,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor EndpointInjectionGenerationError = Descriptor(RuleIdentifiers.EndpointInjectionGenerationError);
 
     /// <summary>
     /// ATCAPI011: No endpoints found for endpoint injection.
     /// </summary>
-    public static readonly DiagnosticDescriptor NoEndpointsFoundForInjection = new(
-        RuleIdentifiers.NoEndpointsFoundForInjection,
-        "No Endpoints Found for Injection",
-        "No endpoint interfaces found matching project name '{0}'. Ensure the client generator has run and generated endpoints in namespace '{0}.Generated.*.Endpoints.Interfaces'.",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor NoEndpointsFoundForInjection = Descriptor(RuleIdentifiers.NoEndpointsFoundForInjection);
 
     /// <summary>
     /// ATC_API_GEN010: Generation summary (Info level).
     /// </summary>
-    public static readonly DiagnosticDescriptor GenerationSummary = new(
-        RuleIdentifiers.GenerationSummary,
-        "ATC API Generation Summary",
-        "{0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Info,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor GenerationSummary = Descriptor(RuleIdentifiers.GenerationSummary);
 
     /// <summary>
     /// ATC_API_GEN011: Contracts namespace cannot be auto-detected.
     /// </summary>
-    public static readonly DiagnosticDescriptor ContractsNamespaceAmbiguous = new(
-        RuleIdentifiers.ContractsNamespaceAmbiguous,
-        "Contracts Namespace Cannot Be Auto-Detected",
-        "Cannot auto-detect contracts namespace for Domain project '{0}'. Multiple sibling .atc-rest-api-server markers exist and none match the directory-name convention (<X>.Domain ↔ <X>.Contracts). Set 'contractsNamespace' explicitly in .atc-rest-api-server-handlers.",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Error,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor ContractsNamespaceAmbiguous = Descriptor(RuleIdentifiers.ContractsNamespaceAmbiguous);
 
     /// <summary>
     /// ATC_API_GEN012: A hand-written handler shadows a scaffolded stub of the same name.
     /// </summary>
-    public static readonly DiagnosticDescriptor HandlerStubShadowed = new(
-        RuleIdentifiers.HandlerStubShadowed,
-        "Handler Stub Shadowed by User Handler",
-        "Handler '{0}' is implemented in '{1}' and also has a leftover scaffolded stub in '{2}'. The user handler is registered; delete the stub to avoid confusion.",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor HandlerStubShadowed = Descriptor(RuleIdentifiers.HandlerStubShadowed);
 
     /// <summary>
-    /// ATC_API_GEN013: A marker file could not be deserialized; default configuration was used.
+    /// ATC_API_GEN013: A marker file could not be read - no JSON, or a value of the wrong kind; nothing is generated.
     /// </summary>
-    public static readonly DiagnosticDescriptor MarkerConfigParseError = new(
-        RuleIdentifiers.MarkerConfigParseError,
-        "Marker File Could Not Be Parsed",
-        "The marker file '{0}' could not be parsed ({1}); using default configuration. Fix the JSON to apply your settings.",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor MarkerConfigParseError = Descriptor(RuleIdentifiers.MarkerConfigParseError);
+
+    /// <summary>
+    /// ATC_API_GEN020: A project has two marker files of one kind; nothing is generated.
+    /// </summary>
+    public static readonly DiagnosticDescriptor MultipleMarkerFiles = Descriptor(RuleIdentifiers.MultipleMarkerFiles);
+
+    /// <summary>
+    /// ATC_API_GEN021: A project has two base specifications; nothing is generated.
+    /// </summary>
+    public static readonly DiagnosticDescriptor MultipleSpecifications = Descriptor(RuleIdentifiers.MultipleSpecifications);
+
+    /// <summary>
+    /// ATC_API_GEN014: A marker file has a setting the generator does not have, or a value a setting does not know.
+    /// </summary>
+    public static readonly DiagnosticDescriptor MarkerConfigUnknownSetting = Descriptor(RuleIdentifiers.MarkerConfigUnknownSetting);
+
+    /// <summary>
+    /// ATC_API_GEN015: An overlay the marker file lists is not an AdditionalFiles item of the project.
+    /// </summary>
+    public static readonly DiagnosticDescriptor OverlayNotFound = Descriptor(RuleIdentifiers.OverlayNotFound);
+
+    /// <summary>
+    /// ATC_API_GEN016: An overlay is invalid or one of its actions cannot be applied.
+    /// </summary>
+    public static readonly DiagnosticDescriptor OverlayInvalid = Descriptor(RuleIdentifiers.OverlayInvalid);
+
+    /// <summary>
+    /// ATC_API_GEN017: An overlay action's target selects nothing.
+    /// </summary>
+    public static readonly DiagnosticDescriptor OverlayTargetSelectsNothing = Descriptor(RuleIdentifiers.OverlayTargetSelectsNothing);
+
+    /// <summary>
+    /// ATC_API_SRV002: An operation declares its 400 as a string while the ValidationFilter is on.
+    /// </summary>
+    public static readonly DiagnosticDescriptor ValidationBadRequestDeclaredAsString = Descriptor(RuleIdentifiers.ValidationBadRequestDeclaredAsString);
+
+    /// <summary>
+    /// ATC_API_GEN019: A handler scaffold cannot be written to disk.
+    /// </summary>
+    public static readonly DiagnosticDescriptor HandlerScaffoldNotWritten = Descriptor(RuleIdentifiers.HandlerScaffoldNotWritten);
+
+    /// <summary>
+    /// ATC_API_GEN024: An operation has no handler, and the scaffold is not written (AtcRestApiScaffoldHandlers is false).
+    /// </summary>
+    public static readonly DiagnosticDescriptor HandlerNotImplemented = Descriptor(RuleIdentifiers.HandlerNotImplemented);
+
+    /// <summary>
+    /// ATC_API_GEN018: An overlay file is an AdditionalFiles item, but the marker file does not list it.
+    /// </summary>
+    public static readonly DiagnosticDescriptor OverlayNotListed = Descriptor(RuleIdentifiers.OverlayNotListed);
 
     /// <summary>
     /// ATCAPI012: Client EndpointPerOperation mode requires Atc.Rest.Client reference.
     /// </summary>
-    public static readonly DiagnosticDescriptor ClientRequiresAtcRestClient = new(
-        RuleIdentifiers.ClientRequiresAtcRestClient,
-        "Atc.Rest.Client Reference Required",
-        "The EndpointPerOperation generation mode requires a reference to the Atc.Rest.Client NuGet package. Add a reference to Atc.Rest.Client or change generationMode to TypedClient.",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Error,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor ClientRequiresAtcRestClient = Descriptor(RuleIdentifiers.ClientRequiresAtcRestClient);
 
     /// <summary>
-    /// ATCAPI013: Rate limiting extensions require Microsoft.AspNetCore.RateLimiting reference.
+    /// ATC_API_DEP011: Client EndpointPerOperation mode (and the typed client's Result style) requires Atc.Rest.Client 2.7.0 or later.
     /// </summary>
-    public static readonly DiagnosticDescriptor RateLimitingRequiresPackage = new(
-        RuleIdentifiers.RateLimitingRequiresPackage,
-        "Rate Limiting Package Recommended",
-        "The OpenAPI specification contains x-ratelimit-* extensions. Ensure the Microsoft.AspNetCore.RateLimiting package is installed in the consuming API project.",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor AtcRestClientTooOld = Descriptor(RuleIdentifiers.AtcRestClientTooOld);
+
+    /// <summary>
+    /// ATC_API_DEP013: The server builds on Atc.Rest.MinimalApi and the project references a version older than 3.1.1.
+    /// </summary>
+    public static readonly DiagnosticDescriptor MinimalApiTooOld = Descriptor(RuleIdentifiers.MinimalApiTooOld);
+
+    /// <summary>
+    /// ATC_API_DEP014: A TypedClient uses a type of Atc.Rest.Client and the project does not reference the package.
+    /// </summary>
+    public static readonly DiagnosticDescriptor TypedClientRequiresAtcRestClient = Descriptor(RuleIdentifiers.TypedClientRequiresAtcRestClient);
+
+    /// <summary>
+    /// ATC_API_DEP012: SignalR hubs are declared and the client project has no Microsoft.AspNetCore.SignalR.Client.
+    /// </summary>
+    public static readonly DiagnosticDescriptor SignalRClientPackageRecommended = Descriptor(RuleIdentifiers.SignalRClientPackageRecommended);
 
     /// <summary>
     /// ATCAPI014: Resilience extensions require Microsoft.Extensions.Http.Resilience reference.
     /// </summary>
-    public static readonly DiagnosticDescriptor ResilienceRequiresPackage = new(
-        RuleIdentifiers.ResilienceRequiresPackage,
-        "HTTP Resilience Package Recommended",
-        "The OpenAPI specification contains x-retry-* extensions. Ensure the Microsoft.Extensions.Http.Resilience package is installed in the consuming client project.",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor ResilienceRequiresPackage = Descriptor(RuleIdentifiers.ResilienceRequiresPackage);
 
     /// <summary>
-    /// ATCAPI015: JWT Bearer security requires Microsoft.AspNetCore.Authentication.JwtBearer reference.
+    /// ATC_API_DEP006: a bearer scheme asks for a handler registered as "Bearer", and no package that provides one is referenced.
     /// </summary>
-    public static readonly DiagnosticDescriptor JwtBearerRequiresPackage = new(
-        RuleIdentifiers.JwtBearerRequiresPackage,
-        "JWT Bearer Authentication Package Recommended",
-        "The OpenAPI specification contains JWT Bearer security scheme. Ensure the Microsoft.AspNetCore.Authentication.JwtBearer package is installed in the consuming API project.",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor JwtBearerRequiresPackage = Descriptor(RuleIdentifiers.JwtBearerRequiresPackage);
 
     /// <summary>
-    /// ATC_API_DEP007: UseMinimalApiPackage enabled but Atc.Rest.MinimalApi package not referenced.
+    /// ATC_API_DEP007: useMinimalApiPackage, useValidationFilter or useGlobalErrorHandler enabled but Atc.Rest.MinimalApi
+    /// package not referenced.
     /// </summary>
-    public static readonly DiagnosticDescriptor MinimalApiPackageRequired = new(
-        RuleIdentifiers.MinimalApiPackageRequired,
-        "Atc.Rest.MinimalApi Package Required",
-        "The marker file specifies useMinimalApiPackage: true but Atc.Rest.MinimalApi package is not referenced. Add a reference to Atc.Rest.MinimalApi or set useMinimalApiPackage to false or auto.",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Error,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor MinimalApiPackageRequired = Descriptor(RuleIdentifiers.MinimalApiPackageRequired);
 
     /// <summary>
     /// ATC_API_DEP008: InjectLogger enabled but logging abstractions not available.
     /// </summary>
-    public static readonly DiagnosticDescriptor LoggingRequiresPackage = new(
-        RuleIdentifiers.LoggingRequiresPackage,
-        "Microsoft.Extensions.Logging Package Required",
-        "The marker file specifies injectLogger: true but Microsoft.Extensions.Logging.Abstractions is not available. Add a FrameworkReference to Microsoft.AspNetCore.App or a PackageReference to Microsoft.Extensions.Logging.Abstractions.",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor LoggingRequiresPackage = Descriptor(RuleIdentifiers.LoggingRequiresPackage);
 
     /// <summary>
     /// ATC_API_DEP009: Health check config conflicts with health paths defined in OpenAPI spec.
     /// </summary>
-    public static readonly DiagnosticDescriptor HealthCheckPathConflict = new(
-        RuleIdentifiers.HealthCheckPathConflict,
-        "Health Check Path Conflict",
-        "The marker file has healthChecks.enabled but the OpenAPI spec also defines paths under '{0}'. This will produce duplicate endpoint registrations. Remove the health paths from the spec or disable healthChecks in the marker file.",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor HealthCheckPathConflict = Descriptor(RuleIdentifiers.HealthCheckPathConflict);
 
     /// <summary>
     /// ATC_API_DEP010: Atc.Rest.HealthChecks package recommended for structured JSON health responses.
     /// </summary>
-    public static readonly DiagnosticDescriptor HealthChecksPackageRecommended = new(
-        RuleIdentifiers.HealthChecksPackageRecommended,
-        "Atc.Rest.HealthChecks Package Recommended",
-        "Health checks are enabled but Atc.Rest.HealthChecks package is not referenced. Add a PackageReference to Atc.Rest.HealthChecks for structured JSON health responses with per-check details.",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Info,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor HealthChecksPackageRecommended = Descriptor(RuleIdentifiers.HealthChecksPackageRecommended);
 
     // ========== OpenAPI Validation Diagnostics ==========
 
     /// <summary>
-    /// ATCAPI_VAL001: OpenAPI core parsing error from Microsoft.OpenApi library.
+    /// ATC_API_VAL001: OpenAPI core parsing error from Microsoft.OpenApi library.
     /// </summary>
-    public static readonly DiagnosticDescriptor OpenApiCoreError = new(
-        RuleIdentifiers.OpenApiCoreError,
-        "OpenAPI Core Parsing Error",
-        "{0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Error,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor OpenApiCoreError = Descriptor(RuleIdentifiers.OpenApiCoreError);
 
     /// <summary>
-    /// ATCAPI_VAL002: OpenAPI 2.0 not supported - must use OpenAPI 3.0.x.
+    /// ATC_API_VAL002: OpenAPI 2.0 not supported - must use OpenAPI 3.0.x.
     /// </summary>
-    public static readonly DiagnosticDescriptor OpenApi20NotSupported = new(
-        RuleIdentifiers.OpenApi20NotSupported,
-        "OpenAPI 2.0 Not Supported",
-        "{0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Error,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor OpenApi20NotSupported = Descriptor(RuleIdentifiers.OpenApi20NotSupported);
 
     /// <summary>
-    /// ATCAPI_NAM001: OperationId must start with lowercase letter (camelCase).
+    /// ATC_API_NAM001: OperationId must start with lowercase letter (camelCase).
     /// </summary>
-    public static readonly DiagnosticDescriptor OperationIdMustBeCamelCase = new(
-        RuleIdentifiers.OperationIdMustBeCamelCase,
-        "OperationId Must Use camelCase",
-        "{0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor OperationIdMustBeCamelCase = Descriptor(RuleIdentifiers.OperationIdMustBeCamelCase);
 
     /// <summary>
-    /// ATCAPI_OPR002: OperationId not using correct casing style.
+    /// ATC_API_NAM002: Model name must use PascalCase.
     /// </summary>
-    public static readonly DiagnosticDescriptor OperationIdInvalidCasing = new(
-        RuleIdentifiers.OperationIdCasing,
-        "OperationId Invalid Casing Style",
-        "{0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor ModelNameMustBePascalCase = Descriptor(RuleIdentifiers.ModelNameMustBePascalCase);
 
     /// <summary>
-    /// ATCAPI_NAM002: Model name must use PascalCase.
+    /// ATC_API_NAM003: Property name must use camelCase.
     /// </summary>
-    public static readonly DiagnosticDescriptor ModelNameMustBePascalCase = new(
-        RuleIdentifiers.ModelNameMustBePascalCase,
-        "Model Name Must Use PascalCase",
-        "{0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor PropertyNameMustBeCamelCase = Descriptor(RuleIdentifiers.PropertyNameMustBeCamelCase);
 
     /// <summary>
-    /// ATCAPI_NAM003: Property name must use camelCase.
+    /// ATC_API_NAM004: Parameter name must use camelCase.
     /// </summary>
-    public static readonly DiagnosticDescriptor PropertyNameMustBeCamelCase = new(
-        RuleIdentifiers.PropertyNameMustBeCamelCase,
-        "Property Name Must Use camelCase",
-        "{0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor ParameterNameMustBeCamelCase = Descriptor(RuleIdentifiers.ParameterNameMustBeCamelCase);
 
     /// <summary>
-    /// ATCAPI_NAM004: Parameter name must use camelCase.
+    /// ATC_API_NAM005: Enum value must use PascalCase or UPPER_SNAKE_CASE.
     /// </summary>
-    public static readonly DiagnosticDescriptor ParameterNameMustBeCamelCase = new(
-        RuleIdentifiers.ParameterNameMustBeCamelCase,
-        "Parameter Name Must Use camelCase",
-        "{0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor EnumValueCasing = Descriptor(RuleIdentifiers.EnumValueCasing);
 
     /// <summary>
-    /// ATCAPI_NAM005: Enum value must use PascalCase or UPPER_SNAKE_CASE.
+    /// ATC_API_NAM006: Tag name must use kebab-case.
     /// </summary>
-    public static readonly DiagnosticDescriptor EnumValueCasing = new(
-        RuleIdentifiers.EnumValueCasing,
-        "Enum Value Must Use PascalCase or UPPER_SNAKE_CASE",
-        "{0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
-
-    /// <summary>
-    /// ATCAPI_NAM006: Tag name must use kebab-case.
-    /// </summary>
-    public static readonly DiagnosticDescriptor TagNameMustBeKebabCase = new(
-        RuleIdentifiers.TagNameMustBeKebabCase,
-        "Tag Name Must Use kebab-case",
-        "{0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor TagNameMustBeKebabCase = Descriptor(RuleIdentifiers.TagNameMustBeKebabCase);
 
     /// <summary>
     /// Reports a server generation error.
@@ -373,7 +262,7 @@ internal static class DiagnosticHelpers
             ServerGenerationError,
             Location.None,
             filePath,
-            exception.Message));
+            DescribeException(exception)));
     }
 
     /// <summary>
@@ -401,7 +290,7 @@ internal static class DiagnosticHelpers
             ClientGenerationError,
             Location.None,
             filePath,
-            exception.Message));
+            DescribeException(exception)));
     }
 
     /// <summary>
@@ -429,7 +318,7 @@ internal static class DiagnosticHelpers
             HandlerScaffoldGenerationError,
             Location.None,
             filePath,
-            exception.Message));
+            DescribeException(exception)));
     }
 
     /// <summary>
@@ -468,6 +357,60 @@ internal static class DiagnosticHelpers
     }
 
     /// <summary>
+    /// The root namespace of the generated code - the marker's <c>namespace</c>, else an <c>info.title</c> that
+    /// already is a namespace, else the specification file's name (<see cref="NamespaceResolver.Resolve"/>): the one
+    /// rule of every generator. A marker namespace that had to be rewritten is reported (ATC_API_GEN022).
+    /// </summary>
+    /// <param name="context">The source-production context the diagnostic is reported to.</param>
+    /// <param name="markerNamespace">The marker's <c>namespace</c>, if any.</param>
+    /// <param name="document">The specification.</param>
+    /// <param name="specificationPath">The path of the specification file (the base file of a multi-part one).</param>
+    /// <returns>The root namespace.</returns>
+    public static string ResolveRootNamespace(
+        SourceProductionContext context,
+        string? markerNamespace,
+        OpenApiDocument? document,
+        string specificationPath)
+    {
+        var resolved = NamespaceResolver.Resolve(markerNamespace, document?.Info?.Title, specificationPath);
+        if (!string.IsNullOrWhiteSpace(markerNamespace) &&
+            !string.Equals(markerNamespace!.Trim(), resolved, StringComparison.Ordinal))
+        {
+            context.ReportDiagnostic(Diagnostic.Create(MarkerNamespaceRewritten, Location.None, markerNamespace.Trim(), resolved));
+        }
+
+        return resolved;
+    }
+
+    /// <summary>
+    /// Reports that the marker sets <c>readEnumMemberNames</c> (ATC_API_GEN023), so a rollout setting is not left on
+    /// unnoticed.
+    /// </summary>
+    /// <param name="context">The source-production context the diagnostic is reported to.</param>
+    /// <param name="markerFileName">The marker file's name.</param>
+    public static void ReportReadEnumMemberNamesOn(
+        SourceProductionContext context,
+        string markerFileName)
+        => context.ReportDiagnostic(Diagnostic.Create(ReadEnumMemberNamesOn, Location.None, markerFileName));
+
+    /// <summary>
+    /// Reports that the Request Delegate Generator is on and does not see the generated endpoints.
+    /// </summary>
+    public static void ReportRequestDelegateGeneratorDoesNotSeeTheEndpoints(
+        SourceProductionContext context)
+        => context.ReportDiagnostic(Diagnostic.Create(RequestDelegateGeneratorDoesNotSeeTheEndpoints, Location.None));
+
+    /// <summary>
+    /// Reports that the root namespace's first segment binds to an ASP.NET Core name in RDG's generated file.
+    /// </summary>
+    public static void ReportRootNamespaceBindsToAnAspNetCoreName(
+        SourceProductionContext context,
+        string rootNamespace,
+        string segment,
+        string what)
+        => context.ReportDiagnostic(Diagnostic.Create(RootNamespaceBindsToAnAspNetCoreName, Location.None, rootNamespace, segment, what));
+
+    /// <summary>
     /// Reports that the domain generator requires ASP.NET Core references.
     /// </summary>
     public static void ReportDomainRequiresAspNetCore(
@@ -504,7 +447,7 @@ internal static class DiagnosticHelpers
             EndpointInjectionGenerationError,
             Location.None,
             className,
-            exception.Message));
+            DescribeException(exception)));
     }
 
     /// <summary>
@@ -527,10 +470,11 @@ internal static class DiagnosticHelpers
     /// <param name="specName">Name of the OpenAPI specification file.</param>
     /// <param name="generatorType">The type of generator ("Server" or "Client").</param>
     /// <param name="models">Number of models generated.</param>
-    /// <param name="handlers">Number of handlers generated.</param>
+    /// <param name="handlers">Number of handlers (a server) or client methods (a client) generated.</param>
     /// <param name="endpoints">Number of endpoints generated.</param>
     /// <param name="warnings">Number of validation warnings.</param>
     /// <param name="errors">Number of validation errors.</param>
+    /// <param name="handlersNoun">What <paramref name="handlers"/> counts: handlers, or client methods.</param>
     public static void ReportGenerationSummary(
         SourceProductionContext context,
         string specName,
@@ -539,9 +483,10 @@ internal static class DiagnosticHelpers
         int handlers,
         int endpoints,
         int warnings,
-        int errors)
+        int errors,
+        string handlersNoun = "handlers")
     {
-        var message = $"[{generatorType}] Generated from {specName}: {models} models, {handlers} handlers, {endpoints} endpoints. Validation: {errors} errors, {warnings} warnings.";
+        var message = $"[{generatorType}] Generated from {specName}: {models} models, {handlers} {handlersNoun}, {endpoints} endpoints. Validation: {errors} errors, {warnings} warnings.";
         context.ReportDiagnostic(Diagnostic.Create(
             GenerationSummary,
             Location.None,
@@ -566,18 +511,70 @@ internal static class DiagnosticHelpers
     }
 
     /// <summary>
+    /// Reports every setting of a marker file the generator does not have, and every value a setting does not know
+    /// (the setting is ignored, the value gives the setting its default).
+    /// </summary>
+    public static void ReportUnknownMarkerSettings(
+        SourceProductionContext context,
+        string markerPath,
+        IReadOnlyList<string> problems)
+    {
+        foreach (var problem in problems)
+        {
+            context.ReportDiagnostic(Diagnostic.Create(
+                MarkerConfigUnknownSetting,
+                Location.None,
+                markerPath,
+                problem));
+        }
+    }
+
+    /// <summary>
     /// Reports that a marker file could not be parsed and default configuration was used.
     /// </summary>
     public static void ReportMarkerConfigParseError(
         SourceProductionContext context,
         string markerPath,
-        Exception exception)
+        Exception exception,
+        Type configType)
     {
         context.ReportDiagnostic(Diagnostic.Create(
             MarkerConfigParseError,
             Location.None,
             markerPath,
-            exception.Message));
+            MarkerConfigInspector.DescribeReadError(exception, configType)));
+    }
+
+    /// <summary>
+    /// Reports that a project has more than one marker file of one kind (ATC_API_GEN020).
+    /// </summary>
+    public static void ReportMultipleMarkerFiles(
+        SourceProductionContext context,
+        IReadOnlyList<string> markerPaths)
+    {
+        context.ReportDiagnostic(Diagnostic.Create(
+            MultipleMarkerFiles,
+            Location.None,
+            markerPaths.Count,
+            Path.GetFileName(markerPaths[0]),
+            string.Join(", ", markerPaths)));
+    }
+
+    /// <summary>
+    /// Reports that the project has more than one base specification (ATC_API_GEN021); nothing is generated.
+    /// </summary>
+    /// <param name="context">The source production context.</param>
+    /// <param name="specificationPaths">The base specifications, the one the generator found first ahead.</param>
+    public static void ReportMultipleSpecifications(
+        SourceProductionContext context,
+        IReadOnlyList<string> specificationPaths)
+    {
+        context.ReportDiagnostic(Diagnostic.Create(
+            MultipleSpecifications,
+            Location.None,
+            specificationPaths.Count,
+            string.Join(", ", specificationPaths),
+            Path.GetFileNameWithoutExtension(specificationPaths[0])));
     }
 
     /// <summary>
@@ -592,14 +589,49 @@ internal static class DiagnosticHelpers
     }
 
     /// <summary>
-    /// Reports that rate limiting extensions require Microsoft.AspNetCore.RateLimiting package.
+    /// Reports that the client EndpointPerOperation mode requires a newer Atc.Rest.Client than the one referenced.
     /// </summary>
-    public static void ReportRateLimitingRequiresPackage(
-        SourceProductionContext context)
+    public static void ReportSignalRClientPackageRecommended(
+        SourceProductionContext context,
+        IReadOnlyList<string> hubClients)
     {
         context.ReportDiagnostic(Diagnostic.Create(
-            RateLimitingRequiresPackage,
-            Location.None));
+            SignalRClientPackageRecommended,
+            Location.None,
+            hubClients.Count,
+            string.Join(", ", hubClients)));
+    }
+
+    public static void ReportTypedClientRequiresAtcRestClient(
+        SourceProductionContext context,
+        string reason)
+        => context.ReportDiagnostic(Diagnostic.Create(
+            TypedClientRequiresAtcRestClient,
+            Location.None,
+            reason));
+
+    public static void ReportMinimalApiTooOld(
+        SourceProductionContext context,
+        Version minimum,
+        Version referenced)
+    {
+        context.ReportDiagnostic(Diagnostic.Create(
+            MinimalApiTooOld,
+            Location.None,
+            minimum.ToString(3),
+            referenced.ToString(3)));
+    }
+
+    public static void ReportAtcRestClientTooOld(
+        SourceProductionContext context,
+        Version minimum,
+        Version referenced)
+    {
+        context.ReportDiagnostic(Diagnostic.Create(
+            AtcRestClientTooOld,
+            Location.None,
+            minimum.ToString(3),
+            referenced.ToString(3)));
     }
 
     /// <summary>
@@ -625,14 +657,57 @@ internal static class DiagnosticHelpers
     }
 
     /// <summary>
-    /// Reports that useMinimalApiPackage is enabled but Atc.Rest.MinimalApi package is not referenced.
+    /// Reports ATC_API_GEN019: a handler scaffold cannot be written to disk.
     /// </summary>
+    /// <param name="context">The source production context.</param>
+    /// <param name="handlerName">The handler.</param>
+    /// <param name="filePath">Where the scaffold was to be written.</param>
+    /// <param name="exception">Why it could not be.</param>
+    public static void ReportHandlerScaffoldNotWritten(
+        SourceProductionContext context,
+        string handlerName,
+        string filePath,
+        Exception exception)
+    {
+        context.ReportDiagnostic(Diagnostic.Create(
+            HandlerScaffoldNotWritten,
+            Location.None,
+            handlerName,
+            filePath,
+            exception.Message));
+    }
+
+    /// <summary>
+    /// Reports ATC_API_GEN024: an operation has no handler, and the scaffold is not written into the project.
+    /// </summary>
+    /// <param name="context">The source production context.</param>
+    /// <param name="handlerName">The handler's class name.</param>
+    /// <param name="filePath">The file the scaffold would be written to.</param>
+    public static void ReportHandlerNotImplemented(
+        SourceProductionContext context,
+        string handlerName,
+        string filePath)
+    {
+        context.ReportDiagnostic(Diagnostic.Create(
+            HandlerNotImplemented,
+            Location.None,
+            handlerName,
+            filePath));
+    }
+
+    /// <summary>
+    /// Reports that a setting that builds on Atc.Rest.MinimalApi is enabled but the package is not referenced.
+    /// </summary>
+    /// <param name="context">The source production context.</param>
+    /// <param name="setting">The marker setting that asks for the package.</param>
     public static void ReportMinimalApiPackageRequired(
-        SourceProductionContext context)
+        SourceProductionContext context,
+        string setting)
     {
         context.ReportDiagnostic(Diagnostic.Create(
             MinimalApiPackageRequired,
-            Location.None));
+            Location.None,
+            setting));
     }
 
     /// <summary>
@@ -670,1279 +745,263 @@ internal static class DiagnosticHelpers
             Location.None));
     }
 
-    // ========== OpenAPI Validation Reporting Methods ==========
-
-    /// <summary>
-    /// Reports an OpenAPI core parsing error (ATCAPI_VAL001).
-    /// </summary>
-    /// <param name="sourceFilePath">Path to the OpenAPI file.</param>
-    /// <param name="message">Error message.</param>
-    /// <returns>Diagnostic to report.</returns>
-    public static Diagnostic ReportOpenApiCoreError(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            OpenApiCoreError,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports OpenAPI 2.0 not supported error (ATCAPI_VAL002).
-    /// </summary>
-    /// <param name="sourceFilePath">Path to the OpenAPI file.</param>
-    /// <param name="message">Error message.</param>
-    /// <returns>Diagnostic to report.</returns>
-    public static Diagnostic ReportOpenApi20NotSupported(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            OpenApi20NotSupported,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports operationId must use camelCase warning (ATCAPI_NAM001).
-    /// </summary>
-    /// <param name="sourceFilePath">Path to the OpenAPI file.</param>
-    /// <param name="message">Warning message.</param>
-    /// <returns>Diagnostic to report.</returns>
-    public static Diagnostic ReportOperationIdMustBeCamelCase(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            OperationIdMustBeCamelCase,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports operationId invalid casing style warning (ATCAPI_OPR002).
-    /// </summary>
-    /// <param name="sourceFilePath">Path to the OpenAPI file.</param>
-    /// <param name="message">Warning message.</param>
-    /// <returns>Diagnostic to report.</returns>
-    public static Diagnostic ReportOperationIdInvalidCasing(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            OperationIdInvalidCasing,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports model name must use PascalCase warning (ATCAPI_NAM002).
-    /// </summary>
-    /// <param name="sourceFilePath">Path to the OpenAPI file.</param>
-    /// <param name="message">Warning message.</param>
-    /// <returns>Diagnostic to report.</returns>
-    public static Diagnostic ReportModelNameMustBePascalCase(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            ModelNameMustBePascalCase,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports property name must use camelCase warning (ATCAPI_NAM003).
-    /// </summary>
-    /// <param name="sourceFilePath">Path to the OpenAPI file.</param>
-    /// <param name="message">Warning message.</param>
-    /// <returns>Diagnostic to report.</returns>
-    public static Diagnostic ReportPropertyNameMustBeCamelCase(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            PropertyNameMustBeCamelCase,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports parameter name must use camelCase warning (ATCAPI_NAM004).
-    /// </summary>
-    /// <param name="sourceFilePath">Path to the OpenAPI file.</param>
-    /// <param name="message">Warning message.</param>
-    /// <returns>Diagnostic to report.</returns>
-    public static Diagnostic ReportParameterNameMustBeCamelCase(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            ParameterNameMustBeCamelCase,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports enum value casing warning (ATCAPI_NAM005).
-    /// </summary>
-    /// <param name="sourceFilePath">Path to the OpenAPI file.</param>
-    /// <param name="message">Warning message.</param>
-    /// <returns>Diagnostic to report.</returns>
-    public static Diagnostic ReportEnumValueCasing(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            EnumValueCasing,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports tag name must use kebab-case warning (ATCAPI_NAM006).
-    /// </summary>
-    /// <param name="sourceFilePath">Path to the OpenAPI file.</param>
-    /// <param name="message">Warning message.</param>
-    /// <returns>Diagnostic to report.</returns>
-    public static Diagnostic ReportTagNameMustBeKebabCase(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            TagNameMustBeKebabCase,
-            Location.None,
-            message);
-
     // ========== Schema Validation Diagnostics ==========
 
     /// <summary>
-    /// ATCAPI_SCH001: Missing title on array type.
+    /// ATC_API_SCH001: Missing title on array type.
     /// </summary>
-    public static readonly DiagnosticDescriptor ArrayTitleMissing = new(
-        RuleIdentifiers.ArrayTitleMissing,
-        "Missing Title on Array Type",
-        "{0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor ArrayTitleMissing = Descriptor(RuleIdentifiers.ArrayTitleMissing);
 
     /// <summary>
-    /// ATCAPI_SCH002: Array type title not starting with uppercase.
+    /// ATC_API_SCH002: Array type title not starting with uppercase.
     /// </summary>
-    public static readonly DiagnosticDescriptor ArrayTitleNotUppercase = new(
-        RuleIdentifiers.ArrayTitleNotUppercase,
-        "Array Title Not Starting With Uppercase",
-        "{0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor ArrayTitleNotUppercase = Descriptor(RuleIdentifiers.ArrayTitleNotUppercase);
 
     /// <summary>
-    /// ATCAPI_SCH003: Missing title on object type.
+    /// ATC_API_SCH003: Missing title on object type.
     /// </summary>
-    public static readonly DiagnosticDescriptor ObjectTitleMissing = new(
-        RuleIdentifiers.ObjectTitleMissing,
-        "Missing Title on Object Type",
-        "{0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor ObjectTitleMissing = Descriptor(RuleIdentifiers.ObjectTitleMissing);
 
     /// <summary>
-    /// ATCAPI_SCH004: Object type title not starting with uppercase.
+    /// ATC_API_SCH004: Object type title not starting with uppercase.
     /// </summary>
-    public static readonly DiagnosticDescriptor ObjectTitleNotUppercase = new(
-        RuleIdentifiers.ObjectTitleNotUppercase,
-        "Object Title Not Starting With Uppercase",
-        "{0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor ObjectTitleNotUppercase = Descriptor(RuleIdentifiers.ObjectTitleNotUppercase);
 
     /// <summary>
-    /// ATCAPI_SCH005: Implicit object definition in array property not supported.
+    /// ATC_API_SCH005: Implicit object definition in array property not supported.
     /// </summary>
-    public static readonly DiagnosticDescriptor ImplicitArrayObjectNotSupported = new(
-        RuleIdentifiers.ImplicitArrayObjectNotSupported,
-        "Implicit Object Definition in Array Not Supported",
-        "{0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Error,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor ImplicitArrayObjectNotSupported = Descriptor(RuleIdentifiers.ImplicitArrayObjectNotSupported);
 
     /// <summary>
-    /// ATCAPI_SCH006: Object name not using correct casing style.
+    /// ATC_API_SCH006: Object name not using correct casing style.
     /// </summary>
-    public static readonly DiagnosticDescriptor ObjectNameCasing = new(
-        RuleIdentifiers.ObjectNameCasing,
-        "Object Name Must Use PascalCase",
-        "{0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor ObjectNameCasing = Descriptor(RuleIdentifiers.ObjectNameCasing);
 
     /// <summary>
-    /// ATCAPI_SCH007: Object property name not using correct casing style.
+    /// ATC_API_SCH007: Object property name not using correct casing style.
     /// </summary>
-    public static readonly DiagnosticDescriptor PropertyNameCasing = new(
-        RuleIdentifiers.PropertyNameCasing,
-        "Property Name Must Use camelCase",
-        "{0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor PropertyNameCasing = Descriptor(RuleIdentifiers.PropertyNameCasing);
 
     /// <summary>
-    /// ATCAPI_SCH008: Enum name not using correct casing style.
+    /// ATC_API_SCH008: Enum name not using correct casing style.
     /// </summary>
-    public static readonly DiagnosticDescriptor EnumNameCasing = new(
-        RuleIdentifiers.EnumNameCasing,
-        "Enum Name Must Use PascalCase",
-        "{0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor EnumNameCasing = Descriptor(RuleIdentifiers.EnumNameCasing);
 
     /// <summary>
-    /// ATCAPI_SCH009: Array property missing data type specification.
+    /// ATC_API_SCH009: Array property missing data type specification.
     /// </summary>
-    public static readonly DiagnosticDescriptor ArrayPropertyMissingType = new(
-        RuleIdentifiers.ArrayPropertyMissingType,
-        "Array Property Missing Data Type",
-        "{0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Error,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor ArrayPropertyMissingType = Descriptor(RuleIdentifiers.ArrayPropertyMissingType);
 
     /// <summary>
-    /// ATCAPI_SCH010: Implicit object definition on property not supported.
+    /// ATC_API_SCH010: Implicit object definition on property not supported.
     /// </summary>
-    public static readonly DiagnosticDescriptor ImplicitObjectNotSupported = new(
-        RuleIdentifiers.ImplicitObjectNotSupported,
-        "Implicit Object Definition Not Supported",
-        "{0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Error,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor ImplicitObjectNotSupported = Descriptor(RuleIdentifiers.ImplicitObjectNotSupported);
 
     /// <summary>
-    /// ATCAPI_SCH011: Array property missing items specification.
+    /// ATC_API_SCH011: Array property missing items specification.
     /// </summary>
-    public static readonly DiagnosticDescriptor ArrayPropertyMissingItems = new(
-        RuleIdentifiers.ArrayPropertyMissingItems,
-        "Array Property Missing Items Specification",
-        "{0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Error,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor ArrayPropertyMissingItems = Descriptor(RuleIdentifiers.ArrayPropertyMissingItems);
 
     /// <summary>
-    /// ATCAPI_SCH012: Missing key/name for object property.
+    /// ATC_API_SCH012: Missing key/name for object property.
     /// </summary>
-    public static readonly DiagnosticDescriptor PropertyKeyMissing = new(
-        RuleIdentifiers.PropertyKeyMissing,
-        "Missing Property Key/Name",
-        "{0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Error,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor PropertyKeyMissing = Descriptor(RuleIdentifiers.PropertyKeyMissing);
 
     /// <summary>
-    /// ATCAPI_SCH013: Schema reference does not exist in components.schemas.
+    /// ATC_API_SCH013: Schema reference does not exist in components.schemas.
     /// </summary>
-    public static readonly DiagnosticDescriptor InvalidSchemaReference = new(
-        RuleIdentifiers.InvalidSchemaReference,
-        "Invalid Schema Reference",
-        "Schema reference '{0}' at path '{1}' does not exist in components.schemas",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Error,
-        isEnabledByDefault: true);
-
-    // ========== Schema Validation Reporting Methods ==========
-
-    /// <summary>
-    /// Reports missing title on array type warning (ATCAPI_SCH001).
-    /// </summary>
-    /// <param name="sourceFilePath">Path to the OpenAPI file.</param>
-    /// <param name="message">Warning message.</param>
-    /// <returns>Diagnostic to report.</returns>
-    public static Diagnostic ReportArrayTitleMissing(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            ArrayTitleMissing,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports array title not starting with uppercase warning (ATCAPI_SCH002).
-    /// </summary>
-    /// <param name="sourceFilePath">Path to the OpenAPI file.</param>
-    /// <param name="message">Warning message.</param>
-    /// <returns>Diagnostic to report.</returns>
-    public static Diagnostic ReportArrayTitleNotUppercase(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            ArrayTitleNotUppercase,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports missing title on object type warning (ATCAPI_SCH003).
-    /// </summary>
-    /// <param name="sourceFilePath">Path to the OpenAPI file.</param>
-    /// <param name="message">Warning message.</param>
-    /// <returns>Diagnostic to report.</returns>
-    public static Diagnostic ReportObjectTitleMissing(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            ObjectTitleMissing,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports object title not starting with uppercase warning (ATCAPI_SCH004).
-    /// </summary>
-    /// <param name="sourceFilePath">Path to the OpenAPI file.</param>
-    /// <param name="message">Warning message.</param>
-    /// <returns>Diagnostic to report.</returns>
-    public static Diagnostic ReportObjectTitleNotUppercase(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            ObjectTitleNotUppercase,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports implicit object definition in array not supported error (ATCAPI_SCH005).
-    /// </summary>
-    /// <param name="sourceFilePath">Path to the OpenAPI file.</param>
-    /// <param name="message">Error message.</param>
-    /// <returns>Diagnostic to report.</returns>
-    public static Diagnostic ReportImplicitArrayObjectNotSupported(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            ImplicitArrayObjectNotSupported,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports object name casing warning (ATCAPI_SCH006).
-    /// </summary>
-    /// <param name="sourceFilePath">Path to the OpenAPI file.</param>
-    /// <param name="message">Warning message.</param>
-    /// <returns>Diagnostic to report.</returns>
-    public static Diagnostic ReportObjectNameCasing(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            ObjectNameCasing,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports property name casing warning (ATCAPI_SCH007).
-    /// </summary>
-    /// <param name="sourceFilePath">Path to the OpenAPI file.</param>
-    /// <param name="message">Warning message.</param>
-    /// <returns>Diagnostic to report.</returns>
-    public static Diagnostic ReportPropertyNameCasing(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            PropertyNameCasing,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports enum name casing warning (ATCAPI_SCH008).
-    /// </summary>
-    /// <param name="sourceFilePath">Path to the OpenAPI file.</param>
-    /// <param name="message">Warning message.</param>
-    /// <returns>Diagnostic to report.</returns>
-    public static Diagnostic ReportEnumNameCasing(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            EnumNameCasing,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports array property missing data type error (ATCAPI_SCH009).
-    /// </summary>
-    /// <param name="sourceFilePath">Path to the OpenAPI file.</param>
-    /// <param name="message">Error message.</param>
-    /// <returns>Diagnostic to report.</returns>
-    public static Diagnostic ReportArrayPropertyMissingType(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            ArrayPropertyMissingType,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports implicit object definition not supported error (ATCAPI_SCH010).
-    /// </summary>
-    /// <param name="sourceFilePath">Path to the OpenAPI file.</param>
-    /// <param name="message">Error message.</param>
-    /// <returns>Diagnostic to report.</returns>
-    public static Diagnostic ReportImplicitObjectNotSupported(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            ImplicitObjectNotSupported,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports array property missing items specification error (ATCAPI_SCH011).
-    /// </summary>
-    /// <param name="sourceFilePath">Path to the OpenAPI file.</param>
-    /// <param name="message">Error message.</param>
-    /// <returns>Diagnostic to report.</returns>
-    public static Diagnostic ReportArrayPropertyMissingItems(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            ArrayPropertyMissingItems,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports missing property key/name error (ATCAPI_SCH012).
-    /// </summary>
-    /// <param name="sourceFilePath">Path to the OpenAPI file.</param>
-    /// <param name="message">Error message.</param>
-    /// <returns>Diagnostic to report.</returns>
-    public static Diagnostic ReportPropertyKeyMissing(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            PropertyKeyMissing,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports invalid schema reference error (ATCAPI_SCH013).
-    /// </summary>
-    /// <param name="sourceFilePath">Path to the OpenAPI file.</param>
-    /// <param name="referenceId">The invalid schema reference ID.</param>
-    /// <param name="path">The path where the invalid reference was found.</param>
-    /// <returns>Diagnostic to report.</returns>
-    public static Diagnostic ReportInvalidSchemaReference(
-        string sourceFilePath,
-        string referenceId,
-        string path)
-        => Diagnostic.Create(
-            InvalidSchemaReference,
-            Location.None,
-            referenceId,
-            path);
+    public static readonly DiagnosticDescriptor InvalidSchemaReference = Descriptor(RuleIdentifiers.InvalidSchemaReference);
 
     // ========== Operation Validation Diagnostics ==========
 
     /// <summary>
-    /// ATCAPI_OPR001: Missing operationId.
+    /// ATC_API_OPR001: Missing operationId.
     /// </summary>
-    public static readonly DiagnosticDescriptor OperationIdMissing = new(
-        RuleIdentifiers.OperationIdMissing,
-        "Missing OperationId",
-        "{0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Error,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor OperationIdMissing = Descriptor(RuleIdentifiers.OperationIdMissing);
 
     /// <summary>
-    /// ATCAPI_OPR003: GET operationId should start with 'Get' or 'List'.
+    /// ATC_API_OPR003: GET operationId should start with 'Get' or 'List'.
     /// </summary>
-    public static readonly DiagnosticDescriptor GetOperationIdPrefix = new(
-        RuleIdentifiers.GetOperationIdPrefix,
-        "GET OperationId Should Start With 'Get' or 'List'",
-        "{0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor GetOperationIdPrefix = Descriptor(RuleIdentifiers.GetOperationIdPrefix);
 
     /// <summary>
-    /// ATCAPI_OPR004: POST operationId should not start with 'Delete'.
+    /// ATC_API_OPR004: POST operationId should not start with 'Delete'.
     /// </summary>
-    public static readonly DiagnosticDescriptor PostOperationIdPrefix = new(
-        RuleIdentifiers.PostOperationIdPrefix,
-        "POST OperationId Should Not Start With 'Delete'",
-        "{0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor PostOperationIdPrefix = Descriptor(RuleIdentifiers.PostOperationIdPrefix);
 
     /// <summary>
-    /// ATCAPI_OPR005: PUT operationId should start with 'Update'.
+    /// ATC_API_OPR005: PUT operationId should start with 'Update'.
     /// </summary>
-    public static readonly DiagnosticDescriptor PutOperationIdPrefix = new(
-        RuleIdentifiers.PutOperationIdPrefix,
-        "PUT OperationId Should Start With 'Update'",
-        "{0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor PutOperationIdPrefix = Descriptor(RuleIdentifiers.PutOperationIdPrefix);
 
     /// <summary>
-    /// ATCAPI_OPR006: PATCH operationId should start with 'Patch' or 'Update'.
+    /// ATC_API_OPR006: PATCH operationId should start with 'Patch' or 'Update'.
     /// </summary>
-    public static readonly DiagnosticDescriptor PatchOperationIdPrefix = new(
-        RuleIdentifiers.PatchOperationIdPrefix,
-        "PATCH OperationId Should Start With 'Patch' or 'Update'",
-        "{0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor PatchOperationIdPrefix = Descriptor(RuleIdentifiers.PatchOperationIdPrefix);
 
     /// <summary>
-    /// ATCAPI_OPR007: DELETE operationId should start with 'Delete' or 'Remove'.
+    /// ATC_API_OPR007: DELETE operationId should start with 'Delete' or 'Remove'.
     /// </summary>
-    public static readonly DiagnosticDescriptor DeleteOperationIdPrefix = new(
-        RuleIdentifiers.DeleteOperationIdPrefix,
-        "DELETE OperationId Should Start With 'Delete' or 'Remove'",
-        "{0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor DeleteOperationIdPrefix = Descriptor(RuleIdentifiers.DeleteOperationIdPrefix);
 
     /// <summary>
-    /// ATCAPI_OPR008: Pluralized operationId but response is single item.
+    /// ATC_API_OPR008: Pluralized operationId but response is single item.
     /// </summary>
-    public static readonly DiagnosticDescriptor OperationIdPluralizationMismatch = new(
-        RuleIdentifiers.OperationIdPluralizationMismatch,
-        "Pluralized OperationId But Response Is Single Item",
-        "{0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor OperationIdPluralizationMismatch = Descriptor(RuleIdentifiers.OperationIdPluralizationMismatch);
 
     /// <summary>
-    /// ATCAPI_OPR009: Singular operationId but response is array.
+    /// ATC_API_OPR009: Singular operationId but response is array.
     /// </summary>
-    public static readonly DiagnosticDescriptor OperationIdSingularMismatch = new(
-        RuleIdentifiers.OperationIdSingularMismatch,
-        "Singular OperationId But Response Is Array",
-        "{0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor OperationIdSingularMismatch = Descriptor(RuleIdentifiers.OperationIdSingularMismatch);
 
     /// <summary>
-    /// ATCAPI_OPR010: Has BadRequest response but no parameters.
+    /// ATC_API_OPR010: Has BadRequest response but no parameters.
     /// </summary>
-    public static readonly DiagnosticDescriptor BadRequestWithoutParameters = new(
-        RuleIdentifiers.BadRequestWithoutParameters,
-        "BadRequest Response Without Parameters",
-        "{0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor BadRequestWithoutParameters = Descriptor(RuleIdentifiers.BadRequestWithoutParameters);
 
     /// <summary>
-    /// ATCAPI_OPR011: Global path parameter not present in route.
+    /// ATC_API_OPR011: Global path parameter not present in route.
     /// </summary>
-    public static readonly DiagnosticDescriptor GlobalPathParameterNotInRoute = new(
-        RuleIdentifiers.GlobalPathParameterNotInRoute,
-        "Global Path Parameter Not In Route",
-        "{0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Error,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor GlobalPathParameterNotInRoute = Descriptor(RuleIdentifiers.GlobalPathParameterNotInRoute);
 
     /// <summary>
-    /// ATCAPI_OPR012: Operation missing path parameter defined in route.
+    /// ATC_API_OPR012: Operation missing path parameter defined in route.
     /// </summary>
-    public static readonly DiagnosticDescriptor OperationMissingPathParameter = new(
-        RuleIdentifiers.OperationMissingPathParameter,
-        "Operation Missing Path Parameter",
-        "{0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Error,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor OperationMissingPathParameter = Descriptor(RuleIdentifiers.OperationMissingPathParameter);
 
     /// <summary>
-    /// ATCAPI_OPR013: Operation path parameter not present in route.
+    /// ATC_API_OPR013: Operation path parameter not present in route.
     /// </summary>
-    public static readonly DiagnosticDescriptor OperationPathParameterNotInRoute = new(
-        RuleIdentifiers.OperationPathParameterNotInRoute,
-        "Operation Path Parameter Not In Route",
-        "{0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Error,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor OperationPathParameterNotInRoute = Descriptor(RuleIdentifiers.OperationPathParameterNotInRoute);
 
     /// <summary>
-    /// ATCAPI_OPR014: GET with path parameter missing NotFound response.
+    /// ATC_API_OPR014: GET with path parameter missing NotFound response.
     /// </summary>
-    public static readonly DiagnosticDescriptor GetMissingNotFoundResponse = new(
-        RuleIdentifiers.GetMissingNotFoundResponse,
-        "GET Missing NotFound Response",
-        "{0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor GetMissingNotFoundResponse = Descriptor(RuleIdentifiers.GetMissingNotFoundResponse);
 
     /// <summary>
-    /// ATCAPI_OPR015: Path parameter missing required=true.
+    /// ATC_API_OPR015: Path parameter missing required=true.
     /// </summary>
-    public static readonly DiagnosticDescriptor PathParameterNotRequired = new(
-        RuleIdentifiers.PathParameterNotRequired,
-        "Path Parameter Missing required=true",
-        "{0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor PathParameterNotRequired = Descriptor(RuleIdentifiers.PathParameterNotRequired);
 
     /// <summary>
-    /// ATCAPI_OPR016: Path parameter must not be nullable.
+    /// ATC_API_OPR016: Path parameter must not be nullable.
     /// </summary>
-    public static readonly DiagnosticDescriptor PathParameterNullable = new(
-        RuleIdentifiers.PathParameterNullable,
-        "Path Parameter Must Not Be Nullable",
-        "{0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor PathParameterNullable = Descriptor(RuleIdentifiers.PathParameterNullable);
 
     /// <summary>
-    /// ATCAPI_OPR017: RequestBody with inline model not supported.
+    /// ATC_API_OPR017: RequestBody with inline model not supported.
     /// </summary>
-    public static readonly DiagnosticDescriptor RequestBodyInlineModel = new(
-        RuleIdentifiers.RequestBodyInlineModel,
-        "RequestBody With Inline Model Not Supported",
-        "{0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Error,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor RequestBodyInlineModel = Descriptor(RuleIdentifiers.RequestBodyInlineModel);
 
     /// <summary>
-    /// ATCAPI_OPR018: Multiple 2xx status codes not supported.
+    /// ATC_API_OPR018: Multiple 2xx status codes not supported.
     /// </summary>
-    public static readonly DiagnosticDescriptor Multiple2xxStatusCodes = new(
-        RuleIdentifiers.Multiple2xxStatusCodes,
-        "Multiple 2xx Status Codes Not Supported",
-        "{0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Error,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor Multiple2xxStatusCodes = Descriptor(RuleIdentifiers.Multiple2xxStatusCodes);
 
     // ========== Response Code Consistency Diagnostics (OPR021-OPR025) ==========
 
     /// <summary>
-    /// ATCAPI_OPR021: 401 Unauthorized response defined but no security requirements.
+    /// ATC_API_OPR021: 401 Unauthorized response defined but no security requirements.
     /// </summary>
-    public static readonly DiagnosticDescriptor UnauthorizedWithoutSecurity = new(
-        RuleIdentifiers.UnauthorizedWithoutSecurity,
-        "Unauthorized Response Without Security",
-        "{0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor UnauthorizedWithoutSecurity = Descriptor(RuleIdentifiers.UnauthorizedWithoutSecurity);
 
     /// <summary>
-    /// ATCAPI_OPR022: 403 Forbidden response defined on an operation without any security requirement.
+    /// ATC_API_OPR022: 403 Forbidden response defined on an operation without any security requirement.
     /// </summary>
-    public static readonly DiagnosticDescriptor ForbiddenWithoutAuthorization = new(
-        RuleIdentifiers.ForbiddenWithoutAuthorization,
-        "Forbidden Response On Anonymous Operation",
-        "{0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor ForbiddenWithoutAuthorization = Descriptor(RuleIdentifiers.ForbiddenWithoutAuthorization);
 
     /// <summary>
-    /// ATCAPI_OPR023: 404 NotFound response on POST operation (unusual).
+    /// ATC_API_OPR023: 404 NotFound response on POST operation (unusual).
     /// </summary>
-    public static readonly DiagnosticDescriptor NotFoundOnPostOperation = new(
-        RuleIdentifiers.NotFoundOnPostOperation,
-        "NotFound Response on POST Operation",
-        "{0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor NotFoundOnPostOperation = Descriptor(RuleIdentifiers.NotFoundOnPostOperation);
 
     /// <summary>
-    /// ATCAPI_OPR024: 409 Conflict response on read-only operation (GET).
+    /// ATC_API_OPR024: 409 Conflict response on read-only operation (GET).
     /// </summary>
-    public static readonly DiagnosticDescriptor ConflictOnNonMutatingOperation = new(
-        RuleIdentifiers.ConflictOnNonMutatingOperation,
-        "Conflict Response on Read-Only Operation",
-        "{0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor ConflictOnNonMutatingOperation = Descriptor(RuleIdentifiers.ConflictOnNonMutatingOperation);
 
     /// <summary>
-    /// ATCAPI_OPR025: 429 TooManyRequests response defined but no rate limiting configured.
+    /// ATC_API_OPR025: 429 TooManyRequests response defined but no rate limiting configured.
     /// </summary>
-    public static readonly DiagnosticDescriptor TooManyRequestsWithoutRateLimiting = new(
-        RuleIdentifiers.TooManyRequestsWithoutRateLimiting,
-        "TooManyRequests Response Without Rate Limiting",
-        "{0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor TooManyRequestsWithoutRateLimiting = Descriptor(RuleIdentifiers.TooManyRequestsWithoutRateLimiting);
 
     // ========== Security Validation DiagnosticDescriptors ==========
 
     /// <summary>
-    /// ATCAPI_SEC001: Path authorize role not defined in global section.
+    /// ATC_API_SEC001: Path authorize role not defined in global section.
     /// </summary>
-    public static readonly DiagnosticDescriptor PathAuthorizeRoleNotDefined = new(
-        RuleIdentifiers.PathAuthorizeRoleNotDefined,
-        "Path Authorize Role Not Defined",
-        "{0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Error,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor PathAuthorizeRoleNotDefined = Descriptor(RuleIdentifiers.PathAuthorizeRoleNotDefined);
 
     /// <summary>
-    /// ATCAPI_SEC002: Path authentication scheme not defined in global section.
+    /// ATC_API_SEC002: Path authentication scheme not defined in global section.
     /// </summary>
-    public static readonly DiagnosticDescriptor PathAuthenticationSchemeNotDefined = new(
-        RuleIdentifiers.PathAuthenticationSchemeNotDefined,
-        "Path Authentication Scheme Not Defined",
-        "{0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Error,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor PathAuthenticationSchemeNotDefined = Descriptor(RuleIdentifiers.PathAuthenticationSchemeNotDefined);
 
     /// <summary>
-    /// ATCAPI_SEC003: Operation authorize role not defined in global section.
+    /// ATC_API_SEC003: Operation authorize role not defined in global section.
     /// </summary>
-    public static readonly DiagnosticDescriptor OperationAuthorizeRoleNotDefined = new(
-        RuleIdentifiers.OperationAuthorizeRoleNotDefined,
-        "Operation Authorize Role Not Defined",
-        "{0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Error,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor OperationAuthorizeRoleNotDefined = Descriptor(RuleIdentifiers.OperationAuthorizeRoleNotDefined);
 
     /// <summary>
-    /// ATCAPI_SEC004: Operation authentication scheme not defined in global section.
+    /// ATC_API_SEC004: Operation authentication scheme not defined in global section.
     /// </summary>
-    public static readonly DiagnosticDescriptor OperationAuthenticationSchemeNotDefined = new(
-        RuleIdentifiers.OperationAuthenticationSchemeNotDefined,
-        "Operation Authentication Scheme Not Defined",
-        "{0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Error,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor OperationAuthenticationSchemeNotDefined = Descriptor(RuleIdentifiers.OperationAuthenticationSchemeNotDefined);
 
     /// <summary>
-    /// ATCAPI_SEC005: Operation has authenticationRequired=false but has roles/schemes.
+    /// ATC_API_SEC005: Operation has authenticationRequired=false but has roles/schemes.
     /// </summary>
-    public static readonly DiagnosticDescriptor OperationAuthenticationConflict = new(
-        RuleIdentifiers.OperationAuthenticationConflict,
-        "Operation Authentication Conflict",
-        "{0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor OperationAuthenticationConflict = Descriptor(RuleIdentifiers.OperationAuthenticationConflict);
 
     /// <summary>
-    /// ATCAPI_SEC006: Operation authorize role has incorrect casing vs global section.
+    /// ATC_API_SEC006: Operation authorize role has incorrect casing vs global section.
     /// </summary>
-    public static readonly DiagnosticDescriptor OperationAuthorizeRoleCasing = new(
-        RuleIdentifiers.OperationAuthorizeRoleCasing,
-        "Operation Authorize Role Casing Mismatch",
-        "{0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor OperationAuthorizeRoleCasing = Descriptor(RuleIdentifiers.OperationAuthorizeRoleCasing);
 
     /// <summary>
-    /// ATCAPI_SEC007: Operation authentication scheme has incorrect casing vs global.
+    /// ATC_API_SEC007: Operation authentication scheme has incorrect casing vs global.
     /// </summary>
-    public static readonly DiagnosticDescriptor OperationAuthenticationSchemeCasing = new(
-        RuleIdentifiers.OperationAuthenticationSchemeCasing,
-        "Operation Authentication Scheme Casing Mismatch",
-        "{0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor OperationAuthenticationSchemeCasing = Descriptor(RuleIdentifiers.OperationAuthenticationSchemeCasing);
 
     /// <summary>
-    /// ATCAPI_SEC008: Path authorize role has incorrect casing vs global section.
+    /// ATC_API_SEC008: Path authorize role has incorrect casing vs global section.
     /// </summary>
-    public static readonly DiagnosticDescriptor PathAuthorizeRoleCasing = new(
-        RuleIdentifiers.PathAuthorizeRoleCasing,
-        "Path Authorize Role Casing Mismatch",
-        "{0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor PathAuthorizeRoleCasing = Descriptor(RuleIdentifiers.PathAuthorizeRoleCasing);
 
     /// <summary>
-    /// ATCAPI_SEC009: Path authentication scheme has incorrect casing vs global.
+    /// ATC_API_SEC009: Path authentication scheme has incorrect casing vs global.
     /// </summary>
-    public static readonly DiagnosticDescriptor PathAuthenticationSchemeCasing = new(
-        RuleIdentifiers.PathAuthenticationSchemeCasing,
-        "Path Authentication Scheme Casing Mismatch",
-        "{0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor PathAuthenticationSchemeCasing = Descriptor(RuleIdentifiers.PathAuthenticationSchemeCasing);
 
     /// <summary>
-    /// ATCAPI_SEC010: Path has authenticationRequired=false but has roles/schemes.
+    /// ATC_API_SEC010: Path has authenticationRequired=false but has roles/schemes.
     /// </summary>
-    public static readonly DiagnosticDescriptor PathAuthenticationConflict = new(
-        RuleIdentifiers.PathAuthenticationConflict,
-        "Path Authentication Conflict",
-        "{0}",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+    public static readonly DiagnosticDescriptor PathAuthenticationConflict = Descriptor(RuleIdentifiers.PathAuthenticationConflict);
 
-    // ========== Operation Validation Reporting Methods ==========
+    // ========== Dropped Feature Diagnostics ==========
 
     /// <summary>
-    /// Reports missing operationId error (ATCAPI_OPR001).
+    /// ATC_API_OPR035: A response declares links, which nothing is generated from.
     /// </summary>
-    public static Diagnostic ReportOperationIdMissing(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            OperationIdMissing,
-            Location.None,
-            message);
+    public static readonly DiagnosticDescriptor ResponseLinksDropped = Descriptor(RuleIdentifiers.ResponseLinksDropped);
 
     /// <summary>
-    /// Reports GET operationId prefix warning (ATCAPI_OPR003).
-    /// </summary>
-    public static Diagnostic ReportGetOperationIdPrefix(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            GetOperationIdPrefix,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports POST operationId prefix warning (ATCAPI_OPR004).
-    /// </summary>
-    public static Diagnostic ReportPostOperationIdPrefix(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            PostOperationIdPrefix,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports PUT operationId prefix warning (ATCAPI_OPR005).
-    /// </summary>
-    public static Diagnostic ReportPutOperationIdPrefix(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            PutOperationIdPrefix,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports PATCH operationId prefix warning (ATCAPI_OPR006).
-    /// </summary>
-    public static Diagnostic ReportPatchOperationIdPrefix(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            PatchOperationIdPrefix,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports DELETE operationId prefix warning (ATCAPI_OPR007).
-    /// </summary>
-    public static Diagnostic ReportDeleteOperationIdPrefix(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            DeleteOperationIdPrefix,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports pluralized operationId mismatch warning (ATCAPI_OPR008).
-    /// </summary>
-    public static Diagnostic ReportOperationIdPluralizationMismatch(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            OperationIdPluralizationMismatch,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports singular operationId mismatch warning (ATCAPI_OPR009).
-    /// </summary>
-    public static Diagnostic ReportOperationIdSingularMismatch(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            OperationIdSingularMismatch,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports BadRequest without parameters warning (ATCAPI_OPR010).
-    /// </summary>
-    public static Diagnostic ReportBadRequestWithoutParameters(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            BadRequestWithoutParameters,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports global path parameter not in route error (ATCAPI_OPR011).
-    /// </summary>
-    public static Diagnostic ReportGlobalPathParameterNotInRoute(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            GlobalPathParameterNotInRoute,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports operation missing path parameter error (ATCAPI_OPR012).
-    /// </summary>
-    public static Diagnostic ReportOperationMissingPathParameter(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            OperationMissingPathParameter,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports operation path parameter not in route error (ATCAPI_OPR013).
-    /// </summary>
-    public static Diagnostic ReportOperationPathParameterNotInRoute(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            OperationPathParameterNotInRoute,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports GET missing NotFound response warning (ATCAPI_OPR014).
-    /// </summary>
-    public static Diagnostic ReportGetMissingNotFoundResponse(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            GetMissingNotFoundResponse,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports path parameter not required warning (ATCAPI_OPR015).
-    /// </summary>
-    public static Diagnostic ReportPathParameterNotRequired(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            PathParameterNotRequired,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports path parameter nullable warning (ATCAPI_OPR016).
-    /// </summary>
-    public static Diagnostic ReportPathParameterNullable(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            PathParameterNullable,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports requestBody inline model error (ATCAPI_OPR017).
-    /// </summary>
-    public static Diagnostic ReportRequestBodyInlineModel(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            RequestBodyInlineModel,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports multiple 2xx status codes error (ATCAPI_OPR018).
-    /// </summary>
-    public static Diagnostic ReportMultiple2xxStatusCodes(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            Multiple2xxStatusCodes,
-            Location.None,
-            message);
-
-    // ========== Security Validation Reporting Methods ==========
-
-    /// <summary>
-    /// Reports path authorize role not defined error (ATCAPI_SEC001).
-    /// </summary>
-    public static Diagnostic ReportPathAuthorizeRoleNotDefined(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            PathAuthorizeRoleNotDefined,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports path authentication scheme not defined error (ATCAPI_SEC002).
-    /// </summary>
-    public static Diagnostic ReportPathAuthenticationSchemeNotDefined(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            PathAuthenticationSchemeNotDefined,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports operation authorize role not defined error (ATCAPI_SEC003).
-    /// </summary>
-    public static Diagnostic ReportOperationAuthorizeRoleNotDefined(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            OperationAuthorizeRoleNotDefined,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports operation authentication scheme not defined error (ATCAPI_SEC004).
-    /// </summary>
-    public static Diagnostic ReportOperationAuthenticationSchemeNotDefined(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            OperationAuthenticationSchemeNotDefined,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports operation authentication conflict warning (ATCAPI_SEC005).
-    /// </summary>
-    public static Diagnostic ReportOperationAuthenticationConflict(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            OperationAuthenticationConflict,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports operation authorize role casing mismatch warning (ATCAPI_SEC006).
-    /// </summary>
-    public static Diagnostic ReportOperationAuthorizeRoleCasing(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            OperationAuthorizeRoleCasing,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports operation authentication scheme casing mismatch warning (ATCAPI_SEC007).
-    /// </summary>
-    public static Diagnostic ReportOperationAuthenticationSchemeCasing(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            OperationAuthenticationSchemeCasing,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports path authorize role casing mismatch warning (ATCAPI_SEC008).
-    /// </summary>
-    public static Diagnostic ReportPathAuthorizeRoleCasing(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            PathAuthorizeRoleCasing,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports path authentication scheme casing mismatch warning (ATCAPI_SEC009).
-    /// </summary>
-    public static Diagnostic ReportPathAuthenticationSchemeCasing(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            PathAuthenticationSchemeCasing,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports path authentication conflict warning (ATCAPI_SEC010).
-    /// </summary>
-    public static Diagnostic ReportPathAuthenticationConflict(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            PathAuthenticationConflict,
-            Location.None,
-            message);
-
-    // ========== Unsupported Feature Diagnostics ==========
-
-    /// <summary>
-    /// ATCAPI_FEAT001: OpenAPI spec uses readOnly/writeOnly properties which are silently ignored.
-    /// </summary>
-    public static readonly DiagnosticDescriptor ReadOnlyWriteOnlyIgnored = new(
-        "ATCAPI_FEAT001",
-        "readOnly/writeOnly Properties Ignored",
-        "OpenAPI specification uses readOnly or writeOnly properties which are not yet differentiated in generated code",
-        "Atc.Rest.Api.SourceGenerator",
-        DiagnosticSeverity.Info,
-        isEnabledByDefault: true);
-
-    /// <summary>
-    /// ATCAPI_FEAT002: OpenAPI spec uses callbacks which are not supported.
-    /// </summary>
-    public static readonly DiagnosticDescriptor CallbacksNotSupported = new(
-        "ATCAPI_FEAT002",
-        "Callbacks Not Supported",
-        "OpenAPI specification contains callbacks which are not supported by the generator",
-        "Atc.Rest.Api.SourceGenerator",
-        DiagnosticSeverity.Info,
-        isEnabledByDefault: true);
-
-    /// <summary>
-    /// ATCAPI_FEAT003: OpenAPI spec uses links which are not supported.
-    /// </summary>
-    public static readonly DiagnosticDescriptor LinksNotSupported = new(
-        "ATCAPI_FEAT003",
-        "Response Links Not Supported",
-        "OpenAPI specification contains response links which are not included in generated code",
-        "Atc.Rest.Api.SourceGenerator",
-        DiagnosticSeverity.Info,
-        isEnabledByDefault: true);
-
-    /// <summary>
-    /// ATCAPI_FEAT004: OpenAPI spec defines multiple servers entries.
-    /// </summary>
-    public static readonly DiagnosticDescriptor MultipleServersIgnored = new(
-        "ATCAPI_FEAT004",
-        "Multiple Servers Entries",
-        "OpenAPI specification defines {0} server entries but only the first is used for base path resolution",
-        "Atc.Rest.Api.SourceGenerator",
-        DiagnosticSeverity.Info,
-        isEnabledByDefault: true);
-
-    /// <summary>
-    /// Reports unsupported OpenAPI feature diagnostics based on spec analysis.
+    /// Reports the OpenAPI features of the document that the generators drop without a trace: response links, one
+    /// information naming the operations that declare them. (readOnly/writeOnly, callbacks and several servers are
+    /// supported and report nothing.)
     /// </summary>
     public static List<Diagnostic> DetectUnsupportedFeatures(
         OpenApiDocument openApiDoc)
     {
         var diagnostics = new List<Diagnostic>();
 
-        if (HasReadOnlyOrWriteOnlyProperties(openApiDoc))
+        var operationsWithLinks = OperationsWithResponseLinks(openApiDoc);
+        if (operationsWithLinks.Count > 0)
         {
-            diagnostics.Add(Diagnostic.Create(ReadOnlyWriteOnlyIgnored, Location.None));
-        }
-
-        if (HasCallbacks(openApiDoc))
-        {
-            diagnostics.Add(Diagnostic.Create(CallbacksNotSupported, Location.None));
-        }
-
-        if (HasResponseLinks(openApiDoc))
-        {
-            diagnostics.Add(Diagnostic.Create(LinksNotSupported, Location.None));
-        }
-
-        if (openApiDoc.Servers is not null && openApiDoc.Servers.Count > 1)
-        {
-            diagnostics.Add(Diagnostic.Create(
-                MultipleServersIgnored,
-                Location.None,
-                openApiDoc.Servers.Count));
+            diagnostics.Add(Diagnostic.Create(ResponseLinksDropped, Location.None, string.Join(", ", operationsWithLinks)));
         }
 
         return diagnostics;
-    }
-
-    private static bool HasReadOnlyOrWriteOnlyProperties(
-        OpenApiDocument openApiDoc)
-    {
-        if (openApiDoc.Components?.Schemas is null)
-        {
-            return false;
-        }
-
-        foreach (var schema in openApiDoc.Components.Schemas.Values)
-        {
-            if (schema is OpenApiSchema { Properties: not null } actualSchema)
-            {
-                foreach (var prop in actualSchema.Properties.Values)
-                {
-                    if (prop is OpenApiSchema propSchema &&
-                        (propSchema.ReadOnly || propSchema.WriteOnly))
-                    {
-                        return true;
-                    }
-                }
-            }
-        }
-
-        return false;
-    }
-
-    private static bool HasCallbacks(OpenApiDocument openApiDoc)
-    {
-        foreach (var path in openApiDoc.Paths)
-        {
-            if (path.Value?.Operations is null)
-            {
-                continue;
-            }
-
-            foreach (var operation in path.Value.Operations.Values)
-            {
-                if (operation.Callbacks is { Count: > 0 })
-                {
-                    return true;
-                }
-            }
-        }
-
-        return false;
-    }
-
-    private static bool HasResponseLinks(OpenApiDocument openApiDoc)
-    {
-        foreach (var path in openApiDoc.Paths)
-        {
-            if (path.Value?.Operations is null)
-            {
-                continue;
-            }
-
-            foreach (var operation in path.Value.Operations.Values)
-            {
-                if (operation.Responses is null)
-                {
-                    continue;
-                }
-
-                foreach (var response in operation.Responses.Values)
-                {
-                    if (response is OpenApiResponse { Links.Count: > 0 })
-                    {
-                        return true;
-                    }
-                }
-            }
-        }
-
-        return false;
     }
 
     // ========== DiagnosticMessage Conversion ==========
@@ -1980,11 +1039,131 @@ internal static class DiagnosticHelpers
     }
 
     /// <summary>
+    /// Checks if any DiagnosticMessage in the collection has Error severity.
+    /// </summary>
+    /// <param name="messages">The DiagnosticMessages to check.</param>
+    /// <returns>True if any message is an error.</returns>
+    public static bool HasErrors(
+        IEnumerable<GeneratorDiagnosticMessage> messages)
+        => messages.Any(m => m.Severity == GeneratorDiagnosticSeverity.Error);
+
+    /// <summary>
+    /// Gets a human-readable title from a rule ID: the name of its category (the letters between <c>ATC_API_</c>
+    /// and the number), e.g. <c>ATC_API_NAM001</c> is "Naming Convention" and <c>ATC_API_CACHE001</c> "Caching".
+    /// The categories are the ones the wiki's Analyzer Rules page lists.
+    /// </summary>
+    internal static string GetTitleFromRuleId(string ruleId)
+    {
+        const string prefix = "ATC_API_";
+        if (!ruleId.StartsWith(prefix, StringComparison.Ordinal))
+        {
+            return ruleId;
+        }
+
+        var end = prefix.Length;
+        while (end < ruleId.Length && char.IsLetter(ruleId[end]))
+        {
+            end++;
+        }
+
+        return ruleId.Substring(prefix.Length, end - prefix.Length) switch
+        {
+            "GEN" => "Generation Error",
+            "DEP" => "Dependency Error",
+            "AOT" => "Native AOT",
+            "VAL" => "Validation Error",
+            "NAM" => "Naming Convention",
+            "SEC" => "Security",
+            "SRV" => "Server Configuration",
+            "SCH" => "Schema Validation",
+            "PTH" => "Path Validation",
+            "OPR" => "Operation Validation",
+            "MPT" => "Multi-Part Specification",
+            "RL" => "Rate Limiting",
+            "RTY" => "Retry",
+            "CACHE" => "Caching",
+            "CLT" => "Client Configuration",
+            "STREAM" => "Streaming",
+            "VER" => "Specification Version",
+            "WBH" => "Webhook",
+            "HUB" => "SignalR Hub",
+            _ => ruleId,
+        };
+    }
+
+    /// <summary>
+    /// Describes a failure for a generation-error diagnostic: the exception type and message, the first frames of
+    /// its stack (where it was thrown) and the inner exception - on one line, as the error list shows it.
+    /// </summary>
+    /// <param name="exception">The exception a generator caught.</param>
+    /// <returns>For example <c>NullReferenceException: Object reference … (at SchemaExtractor.Extract &lt;- …)</c>.</returns>
+    internal static string DescribeException(Exception exception)
+    {
+        var sb = new StringBuilder();
+        sb.Append(exception.GetType().Name).Append(": ").Append(OneLine(exception.Message));
+
+        var frames = (exception.StackTrace ?? string.Empty)
+            .Split('\n')
+            .Select(line => line.Trim())
+            .Where(line => line.StartsWith("at ", StringComparison.Ordinal))
+            .Select(line =>
+            {
+                var frame = line.Substring(3);
+                var parameters = frame.IndexOf('(');
+                return parameters > 0 ? frame.Substring(0, parameters) : frame;
+            })
+            .Take(3)
+            .ToList();
+        if (frames.Count > 0)
+        {
+            sb.Append(" (at ").Append(string.Join(" <- ", frames)).Append(')');
+        }
+
+        if (exception.InnerException is { } inner)
+        {
+            sb.Append(" -> ").Append(inner.GetType().Name).Append(": ").Append(OneLine(inner.Message));
+        }
+
+        return sb.ToString();
+
+        static string OneLine(string text)
+            => text.Replace("\r", string.Empty).Replace('\n', ' ');
+    }
+
+    /// <summary>
+    /// The operations (by operationId, or method and path without one) with a response that declares links.
+    /// </summary>
+    private static List<string> OperationsWithResponseLinks(
+        OpenApiDocument openApiDoc)
+    {
+        var operations = new List<string>();
+        foreach (var path in openApiDoc.Paths)
+        {
+            if (path.Value?.Operations is null)
+            {
+                continue;
+            }
+
+            foreach (var entry in path.Value.Operations)
+            {
+                var operation = entry.Value;
+                if (operation.Responses is not null &&
+                    operation.Responses.Values.Any(response => response is { Links.Count: > 0 }))
+                {
+                    operations.Add(operation.OperationId ?? $"{entry.Key.ToString().ToUpperInvariant()} {path.Key}");
+                }
+            }
+        }
+
+        return operations;
+    }
+
+    /// <summary>
     /// Builds a file-based <see cref="Location"/> from a <see cref="GeneratorDiagnosticMessage"/>,
     /// falling back to <see cref="Location.None"/> when no file path is available.
-    /// Diagnostics without a file-based location are not subject to `.editorconfig`
-    /// severity overrides (e.g. dotnet_diagnostic.ATC_API_OPR001.severity), because
-    /// Roslyn resolves those overrides based on the diagnostic's source file path.
+    /// The location is the specification file, which is no C# file: an <c>.editorconfig</c> section's
+    /// <c>dotnet_diagnostic.&lt;id&gt;.severity</c> does not reach it (Roslyn applies it to the syntax trees it matches); a
+    /// global config's does, and the marker's <c>ruleSeverities</c>, which the generator applies itself.
     /// </summary>
     private static Location CreateLocation(GeneratorDiagnosticMessage message)
     {
@@ -2031,50 +1210,25 @@ internal static class DiagnosticHelpers
     }
 
     /// <summary>
-    /// Gets a human-readable title from a rule ID.
+    /// The Roslyn descriptor of a rule of the catalog (<see cref="RuleCatalog"/>): its title, message and severity,
+    /// in the generator's category, enabled by default.
     /// </summary>
-    private static string GetTitleFromRuleId(string ruleId)
+    /// <param name="ruleId">The rule's id.</param>
+    /// <returns>The descriptor.</returns>
+    private static DiagnosticDescriptor Descriptor(string ruleId)
     {
-        // Extract category and convert to readable format
-        // e.g., "ATC_API_NAM001" -> "Naming Convention"
-        if (ruleId.StartsWith("ATC_API_", StringComparison.Ordinal) && ruleId.Length >= 11)
-        {
-            var category = ruleId.Substring(8, 3);
-            return category switch
+        var rule = RuleCatalog.Rules[ruleId];
+        return new DiagnosticDescriptor(
+            ruleId,
+            rule.Title,
+            rule.MessageFormat,
+            RuleIdentifiers.Category,
+            rule.Severity switch
             {
-                "GEN" => "Generation Error",
-                "DEP" => "Dependency Error",
-                "VAL" => "Validation Error",
-                "NAM" => "Naming Convention",
-                "SEC" => "Security",
-                "SRV" => "Server Configuration",
-                "SCH" => "Schema Validation",
-                "PTH" => "Path Validation",
-                "OPR" => "Operation Validation",
-                _ => ruleId
-            };
-        }
-
-        return ruleId;
+                GeneratorDiagnosticSeverity.Error => DiagnosticSeverity.Error,
+                GeneratorDiagnosticSeverity.Warning => DiagnosticSeverity.Warning,
+                _ => DiagnosticSeverity.Info,
+            },
+            isEnabledByDefault: true);
     }
-
-    /// <summary>
-    /// Converts a list of platform-agnostic DiagnosticMessages to Roslyn Diagnostics.
-    /// </summary>
-    /// <param name="messages">The DiagnosticMessages to convert.</param>
-    /// <returns>A list of Roslyn Diagnostics.</returns>
-    public static List<Diagnostic> ToRoslynDiagnostics(
-        IEnumerable<GeneratorDiagnosticMessage> messages)
-        => messages
-            .Select(ToRoslynDiagnostic)
-            .ToList();
-
-    /// <summary>
-    /// Checks if any DiagnosticMessage in the collection has Error severity.
-    /// </summary>
-    /// <param name="messages">The DiagnosticMessages to check.</param>
-    /// <returns>True if any message is an error.</returns>
-    public static bool HasErrors(
-        IEnumerable<GeneratorDiagnosticMessage> messages)
-        => messages.Any(m => m.Severity == GeneratorDiagnosticSeverity.Error);
 }

@@ -12,63 +12,62 @@ public static class ApiOptionsHelper
     public static JsonSerializerOptions JsonOptions { get; } = JsonSerializerOptionsFactory.Create();
 
     /// <summary>
+    /// Loads the options as <see cref="LoadOptions"/> does; an options file that cannot be read is reported on the
+    /// console instead of thrown.
+    /// </summary>
+    /// <param name="optionsPath">Explicit path to options file (optional).</param>
+    /// <param name="specificationPath">Path to OpenAPI specification file (used for auto-discovery).</param>
+    /// <param name="options">The loaded options, or the defaults when no options file is found.</param>
+    /// <returns><see langword="true"/> when the options could be read.</returns>
+    public static bool TryLoadOptions(
+        string? optionsPath,
+        string? specificationPath,
+        [NotNullWhen(true)] out ApiGeneratorOptions? options)
+    {
+        try
+        {
+            options = LoadOptions(optionsPath, specificationPath);
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or InvalidDataException)
+        {
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]Error:[/] {ex.Message}");
+            options = null;
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Loads ApiGeneratorOptions from the specified path or auto-discovers the options file.
     /// </summary>
     /// <param name="optionsPath">Explicit path to options file (optional).</param>
     /// <param name="specificationPath">Path to OpenAPI specification file (used for auto-discovery).</param>
-    /// <returns>Loaded options or default options if no file found.</returns>
+    /// <returns>The loaded options, or the defaults when no options file is found.</returns>
+    /// <exception cref="FileNotFoundException">An explicit <paramref name="optionsPath"/> does not lead to a file.</exception>
+    /// <exception cref="InvalidDataException">The options file is not valid JSON or has a value of the wrong type.</exception>
     public static ApiGeneratorOptions LoadOptions(
         string? optionsPath,
         string? specificationPath)
     {
         var resolvedPath = ResolveOptionsFilePath(optionsPath, specificationPath);
 
-        if (resolvedPath is null ||
-            !File.Exists(resolvedPath))
+        if (resolvedPath is null)
         {
-            return new ApiGeneratorOptions();
+            return string.IsNullOrWhiteSpace(optionsPath)
+                ? new ApiGeneratorOptions()
+                : throw new FileNotFoundException($"Options file not found: {Path.GetFullPath(optionsPath)}", optionsPath);
         }
 
         try
         {
             var json = File.ReadAllText(resolvedPath);
-            var options = JsonSerializer.Deserialize<ApiGeneratorOptions>(json, JsonOptions);
-            return options ?? new ApiGeneratorOptions();
+            var options = JsonSerializer.Deserialize<ApiGeneratorOptions>(json, JsonOptions) ?? new ApiGeneratorOptions();
+            options.General.Overlays = OverlaysOf(options, resolvedPath);
+            return options;
         }
-        catch (JsonException)
+        catch (JsonException ex)
         {
-            return new ApiGeneratorOptions();
-        }
-    }
-
-    /// <summary>
-    /// Loads ApiGeneratorOptions asynchronously from the specified path or auto-discovers the options file.
-    /// </summary>
-    /// <param name="optionsPath">Explicit path to options file (optional).</param>
-    /// <param name="specificationPath">Path to OpenAPI specification file (used for auto-discovery).</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>Loaded options or default options if no file found.</returns>
-    public static async Task<ApiGeneratorOptions> LoadOptionsAsync(
-        string? optionsPath,
-        string? specificationPath,
-        CancellationToken cancellationToken = default)
-    {
-        var resolvedPath = ResolveOptionsFilePath(optionsPath, specificationPath);
-
-        if (resolvedPath is null || !File.Exists(resolvedPath))
-        {
-            return new ApiGeneratorOptions();
-        }
-
-        try
-        {
-            await using var stream = File.OpenRead(resolvedPath);
-            var options = await JsonSerializer.DeserializeAsync<ApiGeneratorOptions>(stream, JsonOptions, cancellationToken);
-            return options ?? new ApiGeneratorOptions();
-        }
-        catch (JsonException)
-        {
-            return new ApiGeneratorOptions();
+            throw new InvalidDataException($"Options file {resolvedPath} is not valid: {ex.Message}", ex);
         }
     }
 
@@ -143,7 +142,7 @@ public static class ApiOptionsHelper
         {
             var filePath = ResolveOutputPath(outputPath);
             var defaultOptions = new ApiGeneratorOptions();
-            var json = JsonSerializer.Serialize(defaultOptions, JsonOptions);
+            var json = ConfigurationFileJsonHelper.Serialize(defaultOptions, Constants.JsonSchema.ApiGeneratorOptions, JsonOptions);
 
             // Ensure directory exists
             var directory = Path.GetDirectoryName(filePath);
@@ -153,38 +152,6 @@ public static class ApiOptionsHelper
             }
 
             File.WriteAllText(filePath, json);
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    /// <summary>
-    /// Creates a default ApiGeneratorOptions.json file at the specified path asynchronously.
-    /// </summary>
-    /// <param name="outputPath">Directory or file path for the options file.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>True if file was created successfully; otherwise, false.</returns>
-    public static async Task<bool> CreateDefaultOptionsFileAsync(
-        string outputPath,
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            var filePath = ResolveOutputPath(outputPath);
-            var defaultOptions = new ApiGeneratorOptions();
-
-            // Ensure directory exists
-            var directory = Path.GetDirectoryName(filePath);
-            if (!string.IsNullOrWhiteSpace(directory) && !Directory.Exists(directory))
-            {
-                Directory.CreateDirectory(directory);
-            }
-
-            await using var stream = File.Create(filePath);
-            await JsonSerializer.SerializeAsync(stream, defaultOptions, JsonOptions, cancellationToken);
             return true;
         }
         catch
@@ -234,62 +201,7 @@ public static class ApiOptionsHelper
             }
 
             // Validate specific values
-            ValidateOptions(options, result);
-
-            result.IsValid = result.Errors.Count == 0;
-            result.Options = options;
-        }
-        catch (JsonException ex)
-        {
-            result.Errors.Add($"Invalid JSON format: {ex.Message}");
-        }
-
-        return result;
-    }
-
-    /// <summary>
-    /// Validates the structure and values of an ApiGeneratorOptions.json file asynchronously.
-    /// </summary>
-    /// <param name="optionsPath">Path to the options file.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>Validation result with any error messages.</returns>
-    public static async Task<OptionsValidationResult> ValidateOptionsFileAsync(
-        string optionsPath,
-        CancellationToken cancellationToken = default)
-    {
-        var result = new OptionsValidationResult();
-
-        var filePath = Path.GetFullPath(optionsPath);
-
-        // If it's a directory, append the default file name
-        if (Directory.Exists(filePath))
-        {
-            filePath = Path.Combine(filePath, ApiGeneratorOptions.FileName);
-        }
-
-        if (!File.Exists(filePath))
-        {
-            result.Errors.Add($"Options file not found: {filePath}");
-            return result;
-        }
-
-        try
-        {
-            var json = await File.ReadAllTextAsync(filePath, cancellationToken);
-
-            // Try to parse as JSON
-            using var document = JsonDocument.Parse(json);
-
-            // Try to deserialize to ApiGeneratorOptions
-            var options = JsonSerializer.Deserialize<ApiGeneratorOptions>(json, JsonOptions);
-
-            if (options is null)
-            {
-                result.Errors.Add("Failed to deserialize options file.");
-                return result;
-            }
-
-            // Validate specific values
+            ReportUnknownProperties(document.RootElement, typeof(ApiGeneratorOptions), path: null, result.Warnings);
             ValidateOptions(options, result);
 
             result.IsValid = result.Errors.Count == 0;
@@ -320,6 +232,54 @@ public static class ApiOptionsHelper
 
         return fullPath;
     }
+
+    /// <summary>
+    /// Adds a warning for every JSON property the options classes do not have (a misspelled name is
+    /// otherwise ignored silently), walking into the nested sections.
+    /// </summary>
+    private static void ReportUnknownProperties(
+        JsonElement element,
+        Type optionsType,
+        string? path,
+        ICollection<string> warnings)
+    {
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            return;
+        }
+
+        var comparison = JsonOptions.PropertyNameCaseInsensitive
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+        var properties = optionsType.GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+
+        foreach (var jsonProperty in element.EnumerateObject())
+        {
+            var propertyPath = path is null ? jsonProperty.Name : $"{path}.{jsonProperty.Name}";
+            if (path is null && string.Equals(jsonProperty.Name, MarkerConfigInspector.SchemaProperty, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var property = properties.FirstOrDefault(p => string.Equals(JsonNameOf(p), jsonProperty.Name, comparison));
+            if (property is null)
+            {
+                warnings.Add($"Unknown property '{propertyPath}' is ignored.");
+                continue;
+            }
+
+            if (property.PropertyType.IsClass &&
+                property.PropertyType.Namespace == typeof(ApiGeneratorOptions).Namespace)
+            {
+                ReportUnknownProperties(jsonProperty.Value, property.PropertyType, propertyPath, warnings);
+            }
+        }
+    }
+
+    private static string JsonNameOf(System.Reflection.PropertyInfo property)
+        => System.Reflection.CustomAttributeExtensions.GetCustomAttribute<System.Text.Json.Serialization.JsonPropertyNameAttribute>(property)?.Name
+           ?? JsonOptions.PropertyNamingPolicy?.ConvertName(property.Name)
+           ?? property.Name;
 
     /// <summary>
     /// Validates the loaded options and populates the result with any errors or warnings.
@@ -357,5 +317,32 @@ public static class ApiOptionsHelper
         {
             result.Warnings.Add("client.clientSuffix should not be empty.");
         }
+    }
+
+    // The overlays the options file lists, as full paths: they are written relative to the file, not to where the
+    // command happens to run
+    private static List<string> OverlaysOf(
+        ApiGeneratorOptions options,
+        string optionsFilePath)
+    {
+        var directory = Path.GetDirectoryName(optionsFilePath) ?? string.Empty;
+        var overlays = new List<string>();
+        foreach (var overlay in options.General.Overlays ?? [])
+        {
+            if (string.IsNullOrWhiteSpace(overlay))
+            {
+                continue;
+            }
+
+            var fullPath = Path.GetFullPath(Path.Combine(directory, overlay));
+            if (!File.Exists(fullPath))
+            {
+                throw new InvalidDataException($"Options file {optionsFilePath} is not valid: the overlay '{overlay}' (general.overlays) was not found at {fullPath}.");
+            }
+
+            overlays.Add(fullPath);
+        }
+
+        return overlays;
     }
 }

@@ -1,0 +1,15 @@
+<Project>
+
+  <!--
+    What the generators read from the build:
+    - AtcRestApiScaffoldHandlers: false keeps the handler scaffolds, their signatures and GlobalUsings.cs out of the
+      project's files (the scaffolds are still part of the build); the targets make it false for a CI build.
+    - AtcRestApiSiblingMarker: a sibling project's server marker that the targets add to a domain project's
+      AdditionalFiles, for its contracts namespace.
+  -->
+  <ItemGroup>
+    <CompilerVisibleProperty Include="AtcRestApiScaffoldHandlers" />
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="AtcRestApiSiblingMarker" />
+  </ItemGroup>
+
+</Project>

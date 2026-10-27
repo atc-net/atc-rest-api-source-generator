@@ -16,77 +16,84 @@ public static class OpenApiCacheExtensions
         /// </summary>
         /// <returns>The cache type string, or null if not specified.</returns>
         public string? ExtractCacheType()
-            => ExtractStringValue(extensions, CacheExtensionNameConstants.Type);
+            => extensions.ReadString(CacheExtensionNameConstants.Type);
 
         /// <summary>
         /// Extracts the x-cache-policy value from extensions.
         /// </summary>
         /// <returns>The policy name, or null if not specified.</returns>
         public string? ExtractCachePolicy()
-            => ExtractStringValue(extensions, CacheExtensionNameConstants.Policy);
+            => extensions.ReadString(CacheExtensionNameConstants.Policy);
 
         /// <summary>
         /// Extracts the x-cache-enabled value from extensions.
         /// </summary>
         /// <returns>True if enabled, false if explicitly disabled, null if not specified.</returns>
         public bool? ExtractCacheEnabled()
-            => ExtractBoolValue(extensions, CacheExtensionNameConstants.Enabled);
+            => extensions.ReadBool(CacheExtensionNameConstants.Enabled);
 
         /// <summary>
         /// Extracts the x-cache-expiration-seconds value from extensions.
         /// </summary>
         /// <returns>The expiration in seconds, or null if not specified.</returns>
         public int? ExtractCacheExpirationSeconds()
-            => ExtractIntValue(extensions, CacheExtensionNameConstants.ExpirationSeconds);
+            => extensions.ReadInt(CacheExtensionNameConstants.ExpirationSeconds);
 
         /// <summary>
         /// Extracts the x-cache-tags value from extensions.
         /// </summary>
         /// <returns>The cache tags array, or null if not specified.</returns>
         public IReadOnlyList<string>? ExtractCacheTags()
-            => ExtractStringArrayValue(extensions, CacheExtensionNameConstants.Tags);
+            => extensions.ReadStringArray(CacheExtensionNameConstants.Tags);
 
         /// <summary>
         /// Extracts the x-cache-vary-by-query value from extensions.
         /// </summary>
         /// <returns>The query parameters array, or null if not specified.</returns>
         public IReadOnlyList<string>? ExtractCacheVaryByQuery()
-            => ExtractStringArrayValue(extensions, CacheExtensionNameConstants.VaryByQuery);
+            => extensions.ReadStringArray(CacheExtensionNameConstants.VaryByQuery);
 
         /// <summary>
         /// Extracts the x-cache-vary-by-header value from extensions.
         /// </summary>
         /// <returns>The headers array, or null if not specified.</returns>
         public IReadOnlyList<string>? ExtractCacheVaryByHeader()
-            => ExtractStringArrayValue(extensions, CacheExtensionNameConstants.VaryByHeader);
+            => extensions.ReadStringArray(CacheExtensionNameConstants.VaryByHeader);
 
         /// <summary>
         /// Extracts the x-cache-vary-by-route value from extensions (Output Caching only).
         /// </summary>
         /// <returns>The route values array, or null if not specified.</returns>
         public IReadOnlyList<string>? ExtractCacheVaryByRoute()
-            => ExtractStringArrayValue(extensions, CacheExtensionNameConstants.VaryByRoute);
+            => extensions.ReadStringArray(CacheExtensionNameConstants.VaryByRoute);
 
         /// <summary>
         /// Extracts the x-cache-mode value from extensions (HybridCache only).
         /// </summary>
         /// <returns>The cache mode string, or null if not specified.</returns>
         public string? ExtractCacheMode()
-            => ExtractStringValue(extensions, CacheExtensionNameConstants.Mode);
+            => extensions.ReadString(CacheExtensionNameConstants.Mode);
 
         /// <summary>
         /// Extracts the x-cache-sliding-expiration-seconds value from extensions (HybridCache only).
         /// </summary>
         /// <returns>The sliding expiration in seconds, or null if not specified.</returns>
         public int? ExtractCacheSlidingExpirationSeconds()
-            => ExtractIntValue(extensions, CacheExtensionNameConstants.SlidingExpirationSeconds);
+            => extensions.ReadInt(CacheExtensionNameConstants.SlidingExpirationSeconds);
 
         /// <summary>
         /// Extracts the x-cache-key-prefix value from extensions (HybridCache only).
         /// </summary>
         /// <returns>The key prefix, or null if not specified.</returns>
         public string? ExtractCacheKeyPrefix()
-            => ExtractStringValue(extensions, CacheExtensionNameConstants.KeyPrefix);
+            => extensions.ReadString(CacheExtensionNameConstants.KeyPrefix);
+
+        /// <summary>
+        /// Extracts the x-cache-shared value from extensions (Output Caching only).
+        /// </summary>
+        /// <returns>True when the answer is the same for every caller, false if not, null if not specified.</returns>
+        public bool? ExtractCacheShared()
+            => extensions.ReadBool(CacheExtensionNameConstants.Shared);
     }
 
     /// <summary>
@@ -110,10 +117,24 @@ public static class OpenApiCacheExtensions
             return new CacheConfiguration { Enabled = false };
         }
 
+        return ResolveCache(new OpenApiExtensionScope(operation.Extensions, pathItem.Extensions, document.Extensions));
+    }
+
+    /// <summary>
+    /// The cache configuration the <c>x-cache-*</c> settings give, each read from the nearest level that sets it (tags
+    /// merged over all levels).
+    /// </summary>
+    /// <param name="inherited">The operation's, path item's and document's extensions.</param>
+    /// <returns>The configuration, or <see langword="null"/> when no level names a cache policy.</returns>
+    public static CacheConfiguration? ResolveCache(OpenApiExtensionScope inherited)
+    {
+        if (inherited is null)
+        {
+            throw new ArgumentNullException(nameof(inherited));
+        }
+
         // Get effective policy (operation → path → document)
-        var policy = operation.Extensions.ExtractCachePolicy()
-                     ?? pathItem.Extensions.ExtractCachePolicy()
-                     ?? document.Extensions.ExtractCachePolicy();
+        var policy = inherited.First(e => e.ExtractCachePolicy());
 
         if (string.IsNullOrEmpty(policy))
         {
@@ -121,58 +142,46 @@ public static class OpenApiCacheExtensions
         }
 
         // Get cache type (operation → path → document), default to Output
-        var cacheTypeString = operation.Extensions.ExtractCacheType()
-                              ?? pathItem.Extensions.ExtractCacheType()
-                              ?? document.Extensions.ExtractCacheType()
+        var cacheTypeString = inherited.First(e => e.ExtractCacheType())
                               ?? "output";
 
         var cacheType = ParseCacheType(cacheTypeString);
 
         // Get expiration (operation → path → document)
-        var expirationSeconds = operation.Extensions.ExtractCacheExpirationSeconds()
-                                ?? pathItem.Extensions.ExtractCacheExpirationSeconds()
-                                ?? document.Extensions.ExtractCacheExpirationSeconds()
+        var expirationSeconds = inherited.First(e => e.ExtractCacheExpirationSeconds())
                                 ?? 300;
 
         // Merge tags from all levels (not override)
         var tags = MergeTags(
-            document.Extensions.ExtractCacheTags(),
-            pathItem.Extensions.ExtractCacheTags(),
-            operation.Extensions.ExtractCacheTags());
+            inherited.Document.ExtractCacheTags(),
+            inherited.Path.ExtractCacheTags(),
+            inherited.Operation.ExtractCacheTags());
 
         // Get vary-by-query (operation → path → document)
-        var varyByQuery = operation.Extensions.ExtractCacheVaryByQuery()
-                          ?? pathItem.Extensions.ExtractCacheVaryByQuery()
-                          ?? document.Extensions.ExtractCacheVaryByQuery()
+        var varyByQuery = inherited.First(e => e.ExtractCacheVaryByQuery())
                           ?? [];
 
         // Get vary-by-header (operation → path → document)
-        var varyByHeader = operation.Extensions.ExtractCacheVaryByHeader()
-                           ?? pathItem.Extensions.ExtractCacheVaryByHeader()
-                           ?? document.Extensions.ExtractCacheVaryByHeader()
+        var varyByHeader = inherited.First(e => e.ExtractCacheVaryByHeader())
                            ?? [];
 
         // Output Caching specific: vary-by-route
-        var varyByRoute = operation.Extensions.ExtractCacheVaryByRoute()
-                          ?? pathItem.Extensions.ExtractCacheVaryByRoute()
-                          ?? document.Extensions.ExtractCacheVaryByRoute()
+        var varyByRoute = inherited.First(e => e.ExtractCacheVaryByRoute())
                           ?? [];
 
         // HybridCache specific
-        var cacheModeString = operation.Extensions.ExtractCacheMode()
-                              ?? pathItem.Extensions.ExtractCacheMode()
-                              ?? document.Extensions.ExtractCacheMode()
+        var cacheModeString = inherited.First(e => e.ExtractCacheMode())
                               ?? "hybrid";
 
         var cacheMode = ParseCacheMode(cacheModeString);
 
-        var slidingExpirationSeconds = operation.Extensions.ExtractCacheSlidingExpirationSeconds()
-                                       ?? pathItem.Extensions.ExtractCacheSlidingExpirationSeconds()
-                                       ?? document.Extensions.ExtractCacheSlidingExpirationSeconds();
+        var slidingExpirationSeconds = inherited.First(e => e.ExtractCacheSlidingExpirationSeconds());
 
-        var keyPrefix = operation.Extensions.ExtractCacheKeyPrefix()
-                        ?? pathItem.Extensions.ExtractCacheKeyPrefix()
-                        ?? document.Extensions.ExtractCacheKeyPrefix();
+        var keyPrefix = inherited.First(e => e.ExtractCacheKeyPrefix());
+
+        // Output Caching specific: the same answer for every caller
+        var shared = inherited.First(e => e.ExtractCacheShared())
+                     ?? false;
 
         return new CacheConfiguration
         {
@@ -187,6 +196,7 @@ public static class OpenApiCacheExtensions
             Mode = cacheMode,
             SlidingExpirationSeconds = slidingExpirationSeconds,
             KeyPrefix = keyPrefix,
+            Shared = shared,
         };
     }
 
@@ -257,6 +267,90 @@ public static class OpenApiCacheExtensions
         => HasCachingOfType(document, CacheType.Hybrid);
 
     /// <summary>
+    /// Merges the <c>x-cache-tags</c> of the document, path and operation levels: tags are additive across
+    /// levels (not overridden), de-duplicated and returned in ordinal order.
+    /// </summary>
+    /// <param name="documentTags">The document-level tags, or null.</param>
+    /// <param name="pathTags">The path-level tags, or null.</param>
+    /// <param name="operationTags">The operation-level tags, or null.</param>
+    /// <returns>The distinct tags of all levels, sorted; empty when none are declared.</returns>
+    public static IReadOnlyList<string> MergeTags(
+        IReadOnlyList<string>? documentTags,
+        IReadOnlyList<string>? pathTags,
+        IReadOnlyList<string>? operationTags)
+    {
+        var merged = new HashSet<string>(StringComparer.Ordinal);
+
+        if (documentTags is not null)
+        {
+            foreach (var tag in documentTags)
+            {
+                merged.Add(tag);
+            }
+        }
+
+        if (pathTags is not null)
+        {
+            foreach (var tag in pathTags)
+            {
+                merged.Add(tag);
+            }
+        }
+
+        if (operationTags is not null)
+        {
+            foreach (var tag in operationTags)
+            {
+                merged.Add(tag);
+            }
+        }
+
+        return [.. merged.OrderBy(t => t, StringComparer.Ordinal)];
+    }
+
+    /// <summary>
+    /// Parses an <c>x-cache-type</c> value: <c>hybrid</c> / <c>hybridcache</c> (case-insensitive) is
+    /// <see cref="CacheType.Hybrid"/>; anything else, empty or null is <see cref="CacheType.Output"/>.
+    /// </summary>
+    /// <param name="typeString">The declared cache type, or null.</param>
+    /// <returns>The cache type.</returns>
+    public static CacheType ParseCacheType(string? typeString)
+    {
+        if (string.IsNullOrEmpty(typeString))
+        {
+            return CacheType.Output;
+        }
+
+        return typeString.ToLowerInvariant() switch
+        {
+            "hybrid" or "hybridcache" => CacheType.Hybrid,
+            _ => CacheType.Output,
+        };
+    }
+
+    /// <summary>
+    /// Parses an <c>x-cache-mode</c> value (HybridCache only): <c>in-memory</c> / <c>inmemory</c> / <c>memory</c> is
+    /// <see cref="CacheMode.InMemory"/>, <c>distributed</c> / <c>l2</c> is <see cref="CacheMode.Distributed"/>;
+    /// anything else, empty or null is <see cref="CacheMode.Hybrid"/>. Case-insensitive.
+    /// </summary>
+    /// <param name="modeString">The declared cache mode, or null.</param>
+    /// <returns>The cache mode.</returns>
+    public static CacheMode ParseCacheMode(string? modeString)
+    {
+        if (string.IsNullOrEmpty(modeString))
+        {
+            return CacheMode.Hybrid;
+        }
+
+        return modeString.ToLowerInvariant() switch
+        {
+            "in-memory" or "inmemory" or "memory" => CacheMode.InMemory,
+            "distributed" or "l2" => CacheMode.Distributed,
+            _ => CacheMode.Hybrid,
+        };
+    }
+
+    /// <summary>
     /// Checks if the document has caching of a specific type.
     /// </summary>
     private static bool HasCachingOfType(
@@ -325,227 +419,5 @@ public static class OpenApiCacheExtensions
         }
 
         return false;
-    }
-
-    /// <summary>
-    /// Merges tags from all levels (document, path, operation).
-    /// </summary>
-    private static IReadOnlyList<string> MergeTags(
-        IReadOnlyList<string>? documentTags,
-        IReadOnlyList<string>? pathTags,
-        IReadOnlyList<string>? operationTags)
-    {
-        var merged = new HashSet<string>(StringComparer.Ordinal);
-
-        if (documentTags is not null)
-        {
-            foreach (var tag in documentTags)
-            {
-                merged.Add(tag);
-            }
-        }
-
-        if (pathTags is not null)
-        {
-            foreach (var tag in pathTags)
-            {
-                merged.Add(tag);
-            }
-        }
-
-        if (operationTags is not null)
-        {
-            foreach (var tag in operationTags)
-            {
-                merged.Add(tag);
-            }
-        }
-
-        return [.. merged.OrderBy(t => t, StringComparer.Ordinal)];
-    }
-
-    /// <summary>
-    /// Parses a cache type string to the enum value.
-    /// </summary>
-    private static CacheType ParseCacheType(string? typeString)
-    {
-        if (string.IsNullOrEmpty(typeString))
-        {
-            return CacheType.Output;
-        }
-
-        return typeString.ToLowerInvariant() switch
-        {
-            "hybrid" or "hybridcache" => CacheType.Hybrid,
-            _ => CacheType.Output,
-        };
-    }
-
-    /// <summary>
-    /// Parses a cache mode string to the enum value.
-    /// </summary>
-    private static CacheMode ParseCacheMode(string? modeString)
-    {
-        if (string.IsNullOrEmpty(modeString))
-        {
-            return CacheMode.Hybrid;
-        }
-
-        return modeString.ToLowerInvariant() switch
-        {
-            "in-memory" or "inmemory" or "memory" => CacheMode.InMemory,
-            "distributed" or "l2" => CacheMode.Distributed,
-            _ => CacheMode.Hybrid,
-        };
-    }
-
-    /// <summary>
-    /// Extracts a string value from an OpenAPI extension.
-    /// </summary>
-    private static string? ExtractStringValue(
-        IDictionary<string, IOpenApiExtension>? extensions,
-        string key)
-    {
-        if (extensions is null ||
-            !extensions.TryGetValue(key, out var extension) ||
-            extension is null)
-        {
-            return null;
-        }
-
-        // Use reflection to access Node property (Microsoft.OpenApi v3.0.1 pattern)
-        var extensionType = extension.GetType();
-        var nodeProperty = extensionType.GetProperty("Node");
-        if (nodeProperty is null)
-        {
-            return null;
-        }
-
-        var node = nodeProperty.GetValue(extension);
-        if (node is JsonValue jsonValue && jsonValue.TryGetValue<string>(out var stringValue))
-        {
-            return stringValue;
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Extracts a boolean value from an OpenAPI extension.
-    /// </summary>
-    private static bool? ExtractBoolValue(
-        IDictionary<string, IOpenApiExtension>? extensions,
-        string key)
-    {
-        if (extensions is null ||
-            !extensions.TryGetValue(key, out var extension) ||
-            extension is null)
-        {
-            return null;
-        }
-
-        // Use reflection to access Node property (Microsoft.OpenApi v3.0.1 pattern)
-        var extensionType = extension.GetType();
-        var nodeProperty = extensionType.GetProperty("Node");
-        if (nodeProperty is null)
-        {
-            return null;
-        }
-
-        var node = nodeProperty.GetValue(extension);
-        if (node is JsonValue jsonValue && jsonValue.TryGetValue<bool>(out var boolValue))
-        {
-            return boolValue;
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Extracts an integer value from an OpenAPI extension.
-    /// </summary>
-    private static int? ExtractIntValue(
-        IDictionary<string, IOpenApiExtension>? extensions,
-        string key)
-    {
-        if (extensions is null ||
-            !extensions.TryGetValue(key, out var extension) ||
-            extension is null)
-        {
-            return null;
-        }
-
-        // Use reflection to access Node property (Microsoft.OpenApi v3.0.1 pattern)
-        var extensionType = extension.GetType();
-        var nodeProperty = extensionType.GetProperty("Node");
-        if (nodeProperty is null)
-        {
-            return null;
-        }
-
-        var node = nodeProperty.GetValue(extension);
-        if (node is JsonValue jsonValue)
-        {
-            if (jsonValue.TryGetValue<int>(out var intValue))
-            {
-                return intValue;
-            }
-
-            // Also try long and clamp to int range
-            if (jsonValue.TryGetValue<long>(out var longValue))
-            {
-                return longValue > int.MaxValue ? int.MaxValue : longValue < int.MinValue ? int.MinValue : (int)longValue;
-            }
-
-            // YAML-sourced integer scalars are boxed as decimal (JsonValuePrimitive<decimal>)
-            // by the OpenAPI YAML reader, not int/long, so neither branch above ever matches
-            // for a document parsed from YAML (the common case for this generator).
-            if (jsonValue.TryGetValue<decimal>(out var decimalValue))
-            {
-                return decimalValue > int.MaxValue ? int.MaxValue : decimalValue < int.MinValue ? int.MinValue : (int)decimalValue;
-            }
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Extracts a string array value from an OpenAPI extension.
-    /// </summary>
-    private static IReadOnlyList<string>? ExtractStringArrayValue(
-        IDictionary<string, IOpenApiExtension>? extensions,
-        string key)
-    {
-        if (extensions is null ||
-            !extensions.TryGetValue(key, out var extension) ||
-            extension is null)
-        {
-            return null;
-        }
-
-        // Use reflection to access Node property (Microsoft.OpenApi v3.0.1 pattern)
-        var extensionType = extension.GetType();
-        var nodeProperty = extensionType.GetProperty("Node");
-        if (nodeProperty is null)
-        {
-            return null;
-        }
-
-        var node = nodeProperty.GetValue(extension);
-        if (node is JsonArray jsonArray)
-        {
-            var result = new List<string>();
-            foreach (var item in jsonArray)
-            {
-                if (item is JsonValue itemValue && itemValue.TryGetValue<string>(out var stringValue))
-                {
-                    result.Add(stringValue);
-                }
-            }
-
-            return result.Count > 0 ? result : null;
-        }
-
-        return null;
     }
 }

@@ -13,31 +13,58 @@
     <!-- NOTE: Microsoft.AspNetCore.OpenApi cannot be referenced here. It requires
          Microsoft.OpenApi >= 2.12.0 && < 3.0.0, while this repo pins 3.7.0 (NU1107). That is why
          HttpQueryRuntimeTests covers the Kestrel/QUERY behaviour but not what the runtime OpenAPI
-         document contains - see issues/http-query-support.md, SV-6. -->
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.6.0" />
+         document contains. -->
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0" />
+    <!-- Property-based tests of the escapers and sanitisers: any string, not a handful of odd ones -->
+    <PackageReference Include="CsCheck" Version="5.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Hybrid" Version="10.11.0" />
     <!-- The scenario snapshots moved here from the integration-test project, so that they are
          produced by the real Roslyn generators rather than a parallel orchestration. -->
-    <PackageReference Include="Verify.XunitV3" Version="32.0.0" />
+    <!-- Pinned to 32.x: Verify 33 fails every Release build until the project declares a sponsorship license (SponsorCheck SC021) -->
+    <PackageReference Include="Verify.XunitV3" Version="[32.0.0,33.0.0)" />
     <PackageReference Include="Microsoft.OpenApi.YamlReader" Version="3.10.2" />
-    <!-- Referenced only so the assemblies are present in the test host (TRUSTED_PLATFORM_ASSEMBLIES),
-         enabling real C# compilation of generated client/server output in CompilationVerificationTests. -->
-    <PackageReference Include="Atc.Rest.Client" Version="2.0.36" />
     <!-- Same purpose: the resilience/retry scenarios emit code against Polly, so those assemblies
          must be present in the test host for the compilation gate to resolve them. -->
-    <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.10.0" />
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.11.0" />
     <!-- Likewise for the OpenID Connect security scenario, whose emitted authentication wiring
          lives outside the ASP.NET Core shared framework. -->
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="10.0.12" />
-    <!-- Present in the test host, but the harness hides it from a scenario unless that scenario's
-         Server marker sets a MinimalApi mode to "Enabled" - otherwise every "Auto" scenario would
-         silently switch to the package-backed output. -->
-    <PackageReference Include="Atc.Rest.MinimalApi" Version="2.0.41" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="10.0.13" />
+    <!-- The generated scope and role policies against real signed JWTs, as an identity provider issues them -->
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.13" />
+    <!-- The SDK's trim and AOT analyzer, for the AOT gate over the generated code: only its DLL is copied to the
+         output, so it does not analyze this project -->
+    <PackageReference Include="Microsoft.NET.ILLink.Tasks" Version="10.0.13" ExcludeAssets="all" GeneratePathProperty="true" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="$(PkgMicrosoft_NET_ILLink_Tasks)\analyzers\dotnet\cs\ILLink.RoslynAnalyzer.dll" Link="ILLinkAnalyzer\ILLink.RoslynAnalyzer.dll" CopyToOutputDirectory="PreserveNewest" Visible="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Atc.Rest.MinimalApi is present in the test host, but the harness hides it from a scenario unless
+         that scenario's Server marker sets a MinimalApi mode to "Enabled" - otherwise every "Auto"
+         scenario would silently switch to the package-backed output. -->
+    <PackageReference Include="Atc.Rest.MinimalApi" Version="3.1.1" />
+    <!-- Referenced so the assemblies are present in the test host (TRUSTED_PLATFORM_ASSEMBLIES), enabling real C#
+         compilation and runs of generated client output (CompilationVerificationTests, the error-body matrix).
+         2.7.0: a streamed request body sent by the request builder (WithStreamedBody) and an empty text body kept as
+         the text; streamed responses read by the library (StreamFraming) and its default registrations, on the trim- and Native AOT-ready (URL-encoded form fields, a body with its own media type, repeated
+         multipart fields, a multipart field sent as a JSON part), and query parameter keys are URI-escaped. -->
+    <PackageReference Include="Atc.Rest.Client" Version="2.7.0" />
+
+    <!-- The typed hub clients of x-signalr-hubs build on its HubConnection; a runtime test connects one to a hub. -->
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.13" />
   </ItemGroup>
 
   <!-- ASP.NET Core shared framework, so generated server/client output (which uses
        Microsoft.AspNetCore.*, Microsoft.Extensions.DependencyInjection/Http) can be compiled in tests. -->
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The one npm workspace every runtime matrix installs from (test/NodeWorkspace), shared with the CLI tests as source -->
+    <Compile Include="..\NodeWorkspace\NodeWorkspace.cs" Link="Generators\NodeWorkspace.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -50,6 +77,9 @@
     <ProjectReference Include="..\..\src\Atc.Rest.Api.SourceGenerator\Atc.Rest.Api.SourceGenerator.csproj">
       <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
     </ProjectReference>
+    <!-- The end-to-end error-body tests run the CLI executable to generate the TypeScript clients; the fuzz test runs
+         the TypeScript generation service in-process over every mutant. -->
+    <ProjectReference Include="..\..\src\Atc.Rest.Api.Generator.Cli\Atc.Rest.Api.Generator.Cli.csproj" />
   </ItemGroup>
 
   <!-- Include runtime assemblies so they are properly registered in deps.json -->

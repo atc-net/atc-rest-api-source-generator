@@ -16,6 +16,9 @@ public partial class Accounts
     private int? limit;
     private string newAccountName = string.Empty;
     private string? newAccountTag;
+    private Account? editTarget;
+    private string editName = string.Empty;
+    private string? editTag;
 
     private async Task LoadAccountsAsync()
     {
@@ -54,6 +57,48 @@ public partial class Accounts
                 newAccountName = string.Empty;
                 newAccountTag = null;
                 await LoadAccountsAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void StartEdit(Account account)
+    {
+        editTarget = account;
+        editName = account.Name;
+        editTag = account.Tag;
+    }
+
+    private async Task UpdateAccountAsync()
+    {
+        if (editTarget is null || string.IsNullOrWhiteSpace(editName))
+        {
+            Snackbar.Add("Name is required", Severity.Warning);
+            return;
+        }
+
+        isLoading = true;
+        try
+        {
+            var updated = await Gateway.UpdateAccountByIdAsync(
+                editTarget.Id.ToString(CultureInfo.InvariantCulture),
+                editTarget with { Name = editName, Tag = editTag ?? string.Empty });
+            if (updated is not null)
+            {
+                Snackbar.Add($"Account updated: {updated.Name}", Severity.Success);
+                editTarget = null;
+                await LoadAccountsAsync();
+            }
+            else
+            {
+                Snackbar.Add("Failed to update the account", Severity.Error);
             }
         }
         catch (Exception ex)

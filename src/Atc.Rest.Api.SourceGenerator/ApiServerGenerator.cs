@@ -2,97 +2,148 @@
 // ReSharper disable ConditionalAccessQualifierIsNonNullableAccordingToAPIContract
 namespace Atc.Rest.Api.SourceGenerator;
 
+/// <summary>
+/// The source generator behind the <c>.atc-rest-api-server</c> marker file: the models, parameters, results, handler interfaces, endpoint definitions and dependency-injection extensions of every OpenAPI specification in the project.
+/// </summary>
 [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "OK.")]
 [Generator(LanguageNames.CSharp)]
 public class ApiServerGenerator : IIncrementalGenerator
 {
+    // The Atc.Rest.MinimalApi a server that builds on it needs: 3.0 keys validation errors by the names the client sent,
+    // keeps a handler's ValidationException field errors and writes every error as a problem; 3.1 validates the request a
+    // form endpoint builds (RequestValidation)
+    private static readonly Version MinimumMinimalApiVersion = new(3, 1, 1);
+
+    /// <summary>
+    /// Registers the pipeline: the marker file and the specifications as additional texts, the project's package references, and the server code and its diagnostics as the output.
+    /// </summary>
+    /// <param name="context">The initialization context.</param>
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         // Find marker files - marker file presence IS the trigger for this generator
+        // A sibling project's marker that the package's targets add to a domain project (AtcRestApiSiblingMarker) is that
+        // project's, not this one's
         var markerFiles = context.AdditionalTextsProvider
-            .Where(static file => Path.GetFileName(file.Path).Equals(Constants.MarkerFile.Server, StringComparison.OrdinalIgnoreCase) ||
-                                  Path.GetFileName(file.Path).Equals(Constants.MarkerFile.ServerJson, StringComparison.OrdinalIgnoreCase))
-            .Select(static (file, cancellationToken) =>
-                new MarkerFileInfo(file.Path, file.GetText(cancellationToken)?.ToString() ?? "{}"))
+            .Combine(context.AnalyzerConfigOptionsProvider)
+            .Where(static pair => MarkerFileHelper.IsServerMarker(pair.Left.Path) &&
+                                  !BuildSettings.IsSiblingMarker(pair.Right.GetOptions(pair.Left)))
+            .Select(static (pair, cancellationToken) =>
+                new MarkerFileInfo(pair.Left.Path, pair.Left.GetText(cancellationToken)?.ToString() ?? "{}"))
             .Collect()
             .Select(static (array, _) => new EquatableArray<MarkerFileInfo>(array));
 
         // Register a pipeline to collect ALL OpenAPI YAML files (for multi-parts support)
-        var yamlFiles = context.AdditionalTextsProvider
-            .Where(static file => file.Path.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase) ||
-                                 file.Path.EndsWith(".yml", StringComparison.OrdinalIgnoreCase))
-            .Select(static (file, cancellationToken) =>
-                new YamlFileInfo(file.Path, file.GetText(cancellationToken)?.ToString() ?? string.Empty))
-            .Where(static file => !string.IsNullOrEmpty(file.Content))
-            .Collect()
-            .Select(static (array, _) => new EquatableArray<YamlFileInfo>(array));
+        var yamlFiles = SpecificationFileProvider.Create(context);
 
-        // Check for ASP.NET Core references (required for compilation)
-        var hasAspNetCoreProvider = context.CompilationProvider
-            .Select(static (compilation, _) => compilation.ReferencedAssemblyNames
-                .Any(a => a.Name.StartsWith("Microsoft.AspNetCore", StringComparison.OrdinalIgnoreCase)));
+        // The packages the generated code needs or recommends, read from the project's references
+        // EnableRequestDelegateGenerator: what a Native AOT project turns on (PublishAot sets it)
+        var requestDelegateGenerator = context.AnalyzerConfigOptionsProvider
+            .Select(static (options, _) =>
+                options.GlobalOptions.TryGetValue("build_property.EnableRequestDelegateGenerator", out var value) &&
+                string.Equals(value, "true", StringComparison.OrdinalIgnoreCase));
 
-        // Check for Atc.Rest.MinimalApi package reference (for IEndpointDefinition interface)
-        var hasMinimalApiProvider = context.CompilationProvider
-            .Select(static (compilation, _) => compilation.ReferencedAssemblyNames
-                .Any(a => a.Name.Equals("Atc.Rest.MinimalApi", StringComparison.OrdinalIgnoreCase)));
-
-        // Check for Atc.Rest.HealthChecks package reference (for structured JSON health responses)
-        var hasHealthChecksProvider = context.CompilationProvider
-            .Select(static (compilation, _) => compilation.ReferencedAssemblyNames
-                .Any(a => a.Name.Equals("Atc.Rest.HealthChecks", StringComparison.OrdinalIgnoreCase)));
+        var packagesProvider = context.CompilationProvider
+            .Combine(requestDelegateGenerator)
+            .Select(static (pair, _) => (Compilation: pair.Left, RequestDelegateGenerator: pair.Right))
+            .Select(static (project, _) => new ServerPackageReferences
+            {
+                RequestDelegateGenerator = project.RequestDelegateGenerator,
+                NamesFoundFirst = project.RequestDelegateGenerator ? NamesBesideRequestDelegates(project.Compilation) : string.Empty,
+                HasAspNetCore = project.Compilation.ReferencesAnyStartingWith("Microsoft.AspNetCore"),
+                MinimalApiVersion = project.Compilation.VersionOf("Atc.Rest.MinimalApi"),
+                HasHealthChecks = project.Compilation.References("Atc.Rest.HealthChecks"),
+                HasBearerHandler = project.Compilation.References("Microsoft.AspNetCore.Authentication.JwtBearer") ||
+                                   project.Compilation.References("Microsoft.Identity.Web"),
+            });
 
         // Combine ALL YAML files (as collection) with marker files and compilation info
         var combined = yamlFiles
             .Combine(markerFiles)
-            .Combine(hasAspNetCoreProvider)
-            .Combine(hasMinimalApiProvider)
-            .Combine(hasHealthChecksProvider);
+            .Combine(packagesProvider);
 
         // Register source output - processes all YAML files together for multi-parts support
         context.RegisterSourceOutput(combined, RegisterSourceOutputAction);
     }
 
+    /// <summary>
+    /// The packages a server project references, as far as the generated code cares: ASP.NET Core (required),
+    /// Atc.Rest.MinimalApi (the IEndpointDefinition and filters), Atc.Rest.HealthChecks (structured health
+    /// responses), and a bearer handler package - JwtBearer or Microsoft.Identity.Web - for a bearer scheme.
+    /// </summary>
+    private sealed record ServerPackageReferences
+    {
+        public bool HasAspNetCore { get; init; }
+
+        public bool HasMinimalApi => MinimalApiVersion is not null;
+
+        /// <summary>
+        /// The version of the referenced Atc.Rest.MinimalApi, or <see langword="null"/> when there is none.
+        /// </summary>
+        public Version? MinimalApiVersion { get; init; }
+
+        public bool HasHealthChecks { get; init; }
+
+        public bool HasBearerHandler { get; init; }
+
+        /// <summary>
+        /// The project turns the Request Delegate Generator on (<c>EnableRequestDelegateGenerator</c>).
+        /// </summary>
+        public bool RequestDelegateGenerator { get; init; }
+
+        /// <summary>
+        /// With that generator on: the names its generated file (namespace
+        /// <c>Microsoft.AspNetCore.Http.Generated</c>) finds before the global namespace, each as
+        /// <c>name=what it is</c>, one per line. Text, so the record compares by value.
+        /// </summary>
+        public string NamesFoundFirst { get; init; } = string.Empty;
+    }
+
+    // The public types and the namespaces of Microsoft.AspNetCore.Http, Microsoft.AspNetCore and Microsoft: a name
+    // written without global:: inside Microsoft.AspNetCore.Http.Generated binds to the innermost of them
+    private static string NamesBesideRequestDelegates(Compilation compilation)
+    {
+        var names = new SortedDictionary<string, string>(StringComparer.Ordinal);
+        INamespaceSymbol? current = compilation.GlobalNamespace;
+        foreach (var part in (string[])["Microsoft", "AspNetCore", "Http"])
+        {
+            current = current?.GetNamespaceMembers().FirstOrDefault(n => string.Equals(n.Name, part, StringComparison.Ordinal));
+            if (current is null)
+            {
+                break;
+            }
+
+            foreach (var member in current.GetMembers())
+            {
+                if (member is INamespaceSymbol)
+                {
+                    names[member.Name] = $"the namespace {member.ToDisplayString()}";
+                }
+                else if (member.DeclaredAccessibility == Accessibility.Public)
+                {
+                    names[member.Name] = $"the type {member.ToDisplayString()}";
+                }
+            }
+        }
+
+        return string.Join("\n", names.Select(n => n.Key + "=" + n.Value));
+    }
+
     private static void RegisterSourceOutputAction(
         SourceProductionContext productionContext,
-        ((((EquatableArray<YamlFileInfo> Left,
+        ((EquatableArray<YamlFileInfo> Left,
             EquatableArray<MarkerFileInfo> Right) Left,
-            bool Right) Left,
-            bool Right) Left,
-            bool Right) combinedData)
+            ServerPackageReferences Right) combinedData)
     {
-        var ((((yamlFiles, markers), hasAspNetCore), hasMinimalApi), hasHealthChecksPackage) = combinedData;
+        var ((yamlFiles, markers), packages) = combinedData;
+        var hasAspNetCore = packages.HasAspNetCore;
+        var hasMinimalApi = packages.HasMinimalApi;
 
-        // Skip if no marker file found - marker file presence IS the trigger
-        if (markers.IsEmpty)
+        if (GeneratorStartup.ReadMarker<ServerConfig>(productionContext, yamlFiles, markers) is not { } started)
         {
             return;
         }
 
-        // Skip if no YAML files found
-        if (yamlFiles.IsEmpty)
-        {
-            return;
-        }
-
-        var marker = markers.Values.First();
-
-        ServerConfig config;
-        try
-        {
-            config = JsonSerializer.Deserialize<ServerConfig>(marker.Content, JsonHelper.ConfigOptions) ?? new ServerConfig();
-        }
-        catch (Exception ex)
-        {
-            DiagnosticHelpers.ReportMarkerConfigParseError(productionContext, marker.Path, ex);
-            config = new ServerConfig();
-        }
-
-        // Skip if generation is disabled
-        if (!config.Generate)
-        {
-            return;
-        }
+        var (marker, config) = started;
 
         // Validate ASP.NET Core references - generated code requires them
         if (!hasAspNetCore)
@@ -101,208 +152,96 @@ public class ApiServerGenerator : IIncrementalGenerator
             return;
         }
 
-        // Validate MinimalApiPackage mode - report error if Enabled but package not referenced
-        if (config.UseMinimalApiPackage == MinimalApiPackageMode.Enabled && !hasMinimalApi)
+        // A setting enabled without Atc.Rest.MinimalApi: the generated code would not build, so say which setting asks for it
+        var missingFor = new[]
+            {
+                ("useMinimalApiPackage", config.UseMinimalApiPackage),
+                ("useValidationFilter", config.UseValidationFilter),
+                ("useGlobalErrorHandler", config.UseGlobalErrorHandler),
+            }
+            .FirstOrDefault(s => s.Item2.MissesPackage(hasMinimalApi))
+            .Item1;
+        if (missingFor is not null)
         {
-            DiagnosticHelpers.ReportMinimalApiPackageRequired(productionContext);
+            DiagnosticHelpers.ReportMinimalApiPackageRequired(productionContext, missingFor);
             return;
         }
 
-        // Validate ValidationFilter mode - report error if Enabled but package not referenced
-        if (config.UseValidationFilter == MinimalApiPackageMode.Enabled && !hasMinimalApi)
+        // Each setting: always when enabled, never when disabled, and when the package is referenced for auto
+        var useMinimalApiPackage = config.UseMinimalApiPackage.UsesPackage(hasMinimalApi);
+        var useValidationFilter = config.UseValidationFilter.UsesPackage(hasMinimalApi);
+        var useGlobalErrorHandler = config.UseGlobalErrorHandler.UsesPackage(hasMinimalApi);
+
+        // ... in the version the generated server is written for
+        if ((useMinimalApiPackage || useValidationFilter || useGlobalErrorHandler) &&
+            packages.MinimalApiVersion is { } minimalApiVersion &&
+            minimalApiVersion < MinimumMinimalApiVersion)
         {
-            DiagnosticHelpers.ReportMinimalApiPackageRequired(productionContext);
+            DiagnosticHelpers.ReportMinimalApiTooOld(productionContext, MinimumMinimalApiVersion, minimalApiVersion);
             return;
         }
 
-        // Resolve effective useMinimalApiPackage mode:
-        // - Enabled: always use package interface (validated above)
-        // - Disabled: always generate interface
-        // - Auto: use package interface if package is referenced
-        var useMinimalApiPackage = config.UseMinimalApiPackage switch
-        {
-            MinimalApiPackageMode.Enabled => true,
-            MinimalApiPackageMode.Disabled => false,
-            _ => hasMinimalApi,
-        };
-
-        // Resolve effective useValidationFilter mode:
-        // - Enabled: always add ValidationFilter (validated above)
-        // - Disabled: never add ValidationFilter
-        // - Auto: add ValidationFilter if package is referenced
-        var useValidationFilter = config.UseValidationFilter switch
-        {
-            MinimalApiPackageMode.Enabled => true,
-            MinimalApiPackageMode.Disabled => false,
-            _ => hasMinimalApi,
-        };
-
-        // Resolve effective useGlobalErrorHandler mode:
-        // - Enabled: always generate (validated above similar to ValidationFilter)
-        // - Disabled: never generate
-        // - Auto: generate if package is referenced
-        var useGlobalErrorHandler = config.UseGlobalErrorHandler switch
-        {
-            MinimalApiPackageMode.Enabled => true,
-            MinimalApiPackageMode.Disabled => false,
-            _ => hasMinimalApi,
-        };
-
-        // Identify the base file (non-part file or the first file that is not a part file)
-        // Part files follow the naming convention: {BaseName}_{PartName}.yaml
-        var baseFile = YamlFileHelper.IdentifyBaseFile(yamlFiles.Values);
-        if (baseFile is null)
-        {
-            return;
-        }
-
+        // Everything from here runs under the catch: a failure before the base file is known is reported on the marker
+        var filePath = marker.Path;
         try
         {
-            // Check if multi-parts specification
-            var baseName = Path.GetFileNameWithoutExtension(baseFile.Value.Path);
-            var partFiles = yamlFiles.Values
-                .Where(f => YamlFileHelper.IsPartFile(f.Path, baseName))
-                .ToList();
+            GeneratorFaultInjection.ThrowIfRequested(RuleIdentifiers.ServerGenerationError);
 
-            if (partFiles.Count > 0)
+            if (GeneratorStartup.FindSpecification(productionContext, marker.Path, config.Overlays, yamlFiles) is not { } files)
             {
-                // Multi-part mode: merge all files
-                GenerateApiServerMultiPart(
-                    productionContext,
-                    baseFile.Value,
-                    partFiles,
-                    config,
-                    useMinimalApiPackage,
-                    useValidationFilter,
-                    useGlobalErrorHandler,
-                    hasHealthChecksPackage);
+                return;
             }
-            else
-            {
-                // Single file mode
-                GenerateApiServer(
-                    productionContext,
-                    baseFile.Value.Path,
-                    baseFile.Value.Content,
-                    config,
-                    useMinimalApiPackage,
-                    useValidationFilter,
-                    useGlobalErrorHandler,
-                    hasHealthChecksPackage);
-            }
+
+            filePath = files.BaseFile.Path;
+            GenerateApiServer(
+                productionContext,
+                files,
+                config,
+                useMinimalApiPackage,
+                useValidationFilter,
+                useGlobalErrorHandler,
+                packages);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            DiagnosticHelpers.ReportServerGenerationError(productionContext, baseFile.Value.Path, ex);
+            DiagnosticHelpers.ReportServerGenerationError(productionContext, filePath, ex);
         }
     }
 
     /// <summary>
-    /// Generates API server code from a multi-parts specification.
-    /// Merges all part files with the base file before generation.
+    /// Generates the API server from the project's specification (its parts merged).
     /// </summary>
-    private static void GenerateApiServerMultiPart(
-        SourceProductionContext context,
-        YamlFileInfo baseFile,
-        List<YamlFileInfo> partFiles,
-        ServerConfig config,
-        bool useMinimalApiPackage,
-        bool useValidationFilter,
-        bool useGlobalErrorHandler,
-        bool hasHealthChecksPackage)
-    {
-        // Convert to SpecificationFile objects
-        var baseName = Path.GetFileNameWithoutExtension(baseFile.Path);
-        var baseSpec = SpecificationService.ReadFromContent(baseFile.Content, baseFile.Path);
-        var partSpecs = partFiles
-            .Select(p => SpecificationService.ReadFromContent(p.Content, p.Path))
-            .ToList();
-
-        // Merge specifications using SpecificationService
-        var mergeConfig = config.MultiPartConfiguration ?? MultiPartConfiguration.Default;
-        var mergeResult = SpecificationService.MergeSpecifications(baseSpec, partSpecs, mergeConfig);
-
-        // Report merge diagnostics
-        foreach (var diagnostic in mergeResult.Diagnostics)
-        {
-            context.ReportDiagnostic(DiagnosticHelpers.ToRoslynDiagnostic(diagnostic));
-        }
-
-        // Stop if merge failed
-        if (!mergeResult.IsSuccess || mergeResult.Document is null)
-        {
-            return;
-        }
-
-        // Extract project name from base file path (or use config namespace)
-        var projectName = config.Namespace ?? baseName;
-
-        // Continue with normal generation using merged document
-        GenerateApiServerFromDocument(
-            context,
-            baseFile.Path,
-            mergeResult.Document,
-            config,
-            projectName,
-            useMinimalApiPackage,
-            useValidationFilter,
-            useGlobalErrorHandler,
-            hasHealthChecksPackage);
-    }
-
     private static void GenerateApiServer(
         SourceProductionContext context,
-        string yamlPath,
-        string yamlContent,
+        SpecificationFiles files,
         ServerConfig config,
         bool useMinimalApiPackage,
         bool useValidationFilter,
         bool useGlobalErrorHandler,
-        bool hasHealthChecksPackage)
+        ServerPackageReferences packages)
     {
-        // Parse the OpenAPI YAML content
-        var (openApiDoc, openApiDiagnostic) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(yamlContent, yamlPath);
-
+        var openApiDoc = GeneratorStartup.Load(context, files, config, config.MultiPartConfiguration, parametersMustBind: true, DiagnosticHelpers.ReportServerParsingError);
         if (openApiDoc is null)
         {
-            DiagnosticHelpers.ReportServerParsingError(context, yamlPath);
             return;
         }
 
-        // Validate OpenAPI document according to configured strategy
-        var validationDiagnostics = OpenApiDocumentValidator.Validate(
-            config.ValidateSpecificationStrategy,
-            openApiDoc,
-            openApiDiagnostic?.Errors ?? Array.Empty<OpenApiError>(),
-            yamlPath,
-            yamlContent);
+        // A rule about the specification only a server with the ValidationFilter has
+        ReportValidationBadRequestsDeclaredAsString(context, openApiDoc, files, config, useValidationFilter);
 
-        // Report all validation diagnostics (convert from platform-agnostic to Roslyn)
-        foreach (var diagnostic in validationDiagnostics)
-        {
-            context.ReportDiagnostic(DiagnosticHelpers.ToRoslynDiagnostic(diagnostic));
-        }
+        // The root namespace: marker namespace, qualifying info.title, then base file name - as for a client
+        var projectName = DiagnosticHelpers.ResolveRootNamespace(context, config.Namespace, openApiDoc, files.BaseFile.Path);
 
-        // Stop generation if there are validation errors (not warnings)
-        if (DiagnosticHelpers.HasErrors(validationDiagnostics))
-        {
-            return;
-        }
-
-        // Extract project name from YAML file path (or use config namespace)
-        var projectName = config.Namespace ?? GetProjectNameFromPath(yamlPath);
-
-        // Continue with generation from the parsed document
         GenerateApiServerFromDocument(
             context,
-            yamlPath,
+            files.BaseFile.Path,
             openApiDoc,
             config,
             projectName,
             useMinimalApiPackage,
             useValidationFilter,
             useGlobalErrorHandler,
-            hasHealthChecksPackage);
+            packages);
     }
 
     /// <summary>
@@ -318,37 +257,29 @@ public class ApiServerGenerator : IIncrementalGenerator
         bool useMinimalApiPackage,
         bool useValidationFilter,
         bool useGlobalErrorHandler,
-        bool hasHealthChecksPackage)
+        ServerPackageReferences packages)
     {
-        // Report diagnostics for unsupported OpenAPI features
-        foreach (var diagnostic in DiagnosticHelpers.DetectUnsupportedFeatures(openApiDoc))
-        {
-            context.ReportDiagnostic(diagnostic);
-        }
+        // An inline allOf over a plain base becomes one inline object, so it gets a model of its own
+        InlineAllOfFlattener.Flatten(openApiDoc);
+
+        // What the project and the specification need to know before anything is generated
+        ReportServerPreamble(context, openApiDoc, projectName, packages, useValidationFilter);
 
         // Filter paths based on include/exclude patterns before segmentation
-        if (config.IncludePaths is { Count: > 0 } || config.ExcludePaths is { Count: > 0 })
-        {
-            var allowedPaths = PathFilterHelper.FilterPaths(
-                openApiDoc.Paths.Keys,
-                config.IncludePaths,
-                config.ExcludePaths);
-
-            // Remove excluded paths from document (modifies in-place for downstream extractors)
-            var pathsToRemove = openApiDoc.Paths.Keys
-                .Where(k => !allowedPaths.Contains(k))
-                .ToList();
-            foreach (var path in pathsToRemove)
-            {
-                openApiDoc.Paths.Remove(path);
-            }
-        }
+        // (on a copy: the parsed document is cached and shared)
+        openApiDoc = PathFilterHelper.WithFilteredPaths(openApiDoc, config.IncludePaths, config.ExcludePaths);
 
         // Get unique path segments for grouping generated files
         var pathSegments = PathSegmentHelper.GetUniquePathSegments(openApiDoc);
 
         // Scan for type conflicts once (optimization: O(schemas) instead of O(pathSegments × schemas))
-        var conflicts = TypeConflictRegistry.ScanForConflicts(openApiDoc, projectName);
+        var conflicts = TypeConflictRegistry.ScanForConflicts(
+            openApiDoc,
+            projectName,
+            pathSegments.Select(s => PathSegmentHelper.ResolveEffectivePathSegment(openApiDoc, projectName, s) ?? string.Empty));
+
+        // The component schemas' C# names, which an inline enum's generated name must not take
+        var componentTypeNames = TypeConflictRegistry.ComponentTypeNamesOf(openApiDoc);
 
         // Create system type conflict resolver for conditional Task qualification
         var modelNames = openApiDoc.Components?.Schemas?.Keys ?? [];
@@ -356,45 +287,55 @@ public class ApiServerGenerator : IIncrementalGenerator
 
         // Proxy over `context` that adds [ExcludeFromCodeCoverage] alongside [GeneratedCode] when
         // configured. Used by every sub-generation method below that only ever calls AddSource.
-        var generatedContext = new GeneratedSourceContext(context, config.ExcludeFromCodeCoverage);
+        var generatedContext = new GeneratedSourceContext(
+            context,
+            config.ExcludeFromCodeCoverage,
+            DeprecationDetector.HasDeprecatedMembers(openApiDoc),
+            $"global::{NamespaceBuilder.BuildBase(projectName)}.{EnumWireConverterExtractor.ClassName}",
+            config.ExtensibleEnums,
+            config.ReadEnumMemberNames);
+        if (config.ReadEnumMemberNames)
+        {
+            DiagnosticHelpers.ReportReadEnumMemberNamesOn(context, ".atc-rest-api-server");
+        }
 
         // Detect shared schemas (used by multiple path segments) for deduplication
         var sharedSchemas = PathSegmentHelper.GetSharedSchemas(openApiDoc);
 
-        // Generate shared models/enums first (under common namespace without segment suffix)
+        // The models an XML body can carry get an XML mapping (only when the specification has an XML body)
+        var xmlModels = XmlBodyReachability.Collect(openApiDoc);
+        XmlModelEmitter.EmitSupport(generatedContext, projectName, xmlModels);
+        XmlModelEmitter.EmitProblemDetailsWriter(generatedContext, projectName, xmlModels);
+
+        // The models bound by Content-Type (JSON and/or XML request bodies): a partial with BindAsync
+        var boundRequestModels = XmlBodyHelper.ServerBoundRequestModels(openApiDoc);
+
+        // The readers a request body is bound by (a stream of records, a list, the body problems)
+        EmitRequestBodySupport(generatedContext, openApiDoc, projectName, boundRequestModels);
+
+        // The models of an XML request body name their XML names where they differ from the JSON ones
+        // ([XmlElement] / [XmlAttribute]): a validation filter maps an XML request's error keys through them
+        var xmlRequestModels = XmlBodyReachability.CollectRequestBodies(openApiDoc);
+
+        // A model only an XML request carries is validated as XML only: its messages name it by its XML names too
+        var xmlOnlyRequestModels = new HashSet<string>(xmlRequestModels, StringComparer.Ordinal);
+        xmlOnlyRequestModels.ExceptWith(XmlBodyReachability.CollectOtherRequests(openApiDoc));
+
+        // A spec-defined ProblemDetails / ValidationProblemDetails is not materialized: the server binds
+        // those names to Microsoft.AspNetCore.Mvc (every generated Results file imports it), and a second,
+        // generated type of the same name would make every reference ambiguous (CS0104). Unless another
+        // schema extends or holds it: then it is a model like any other, and the files that import both
+        // namespaces alias the name to the framework type.
+        var referencedReservedSchemas = BuiltInErrorContractNames.ReferencedByOtherSchemas(openApiDoc);
+        sharedSchemas.RemoveWhere(name => BuiltInErrorContractNames.IsReserved(name) && !referencedReservedSchemas.Contains(name));
+
+        var bodies = new ServerBodyModels(xmlModels, boundRequestModels, xmlRequestModels, xmlOnlyRequestModels, RequireJsonProperties: !useValidationFilter);
+
+        // Shared models and enums first (under the common namespace without a segment suffix)
         if (sharedSchemas.Count > 0)
         {
-            var sharedRegistry = TypeConflictRegistry.ForSegment(conflicts, projectName);
-            GenerateModelsForSchemas(
-                generatedContext,
-                openApiDoc,
-                projectName,
-                sharedSchemas,
-                pathSegment: null,
-                sharedRegistry,
-                config.IncludeDeprecated,
-                config.GeneratePartialModels);
-
-            GenerateEnumsForSchemas(
-                generatedContext,
-                openApiDoc,
-                projectName,
-                sharedSchemas,
-                pathSegment: null);
-
-            GenerateTuplesForSchemas(
-                generatedContext,
-                openApiDoc,
-                projectName,
-                sharedSchemas,
-                pathSegment: null);
-
-            PolymorphicTypeEmitter.Emit(
-                generatedContext,
-                openApiDoc,
-                projectName,
-                sharedSchemas,
-                pathSegment: null);
+            var sharedRegistry = TypeConflictRegistry.ForSegment(conflicts, projectName, extensibleEnums: config.ExtensibleEnums, componentTypeNames: componentTypeNames);
+            EmitSchemaTypes(generatedContext, openApiDoc, projectName, sharedSchemas, pathSegment: null, sharedRegistry, config, includeSharedModelsUsing: false, bodies);
         }
 
         // Generate shared IEndpointDefinition interface once (unless using Atc.Rest.MinimalApi package)
@@ -410,114 +351,24 @@ public class ApiServerGenerator : IIncrementalGenerator
         var endpointDefinitionsBySegment = new List<(string Segment, List<string> EndpointDefinitionClassNames)>();
         foreach (var pathSegment in pathSegments)
         {
-            // Resolve the segment used for namespaces and file names. It collapses to an empty
-            // string when the segment is redundant (single segment, or it duplicates the root
-            // namespace tail), while the raw pathSegment is still used to filter operations.
-            var effectiveSegment = PathSegmentHelper.ResolveEffectivePathSegment(openApiDoc, projectName, pathSegment) ?? string.Empty;
-            effectiveSegments.Add(effectiveSegment);
+            // A superseded IDE run stops here instead of emitting the rest
+            context.CancellationToken.ThrowIfCancellationRequested();
 
-            // Create conflict registry for this path segment (lightweight: O(1)).
-            // Uses the effective segment - the raw pathSegment would qualify conflicting types
-            // against a namespace that is never generated when the segment collapses away.
-            var registry = TypeConflictRegistry.ForSegment(conflicts, projectName, effectiveSegment);
-
-            // Get segment-specific schemas (excluding shared ones) — uses pre-computed sharedSchemas to avoid O(S²)
-            var segmentSchemas = PathSegmentHelper.GetSegmentSpecificSchemas(openApiDoc, pathSegment, sharedSchemas);
-
-            // Generate segment-specific models (excluding shared ones)
-            // Include shared models using directive so segment types can reference shared types
-            if (segmentSchemas.Count > 0)
-            {
-                GenerateModelsForSchemas(
-                    generatedContext,
-                    openApiDoc,
-                    projectName,
-                    segmentSchemas,
-                    effectiveSegment,
-                    registry,
-                    config.IncludeDeprecated,
-                    config.GeneratePartialModels,
-                    includeSharedModelsUsing: sharedSchemas.Count > 0);
-
-                GenerateEnumsForSchemas(
-                    generatedContext,
-                    openApiDoc,
-                    projectName,
-                    segmentSchemas,
-                    effectiveSegment);
-
-                GenerateTuplesForSchemas(
-                    generatedContext,
-                    openApiDoc,
-                    projectName,
-                    segmentSchemas,
-                    effectiveSegment);
-
-                PolymorphicTypeEmitter.Emit(
-                    generatedContext,
-                    openApiDoc,
-                    projectName,
-                    segmentSchemas,
-                    effectiveSegment);
-            }
-
-            // Determine if this segment has its own models namespace
-            var hasSegmentModels = segmentSchemas.Count > 0;
-
-            // Generate parameter classes
-            GenerateParameterClasses(
+            var (effectiveSegment, segmentEndpointDefinitionClassNames) = EmitSegmentContracts(
                 generatedContext,
                 openApiDoc,
                 projectName,
                 pathSegment,
-                registry,
-                config.IncludeDeprecated,
-                includeSharedModelsUsing: sharedSchemas.Count > 0,
-                includeSegmentModelsUsing: hasSegmentModels,
-                emitInlineParameterEnums: config.InlineParameterEnums == InlineParameterEnumMode.Enum,
-                validateStrategy: config.ValidateSpecificationStrategy,
-                namespaceSegment: effectiveSegment);
-
-            // Generate result classes
-            GenerateResultClasses(
-                generatedContext,
-                openApiDoc,
-                projectName,
-                pathSegment,
-                registry,
+                config,
+                conflicts,
+                sharedSchemas,
+                componentTypeNames,
+                referencedReservedSchemas,
                 systemTypeResolver,
-                config.IncludeDeprecated,
-                includeSharedModelsUsing: sharedSchemas.Count > 0,
-                includeSegmentModelsUsing: hasSegmentModels,
-                namespaceSegment: effectiveSegment);
-
-            // Generate handler interfaces
-            GenerateHandlerInterfaces(
-                generatedContext,
-                openApiDoc,
-                projectName,
-                pathSegment,
-                systemTypeResolver,
-                config.IncludeDeprecated,
-                namespaceSegment: effectiveSegment);
-
-            // Generate endpoint definition classes (the mapping extension is emitted once, below)
-            var segmentEndpointDefinitionClassNames = GenerateEndpointRegistrations(
-                generatedContext,
-                openApiDoc,
-                projectName,
-                pathSegment,
-                registry,
-                systemTypeResolver,
-                config.SubFolderStrategy,
-                config.IncludeDeprecated,
                 useMinimalApiPackage,
                 useValidationFilter,
-                config.VersioningStrategy,
-                config.DefaultApiVersion,
-                config.UseServersBasePath,
-                includeSharedModelsUsing: sharedSchemas.Count > 0,
-                namespaceSegment: effectiveSegment);
+                bodies);
+            effectiveSegments.Add(effectiveSegment);
 
             if (segmentEndpointDefinitionClassNames.Count > 0)
             {
@@ -532,10 +383,359 @@ public class ApiServerGenerator : IIncrementalGenerator
             projectName,
             endpointDefinitionsBySegment);
 
+        // The runtime helpers the generated code uses where the specification needs them
+        EmitServerRuntimeHelpers(generatedContext, openApiDoc, projectName);
+
+        // Generate combined endpoint mapping extension (calls all path segment endpoint methods)
+        GenerateCombinedEndpointMapping(generatedContext, projectName, effectiveSegments);
+
+        // The cross-cutting features the specification declares: versioning, security, rate limiting, SignalR hubs,
+        // caching, webhooks, health checks
+        EmitServerFeatures(context, generatedContext, openApiDoc, projectName, config, useValidationFilter, packages);
+
+        var operationCount = openApiDoc.Paths?.Sum(p => p.Value.Operations?.Count ?? 0) ?? 0;
+
+        // The host surface: Add...Api() and Map...Api() with their options, and the JSON options
+        EmitHostSurface(generatedContext, openApiDoc, projectName, config, useGlobalErrorHandler, effectiveSegments, operationCount);
+
+        // Report generation summary
+        var schemaCount = openApiDoc.Components?.Schemas?.Count ?? 0;
+
+        ReportServerGenerationSummary(
+            context,
+            yamlPath,
+            warnings: 0, // Validation diagnostics already reported earlier
+            errors: 0,
+            modelCount: schemaCount,
+            handlerCount: operationCount,
+            endpointCount: pathSegments.Count);
+    }
+
+    // The diagnostics before generation: the Request Delegate Generator does not see the endpoints, a bearer scheme
+    // needs a handler package, a 400 declared as a string cannot carry the validation filter's field errors
+    private static void ReportServerPreamble(
+        SourceProductionContext context,
+        OpenApiDocument openApiDoc,
+        string projectName,
+        ServerPackageReferences packages,
+        bool useValidationFilter)
+    {
+        // What a project aiming at Native AOT must know: its endpoints are not the Request Delegate Generator's, and
+        // a root namespace that generator's file binds elsewhere does not compile
+        if (packages.RequestDelegateGenerator)
+        {
+            DiagnosticHelpers.ReportRequestDelegateGeneratorDoesNotSeeTheEndpoints(context);
+
+            var segment = projectName.Split('.')[0];
+            var found = packages.NamesFoundFirst
+                .Split('\n')
+                .FirstOrDefault(n => n.StartsWith(segment + "=", StringComparison.Ordinal));
+            if (found is not null)
+            {
+                DiagnosticHelpers.ReportRootNamespaceBindsToAnAspNetCoreName(context, projectName, segment, found.Substring(segment.Length + 1));
+            }
+        }
+
+        // Report diagnostics for unsupported OpenAPI features
+        foreach (var diagnostic in DiagnosticHelpers.DetectUnsupportedFeatures(openApiDoc))
+        {
+            context.ReportDiagnostic(diagnostic);
+        }
+
+        // A bearer scheme asks the host for a handler registered as "Bearer": say so when no package that
+        // provides one is referenced (a hand-written handler is a valid choice, hence information only)
+        if (openApiDoc.HasJwtBearerSecurity() && !packages.HasBearerHandler)
+        {
+            DiagnosticHelpers.ReportJwtBearerRequiresPackage(context);
+        }
+    }
+
+    /// <summary>
+    /// ATC_API_SRV002: the ValidationFilter writes a ValidationProblemDetails, and a 400 declared as a string cannot carry
+    /// its field errors. A rule about the specification like the validator's: on the operation's line, switched off by
+    /// <c>x-atc-suppress</c> on the operation or its path item, its severity the marker's <c>ruleSeverities</c>.
+    /// </summary>
+    private static void ReportValidationBadRequestsDeclaredAsString(
+        SourceProductionContext context,
+        OpenApiDocument openApiDoc,
+        SpecificationFiles files,
+        ServerConfig config,
+        bool useValidationFilter)
+    {
+        if (!useValidationFilter)
+        {
+            return;
+        }
+
+        var found = ErrorResponseShapeResolver.GetOperationsWithStringBadRequest(openApiDoc)
+            .Select(operation => new GeneratorDiagnosticMessage(
+                RuleIdentifiers.ValidationBadRequestDeclaredAsString,
+                string.Format(System.Globalization.CultureInfo.InvariantCulture, RuleCatalog.Rules[RuleIdentifiers.ValidationBadRequestDeclaredAsString].MessageFormat, operation.Operation),
+                Generator.Models.DiagnosticSeverity.Warning,
+                files.BaseFile.Path,
+                Scope: SpecSuppressions.Operation(operation.Method, operation.Path)))
+            .ToList();
+        if (found.Count == 0)
+        {
+            return;
+        }
+
+        var reported = SpecSuppressions.Apply(openApiDoc, found);
+        SpecLocations.Apply(reported, SpecificationLoader.SourcesOf(files.BaseFile, files.PartFiles));
+        var severities = RuleSeverityOverrides.From(config.RuleSeverities, config.SuppressRules);
+        foreach (var message in reported)
+        {
+            if (severities.Apply(message) is { } shown)
+            {
+                context.ReportDiagnostic(DiagnosticHelpers.ToRoslynDiagnostic(shown));
+            }
+        }
+    }
+
+    // The readers of a request body the generated code binds: a stream of records, the body problems, a JSON-only list
+    // and an XML list
+    private static void EmitRequestBodySupport(
+        GeneratedSourceContext generatedContext,
+        OpenApiDocument openApiDoc,
+        string projectName,
+        Dictionary<string, ServerBoundModel> boundRequestModels)
+    {
+        // A body sent as a stream of records (JSON Lines, JSON Text Sequences) is read by the generated
+        // StreamedRequestBody<T>, one record at a time
+        var hasStreamedRequestBody = StreamedRequestBodyExtractor.DocumentHasStreamedRequestBody(openApiDoc);
+        if (hasStreamedRequestBody)
+        {
+            generatedContext.AddGeneratedSource(
+                $"{projectName}.{StreamedRequestBodyExtractor.TypeName}.g.cs",
+                StreamedRequestBodyExtractor.GenerateContent(projectName));
+        }
+
+        // A request body that is text, read by its charset
+        var hasTextRequestBody = TextRequestBodyExtractor.DocumentHasTextRequestBody(openApiDoc);
+        if (hasTextRequestBody)
+        {
+            generatedContext.AddGeneratedSource(
+                $"{projectName}.{TextRequestBodyExtractor.TypeName}.g.cs",
+                TextRequestBodyExtractor.GenerateContent(projectName));
+        }
+
+        // A body the generated reader cannot read is a problem with its status on every host
+        if (boundRequestModels.Count > 0 || XmlBodyHelper.HasServerBoundBody(openApiDoc) || hasStreamedRequestBody || hasTextRequestBody)
+        {
+            generatedContext.AddGeneratedSource(
+                $"{projectName}.{XmlModelMapperExtractor.RequestBodyProblemsTypeName}.g.cs",
+                XmlModelMapperExtractor.GenerateRequestBodyProblems(projectName));
+        }
+
+        // A list body offered as JSON only is read into the generated JsonRequestBodyList<T>
+        if (XmlBodyHelper.HasJsonOnlyListBody(openApiDoc))
+        {
+            generatedContext.AddGeneratedSource(
+                $"{projectName}.{XmlBodyHelper.JsonRequestBodyListTypeName}.g.cs",
+                XmlModelMapperExtractor.GenerateJsonRequestBodyList(projectName));
+        }
+
+        // A list body offered as XML is bound into the generated RequestBodyList<T>
+        if (boundRequestModels.Values.Any(m => m.BoundInList))
+        {
+            generatedContext.AddGeneratedSource(
+                $"{projectName}.{XmlModelMapperExtractor.RequestBodyListTypeName}.g.cs",
+                XmlModelMapperExtractor.GenerateRequestBodyList(projectName));
+        }
+    }
+
+    // A set of schemas as types: the models (with their XML mapping and Content-Type binding), the enums, the tuples
+    // and the polymorphic bases
+    private static void EmitSchemaTypes(
+        GeneratedSourceContext generatedContext,
+        OpenApiDocument openApiDoc,
+        string projectName,
+        HashSet<string> schemas,
+        string? pathSegment,
+        TypeConflictRegistry registry,
+        ServerConfig config,
+        bool includeSharedModelsUsing,
+        ServerBodyModels bodies)
+    {
+        GenerateModelsForSchemas(
+            generatedContext,
+            openApiDoc,
+            projectName,
+            schemas,
+            pathSegment,
+            registry,
+            config.IncludeDeprecated,
+            config.GeneratePartialModels,
+            includeSharedModelsUsing,
+            xmlModels: bodies.XmlModels,
+            boundRequestModels: bodies.BoundRequestModels,
+            xmlRequestModels: bodies.XmlRequestModels,
+            xmlOnlyRequestModels: bodies.XmlOnlyRequestModels,
+            requireJsonProperties: bodies.RequireJsonProperties);
+
+        SchemaTypeEmitter.EmitEnums(
+            generatedContext,
+            openApiDoc,
+            projectName,
+            schemas,
+            pathSegment,
+            generatedContext.ExtensibleEnums,
+            stringOnTheWire: true);
+
+        SchemaTypeEmitter.EmitTuples(
+            generatedContext,
+            openApiDoc,
+            projectName,
+            schemas,
+            pathSegment);
+
+        PolymorphicTypeEmitter.Emit(
+            generatedContext,
+            openApiDoc,
+            projectName,
+            schemas,
+            pathSegment,
+            bodies.BoundRequestModels);
+    }
+
+    // One path segment's contracts: its models, parameters, results, handler interfaces and endpoint definitions; the
+    // segment as its namespace uses it, and the endpoint definition classes for the mapping extension
+    private static (string EffectiveSegment, List<string> EndpointDefinitionClassNames) EmitSegmentContracts(
+        GeneratedSourceContext generatedContext,
+        OpenApiDocument openApiDoc,
+        string projectName,
+        string pathSegment,
+        ServerConfig config,
+        ISet<string> conflicts,
+        HashSet<string> sharedSchemas,
+        ISet<string> componentTypeNames,
+        ISet<string> referencedReservedSchemas,
+        SystemTypeConflictResolver systemTypeResolver,
+        bool useMinimalApiPackage,
+        bool useValidationFilter,
+        ServerBodyModels bodies)
+    {
+        // Resolve the segment used for namespaces and file names. It collapses to an empty
+        // string when the segment is redundant (single segment, or it duplicates the root
+        // namespace tail), while the raw pathSegment is still used to filter operations.
+        var effectiveSegment = PathSegmentHelper.ResolveEffectivePathSegment(openApiDoc, projectName, pathSegment) ?? string.Empty;
+
+        // Create conflict registry for this path segment (lightweight: O(1)).
+        // Uses the effective segment - the raw pathSegment would qualify conflicting types
+        // against a namespace that is never generated when the segment collapses away.
+        var registry = TypeConflictRegistry.ForSegment(conflicts, projectName, effectiveSegment, sharedSchemas, config.ExtensibleEnums, componentTypeNames);
+
+        // Get segment-specific schemas (excluding shared ones) — uses pre-computed sharedSchemas to avoid O(S²)
+        var segmentSchemas = PathSegmentHelper.GetSegmentSpecificSchemas(openApiDoc, pathSegment, sharedSchemas);
+
+        // Same as for the shared set: ProblemDetails / ValidationProblemDetails bind to the framework types.
+        segmentSchemas.RemoveWhere(name => BuiltInErrorContractNames.IsReserved(name) && !referencedReservedSchemas.Contains(name));
+
+        // Segment-specific models (excluding shared ones), with the shared models' using
+        if (segmentSchemas.Count > 0)
+        {
+            EmitSchemaTypes(generatedContext, openApiDoc, projectName, segmentSchemas, effectiveSegment, registry, config, includeSharedModelsUsing: sharedSchemas.Count > 0, bodies);
+        }
+
+        // Determine if this segment has its own models namespace. Inline (anonymous) request/response
+        // schemas - error responses included - are emitted into it too, so they must count here.
+        var hasSegmentModels = segmentSchemas.Count > 0 ||
+                               PathSegmentHelper.PathSegmentHasInlineModels(openApiDoc, pathSegment);
+
+        // Generate parameter classes
+        GenerateParameterClasses(
+            generatedContext,
+            openApiDoc,
+            projectName,
+            pathSegment,
+            registry,
+            config.IncludeDeprecated,
+            includeSharedModelsUsing: sharedSchemas.Count > 0,
+            includeSegmentModelsUsing: hasSegmentModels,
+            emitInlineParameterEnums: config.InlineParameterEnums == InlineParameterEnumMode.Enum,
+            validateStrategy: config.ValidateSpecificationStrategy,
+            namespaceSegment: effectiveSegment);
+
+        // Generate result classes
+        GenerateResultClasses(
+            generatedContext,
+            openApiDoc,
+            projectName,
+            pathSegment,
+            registry,
+            systemTypeResolver,
+            config.IncludeDeprecated,
+            includeSharedModelsUsing: sharedSchemas.Count > 0,
+            includeSegmentModelsUsing: hasSegmentModels,
+            namespaceSegment: effectiveSegment);
+
+        // Generate handler interfaces
+        GenerateHandlerInterfaces(
+            generatedContext,
+            openApiDoc,
+            projectName,
+            pathSegment,
+            systemTypeResolver,
+            config.IncludeDeprecated,
+            namespaceSegment: effectiveSegment);
+
+        // Generate endpoint definition classes (the mapping extension is emitted once, below)
+        var segmentEndpointDefinitionClassNames = GenerateEndpointRegistrations(
+            generatedContext,
+            openApiDoc,
+            projectName,
+            pathSegment,
+            registry,
+            systemTypeResolver,
+            config.SubFolderStrategy,
+            config.IncludeDeprecated,
+            useMinimalApiPackage,
+            useValidationFilter,
+            config.VersioningStrategy,
+            config.DefaultApiVersion,
+            config.UseServersBasePath,
+            includeSharedModelsUsing: sharedSchemas.Count > 0,
+            namespaceSegment: effectiveSegment,
+            useAntiforgery: config.UseAntiforgery);
+
+        return (effectiveSegment, segmentEndpointDefinitionClassNames);
+    }
+
+    // The runtime helpers: the parsable list of an array query parameter, the wire-binding step, the length-limit and
+    // value attributes, the sequential-results writers
+    private static void EmitServerRuntimeHelpers(
+        GeneratedSourceContext generatedContext,
+        OpenApiDocument openApiDoc,
+        string projectName)
+    {
         // Generate ParsableList<T> helper type when any query parameter uses array types
         if (CodeGenerationService.HasQueryArrayParameters(openApiDoc))
         {
             GenerateParsableListHelper(generatedContext, projectName);
+        }
+
+        // Generate the pre-binding step for enum wire values and cookie parameters when an operation needs it
+        if (WireBindingHelper.IsNeeded(openApiDoc))
+        {
+            generatedContext.AddGeneratedSource(
+                $"{projectName}.WireBinding.g.cs",
+                WireBindingHelper.GenerateContent(projectName));
+        }
+
+        // The trim- and AOT-safe length-limit attributes the models and parameters are written with
+        if (LengthLimitAttributesExtractor.IsNeeded(openApiDoc))
+        {
+            generatedContext.AddGeneratedSource(
+                $"{projectName}.Generated.LengthLimitAttributes.g.cs",
+                LengthLimitAttributesExtractor.Generate(NamespaceBuilder.BuildBase(projectName), TextRequestBodyExtractor.DocumentHasTextRequestBody(openApiDoc)));
+        }
+
+        // The attributes a pattern (on a value or on the items of an array) and a format: uri are written with
+        if (LengthLimitAttributesExtractor.NeededValueAttributes(openApiDoc) is { Count: > 0 } valueAttributes)
+        {
+            generatedContext.AddGeneratedSource(
+                $"{projectName}.Generated.ValueAttributes.g.cs",
+                LengthLimitAttributesExtractor.GenerateValueAttributes(NamespaceBuilder.BuildBase(projectName), valueAttributes, TextRequestBodyExtractor.DocumentHasTextRequestBody(openApiDoc)));
         }
 
         // Generate the server-side SequentialResults helper (the writer-based sequential-streaming
@@ -545,17 +745,22 @@ public class ApiServerGenerator : IIncrementalGenerator
         var sequentialResults = CodeGenerationService.GenerateSequentialResults(openApiDoc, projectName);
         if (sequentialResults is not null)
         {
-            generatedContext.AddSource(
+            generatedContext.AddGeneratedSource(
                 $"{projectName}.Streaming.SequentialResults.g.cs",
-                SourceText.From(sequentialResults.Content.NormalizeForSourceOutput(), Encoding.UTF8));
+                sequentialResults.Content);
         }
+    }
 
-        // Generate combined endpoint mapping extension (calls all path segment endpoint methods)
-        GenerateCombinedEndpointMapping(generatedContext, projectName, effectiveSegments);
-
-        // Generate DI registration (not segmented - registers all handlers)
-        GenerateDependencyInjection(generatedContext, openApiDoc, projectName, effectiveSegments, config.IncludeDeprecated);
-
+    // The cross-cutting features the specification declares, each only when declared
+    private static void EmitServerFeatures(
+        SourceProductionContext context,
+        GeneratedSourceContext generatedContext,
+        OpenApiDocument openApiDoc,
+        string projectName,
+        ServerConfig config,
+        bool useValidationFilter,
+        ServerPackageReferences packages)
+    {
         // Generate versioning DI registration (only if versioning is enabled)
         if (config.VersioningStrategy != VersioningStrategyType.None)
         {
@@ -574,7 +779,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         // Generate OpenID Connect authentication extension (only if OpenID Connect is configured)
         if (openApiDoc.HasOpenIdConnectSecurity())
         {
-            GenerateOpenIdConnectAuthentication(generatedContext, openApiDoc, projectName);
+            GenerateOpenIdConnectAuthentication(generatedContext, openApiDoc, projectName, config.ApiName);
         }
 
         // Generate rate limiting policies and DI extensions (only if rate limiting is configured)
@@ -584,6 +789,35 @@ public class ApiServerGenerator : IIncrementalGenerator
         {
             GenerateRateLimitPolicies(generatedContext, openApiDoc, projectName, config.IncludeDeprecated);
             GenerateRateLimitDependencyInjection(generatedContext, openApiDoc, projectName, config.IncludeDeprecated);
+        }
+
+        // The SignalR hubs of the specification (x-signalr-hubs): the client interface of a typed hub, the hub's own
+        // methods, and its names and path
+        foreach (var (hintName, content) in SignalRHubExtractor.ExtractServer(openApiDoc, projectName))
+        {
+            generatedContext.AddGeneratedSource(hintName, content);
+        }
+
+        // The name of each operation's endpoint, as constants (what .WithName(...) uses)
+        var operationNames = OperationNamesExtractor.Extract(
+            openApiDoc,
+            projectName,
+            config.IncludeDeprecated,
+            includeWebhooks: config.GenerateWebhooks);
+        if (operationNames is not null)
+        {
+            generatedContext.AddGeneratedSource($"{projectName}.ApiOperations.g.cs", operationNames);
+
+            // The interface every operation and webhook result implements, for a test helper shared by all of them
+            generatedContext.AddGeneratedSource($"{projectName}.IApiResult.g.cs", ApiResultExtractor.Generate(projectName));
+        }
+
+        // The type an operation's own x- extensions go on its endpoint with
+        if (OperationExtensionMetadataExtractor.IsNeeded(openApiDoc, config.IncludeDeprecated))
+        {
+            generatedContext.AddGeneratedSource(
+                $"{projectName}.{OperationExtensionMetadataExtractor.ClassName}.g.cs",
+                OperationExtensionMetadataExtractor.Generate(projectName));
         }
 
         // Generate Output Caching policies and DI extensions (only if output caching is configured)
@@ -601,13 +835,12 @@ public class ApiServerGenerator : IIncrementalGenerator
         }
 
         // Generate webhook handlers, parameters, results, endpoints, and DI (only if webhooks exist and enabled)
-        if (config.GenerateWebhooks && openApiDoc.HasWebhooks())
+        if (config.GenerateWebhooks && openApiDoc.HasWebhooks)
         {
             GenerateWebhookHandlerInterfaces(generatedContext, openApiDoc, projectName, config.IncludeDeprecated);
             GenerateWebhookParameterClasses(generatedContext, openApiDoc, projectName, config.IncludeDeprecated);
             GenerateWebhookResultClasses(generatedContext, openApiDoc, projectName, config.IncludeDeprecated);
-            GenerateWebhookEndpoints(generatedContext, openApiDoc, projectName, config);
-            GenerateWebhookDependencyInjection(generatedContext, openApiDoc, projectName, config.IncludeDeprecated);
+            GenerateWebhookEndpoints(generatedContext, openApiDoc, projectName, config, useValidationFilter);
         }
 
         // Generate health check endpoints (if configured in marker file)
@@ -621,48 +854,45 @@ public class ApiServerGenerator : IIncrementalGenerator
                 DiagnosticHelpers.ReportHealthCheckPathConflict(context, healthPath);
             }
 
-            if (!hasHealthChecksPackage)
+            if (!packages.HasHealthChecks)
             {
                 DiagnosticHelpers.ReportHealthChecksPackageRecommended(context);
             }
 
-            GenerateHealthCheckEndpoints(generatedContext, projectName, config.HealthChecks, hasHealthChecksPackage);
+            GenerateHealthCheckEndpoints(generatedContext, projectName, config.HealthChecks, packages.HasHealthChecks);
             GenerateHealthCheckServiceExtensions(generatedContext, projectName);
         }
-
-        // Generate WebApplication extensions (GlobalErrorHandler middleware setup)
-        if (useGlobalErrorHandler)
-        {
-            GenerateWebApplicationExtensions(generatedContext, projectName, useGlobalErrorHandler);
-        }
-
-        // Generate simplified API surface (only if global error handler is enabled, which implies MinimalApi package)
-        if (useGlobalErrorHandler)
-        {
-            GenerateApiOptions(generatedContext, openApiDoc, projectName, config);
-            GenerateUnifiedServiceCollection(generatedContext, openApiDoc, projectName, config, effectiveSegments);
-            GenerateUnifiedWebApplicationExtensions(generatedContext, openApiDoc, projectName, config);
-        }
-
-        // Report generation summary
-        var operationCount = openApiDoc.Paths?.Sum(p => p.Value.Operations?.Count ?? 0) ?? 0;
-        var schemaCount = openApiDoc.Components?.Schemas?.Count ?? 0;
-
-        ReportServerGenerationSummary(
-            context,
-            yamlPath,
-            warnings: 0, // Validation diagnostics already reported earlier
-            errors: 0,
-            modelCount: schemaCount,
-            handlerCount: operationCount,
-            endpointCount: pathSegments.Count);
     }
 
-    private static string GetProjectNameFromPath(string yamlPath)
+    // Add...Api() and Map...Api() with their options (without Atc.Rest.MinimalApi too - then the framework's exception
+    // handler stands where the package's error handler would), and the JSON options the results write through
+    private static void EmitHostSurface(
+        GeneratedSourceContext generatedContext,
+        OpenApiDocument openApiDoc,
+        string projectName,
+        ServerConfig config,
+        bool useGlobalErrorHandler,
+        List<string> effectiveSegments,
+        int operationCount)
     {
-        // Extract the file name without extension (e.g., "PetStoreSimple" from "PetStoreSimple.yaml")
-        var fileName = Path.GetFileNameWithoutExtension(yamlPath);
-        return fileName;
+        // Generate the simplified API surface: Add…Api() and Map…Api() with their options. Without
+        // Atc.Rest.MinimalApi too - then the framework's exception handler stands where the package's error handler
+        // would, and everything else the host wiring does (ProblemDetails, the enum converter, the output cache, the
+        // order of authentication and the rate limiter) is the same.
+        GenerateApiOptions(generatedContext, openApiDoc, projectName, config, useGlobalErrorHandler);
+
+        // The unified extensions register the handlers and map the endpoints: with no operations there are
+        // none of either (ATC_API_PTH002 says so), and the extensions would name namespaces that do not exist
+        if (operationCount > 0)
+        {
+            GenerateUnifiedServiceCollection(generatedContext, openApiDoc, projectName, config, effectiveSegments);
+            GenerateUnifiedWebApplicationExtensions(generatedContext, openApiDoc, projectName, config, useGlobalErrorHandler);
+        }
+
+        // The JSON results and stream writers write through the metadata the app's JSON options resolve (trim- and AOT-safe)
+        generatedContext.AddGeneratedSource(
+            $"{projectName}.Generated.{GeneratedJsonOptionsExtractor.ClassName}.g.cs",
+            GeneratedJsonOptionsExtractor.Generate(NamespaceBuilder.BuildBase(projectName)));
     }
 
     /// <summary>
@@ -679,9 +909,15 @@ public class ApiServerGenerator : IIncrementalGenerator
         TypeConflictRegistry registry,
         bool includeDeprecated,
         bool generatePartialModels,
-        bool includeSharedModelsUsing = false)
+        bool includeSharedModelsUsing = false,
+        ISet<string>? xmlModels = null,
+        Dictionary<string, ServerBoundModel>? boundRequestModels = null,
+        ISet<string>? xmlRequestModels = null,
+        ISet<string>? xmlOnlyRequestModels = null,
+        bool requireJsonProperties = false)
     {
         // Use SchemaExtractor.ExtractForSchemasWithInlineEnums to extract schemas and inline enums
+        var xmlSources = new List<XmlModelSource>();
         var (recordsParameters, inlineEnums) = SchemaExtractor.ExtractForSchemasWithInlineEnums(
             openApiDoc,
             projectName,
@@ -690,7 +926,9 @@ public class ApiServerGenerator : IIncrementalGenerator
             registry,
             includeDeprecated,
             generatePartialModels,
-            includeSharedModelsUsing);
+            includeSharedModelsUsing,
+            xmlModels,
+            xmlSources);
 
         // File names mirror the namespace the types are emitted into, so a segment that
         // resolved away never leaves an empty part behind in the file name.
@@ -699,10 +937,10 @@ public class ApiServerGenerator : IIncrementalGenerator
         // Generate inline enum files first (before records that use them)
         foreach (var inlineEnum in inlineEnums)
         {
-            var enumContent = InlineEnumExtractor.GenerateEnumContent(inlineEnum.EnumParameters);
-            context.AddSource(
+            var enumContent = InlineEnumExtractor.GenerateEnumContent(inlineEnum.EnumParameters, context.ExtensibleEnums, stringOnTheWire: true, enumWireConverter: context.EnumWireConverter, readMemberNames: context.ReadEnumMemberNames);
+            context.AddGeneratedSource(
                 NamespaceBuilder.ToFileName(modelsNamespace, inlineEnum.TypeName),
-                SourceText.From(enumContent.NormalizeForSourceOutput(), Encoding.UTF8));
+                enumContent);
         }
 
         if (recordsParameters is null || recordsParameters.Parameters.Count == 0)
@@ -710,95 +948,135 @@ public class ApiServerGenerator : IIncrementalGenerator
             return;
         }
 
+        // Without a validation filter nothing checks a body's required properties: the JSON reader then requires them,
+        // so a body that leaves one out is rejected (a 400) instead of reaching the handler without it
+        if (requireJsonProperties)
+        {
+            recordsParameters = JsonRequiredHelper.AddJsonRequired(recordsParameters);
+        }
+
+        // A validation message names a property as the caller sent it (its JSON name), as the message's key does
+        recordsParameters = WireDisplayNameHelper.ForModels(recordsParameters);
+
         var codeDocGenerator = new CodeDocumentationTagsGenerator();
 
-        // Generate each model as a separate file
-        foreach (var record in recordsParameters.Parameters)
+        // A model bound by Content-Type gets a partial with BindAsync, and an object in the query one with TryParse,
+        // so its record is partial
+        var boundSources = xmlSources
+            .Where(x => boundRequestModels?.ContainsKey(x.SchemaKey) == true)
+            .Select(x => (x.SchemaKey, x.TypeName))
+            .ToList();
+
+        // A model only JSON bodies carry has no XML mapping, but its record reads the body too
+        foreach (var jsonOnly in (boundRequestModels ?? []).Where(m => !m.Value.AcceptsXml && boundSources.All(b => b.SchemaKey != m.Key)))
         {
+            var typeName = OpenApiSchemaExtensions.SanitizeSchemaName(jsonOnly.Key);
+            if (recordsParameters.Parameters.Any(r => string.Equals(r.Name.Split(' ')[0], typeName, StringComparison.Ordinal)))
+            {
+                boundSources.Add((jsonOnly.Key, typeName));
+            }
+        }
+
+        var queryObjectModels = QueryObjectHelper.Models(openApiDoc);
+        var boundTypeNames = new HashSet<string>(boundSources.Select(x => x.TypeName), StringComparer.Ordinal);
+        boundTypeNames.UnionWith(queryObjectModels.Keys);
+
+        // Generate each model as a separate file
+        foreach (var modelRecord in recordsParameters.Parameters)
+        {
+            var named = WithXmlNames(modelRecord, xmlSources, xmlModels, xmlRequestModels, xmlOnlyRequestModels);
+            var record = boundTypeNames.Contains(named.Name.Split(' ')[0])
+                ? named with
+                {
+                    DeclarationModifier = named.DeclarationModifier switch
+                    {
+                        DeclarationModifiers.PublicSealedRecord => DeclarationModifiers.PublicSealedPartialRecord,
+                        DeclarationModifiers.PublicRecord => DeclarationModifiers.PublicPartialRecord,
+                        _ => named.DeclarationModifier,
+                    },
+                }
+                : named;
+
             // Create a single-record container with the same header and namespace
             var singleRecordParams = recordsParameters with { Parameters = [record] };
 
-            var contentGenerator = new GenerateContentForRecords(
-                codeDocGenerator,
-                singleRecordParams);
-
-            var generatedContent = contentGenerator.Generate();
+            var generatedContent = RecordContentGenerator.Generate(codeDocGenerator, singleRecordParams);
 
             // Sanitize record name for file system (generic types have <> which are invalid)
             var sanitizedName = record.Name.SanitizeForFileName();
 
-            context.AddSource(
+            context.AddGeneratedSource(
                 NamespaceBuilder.ToFileName(modelsNamespace, sanitizedName),
-                SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
+                generatedContent);
+
+            // An object in the query: the model reads the value the wire-binding step collected from its keys
+            if (queryObjectModels.TryGetValue(record.Name.Split(' ')[0], out var queryObject))
+            {
+                context.AddGeneratedSource(
+                    NamespaceBuilder.ToFileName(modelsNamespace, sanitizedName + "QueryObject"),
+                    QueryObjectModelExtractor.Generate(record, queryObject, modelsNamespace, registry));
+            }
+        }
+
+        if (xmlModels is not null)
+        {
+            XmlModelEmitter.EmitCompanions(context, xmlSources, recordsParameters.HeaderContent, modelsNamespace, projectName, xmlModels, context.ExtensibleEnums);
+        }
+
+        foreach (var bound in boundSources)
+        {
+            context.AddGeneratedSource(
+                NamespaceBuilder.ToFileName(modelsNamespace, bound.TypeName + "Binding"),
+                XmlModelMapperExtractor.GenerateBinding(bound.TypeName, modelsNamespace, projectName, boundRequestModels![bound.SchemaKey]));
         }
     }
 
     /// <summary>
-    /// Generates enums for a specific set of schemas.
-    /// Used for both shared types (pathSegment = null) and segment-specific types.
+    /// The record of a model an XML request body carries, with <c>[XmlElement]</c> / <c>[XmlAttribute]</c> on the
+    /// properties whose XML name differs from their JSON name - and, for a model only an XML request carries, the XML
+    /// name as the name its validation messages use.
     /// </summary>
-    private static void GenerateEnumsForSchemas(
-        GeneratedSourceContext context,
-        OpenApiDocument openApiDoc,
-        string projectName,
-        HashSet<string> schemaNames,
-        string? pathSegment)
+    private static RecordParameters WithXmlNames(
+        RecordParameters record,
+        List<XmlModelSource> xmlSources,
+        ISet<string>? xmlModels,
+        ISet<string>? xmlRequestModels,
+        ISet<string>? xmlOnlyRequestModels)
     {
-        // Use EnumExtractor.ExtractForSchemas to extract only specific enums
-        var enumParametersList = EnumExtractor.ExtractForSchemas(openApiDoc, projectName, schemaNames, pathSegment);
-
-        if (enumParametersList is null || enumParametersList.Count == 0)
+        // By name: the record may have been rebuilt since (required JSON properties, display names)
+        var source = xmlSources.FirstOrDefault(x => string.Equals(x.Record.Name, record.Name, StringComparison.Ordinal));
+        if (source is null || xmlModels is null || xmlRequestModels?.Contains(source.SchemaKey) != true)
         {
-            return;
+            return record;
         }
 
-        var enumsNamespace = NamespaceBuilder.ForModels(projectName, pathSegment);
-
-        // Generate each enum as a separate file
-        foreach (var enumParams in enumParametersList)
+        var overrides = XmlModelMapperExtractor.XmlNameOverrides(source, xmlModels);
+        if (overrides.Count == 0)
         {
-            var generatedContent = EnumExtractor.GenerateEnumContent(enumParams);
-
-            context.AddSource(
-                NamespaceBuilder.ToFileName(enumsNamespace, enumParams.EnumTypeName),
-                SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
-        }
-    }
-
-    /// <summary>
-    /// Generates tuple records for a specific set of schemas.
-    /// Tuples are schemas with prefixItems (JSON Schema 2020-12 / OpenAPI 3.1).
-    /// </summary>
-    private static void GenerateTuplesForSchemas(
-        GeneratedSourceContext context,
-        OpenApiDocument openApiDoc,
-        string projectName,
-        HashSet<string> schemaNames,
-        string? pathSegment)
-    {
-        // Use TupleExtractor.ExtractForSchemas to extract only specific tuples
-        var tupleParametersList = TupleExtractor.ExtractForSchemas(
-            openApiDoc,
-            projectName,
-            schemaNames,
-            pathSegment);
-
-        if (tupleParametersList is null || tupleParametersList.Count == 0)
-        {
-            return;
+            return record;
         }
 
-        var ns = NamespaceBuilder.ForModels(projectName, pathSegment);
-
-        // Generate each tuple as a separate file
-        foreach (var tupleParams in tupleParametersList)
+        var xmlOnly = xmlOnlyRequestModels?.Contains(source.SchemaKey) == true;
+        return record with
         {
-            var generatedContent = TupleExtractor.GenerateTupleContent(tupleParams, ns);
+            Parameters = record.Parameters?
+                .Select(p =>
+                {
+                    if (!overrides.TryGetValue(p.Name, out var xml))
+                    {
+                        return p;
+                    }
 
-            context.AddSource(
-                NamespaceBuilder.ToFileName(ns, tupleParams.Name),
-                SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
-        }
+                    var named = xmlOnly ? WireDisplayNameHelper.Renamed(p, xml.Name) : p;
+                    return named with
+                    {
+                        Attributes = (named.Attributes ?? [])
+                            .Append(new AttributeParameters(xml.IsAttribute ? "global::System.Xml.Serialization.XmlAttribute" : "global::System.Xml.Serialization.XmlElement", $"\"{xml.Name}\""))
+                            .ToList(),
+                    };
+                })
+                .ToList(),
+        };
     }
 
     private static void GenerateHandlerInterfaces(
@@ -856,26 +1134,14 @@ public class ApiServerGenerator : IIncrementalGenerator
             var generatedInterface = contentGenerator.Generate();
 
             // Skip the header part and append just the interface
-            var lines = generatedInterface.SplitIntoLinesPreserveEmpty();
-            var namespaceFound = false;
-            foreach (var line in lines)
-            {
-                if (namespaceFound)
-                {
-                    allGeneratedCode.AppendLine(line);
-                }
-                else if (line.StartsWith("namespace ", StringComparison.Ordinal))
-                {
-                    namespaceFound = true;
-                }
-            }
+            AppendTypeBody(allGeneratedCode, generatedInterface);
         }
 
         var normalizeForSourceOutput = allGeneratedCode
             .ToString()
             .NormalizeForSourceOutput();
 
-        context.AddSource(
+        context.AddGeneratedSource(
             $"{handlersNamespace}.g.cs",
             SourceText.From(normalizeForSourceOutput, Encoding.UTF8));
     }
@@ -895,14 +1161,15 @@ public class ApiServerGenerator : IIncrementalGenerator
         string defaultApiVersion,
         bool useServersBasePath,
         bool includeSharedModelsUsing = false,
-        string? namespaceSegment = null)
+        string? namespaceSegment = null,
+        bool useAntiforgery = false)
     {
         // The raw pathSegment still filters operations, while namespaceSegment drives namespaces
         // and file names so a redundant segment collapses away.
         var effectiveSegment = namespaceSegment ?? pathSegment;
 
         // Use EndpointDefinitionExtractor to extract interface and class parameters filtered by path segment
-        var (interfaceParams, classParameters) = EndpointDefinitionExtractor.Extract(openApiDoc, projectName, pathSegment, registry, systemTypeResolver, subFolderStrategy, includeDeprecated, useMinimalApiPackage, useValidationFilter, versioningStrategy, defaultApiVersion, useServersBasePath, effectiveSegment);
+        var (interfaceParams, classParameters) = EndpointDefinitionExtractor.Extract(openApiDoc, projectName, pathSegment, registry, systemTypeResolver, subFolderStrategy, includeDeprecated, useMinimalApiPackage, useValidationFilter, versioningStrategy, defaultApiVersion, useServersBasePath, effectiveSegment, useAntiforgery);
 
         if (interfaceParams is null && (classParameters is null || classParameters.Count == 0))
         {
@@ -962,14 +1229,17 @@ public class ApiServerGenerator : IIncrementalGenerator
             sb.AppendLine("using Microsoft.AspNetCore.Http;");
             sb.AppendLine("using Microsoft.AspNetCore.Mvc;");
 
-            // Only include shared models using if there are shared schemas
-            if (includeSharedModelsUsing)
+            // Only include shared models using if there are shared schemas (and the segment usings below do not
+            // name the same namespace already: a segment that resolved away has its models in the shared one)
+            if (includeSharedModelsUsing &&
+                !(string.IsNullOrEmpty(effectiveSegment) && namespaces.HasModels))
             {
                 sb.AppendLine($"using {projectName}.Generated.Models;");
             }
 
             // Add conditional segment namespace usings
             sb.AppendSegmentUsings(projectName, effectiveSegment, namespaces);
+            BuiltInErrorContractNames.AppendFrameworkAliases(sb, BuiltInErrorContractNames.ReferencedByOtherSchemas(openApiDoc));
 
             // Add caching namespace when output caching is used
             if (openApiDoc.HasOutputCaching())
@@ -984,33 +1254,18 @@ public class ApiServerGenerator : IIncrementalGenerator
                 sb.AppendLine($"using {projectName}.Generated.RateLimiting;");
             }
 
+            // Add Security namespace when an operation requires scopes (for the SecurityPolicies
+            // const class referenced by .RequireAuthorization(SecurityPolicies.X) calls)
+            if (SecurityPoliciesExtractor.HasPolicies(openApiDoc, includeDeprecated))
+            {
+                sb.AppendLine($"using {projectName}.Generated.Security;");
+            }
+
             sb.AppendLine();
             sb.AppendLine($"namespace {endpointsNamespace};");
             sb.AppendLine();
 
             return sb;
-        }
-
-        // IEndpointDefinition is now generated once in a shared file — no per-segment emission needed
-
-        // Appends the generated type body, skipping the generator's own header/namespace lines.
-        static void AppendTypeBody(
-            StringBuilder sb,
-            string generatedCode)
-        {
-            var lines = generatedCode.SplitIntoLinesPreserveEmpty();
-            var namespaceFound = false;
-            foreach (var line in lines)
-            {
-                if (namespaceFound)
-                {
-                    sb.AppendLine(line);
-                }
-                else if (line.StartsWith("namespace ", StringComparison.Ordinal))
-                {
-                    namespaceFound = true;
-                }
-            }
         }
 
         void AddTypeSource(
@@ -1020,9 +1275,9 @@ public class ApiServerGenerator : IIncrementalGenerator
             var sb = CreateFileBuilder();
             AppendTypeBody(sb, generatedCode);
 
-            context.AddSource(
+            context.AddGeneratedSource(
                 $"{endpointsNamespace}.{typeName}.g.cs",
-                SourceText.From(sb.ToString().NormalizeForSourceOutput(), Encoding.UTF8));
+                sb.ToString());
         }
 
         // Generate each endpoint definition class in its own file and collect class names for the extension method
@@ -1088,22 +1343,11 @@ public class ApiServerGenerator : IIncrementalGenerator
             new CodeDocumentationTagsGenerator(),
             extensionParams).Generate();
 
-        var namespaceFound = false;
-        foreach (var line in generatedClass.SplitIntoLinesPreserveEmpty())
-        {
-            if (namespaceFound)
-            {
-                builder.AppendLine(line);
-            }
-            else if (line.StartsWith("namespace ", StringComparison.Ordinal))
-            {
-                namespaceFound = true;
-            }
-        }
+        AppendTypeBody(builder, generatedClass);
 
-        context.AddSource(
+        context.AddGeneratedSource(
             $"{rootEndpointsNamespace}.{extensionParams.ClassTypeName}.g.cs",
-            SourceText.From(builder.ToString().NormalizeForSourceOutput(), Encoding.UTF8));
+            builder.ToString());
     }
 
     private static void GenerateCombinedEndpointMapping(
@@ -1163,63 +1407,9 @@ public class ApiServerGenerator : IIncrementalGenerator
             .ToString()
             .NormalizeForSourceOutput();
 
-        context.AddSource(
+        context.AddGeneratedSource(
             $"{projectName}.EndpointMapping.g.cs",
             SourceText.From(normalizeForSourceOutput, Encoding.UTF8));
-    }
-
-    private static void GenerateDependencyInjection(
-        GeneratedSourceContext context,
-        OpenApiDocument openApiDoc,
-        string projectName,
-        List<string> pathSegments,
-        bool includeDeprecated)
-    {
-        // Use ServerDependencyInjectionExtractor to extract class parameters with path segments
-        var classParameters = ServerDependencyInjectionExtractor.Extract(openApiDoc, projectName, pathSegments, includeDeprecated);
-
-        if (classParameters is null)
-        {
-            return;
-        }
-
-        // Use GenerateContentForClass to generate the code
-        var codeDocGenerator = new CodeDocumentationTagsGenerator();
-        var contentGenerator = new GenerateContentForClass(
-            codeDocGenerator,
-            classParameters);
-
-        var generatedContent = contentGenerator.Generate();
-
-        context.AddSource(
-            $"{projectName}.DependencyInjection.g.cs",
-            SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
-    }
-
-    private static void GenerateWebApplicationExtensions(
-        GeneratedSourceContext context,
-        string projectName,
-        bool useGlobalErrorHandler)
-    {
-        // Use WebApplicationExtensionsExtractor to generate middleware setup helpers
-        var classParameters = WebApplicationExtensionsExtractor.Extract(projectName, useGlobalErrorHandler);
-
-        if (classParameters is null)
-        {
-            return;
-        }
-
-        // Use GenerateContentForClass to generate the code
-        var codeDocGenerator = new CodeDocumentationTagsGenerator();
-        var contentGenerator = new GenerateContentForClass(
-            codeDocGenerator,
-            classParameters);
-
-        var generatedContent = contentGenerator.Generate();
-
-        context.AddSource(
-            $"{projectName}.WebApplicationExtensions.g.cs",
-            SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
     }
 
     private static void GenerateParameterClasses(
@@ -1259,10 +1449,10 @@ public class ApiServerGenerator : IIncrementalGenerator
         // Emit inline enum files first so the parameter record's type references resolve.
         foreach (var inlineEnum in inlineEnums)
         {
-            var enumContent = InlineEnumExtractor.GenerateEnumContent(inlineEnum.EnumParameters);
-            context.AddSource(
+            var enumContent = InlineEnumExtractor.GenerateEnumContent(inlineEnum.EnumParameters, context.ExtensibleEnums, stringOnTheWire: true, enumWireConverter: context.EnumWireConverter, readMemberNames: context.ReadEnumMemberNames);
+            context.AddGeneratedSource(
                 NamespaceBuilder.ToFileName(parametersNamespace, inlineEnum.TypeName),
-                SourceText.From(enumContent.NormalizeForSourceOutput(), Encoding.UTF8));
+                enumContent);
         }
 
         if (recordsParams is null || recordsParams.Parameters.Count == 0)
@@ -1270,13 +1460,35 @@ public class ApiServerGenerator : IIncrementalGenerator
             return;
         }
 
-        var codeDocGenerator = new CodeDocumentationTagsGenerator();
-        var contentGenerator = new GenerateContentForRecords(codeDocGenerator, recordsParams);
-        var generatedContent = contentGenerator.Generate();
+        // A validation message names a parameter as the specification does, as the message's key does
+        recordsParams = WireDisplayNameHelper.ForParameters(recordsParams);
 
-        context.AddSource(
+        // Shaped so the Request Delegate Generator (a Native AOT build) can bind them
+        var codeDocGenerator = new CodeDocumentationTagsGenerator();
+        var queryObjects = QueryObjectHelper.ByParametersRecord(openApiDoc);
+        var extensibleEnumParameters = ExtensibleEnumHelper.ParametersByRecord(openApiDoc, registry);
+        var queryObjectModels = new HashSet<string>(QueryObjectHelper.Models(openApiDoc).Keys, StringComparer.Ordinal);
+        var generatedContent = RecordContentGenerator.GenerateParameterRecords(codeDocGenerator, recordsParams, queryObjectModels);
+
+        context.AddGeneratedSource(
             $"{parametersNamespace}.g.cs",
-            SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
+            generatedContent);
+
+        // What each record binds, for the endpoint's wire-binding step - described here, not found by reflection
+        // (only where the step is generated: a record can bind a header no endpoint step reads)
+        foreach (var record in WireBindingHelper.IsNeeded(openApiDoc) ? recordsParams.Parameters : [])
+        {
+            queryObjects.TryGetValue(record.Name, out var recordQueryObjects);
+            extensibleEnumParameters.TryGetValue(record.Name, out var recordExtensibleEnums);
+            if (WireBindingHelper.ParameterDescriptionClass(record, recordsParams.Namespace, recordsParams.HeaderContent, recordQueryObjects, registry, recordExtensibleEnums) is not { } description)
+            {
+                continue;
+            }
+
+            context.AddGeneratedSource(
+                NamespaceBuilder.ToFileName(parametersNamespace, description.ClassTypeName),
+                new GenerateContentForClass(codeDocGenerator, description).Generate());
+        }
     }
 
     private static void GenerateResultClasses(
@@ -1307,16 +1519,28 @@ public class ApiServerGenerator : IIncrementalGenerator
         var modelsNamespace = NamespaceBuilder.ForModels(projectName, effectiveSegment);
         var resultsNamespace = NamespaceBuilder.ForResults(projectName, effectiveSegment);
 
+        // An enum a response header declares inline is a type next to the results whose factories take it
+        foreach (var (typeName, schema) in ResultClassExtractor.HeaderInlineEnums(openApiDoc, pathSegment, includeDeprecated))
+        {
+            if (InlineEnumExtractor.ExtractEnumFromInlineSchema(schema, typeName, resultsNamespace) is { } enumParameters)
+            {
+                var enumContent = InlineEnumExtractor.GenerateEnumContent(enumParameters, context.ExtensibleEnums, stringOnTheWire: true, enumWireConverter: context.EnumWireConverter, readMemberNames: context.ReadEnumMemberNames);
+                context.AddGeneratedSource(
+                    NamespaceBuilder.ToFileName(resultsNamespace, typeName),
+                    enumContent);
+            }
+        }
+
         // Generate inline model files for any inline schemas discovered
         if (inlineSchemas.Count > 0)
         {
-            var inlineTypes = CodeGenerationService.GenerateInlineModels(inlineSchemas, projectName);
+            var inlineTypes = CodeGenerationService.GenerateInlineModels(inlineSchemas, projectName, CodeGenerationService.GeneratorType.Server);
             foreach (var inlineType in inlineTypes)
             {
                 var inlineContent = CodeGenerationService.FormatAsFile(inlineType);
-                context.AddSource(
+                context.AddGeneratedSource(
                     NamespaceBuilder.ToFileName(modelsNamespace, inlineType.TypeName),
-                    SourceText.From(inlineContent.NormalizeForSourceOutput(), Encoding.UTF8));
+                    inlineContent);
             }
         }
 
@@ -1338,11 +1562,16 @@ public class ApiServerGenerator : IIncrementalGenerator
             allGeneratedCode.AppendLine($"using {projectName}.Generated.Models;");
         }
 
-        // Only include segment-specific models using if there are segment-specific models
-        if (includeSegmentModelsUsing)
+        // Only include segment-specific models using if there are segment-specific models (unless it is the
+        // shared namespace, already imported above: a segment that resolved away)
+        if (includeSegmentModelsUsing &&
+            !(includeSharedModelsUsing && modelsNamespace == $"{projectName}.Generated.Models"))
         {
             allGeneratedCode.AppendLine($"using {modelsNamespace};");
         }
+
+        // A spec ProblemDetails / ValidationProblemDetails that other models use is generated too: keep meaning the framework type.
+        BuiltInErrorContractNames.AppendFrameworkAliases(allGeneratedCode, BuiltInErrorContractNames.ReferencedByOtherSchemas(openApiDoc));
 
         allGeneratedCode.AppendLine();
         allGeneratedCode.AppendLine($"namespace {resultsNamespace};");
@@ -1359,26 +1588,67 @@ public class ApiServerGenerator : IIncrementalGenerator
             var generatedClass = contentGenerator.Generate();
 
             // Skip the header part and append just the class
-            var lines = generatedClass.SplitIntoLinesPreserveEmpty();
-            var namespaceFound = false;
-            foreach (var line in lines)
-            {
-                if (namespaceFound)
-                {
-                    allGeneratedCode.AppendLine(line);
-                }
-                else if (line.StartsWith("namespace ", StringComparison.Ordinal))
-                {
-                    namespaceFound = true;
-                }
-            }
+            AppendTypeBody(allGeneratedCode, generatedClass);
+        }
+
+        // The helper types the result classes use, each emitted once per Results namespace - decided on the classes' text
+        var classesCode = allGeneratedCode.ToString();
+
+        // A result's Headers and Location, read through the header wrappers
+        if (classesCode.Contains("ResultHeaders.") ||
+            classesCode.Contains("new RetryAfterHttpResult(") ||
+            classesCode.Contains("new LocationHttpResult(") ||
+            classesCode.Contains(ResponseHeaderFactoryHelper.WriterCall))
+        {
+            allGeneratedCode.AppendLine(ResultClassExtractor.ResultHeadersSource());
+        }
+
+        // 429 factories wrap their result to add Retry-After
+        if (classesCode.Contains("new RetryAfterHttpResult("))
+        {
+            allGeneratedCode.AppendLine(ResultClassExtractor.RetryAfterHttpResultSource());
+        }
+
+        // A problem factory passes the handler's problem through with the response status
+        if (classesCode.Contains("ProblemWithStatus.Of("))
+        {
+            allGeneratedCode.AppendLine(ResultClassExtractor.ProblemWithStatusSource());
+        }
+
+        if (classesCode.Contains("new LocationHttpResult("))
+        {
+            allGeneratedCode.AppendLine(ResultClassExtractor.LocationHttpResultSource());
+        }
+
+        // A factory writes the headers its response declares
+        if (classesCode.Contains(ResponseHeaderFactoryHelper.WriterCall))
+        {
+            allGeneratedCode.AppendLine(ResponseHeaderFactoryHelper.ResponseHeadersSource());
+        }
+
+        // An XML body's factories write the model's generated XML
+        if (classesCode.Contains("new XmlHttpResult("))
+        {
+            allGeneratedCode.AppendLine(ResultClassExtractor.XmlHttpResultSource());
+        }
+
+        // A body offered as JSON and XML is negotiated by Accept
+        if (classesCode.Contains("new NegotiatedHttpResult("))
+        {
+            allGeneratedCode.AppendLine(ResultClassExtractor.NegotiatedHttpResultSource());
+        }
+
+        // A JSON body is written through the JsonTypeInfo the app's JSON options resolve (trim- and AOT-safe)
+        if (classesCode.Contains("JsonTypeInfoHttpResult.Of("))
+        {
+            allGeneratedCode.AppendLine(ResultClassExtractor.JsonTypeInfoHttpResultSource(NamespaceBuilder.BuildBase(projectName)));
         }
 
         var normalizeForSourceOutput = allGeneratedCode
             .ToString()
             .NormalizeForSourceOutput();
 
-        context.AddSource(
+        context.AddGeneratedSource(
             $"{resultsNamespace}.g.cs",
             SourceText.From(normalizeForSourceOutput, Encoding.UTF8));
     }
@@ -1397,9 +1667,9 @@ public class ApiServerGenerator : IIncrementalGenerator
             return;
         }
 
-        context.AddSource(
+        context.AddGeneratedSource(
             $"{projectName}.Security.Policies.g.cs",
-            SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
+            generatedContent);
     }
 
     private static void GenerateSecurityDependencyInjection(
@@ -1416,9 +1686,9 @@ public class ApiServerGenerator : IIncrementalGenerator
             return;
         }
 
-        context.AddSource(
+        context.AddGeneratedSource(
             $"{projectName}.Security.DependencyInjection.g.cs",
-            SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
+            generatedContent);
     }
 
     private static void GenerateRateLimitPolicies(
@@ -1435,9 +1705,9 @@ public class ApiServerGenerator : IIncrementalGenerator
             return;
         }
 
-        context.AddSource(
+        context.AddGeneratedSource(
             $"{projectName}.RateLimiting.Policies.g.cs",
-            SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
+            generatedContent);
     }
 
     private static void GenerateRateLimitDependencyInjection(
@@ -1454,9 +1724,9 @@ public class ApiServerGenerator : IIncrementalGenerator
             return;
         }
 
-        context.AddSource(
+        context.AddGeneratedSource(
             $"{projectName}.RateLimiting.DependencyInjection.g.cs",
-            SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
+            generatedContent);
     }
 
     private static void GenerateOutputCachePolicies(
@@ -1473,9 +1743,9 @@ public class ApiServerGenerator : IIncrementalGenerator
             return;
         }
 
-        context.AddSource(
+        context.AddGeneratedSource(
             $"{projectName}.OutputCaching.Policies.g.cs",
-            SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
+            generatedContent);
     }
 
     private static void GenerateOutputCachingDependencyInjection(
@@ -1492,9 +1762,9 @@ public class ApiServerGenerator : IIncrementalGenerator
             return;
         }
 
-        context.AddSource(
+        context.AddGeneratedSource(
             $"{projectName}.OutputCaching.DependencyInjection.g.cs",
-            SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
+            generatedContent);
     }
 
     private static void GenerateHybridCachePolicies(
@@ -1511,9 +1781,9 @@ public class ApiServerGenerator : IIncrementalGenerator
             return;
         }
 
-        context.AddSource(
+        context.AddGeneratedSource(
             $"{projectName}.Caching.Policies.g.cs",
-            SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
+            generatedContent);
     }
 
     private static void GenerateHybridCachingDependencyInjection(
@@ -1530,15 +1800,16 @@ public class ApiServerGenerator : IIncrementalGenerator
             return;
         }
 
-        context.AddSource(
+        context.AddGeneratedSource(
             $"{projectName}.Caching.DependencyInjection.g.cs",
-            SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
+            generatedContent);
     }
 
     private static void GenerateOpenIdConnectAuthentication(
         GeneratedSourceContext context,
         OpenApiDocument openApiDoc,
-        string projectName)
+        string projectName,
+        string? apiName)
     {
         // Extract OpenID Connect configuration
         var oidcConfig = OpenIdConnectConfigExtractor.Extract(openApiDoc);
@@ -1549,16 +1820,16 @@ public class ApiServerGenerator : IIncrementalGenerator
         }
 
         // Generate OpenID Connect DI extension
-        var generatedContent = OpenIdConnectDependencyInjectionExtractor.Extract(oidcConfig, projectName);
+        var generatedContent = OpenIdConnectDependencyInjectionExtractor.Extract(oidcConfig, projectName, apiName);
 
         if (generatedContent is null)
         {
             return;
         }
 
-        context.AddSource(
+        context.AddGeneratedSource(
             $"{projectName}.Authentication.OpenIdConnect.g.cs",
-            SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
+            generatedContent);
     }
 
     private static void GenerateVersioningDependencyInjection(
@@ -1582,9 +1853,9 @@ public class ApiServerGenerator : IIncrementalGenerator
 
         var generatedContent = contentGenerator.Generate();
 
-        context.AddSource(
+        context.AddGeneratedSource(
             $"{projectName}.Versioning.DependencyInjection.g.cs",
-            SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
+            generatedContent);
     }
 
     /// <summary>
@@ -1594,19 +1865,20 @@ public class ApiServerGenerator : IIncrementalGenerator
         GeneratedSourceContext context,
         OpenApiDocument openApiDoc,
         string projectName,
-        ServerConfig config)
+        ServerConfig config,
+        bool useGlobalErrorHandler)
     {
         // Generate ApiServiceOptions
         var serviceOptionsContent = ApiOptionsExtractor.ExtractServiceOptions(openApiDoc, projectName, config);
-        context.AddSource(
+        context.AddGeneratedSource(
             $"{projectName}.ApiServiceOptions.g.cs",
-            SourceText.From(serviceOptionsContent.NormalizeForSourceOutput(), Encoding.UTF8));
+            serviceOptionsContent);
 
         // Generate ApiMiddlewareOptions
-        var middlewareOptionsContent = ApiOptionsExtractor.ExtractMiddlewareOptions(openApiDoc, projectName);
-        context.AddSource(
+        var middlewareOptionsContent = ApiOptionsExtractor.ExtractMiddlewareOptions(openApiDoc, projectName, useGlobalErrorHandler);
+        context.AddGeneratedSource(
             $"{projectName}.ApiMiddlewareOptions.g.cs",
-            SourceText.From(middlewareOptionsContent.NormalizeForSourceOutput(), Encoding.UTF8));
+            middlewareOptionsContent);
     }
 
     /// <summary>
@@ -1621,9 +1893,17 @@ public class ApiServerGenerator : IIncrementalGenerator
     {
         var generatedContent = UnifiedServiceCollectionExtractor.Extract(openApiDoc, projectName, config, pathSegments);
 
-        context.AddSource(
+        context.AddGeneratedSource(
             $"{projectName}.UnifiedServiceCollectionExtensions.g.cs",
-            SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
+            generatedContent);
+
+        // The converter the Add…Api() above puts first in the JSON options, when there is an enum to write
+        if (EnumWireConverterExtractor.HasEnums(openApiDoc))
+        {
+            context.AddGeneratedSource(
+                $"{projectName}.Generated.{EnumWireConverterExtractor.ClassName}.g.cs",
+                EnumWireConverterExtractor.Generate(NamespaceBuilder.BuildBase(projectName), context.Enums, context.ReadEnumMemberNames));
+        }
     }
 
     /// <summary>
@@ -1633,13 +1913,14 @@ public class ApiServerGenerator : IIncrementalGenerator
         GeneratedSourceContext context,
         OpenApiDocument openApiDoc,
         string projectName,
-        ServerConfig config)
+        ServerConfig config,
+        bool useGlobalErrorHandler)
     {
-        var generatedContent = WebApplicationExtensionsExtractor.ExtractUnified(openApiDoc, projectName, config);
+        var generatedContent = WebApplicationExtensionsExtractor.ExtractUnified(openApiDoc, projectName, config, useGlobalErrorHandler);
 
-        context.AddSource(
+        context.AddGeneratedSource(
             $"{projectName}.UnifiedWebApplicationExtensions.g.cs",
-            SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
+            generatedContent);
     }
 
     /// <summary>
@@ -1654,9 +1935,9 @@ public class ApiServerGenerator : IIncrementalGenerator
         foreach (var generatedType in CodeGenerationService.GenerateWebhookHandlerInterfaces(openApiDoc, projectName, includeDeprecated))
         {
             var formattedCode = CodeGenerationService.FormatAsFile(generatedType);
-            context.AddSource(
+            context.AddGeneratedSource(
                 $"Webhooks.Handlers.{generatedType.TypeName}.g.cs",
-                SourceText.From(formattedCode.NormalizeForSourceOutput(), Encoding.UTF8));
+                formattedCode);
         }
     }
 
@@ -1672,9 +1953,9 @@ public class ApiServerGenerator : IIncrementalGenerator
         foreach (var generatedType in CodeGenerationService.GenerateWebhookParameters(openApiDoc, projectName, includeDeprecated))
         {
             var formattedCode = CodeGenerationService.FormatAsFile(generatedType);
-            context.AddSource(
+            context.AddGeneratedSource(
                 $"Webhooks.Parameters.{generatedType.TypeName}.g.cs",
-                SourceText.From(formattedCode.NormalizeForSourceOutput(), Encoding.UTF8));
+                formattedCode);
         }
     }
 
@@ -1690,9 +1971,9 @@ public class ApiServerGenerator : IIncrementalGenerator
         foreach (var generatedType in CodeGenerationService.GenerateWebhookResults(openApiDoc, projectName, includeDeprecated))
         {
             var formattedCode = CodeGenerationService.FormatAsFile(generatedType);
-            context.AddSource(
+            context.AddGeneratedSource(
                 $"Webhooks.Results.{generatedType.TypeName}.g.cs",
-                SourceText.From(formattedCode.NormalizeForSourceOutput(), Encoding.UTF8));
+                formattedCode);
         }
     }
 
@@ -1703,34 +1984,16 @@ public class ApiServerGenerator : IIncrementalGenerator
         GeneratedSourceContext context,
         OpenApiDocument openApiDoc,
         string projectName,
-        ServerConfig config)
+        ServerConfig config,
+        bool useValidationFilter)
     {
-        var generatedType = CodeGenerationService.GenerateWebhookEndpoints(openApiDoc, projectName, config);
+        var generatedType = CodeGenerationService.GenerateWebhookEndpoints(openApiDoc, projectName, config, useValidationFilter);
         if (generatedType is not null)
         {
             var formattedCode = CodeGenerationService.FormatAsFile(generatedType);
-            context.AddSource(
+            context.AddGeneratedSource(
                 $"Webhooks.Endpoints.{generatedType.TypeName}.g.cs",
-                SourceText.From(formattedCode.NormalizeForSourceOutput(), Encoding.UTF8));
-        }
-    }
-
-    /// <summary>
-    /// Generates webhook DI registration from OpenAPI webhooks.
-    /// </summary>
-    private static void GenerateWebhookDependencyInjection(
-        GeneratedSourceContext context,
-        OpenApiDocument openApiDoc,
-        string projectName,
-        bool includeDeprecated)
-    {
-        var generatedType = CodeGenerationService.GenerateWebhookDependencyInjection(openApiDoc, projectName, includeDeprecated);
-        if (generatedType is not null)
-        {
-            var formattedCode = CodeGenerationService.FormatAsFile(generatedType);
-            context.AddSource(
-                $"Webhooks.{generatedType.TypeName}.g.cs",
-                SourceText.From(formattedCode.NormalizeForSourceOutput(), Encoding.UTF8));
+                formattedCode);
         }
     }
 
@@ -1760,75 +2023,148 @@ public class ApiServerGenerator : IIncrementalGenerator
     }
 
     /// <summary>
-    /// Generates the ParsableList&lt;T&gt; helper class for array query parameter binding.
+    /// Generates the ParsableList&lt;T&gt; and ParsableEnumList&lt;T&gt; helper classes for array query parameter binding.
     /// </summary>
     private static void GenerateParsableListHelper(
         GeneratedSourceContext context,
         string projectName)
     {
-        var builder = new StringBuilder();
-        builder.AppendLine("// <auto-generated />");
-        builder.AppendLine("#nullable enable");
-        builder.AppendLine();
-        builder.AppendLine("using System;");
-        builder.AppendLine("using System.CodeDom.Compiler;");
-        builder.AppendLine("using System.Collections.Generic;");
-        builder.AppendLine();
-        builder.AppendLine($"namespace {projectName}.Generated;");
-        builder.AppendLine();
-        builder.AppendLine("/// <summary>");
-        builder.AppendLine("/// A list type that supports parsing from comma-separated string values.");
-        builder.AppendLine("/// Used for array query parameters bound via [AsParameters] in minimal APIs.");
-        builder.AppendLine("/// </summary>");
-        builder.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
-        builder.AppendLine("public sealed class ParsableList<T> : List<T>, IParsable<ParsableList<T>>");
-        builder.AppendLine(4, "where T : IParsable<T>");
-        builder.AppendLine("{");
-        builder.AppendLine(4, "/// <inheritdoc />");
-        builder.AppendLine(4, "public static ParsableList<T> Parse(string s, IFormatProvider? provider)");
-        builder.AppendLine(4, "{");
-        builder.AppendLine(8, "var list = new ParsableList<T>();");
-        builder.AppendLine(8, "if (!string.IsNullOrEmpty(s))");
-        builder.AppendLine(8, "{");
-        builder.AppendLine(12, "foreach (var item in s.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))");
-        builder.AppendLine(12, "{");
-        builder.AppendLine(16, "list.Add(T.Parse(item, provider));");
-        builder.AppendLine(12, "}");
-        builder.AppendLine(8, "}");
-        builder.AppendLine();
-        builder.AppendLine(8, "return list;");
-        builder.AppendLine(4, "}");
-        builder.AppendLine();
-        builder.AppendLine(4, "/// <inheritdoc />");
-        builder.AppendLine(4, "public static bool TryParse(string? s, IFormatProvider? provider, out ParsableList<T> result)");
-        builder.AppendLine(4, "{");
-        builder.AppendLine(8, "result = new ParsableList<T>();");
-        builder.AppendLine(8, "if (string.IsNullOrEmpty(s))");
-        builder.AppendLine(8, "{");
-        builder.AppendLine(12, "return true;");
-        builder.AppendLine(8, "}");
-        builder.AppendLine();
-        builder.AppendLine(8, "foreach (var item in s.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))");
-        builder.AppendLine(8, "{");
-        builder.AppendLine(12, "if (!T.TryParse(item, provider, out var parsed))");
-        builder.AppendLine(12, "{");
-        builder.AppendLine(16, "return false;");
-        builder.AppendLine(12, "}");
-        builder.AppendLine();
-        builder.AppendLine(12, "result.Add(parsed);");
-        builder.AppendLine(8, "}");
-        builder.AppendLine();
-        builder.AppendLine(8, "return true;");
-        builder.AppendLine(4, "}");
-        builder.AppendLine("}");
+        var content = $$"""
+            // <auto-generated />
+            #nullable enable
 
-        var normalizeForSourceOutput = builder
-            .ToString()
-            .NormalizeForSourceOutput();
+            using System;
+            using System.CodeDom.Compiler;
+            using System.Collections.Generic;
+            using System.Linq;
+            using System.Reflection;
+            using System.Runtime.Serialization;
 
-        context.AddSource(
+            namespace {{projectName}}.Generated;
+
+            /// <summary>
+            /// An array query parameter bound via [AsParameters] in minimal APIs. The endpoint's WithWireBinding step hands
+            /// the values over as one string with the unit separator between the items (a repeated key is one item each,
+            /// a declared delimiter is honored); a plain comma-separated value (tags=a,b) is read too.
+            /// </summary>
+            [GeneratedCode("{{GeneratorInfo.Name}}", "{{GeneratorInfo.Version}}")]
+            public sealed class ParsableList<T> : List<T>, IParsable<ParsableList<T>>
+                where T : IParsable<T>
+            {
+                /// <inheritdoc />
+                public static ParsableList<T> Parse(string s, IFormatProvider? provider)
+                    => TryParse(s, provider, out var result)
+                        ? result
+                        : throw new FormatException($"'{s}' is not a list of {typeof(T).Name} values.");
+
+                /// <inheritdoc />
+                public static bool TryParse(string? s, IFormatProvider? provider, [System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out ParsableList<T> result)
+                {
+                    // No value is no list: a binder that parses before it looks (the Request Delegate Generator) then
+                    // binds null, as one that looks first (RequestDelegateFactory) does
+                    if (string.IsNullOrEmpty(s))
+                    {
+                        result = null;
+                        return false;
+                    }
+
+                    result = new ParsableList<T>();
+                    return ParsableListBinding.TryAddAll(result, ParsableListBinding.Split(s), TryParseItem);
+                }
+
+                private static bool TryParseItem(string item, out T value)
+                    => T.TryParse(item, global::System.Globalization.CultureInfo.InvariantCulture, out value!);
+            }
+
+            /// <summary>
+            /// The same for a list of enum values: each value is read by its wire name (the value in the
+            /// specification, kept on the member as [EnumMember]) or by its member name - in any casing only one
+            /// member has (see EnumMembers).
+            /// </summary>
+            [GeneratedCode("{{GeneratorInfo.Name}}", "{{GeneratorInfo.Version}}")]
+            public sealed class ParsableEnumList<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicFields)] T> : List<T>, IParsable<ParsableEnumList<T>>
+                where T : struct, Enum
+            {
+                private static readonly EnumMembers Members = EnumMembers.Of<T>();
+
+                /// <inheritdoc />
+                public static ParsableEnumList<T> Parse(string s, IFormatProvider? provider)
+                    => TryParse(s, provider, out var result)
+                        ? result
+                        : throw new FormatException($"'{s}' is not a list of {typeof(T).Name} values.");
+
+                /// <inheritdoc />
+                public static bool TryParse(string? s, IFormatProvider? provider, [System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out ParsableEnumList<T> result)
+                {
+                    // No value is no list: a binder that parses before it looks (the Request Delegate Generator) then
+                    // binds null, as one that looks first (RequestDelegateFactory) does
+                    if (string.IsNullOrEmpty(s))
+                    {
+                        result = null;
+                        return false;
+                    }
+
+                    result = new ParsableEnumList<T>();
+                    return ParsableListBinding.TryAddAll(result, ParsableListBinding.Split(s), TryParseItem);
+                }
+
+                // The member the item names; the wire-binding step has already put each item as its member name
+                private static bool TryParseItem(string item, out T value)
+                {
+                    value = default;
+                    return Members.TryGetValue(item, out var member) &&
+                           Enum.TryParse(member, ignoreCase: false, out value);
+                }
+            }
+
+            /// <summary>
+            /// What the two list types share: the items of the value, and the parse of each.
+            /// </summary>
+            [GeneratedCode("{{GeneratorInfo.Name}}", "{{GeneratorInfo.Version}}")]
+            public static class ParsableListBinding
+            {
+                /// <summary>
+                /// The separator WithWireBinding puts between the items.
+                /// </summary>
+                public const char ItemSeparator = '\u001F';
+
+                public delegate bool TryParseItem<T>(string item, out T value);
+
+                /// <summary>
+                /// The items: the value as WithWireBinding wrote it - each item after an item separator - is split on
+                /// that separator only, the items kept as they are. A value that did not go through WithWireBinding is
+                /// split on commas.
+                /// </summary>
+                public static string[] Split(string? value)
+                    => string.IsNullOrEmpty(value)
+                        ? []
+                        : value![0] == ItemSeparator
+                            ? value.Split(ItemSeparator, StringSplitOptions.RemoveEmptyEntries)
+                            : value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+                /// <summary>
+                /// Parses every item into the list; false at the first item that does not parse.
+                /// </summary>
+                public static bool TryAddAll<T>(List<T> list, IEnumerable<string> items, TryParseItem<T> tryParseItem)
+                {
+                    foreach (var item in items)
+                    {
+                        if (!tryParseItem(item, out var value))
+                        {
+                            return false;
+                        }
+
+                        list.Add(value);
+                    }
+
+                    return true;
+                }
+            }
+            """;
+
+        context.AddGeneratedSource(
             $"{projectName}.ParsableList.g.cs",
-            SourceText.From(normalizeForSourceOutput, Encoding.UTF8));
+            content);
     }
 
     /// <summary>
@@ -1860,9 +2196,9 @@ public class ApiServerGenerator : IIncrementalGenerator
         sb.AppendLine(4, "void DefineEndpoints(WebApplication app);");
         sb.Append('}');
 
-        context.AddSource(
+        context.AddGeneratedSource(
             $"{projectName}.IEndpointDefinition.g.cs",
-            SourceText.From(sb.ToString().NormalizeForSourceOutput(), Encoding.UTF8));
+            sb.ToString());
     }
 
     private static void GenerateHealthCheckEndpoints(
@@ -1873,9 +2209,9 @@ public class ApiServerGenerator : IIncrementalGenerator
     {
         var content = HealthCheckExtractor.GenerateEndpoints(projectName, config, hasHealthChecksPackage);
 
-        context.AddSource(
+        context.AddGeneratedSource(
             $"{projectName}.Health.HealthCheckEndpoints.g.cs",
-            SourceText.From(content.NormalizeForSourceOutput(), Encoding.UTF8));
+            content);
     }
 
     private static void GenerateHealthCheckServiceExtensions(
@@ -1884,8 +2220,30 @@ public class ApiServerGenerator : IIncrementalGenerator
     {
         var content = HealthCheckExtractor.GenerateServiceExtensions(projectName);
 
-        context.AddSource(
+        context.AddGeneratedSource(
             $"{projectName}.Health.HealthCheckServiceExtensions.g.cs",
-            SourceText.From(content.NormalizeForSourceOutput(), Encoding.UTF8));
+            content);
+    }
+
+    /// <summary>
+    /// Appends a generated type's body - the lines after its <c>namespace</c> line - to a file that writes its own header
+    /// and namespace.
+    /// </summary>
+    private static void AppendTypeBody(
+        StringBuilder target,
+        string generatedCode)
+    {
+        var namespaceFound = false;
+        foreach (var line in generatedCode.SplitIntoLinesPreserveEmpty())
+        {
+            if (namespaceFound)
+            {
+                target.AppendLine(line);
+            }
+            else if (line.StartsWith("namespace ", StringComparison.Ordinal))
+            {
+                namespaceFound = true;
+            }
+        }
     }
 }

@@ -53,13 +53,7 @@ public sealed class TypeScriptFetchClientBehaviorGateTests
             File.WriteAllText(Path.Combine(workDir, "tsconfig.json"), TsConfig);
             File.WriteAllText(Path.Combine(workDir, "harness.mts"), Harness);
 
-            var install = NodeToolchain.RunNpm(
-                "install --no-audit --no-fund --loglevel=error",
-                workDir,
-                TimeSpan.FromMinutes(5));
-            Assert.True(
-                install.ExitCode == 0,
-                $"npm install failed (exit {install.ExitCode}):\n{install.Output}");
+            NodeWorkspace.Link(workDir);
 
             var run = NodeToolchain.RunNpx(
                 "tsx harness.mts",
@@ -190,6 +184,31 @@ public sealed class TypeScriptFetchClientBehaviorGateTests
           respondWith(JSON.stringify({ title: 'Validation failed', errors: { name: ['required'] } }), 'application/problem+json', 400);
           const r4 = await client.request('get', '/validate');
           check(label + ' problem-json-badRequest', r4.status === 'badRequest', 'expected badRequest, got ' + r4.status);
+
+          // Case 5: 204, 205 and 304 carry no body, but a browser holds the (empty) response open until it is read:
+          // one left unread is reported as a cancelled request (net::ERR_ABORTED). The client reads it to its end.
+          for (const [status, arm] of [[204, 'noContent'], [205, 'noContent'], [304, 'notModified']] as const) {
+            const bodiless = new Response(new ReadableStream({ start: (controller) => controller.close() }), { status: 200 });
+            Object.defineProperty(bodiless, 'status', { value: status });
+            Object.defineProperty(bodiless, 'ok', { value: status < 300 });
+            nextResponse = () => bodiless;
+            const r5 = await client.request('get', '/bodiless');
+            check(label + ' bodiless-' + status + '-arm', r5.status === arm, 'expected ' + arm + ', got ' + r5.status);
+            check(label + ' bodiless-' + status + '-read', bodiless.bodyUsed, 'the empty body was left unread');
+          }
+
+          // Case 6: a streamed JSON array is complete at its closing ']', also when the body does not end there - as
+          // MSW's mocked body does, which never signals its end and whose cancel() never settles: the stream ends with
+          // its items, instead of waiting on the cancel of a body that was read to its end
+          nextResponse = () => new Response(new ReadableStream<Uint8Array>({
+            start: (controller) => controller.enqueue(new TextEncoder().encode('["a","b"]')),
+            cancel: () => new Promise<void>(() => {}),
+          }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+          const items: string[] = [];
+          const read = (async () => { for await (const item of client.requestStream('get', '/items')) items.push(item as string); return 'ended'; })();
+          const outcome = await Promise.race([read, new Promise((resolve) => setTimeout(() => resolve('hung'), 2000))]);
+          check(label + ' json-array-ends-at-its-bracket', outcome === 'ended', 'the stream did not end after the closing bracket (' + outcome + ')');
+          check(label + ' json-array-items', JSON.stringify(items) === '["a","b"]', 'expected ["a","b"], got ' + JSON.stringify(items));
         }
 
         async function main(): Promise<void> {
@@ -200,7 +219,8 @@ public sealed class TypeScriptFetchClientBehaviorGateTests
 
           if (failures.length > 0) {
             console.error('BEHAVIOUR FAILURES:\n' + failures.join('\n'));
-            process.exit(1);
+            process.exitCode = 1;
+            return;
           }
           console.log('ALL BEHAVIOUR CHECKS PASSED');
         }

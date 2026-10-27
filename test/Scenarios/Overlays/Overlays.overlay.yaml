@@ -1,0 +1,56 @@
+overlay: 1.2.0
+info:
+  title: Contoso Fleet - our fixes
+  version: 1.0.0
+extends: Overlays.yaml
+components:
+  actions:
+    serviceUnavailable:
+      description: The vendor has maintenance windows, but the specification does not say so
+      fields:
+        update:
+          '503':
+            description: Service Unavailable
+actions:
+  # Names for the operations (the vendor gives none)
+  - target: $.paths['/devices'].get
+    update:
+      operationId: listDevices
+  - target: $.paths['/devices/{deviceId}'].get
+    update:
+      operationId: getDevice
+
+  # An array update appends: id joins name in the required list
+  - target: $.components.schemas.Device.required
+    update: [id]
+
+  # A primitive is replaced, an object is merged: lastSeen gets its format
+  - target: $.components.schemas.Device.properties.lastSeen
+    update:
+      format: date-time
+
+  # The inline location becomes a named schema: create it, copy the inline one into it, point the property at it
+  - target: $.components.schemas
+    update:
+      DeviceLocation:
+        title: DeviceLocation
+  - target: $.components.schemas.DeviceLocation
+    copy: $.components.schemas.Device.properties.location
+  - target: $.components.schemas.Device.properties.location
+    remove: true
+  - target: $.components.schemas.Device.properties
+    update:
+      location:
+        $ref: '#/components/schemas/DeviceLocation'
+
+  # Consumers have no use for the vendor's internal endpoints
+  - target: $.paths['/internal/diagnostics']
+    remove: true
+
+  # The vendor's tag is no kebab-case name: a filter selects it inside every tags array, and the update replaces it
+  - target: $.paths.*.*.tags[?@ == 'Devices']
+    update: devices
+
+  # A reusable action applied to every operation's responses through a wildcard target
+  - $ref: '#/components/actions/serviceUnavailable'
+    target: $.paths.*.*.responses

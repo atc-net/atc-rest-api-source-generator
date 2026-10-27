@@ -1,7 +1,12 @@
 namespace Atc.CodeGeneration.TypeScript.CodeDocumentation;
 
+/// <summary>
+/// Renders a <see cref="JsDocComment"/>: a description alone becomes a one-line <c>/** text */</c>, anything
+/// more a multi-line block with one <c> * </c> line per description line and tag.
+/// </summary>
 public class JsDocCommentGenerator : IJsDocCommentGenerator
 {
+    /// <inheritdoc />
     public bool ShouldGenerateTags(JsDocComment jsDocComment)
     {
         if (jsDocComment is null)
@@ -21,6 +26,7 @@ public class JsDocCommentGenerator : IJsDocCommentGenerator
                !jsDocComment.Description.StartsWith(Constants.UndefinedDescription, StringComparison.Ordinal);
     }
 
+    /// <inheritdoc />
     public string GenerateTags(
         ushort indentSpaces,
         JsDocComment jsDocComment)
@@ -42,7 +48,7 @@ public class JsDocCommentGenerator : IJsDocCommentGenerator
 
         if (!hasMultipleEntries && !string.IsNullOrEmpty(jsDocComment.Description))
         {
-            sb.AppendLine($"{indent}/** {jsDocComment.Description} */");
+            sb.AppendLine($"{indent}/** {TypeScriptLiteralHelper.EscapeComment(jsDocComment.Description)} */");
             return sb.ToString();
         }
 
@@ -50,7 +56,7 @@ public class JsDocCommentGenerator : IJsDocCommentGenerator
 
         if (!string.IsNullOrEmpty(jsDocComment.Description))
         {
-            var lines = jsDocComment.Description
+            var lines = TypeScriptLiteralHelper.EscapeComment(jsDocComment.Description)
                 .EnsureEnvironmentNewLines()
                 .Split(new[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries);
 
@@ -64,20 +70,20 @@ public class JsDocCommentGenerator : IJsDocCommentGenerator
         {
             foreach (var param in jsDocComment.Parameters)
             {
-                sb.AppendLine($"{indent} * @param {param.Key} {param.Value}");
+                sb.AppendLine($"{indent} * @param {param.Key} {TypeScriptLiteralHelper.EscapeComment(param.Value)}");
             }
         }
 
         if (!string.IsNullOrEmpty(jsDocComment.Returns))
         {
-            sb.AppendLine($"{indent} * @returns {jsDocComment.Returns}");
+            sb.AppendLine($"{indent} * @returns {TypeScriptLiteralHelper.EscapeComment(jsDocComment.Returns)}");
         }
 
         if (jsDocComment.IsDeprecated)
         {
             if (!string.IsNullOrEmpty(jsDocComment.DeprecatedMessage))
             {
-                sb.AppendLine($"{indent} * @deprecated {jsDocComment.DeprecatedMessage}");
+                sb.AppendLine($"{indent} * @deprecated {TypeScriptLiteralHelper.EscapeComment(jsDocComment.DeprecatedMessage)}");
             }
             else
             {
@@ -88,7 +94,7 @@ public class JsDocCommentGenerator : IJsDocCommentGenerator
         if (!string.IsNullOrEmpty(jsDocComment.Example))
         {
             sb.AppendLine($"{indent} * @example");
-            var exampleLines = jsDocComment.Example
+            var exampleLines = TypeScriptLiteralHelper.EscapeComment(jsDocComment.Example)
                 .EnsureEnvironmentNewLines()
                 .Split(new[] { Environment.NewLine }, StringSplitOptions.None);
 

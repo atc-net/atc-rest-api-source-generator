@@ -10,6 +10,7 @@ global using System.Text.Json.Nodes;
 
 global using Atc.Helpers;
 global using Atc.OpenApi.Extensions;
+global using Atc.OpenApi.Helpers;
 global using Atc.OpenApi.Models;
 
 global using Microsoft.OpenApi;

@@ -36,11 +36,13 @@ public static class TypeScriptBarrelExportExtractor
     /// <param name="headerContent">Optional auto-generated header content.</param>
     /// <param name="typeNames">The type names to re-export.</param>
     /// <param name="isTypeOnly">Whether to use type-only exports for the main type file.</param>
+    /// <param name="namesWithoutZod">Type names that have no .zod file (e.g. the Writable request variants).</param>
     /// <returns>Barrel export parameters with interleaved .zod re-exports.</returns>
     public static TypeScriptBarrelExportParameters CreateWithZod(
         string? headerContent,
         IEnumerable<string> typeNames,
-        bool isTypeOnly = true)
+        bool isTypeOnly = true,
+        ISet<string>? namesWithoutZod = null)
     {
         var exports = new List<TypeScriptReExportParameters>();
 
@@ -51,6 +53,11 @@ public static class TypeScriptBarrelExportExtractor
                 ModulePath: $"./{name}",
                 NamedExports: null,
                 IsTypeOnly: isTypeOnly));
+
+            if (namesWithoutZod?.Contains(name) == true)
+            {
+                continue;
+            }
 
             // Re-export the .zod schema file (schemas are const values, never type-only)
             exports.Add(new TypeScriptReExportParameters(

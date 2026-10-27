@@ -16,91 +16,98 @@ public static class OpenApiRetryExtensions
         /// </summary>
         /// <returns>The policy name, or null if not specified.</returns>
         public string? ExtractRetryPolicy()
-            => ExtractStringValue(extensions, RetryExtensionNameConstants.Policy);
+            => extensions.ReadString(RetryExtensionNameConstants.Policy);
 
         /// <summary>
         /// Extracts the x-retry-enabled value from extensions.
         /// </summary>
         /// <returns>True if enabled, false if explicitly disabled, null if not specified.</returns>
         public bool? ExtractRetryEnabled()
-            => ExtractBoolValue(extensions, RetryExtensionNameConstants.Enabled);
+            => extensions.ReadBool(RetryExtensionNameConstants.Enabled);
 
         /// <summary>
         /// Extracts the x-retry-max-attempts value from extensions.
         /// </summary>
         /// <returns>The max attempts, or null if not specified.</returns>
         public int? ExtractMaxRetryAttempts()
-            => ExtractIntValue(extensions, RetryExtensionNameConstants.MaxAttempts);
+            => extensions.ReadInt(RetryExtensionNameConstants.MaxAttempts);
 
         /// <summary>
         /// Extracts the x-retry-delay-seconds value from extensions.
         /// </summary>
         /// <returns>The delay in seconds, or null if not specified.</returns>
         public double? ExtractRetryDelaySeconds()
-            => ExtractDoubleValue(extensions, RetryExtensionNameConstants.DelaySeconds);
+            => extensions.ReadDouble(RetryExtensionNameConstants.DelaySeconds);
 
         /// <summary>
         /// Extracts the x-retry-backoff value from extensions.
         /// </summary>
         /// <returns>The backoff type string, or null if not specified.</returns>
         public string? ExtractRetryBackoff()
-            => ExtractStringValue(extensions, RetryExtensionNameConstants.Backoff);
+            => extensions.ReadString(RetryExtensionNameConstants.Backoff);
 
         /// <summary>
         /// Extracts the x-retry-use-jitter value from extensions.
         /// </summary>
         /// <returns>True if jitter enabled, false if disabled, null if not specified.</returns>
         public bool? ExtractRetryUseJitter()
-            => ExtractBoolValue(extensions, RetryExtensionNameConstants.UseJitter);
+            => extensions.ReadBool(RetryExtensionNameConstants.UseJitter);
 
         /// <summary>
         /// Extracts the x-retry-timeout-seconds value from extensions.
         /// </summary>
         /// <returns>The timeout in seconds, or null if not specified.</returns>
         public double? ExtractRetryTimeoutSeconds()
-            => ExtractDoubleValue(extensions, RetryExtensionNameConstants.TimeoutSeconds);
+            => extensions.ReadDouble(RetryExtensionNameConstants.TimeoutSeconds);
+
+        /// <summary>
+        /// Extracts the x-retry-total-timeout-seconds value from extensions.
+        /// </summary>
+        /// <returns>The timeout over all attempts in seconds, or null if not specified.</returns>
+        public double? ExtractRetryTotalTimeoutSeconds()
+            => extensions.ReadDouble(RetryExtensionNameConstants.TotalTimeoutSeconds);
 
         /// <summary>
         /// Extracts the x-retry-circuit-breaker value from extensions.
         /// </summary>
         /// <returns>True if circuit breaker enabled, false if disabled, null if not specified.</returns>
         public bool? ExtractRetryCircuitBreaker()
-            => ExtractBoolValue(extensions, RetryExtensionNameConstants.CircuitBreaker);
+            => extensions.ReadBool(RetryExtensionNameConstants.CircuitBreaker);
 
         /// <summary>
         /// Extracts the x-retry-cb-failure-ratio value from extensions.
         /// </summary>
         /// <returns>The failure ratio (0.0-1.0), or null if not specified.</returns>
         public double? ExtractCircuitBreakerFailureRatio()
-            => ExtractDoubleValue(extensions, RetryExtensionNameConstants.CircuitBreakerFailureRatio);
+            => extensions.ReadDouble(RetryExtensionNameConstants.CircuitBreakerFailureRatio);
 
         /// <summary>
         /// Extracts the x-retry-cb-sampling-duration-seconds value from extensions.
         /// </summary>
         /// <returns>The sampling duration in seconds, or null if not specified.</returns>
         public double? ExtractCircuitBreakerSamplingDurationSeconds()
-            => ExtractDoubleValue(extensions, RetryExtensionNameConstants.CircuitBreakerSamplingDurationSeconds);
+            => extensions.ReadDouble(RetryExtensionNameConstants.CircuitBreakerSamplingDurationSeconds);
 
         /// <summary>
         /// Extracts the x-retry-cb-minimum-throughput value from extensions.
         /// </summary>
         /// <returns>The minimum throughput, or null if not specified.</returns>
         public int? ExtractCircuitBreakerMinimumThroughput()
-            => ExtractIntValue(extensions, RetryExtensionNameConstants.CircuitBreakerMinimumThroughput);
+            => extensions.ReadInt(RetryExtensionNameConstants.CircuitBreakerMinimumThroughput);
 
         /// <summary>
         /// Extracts the x-retry-cb-break-duration-seconds value from extensions.
         /// </summary>
         /// <returns>The break duration in seconds, or null if not specified.</returns>
         public double? ExtractCircuitBreakerBreakDurationSeconds()
-            => ExtractDoubleValue(extensions, RetryExtensionNameConstants.CircuitBreakerBreakDurationSeconds);
+            => extensions.ReadDouble(RetryExtensionNameConstants.CircuitBreakerBreakDurationSeconds);
 
         /// <summary>
         /// Extracts the x-retry-handle-429 value from extensions.
         /// </summary>
         /// <returns>True if 429 handling enabled, false if disabled, null if not specified.</returns>
         public bool? ExtractRetryHandle429()
-            => ExtractBoolValue(extensions, RetryExtensionNameConstants.Handle429);
+            => extensions.ReadBool(RetryExtensionNameConstants.Handle429);
     }
 
     /// <summary>
@@ -116,14 +123,15 @@ public static class OpenApiRetryExtensions
         IOpenApiPathItem pathItem,
         OpenApiDocument document)
     {
+        // operation → path → document: the nearest level that sets a value wins
+        var inherited = new OpenApiExtensionScope(operation.Extensions, pathItem.Extensions, document.Extensions);
+
         // Check for operation-level explicit disable
         var operationEnabled = operation.Extensions.ExtractRetryEnabled();
         if (operationEnabled == false)
         {
             // Return a disabled configuration with timeout if specified
-            var timeout = operation.Extensions.ExtractRetryTimeoutSeconds()
-                          ?? pathItem.Extensions.ExtractRetryTimeoutSeconds()
-                          ?? document.Extensions.ExtractRetryTimeoutSeconds();
+            var timeout = inherited.First(e => e.ExtractRetryTimeoutSeconds());
 
             return new RetryConfiguration
             {
@@ -133,9 +141,7 @@ public static class OpenApiRetryExtensions
         }
 
         // Get effective policy (operation → path → document)
-        var policy = operation.Extensions.ExtractRetryPolicy()
-                     ?? pathItem.Extensions.ExtractRetryPolicy()
-                     ?? document.Extensions.ExtractRetryPolicy();
+        var policy = inherited.First(e => e.ExtractRetryPolicy());
 
         if (string.IsNullOrEmpty(policy))
         {
@@ -143,58 +149,38 @@ public static class OpenApiRetryExtensions
         }
 
         // Get configuration values (operation → path → document)
-        var maxAttempts = operation.Extensions.ExtractMaxRetryAttempts()
-                          ?? pathItem.Extensions.ExtractMaxRetryAttempts()
-                          ?? document.Extensions.ExtractMaxRetryAttempts()
+        var maxAttempts = inherited.First(e => e.ExtractMaxRetryAttempts())
                           ?? 3;
 
-        var delaySeconds = operation.Extensions.ExtractRetryDelaySeconds()
-                           ?? pathItem.Extensions.ExtractRetryDelaySeconds()
-                           ?? document.Extensions.ExtractRetryDelaySeconds()
+        var delaySeconds = inherited.First(e => e.ExtractRetryDelaySeconds())
                            ?? 1.0;
 
-        var backoffString = operation.Extensions.ExtractRetryBackoff()
-                            ?? pathItem.Extensions.ExtractRetryBackoff()
-                            ?? document.Extensions.ExtractRetryBackoff()
+        var backoffString = inherited.First(e => e.ExtractRetryBackoff())
                             ?? "exponential";
 
-        var useJitter = operation.Extensions.ExtractRetryUseJitter()
-                        ?? pathItem.Extensions.ExtractRetryUseJitter()
-                        ?? document.Extensions.ExtractRetryUseJitter()
+        var useJitter = inherited.First(e => e.ExtractRetryUseJitter())
                         ?? true;
 
-        var timeoutSeconds = operation.Extensions.ExtractRetryTimeoutSeconds()
-                             ?? pathItem.Extensions.ExtractRetryTimeoutSeconds()
-                             ?? document.Extensions.ExtractRetryTimeoutSeconds();
+        var timeoutSeconds = inherited.First(e => e.ExtractRetryTimeoutSeconds());
 
-        var circuitBreaker = operation.Extensions.ExtractRetryCircuitBreaker()
-                             ?? pathItem.Extensions.ExtractRetryCircuitBreaker()
-                             ?? document.Extensions.ExtractRetryCircuitBreaker()
+        var totalTimeoutSeconds = inherited.First(e => e.ExtractRetryTotalTimeoutSeconds());
+
+        var circuitBreaker = inherited.First(e => e.ExtractRetryCircuitBreaker())
                              ?? false;
 
-        var circuitBreakerFailureRatio = operation.Extensions.ExtractCircuitBreakerFailureRatio()
-                                          ?? pathItem.Extensions.ExtractCircuitBreakerFailureRatio()
-                                          ?? document.Extensions.ExtractCircuitBreakerFailureRatio()
+        var circuitBreakerFailureRatio = inherited.First(e => e.ExtractCircuitBreakerFailureRatio())
                                           ?? 0.5;
 
-        var circuitBreakerSamplingDuration = operation.Extensions.ExtractCircuitBreakerSamplingDurationSeconds()
-                                              ?? pathItem.Extensions.ExtractCircuitBreakerSamplingDurationSeconds()
-                                              ?? document.Extensions.ExtractCircuitBreakerSamplingDurationSeconds()
+        var circuitBreakerSamplingDuration = inherited.First(e => e.ExtractCircuitBreakerSamplingDurationSeconds())
                                               ?? 30.0;
 
-        var circuitBreakerMinimumThroughput = operation.Extensions.ExtractCircuitBreakerMinimumThroughput()
-                                               ?? pathItem.Extensions.ExtractCircuitBreakerMinimumThroughput()
-                                               ?? document.Extensions.ExtractCircuitBreakerMinimumThroughput()
+        var circuitBreakerMinimumThroughput = inherited.First(e => e.ExtractCircuitBreakerMinimumThroughput())
                                                ?? 10;
 
-        var circuitBreakerBreakDuration = operation.Extensions.ExtractCircuitBreakerBreakDurationSeconds()
-                                           ?? pathItem.Extensions.ExtractCircuitBreakerBreakDurationSeconds()
-                                           ?? document.Extensions.ExtractCircuitBreakerBreakDurationSeconds()
+        var circuitBreakerBreakDuration = inherited.First(e => e.ExtractCircuitBreakerBreakDurationSeconds())
                                            ?? 30.0;
 
-        var handle429 = operation.Extensions.ExtractRetryHandle429()
-                        ?? pathItem.Extensions.ExtractRetryHandle429()
-                        ?? document.Extensions.ExtractRetryHandle429()
+        var handle429 = inherited.First(e => e.ExtractRetryHandle429())
                         ?? true;
 
         var backoffType = ParseBackoffType(backoffString);
@@ -208,6 +194,7 @@ public static class OpenApiRetryExtensions
             BackoffType = backoffType,
             UseJitter = useJitter,
             TimeoutSeconds = timeoutSeconds,
+            TotalTimeoutSeconds = totalTimeoutSeconds,
             CircuitBreakerEnabled = circuitBreaker,
             CircuitBreakerFailureRatio = circuitBreakerFailureRatio,
             CircuitBreakerSamplingDurationSeconds = circuitBreakerSamplingDuration,
@@ -268,168 +255,226 @@ public static class OpenApiRetryExtensions
     }
 
     /// <summary>
-    /// Extracts a string value from an OpenAPI extension.
+    /// Returns true for the HTTP methods a client does not retry unless the operation opts in: POST and PATCH
+    /// are not idempotent, so resending one after a timeout or 5xx can apply it twice.
     /// </summary>
-    private static string? ExtractStringValue(
-        IDictionary<string, IOpenApiExtension>? extensions,
-        string key)
+    /// <param name="httpMethod">The HTTP method (any casing).</param>
+    /// <returns>True for POST and PATCH.</returns>
+    public static bool IsRetryUnsafeHttpMethod(string httpMethod)
+        => string.Equals(httpMethod, "POST", StringComparison.OrdinalIgnoreCase) ||
+           string.Equals(httpMethod, "PATCH", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Resolves how a generated client applies retry to one operation.
+    /// <list type="bullet">
+    ///   <item><description><c>x-retry-enabled</c> inherits operation → path → document; <c>false</c> means no retry.</description></item>
+    ///   <item><description>POST and PATCH are only retried when the <b>operation</b> opts in with <c>x-retry-enabled: true</c> or its own <c>x-retry-policy</c>.</description></item>
+    ///   <item><description>The operation's policy is its own or its path's <c>x-retry-policy</c>; without one the client default applies.</description></item>
+    ///   <item><description>"No retry" keeps the policy's timeout and circuit breaker; an operation (or policy-less path) <c>x-retry-timeout-seconds</c> next to it is carried along.</description></item>
+    /// </list>
+    /// </summary>
+    /// <param name="operation">The OpenAPI operation.</param>
+    /// <param name="pathItem">The path item containing the operation.</param>
+    /// <param name="document">The OpenAPI document.</param>
+    /// <param name="httpMethod">The HTTP method of the operation.</param>
+    /// <returns>The resolved retry behavior.</returns>
+    public static OperationRetry ResolveOperationRetry(
+        this OpenApiOperation operation,
+        IOpenApiPathItem pathItem,
+        OpenApiDocument document,
+        string httpMethod)
     {
-        if (extensions is null ||
-            !extensions.TryGetValue(key, out var extension) ||
-            extension is null)
+        if (operation is null)
         {
-            return null;
+            throw new ArgumentNullException(nameof(operation));
         }
 
-        // Use reflection to access Node property (Microsoft.OpenApi v3.0.1 pattern)
-        var extensionType = extension.GetType();
-        var nodeProperty = extensionType.GetProperty("Node");
-        if (nodeProperty is null)
+        if (pathItem is null)
         {
-            return null;
+            throw new ArgumentNullException(nameof(pathItem));
         }
 
-        var node = nodeProperty.GetValue(extension);
-        if (node is JsonValue jsonValue && jsonValue.TryGetValue<string>(out var stringValue))
+        if (document is null)
         {
-            return stringValue;
+            throw new ArgumentNullException(nameof(document));
         }
 
-        return null;
+        var operationPolicy = NullIfEmpty(operation.Extensions.ExtractRetryPolicy());
+        var pathPolicy = NullIfEmpty(pathItem.Extensions.ExtractRetryPolicy());
+        var ownPolicy = operationPolicy ?? pathPolicy;
+
+        var operationEnabled = operation.Extensions.ExtractRetryEnabled();
+        var enabled = operationEnabled
+                      ?? pathItem.Extensions.ExtractRetryEnabled()
+                      ?? document.Extensions.ExtractRetryEnabled();
+
+        var isUnsafe = IsRetryUnsafeHttpMethod(httpMethod);
+        var optedIn = operationEnabled == true || operationPolicy is not null;
+
+        if (enabled == false || (isUnsafe && !optedIn))
+        {
+            var timeout = operation.Extensions.ExtractRetryTimeoutSeconds()
+                          ?? (pathPolicy is null ? pathItem.Extensions.ExtractRetryTimeoutSeconds() : null);
+
+            return new OperationRetry(OperationRetryMode.NoRetry, ownPolicy, timeout);
+        }
+
+        return ownPolicy is null && !isUnsafe
+            ? OperationRetry.Default
+            : new OperationRetry(OperationRetryMode.Retry, ownPolicy);
     }
 
     /// <summary>
-    /// Extracts a boolean value from an OpenAPI extension.
+    /// Collects every named retry policy (<c>x-retry-policy</c>) of the document, the document-level one first.
+    /// A policy's values come from where its name is declared, inheriting operation → path → document;
+    /// the first declaration of a name wins. Policies of disabled operations are included, because a
+    /// "no retry" operation still uses its policy's timeout and circuit breaker.
     /// </summary>
-    private static bool? ExtractBoolValue(
-        IDictionary<string, IOpenApiExtension>? extensions,
-        string key)
+    /// <param name="document">The OpenAPI document.</param>
+    /// <param name="includeDeprecated">Whether to include deprecated operations.</param>
+    /// <returns>The named policies in declaration order.</returns>
+    public static IReadOnlyList<RetryConfiguration> CollectNamedRetryPolicies(
+        this OpenApiDocument document,
+        bool includeDeprecated = true)
     {
-        if (extensions is null ||
-            !extensions.TryGetValue(key, out var extension) ||
-            extension is null)
+        if (document is null)
         {
-            return null;
+            throw new ArgumentNullException(nameof(document));
         }
 
-        // Use reflection to access Node property (Microsoft.OpenApi v3.0.1 pattern)
-        var extensionType = extension.GetType();
-        var nodeProperty = extensionType.GetProperty("Node");
-        if (nodeProperty is null)
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var policies = new List<RetryConfiguration>();
+
+        void Add(
+            IDictionary<string, IOpenApiExtension>? operationExtensions,
+            IDictionary<string, IOpenApiExtension>? pathExtensions)
         {
-            return null;
+            var config = BuildRetryConfiguration(operationExtensions, pathExtensions, document.Extensions);
+            if (config?.Policy is { } name && seen.Add(name))
+            {
+                policies.Add(config);
+            }
         }
 
-        var node = nodeProperty.GetValue(extension);
-        if (node is JsonValue jsonValue && jsonValue.TryGetValue<bool>(out var boolValue))
+        if (NullIfEmpty(document.Extensions.ExtractRetryPolicy()) is not null)
         {
-            return boolValue;
+            Add(operationExtensions: null, pathExtensions: null);
         }
 
-        return null;
+        if (document.Paths is null)
+        {
+            return policies;
+        }
+
+        foreach (var pathPair in document.Paths)
+        {
+            if (pathPair.Value is not IOpenApiPathItem pathItem)
+            {
+                continue;
+            }
+
+            if (NullIfEmpty(pathItem.Extensions.ExtractRetryPolicy()) is not null)
+            {
+                Add(operationExtensions: null, pathItem.Extensions);
+            }
+
+            if (pathItem.Operations is null)
+            {
+                continue;
+            }
+
+            foreach (var operationPair in pathItem.Operations)
+            {
+                var operation = operationPair.Value;
+                if (operation is null ||
+                    (!includeDeprecated && operation.Deprecated))
+                {
+                    continue;
+                }
+
+                if (NullIfEmpty(operation.Extensions.ExtractRetryPolicy()) is not null)
+                {
+                    Add(operation.Extensions, pathItem.Extensions);
+                }
+            }
+        }
+
+        return policies;
     }
 
     /// <summary>
-    /// Extracts an integer value from an OpenAPI extension.
+    /// Builds the policy declared at the most specific of the given levels, with every value inherited
+    /// operation → path → document. Returns null when no level names a policy.
     /// </summary>
-    private static int? ExtractIntValue(
-        IDictionary<string, IOpenApiExtension>? extensions,
-        string key)
+    private static RetryConfiguration? BuildRetryConfiguration(
+        IDictionary<string, IOpenApiExtension>? operationExtensions,
+        IDictionary<string, IOpenApiExtension>? pathExtensions,
+        IDictionary<string, IOpenApiExtension>? documentExtensions)
     {
-        if (extensions is null ||
-            !extensions.TryGetValue(key, out var extension) ||
-            extension is null)
+        var policy = NullIfEmpty(operationExtensions.ExtractRetryPolicy())
+                     ?? NullIfEmpty(pathExtensions.ExtractRetryPolicy())
+                     ?? NullIfEmpty(documentExtensions.ExtractRetryPolicy());
+
+        if (policy is null)
         {
             return null;
         }
 
-        // Use reflection to access Node property (Microsoft.OpenApi v3.0.1 pattern)
-        var extensionType = extension.GetType();
-        var nodeProperty = extensionType.GetProperty("Node");
-        if (nodeProperty is null)
+        return new RetryConfiguration
         {
-            return null;
-        }
-
-        var node = nodeProperty.GetValue(extension);
-        if (node is JsonValue jsonValue)
-        {
-            if (jsonValue.TryGetValue<int>(out var intValue))
-            {
-                return intValue;
-            }
-
-            // Also try long and clamp to int range
-            if (jsonValue.TryGetValue<long>(out var longValue))
-            {
-                return longValue > int.MaxValue ? int.MaxValue : longValue < int.MinValue ? int.MinValue : (int)longValue;
-            }
-
-            // YAML-sourced integer scalars are boxed as decimal (JsonValuePrimitive<decimal>)
-            // by the OpenAPI YAML reader, not int/long, so neither branch above ever matches
-            // for a document parsed from YAML (the common case for this generator).
-            if (jsonValue.TryGetValue<decimal>(out var decimalValue))
-            {
-                return decimalValue > int.MaxValue ? int.MaxValue : decimalValue < int.MinValue ? int.MinValue : (int)decimalValue;
-            }
-        }
-
-        return null;
+            Enabled = true,
+            Policy = policy,
+            MaxAttempts = operationExtensions.ExtractMaxRetryAttempts()
+                          ?? pathExtensions.ExtractMaxRetryAttempts()
+                          ?? documentExtensions.ExtractMaxRetryAttempts()
+                          ?? 3,
+            DelaySeconds = operationExtensions.ExtractRetryDelaySeconds()
+                           ?? pathExtensions.ExtractRetryDelaySeconds()
+                           ?? documentExtensions.ExtractRetryDelaySeconds()
+                           ?? 1.0,
+            BackoffType = ParseBackoffType(
+                operationExtensions.ExtractRetryBackoff()
+                ?? pathExtensions.ExtractRetryBackoff()
+                ?? documentExtensions.ExtractRetryBackoff()),
+            UseJitter = operationExtensions.ExtractRetryUseJitter()
+                        ?? pathExtensions.ExtractRetryUseJitter()
+                        ?? documentExtensions.ExtractRetryUseJitter()
+                        ?? true,
+            TimeoutSeconds = operationExtensions.ExtractRetryTimeoutSeconds()
+                             ?? pathExtensions.ExtractRetryTimeoutSeconds()
+                             ?? documentExtensions.ExtractRetryTimeoutSeconds(),
+            TotalTimeoutSeconds = operationExtensions.ExtractRetryTotalTimeoutSeconds()
+                                  ?? pathExtensions.ExtractRetryTotalTimeoutSeconds()
+                                  ?? documentExtensions.ExtractRetryTotalTimeoutSeconds(),
+            CircuitBreakerEnabled = operationExtensions.ExtractRetryCircuitBreaker()
+                                    ?? pathExtensions.ExtractRetryCircuitBreaker()
+                                    ?? documentExtensions.ExtractRetryCircuitBreaker()
+                                    ?? false,
+            CircuitBreakerFailureRatio = operationExtensions.ExtractCircuitBreakerFailureRatio()
+                                         ?? pathExtensions.ExtractCircuitBreakerFailureRatio()
+                                         ?? documentExtensions.ExtractCircuitBreakerFailureRatio()
+                                         ?? 0.5,
+            CircuitBreakerSamplingDurationSeconds = operationExtensions.ExtractCircuitBreakerSamplingDurationSeconds()
+                                                    ?? pathExtensions.ExtractCircuitBreakerSamplingDurationSeconds()
+                                                    ?? documentExtensions.ExtractCircuitBreakerSamplingDurationSeconds()
+                                                    ?? 30.0,
+            CircuitBreakerMinimumThroughput = operationExtensions.ExtractCircuitBreakerMinimumThroughput()
+                                              ?? pathExtensions.ExtractCircuitBreakerMinimumThroughput()
+                                              ?? documentExtensions.ExtractCircuitBreakerMinimumThroughput()
+                                              ?? 10,
+            CircuitBreakerBreakDurationSeconds = operationExtensions.ExtractCircuitBreakerBreakDurationSeconds()
+                                                 ?? pathExtensions.ExtractCircuitBreakerBreakDurationSeconds()
+                                                 ?? documentExtensions.ExtractCircuitBreakerBreakDurationSeconds()
+                                                 ?? 30.0,
+            Handle429 = operationExtensions.ExtractRetryHandle429()
+                        ?? pathExtensions.ExtractRetryHandle429()
+                        ?? documentExtensions.ExtractRetryHandle429()
+                        ?? true,
+        };
     }
 
-    /// <summary>
-    /// Extracts a double value from an OpenAPI extension.
-    /// </summary>
-    private static double? ExtractDoubleValue(
-        IDictionary<string, IOpenApiExtension>? extensions,
-        string key)
-    {
-        if (extensions is null ||
-            !extensions.TryGetValue(key, out var extension) ||
-            extension is null)
-        {
-            return null;
-        }
-
-        // Use reflection to access Node property (Microsoft.OpenApi v3.0.1 pattern)
-        var extensionType = extension.GetType();
-        var nodeProperty = extensionType.GetProperty("Node");
-        if (nodeProperty is null)
-        {
-            return null;
-        }
-
-        var node = nodeProperty.GetValue(extension);
-        if (node is JsonValue jsonValue)
-        {
-            if (jsonValue.TryGetValue<double>(out var doubleValue))
-            {
-                return doubleValue;
-            }
-
-            // Also try int/long and convert to double
-            if (jsonValue.TryGetValue<int>(out var intValue))
-            {
-                return intValue;
-            }
-
-            if (jsonValue.TryGetValue<long>(out var longValue))
-            {
-                return longValue;
-            }
-
-            // YAML-sourced numeric scalars (both whole and fractional) are boxed as
-            // decimal (JsonValuePrimitive<decimal>) by the OpenAPI YAML reader, not
-            // double/int/long, so none of the branches above ever match for a document
-            // parsed from YAML (the common case for this generator).
-            if (jsonValue.TryGetValue<decimal>(out var decimalValue))
-            {
-                return (double)decimalValue;
-            }
-        }
-
-        return null;
-    }
+    private static string? NullIfEmpty(string? value)
+        => string.IsNullOrEmpty(value) ? null : value;
 
     /// <summary>
     /// Parses a backoff type string to the enum value.

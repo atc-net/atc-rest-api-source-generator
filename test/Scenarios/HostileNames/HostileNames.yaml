@@ -1,0 +1,227 @@
+openapi: 3.0.3
+info:
+  title: Hostile Names
+  description: Names a specification may legally carry and that must never break the generated code - schema names that are no C# identifier or not PascalCase, path segments that are numbers or dates, parameters that share a name across locations.
+  version: 1.0.0
+paths:
+  /2010-04-01/accounts:
+    get:
+      operationId: listAccounts
+      summary: Lists the accounts under a date-versioned path (as Twilio does).
+      responses:
+        '200':
+          description: The accounts.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/account_summary'
+  /3/movies/{id}:
+    get:
+      operationId: getMovie
+      summary: Reads one movie under a numeric path segment (as TMDB does), with the same parameter name in three locations.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: id
+          in: query
+          description: A query parameter that happens to share the path parameter's name.
+          schema:
+            type: string
+        - name: Id
+          in: header
+          description: A header that shares it too, in another case.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The movie.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/movie'
+        '404':
+          description: Not found.
+  /pets:
+    get:
+      operationId: listPets
+      summary: Lists pets - the schema is named in lowercase.
+      responses:
+        '200':
+          description: The pets.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/pet'
+    post:
+      operationId: createPet
+      summary: Creates a pet from a snake_case-named model.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/pet'
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/pet'
+  /profiles:
+    post:
+      operationId: createProfile
+      summary: Creates a profile from a URL-encoded form whose model is snake_case-named.
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/user_profile'
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/user_profile'
+  /streams:
+    get:
+      operationId: listStreams
+      summary: Lists schemas whose names are types the generated code uses, a namespace segment and a keyword.
+      responses:
+        '200':
+          description: The streams.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Stream'
+    post:
+      operationId: createStream
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/class'
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Results'
+  /things:
+    get:
+      operationId: 1stThing
+      summary: An operationId that starts with a digit.
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/movie'
+  /repos:
+    get:
+      operationId: repos/get
+      summary: An operationId with a slash (as GitHub's has).
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/movie'
+  /keys:
+    get:
+      operationId: listApiKeys
+      summary: Lists API keys - an acronym-cased schema name and a dotted one.
+      responses:
+        '200':
+          description: The keys.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Company.Api.KeyPage'
+components:
+  schemas:
+    account_summary:
+      type: object
+      required: [sid, friendly_name]
+      properties:
+        sid:
+          type: string
+        friendly_name:
+          type: string
+    movie:
+      type: object
+      required: [id, title]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+    pet:
+      type: object
+      required: [name]
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+    user_profile:
+      type: object
+      required: [user_name]
+      properties:
+        user_name:
+          type: string
+        display_name:
+          type: string
+    APIKey:
+      type: object
+      required: [key]
+      properties:
+        key:
+          type: string
+        label:
+          type: string
+    Company.Api.KeyPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/APIKey'
+    Stream:
+      description: A schema named like System.IO.Stream, which the generated code names unqualified.
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+    Results:
+      description: A schema named like a segment of the generated namespaces.
+      type: object
+      required: [count]
+      properties:
+        count:
+          type: integer
+    class:
+      description: A schema named with a C# keyword.
+      type: object
+      required: [level]
+      properties:
+        level:
+          type: integer

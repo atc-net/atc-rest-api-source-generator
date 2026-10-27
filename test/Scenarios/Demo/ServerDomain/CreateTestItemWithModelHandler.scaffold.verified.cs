@@ -5,6 +5,9 @@ namespace Demo.ApiHandlers;
 /// </summary>
 public sealed class CreateTestItemWithModelHandler : ICreateTestItemWithModelHandler
 {
+    /// <summary>
+    /// Executes the CreateTestItemWithModel operation.
+    /// </summary>
     public System.Threading.Tasks.Task<CreateTestItemWithModelResult> ExecuteAsync(
         CreateTestItemWithModelParameters parameters,
         CancellationToken cancellationToken = default)

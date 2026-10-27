@@ -19,6 +19,23 @@ public abstract class BaseConfig
     public ValidateSpecificationStrategy ValidateSpecificationStrategy { get; set; } = ValidateSpecificationStrategy.Strict;
 
     /// <summary>
+    /// Rules about the specification this project switches off (e.g. <c>ATC_API_NAM005</c>). Default: none.
+    /// An error, which stands for code the generator cannot write, is not switched off.
+    /// </summary>
+    [SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "Deserialized from the marker file.")]
+    public List<string>? SuppressRules { get; set; }
+
+    /// <summary>
+    /// The severity this project gives a rule about the specification, by its id (e.g. <c>"ATC_API_SCH022": "warning"</c>):
+    /// default, none, silent, suggestion, warning or error. Default: none. An error, which stands for code the generator
+    /// cannot write, keeps its severity. The specification is no C# file, so an <c>.editorconfig</c> severity does not
+    /// reach its rules; a global config (<c>is_global = true</c>) does.
+    /// </summary>
+    [MarkerValues("default", "none", "silent", "suggestion", "warning", "error")]
+    [SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "Deserialized from the marker file.")]
+    public Dictionary<string, string>? RuleSeverities { get; set; }
+
+    /// <summary>
     /// Include deprecated operations and schemas in generated code. Default: false.
     /// When false, operations and schemas marked as deprecated in the OpenAPI spec are excluded.
     /// </summary>
@@ -90,4 +107,15 @@ public abstract class BaseConfig
     /// Add [ExcludeFromCodeCoverage] alongside [GeneratedCode] on every generated type. Default: false.
     /// </summary>
     public bool ExcludeFromCodeCoverage { get; set; }
+
+    /// <summary>
+    /// OpenAPI Overlay files (Overlay Specification 1.0 to 1.2) applied to the specification before it is validated
+    /// and generated, in this order. Default: null (none).
+    /// Paths are relative to the marker file, and each overlay must be an AdditionalFiles item of the project, like the
+    /// specification. An overlay patches a specification you do not own (a third-party API) without editing it: add an
+    /// operationId, fix a format, remove a path, add an x- extension - and the fixes are applied again to every new
+    /// version of the file.
+    /// Example: ["Vendor.overlay.yaml"].
+    /// </summary>
+    public List<string>? Overlays { get; set; }
 }

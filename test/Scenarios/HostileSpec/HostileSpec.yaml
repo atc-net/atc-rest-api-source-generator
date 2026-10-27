@@ -1,0 +1,189 @@
+openapi: 3.0.3
+info:
+  title: Hostile Spec
+  description: Text a specification may legally contain and that must never break or change the generated code.
+  version: 1.0.0
+tags:
+  - name: Notes "quoted" \ slashed
+    description: A tag whose name holds quotes and a backslash.
+x-authorize-roles:
+  - 'team\lead'
+  - 'say "admin"'
+paths:
+  /notes:
+    get:
+      operationId: listNotes
+      summary: 'List notes from C:\temp\notes "fast" */ export const injected = 1; /*'
+      description: |
+        Returns notes where a < b && c > d.
+        Second line with a "quote", a backslash \d+ and a comment end */ here.
+      tags:
+        - Notes "quoted" \ slashed
+      parameters:
+        - name: filter
+          in: query
+          description: 'A filter such as name == "x" or path == C:\dir */ <b>bold</b> & more'
+          schema:
+            type: string
+            default: 'say "hi" \ bye'
+        - name: 'odd "name" \ here'
+          in: query
+          description: A parameter whose wire name holds quotes and a backslash.
+          schema:
+            type: string
+        - name: discount
+          in: query
+          description: A decimal query parameter with a default.
+          schema:
+            type: number
+            format: decimal
+            default: 0.25
+        - name: factor
+          in: query
+          description: A float query parameter with a default.
+          schema:
+            type: number
+            format: float
+            default: 2.5
+        - name: kind
+          in: query
+          description: The kind of note.
+          schema:
+            $ref: '#/components/schemas/NoteKind'
+      responses:
+        '200':
+          description: 'The notes */ <ok> & "fine" \ done'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Note'
+    delete:
+      operationId: deleteNotes
+      summary: Delete all notes
+      description: Deletes every note.
+      tags:
+        - Notes "quoted" \ slashed
+      security:
+        - bearerAuth: []
+      x-authorize-roles:
+        - 'team\lead'
+        - 'say "admin"'
+      responses:
+        '204':
+          description: Deleted.
+        '401':
+          description: Not authenticated.
+        '403':
+          description: Not allowed.
+    post:
+      operationId: createNote
+      summary: |
+        Create a note
+        on two lines
+      description: Creates a note.
+      tags:
+        - Notes "quoted" \ slashed
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Note'
+      responses:
+        '201':
+          description: The created note.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Note'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  schemas:
+    Note:
+      type: object
+      description: 'A note */ with <tags> & "quotes" and a backslash \ in its description.'
+      required:
+        - id
+      properties:
+        id:
+          type: string
+          description: 'The id */ <id> & "id" \ id.'
+        title:
+          type: string
+          description: |
+            The title.
+            On a second line with */ and <b>.
+          default: 'Untitled "note" \ draft'
+        path:
+          type: string
+          description: A Windows path.
+          default: 'C:\notes\new'
+        kind:
+          $ref: '#/components/schemas/NoteKind'
+        $id:
+          type: string
+          description: A property whose name starts with a dollar sign.
+        2fa:
+          type: boolean
+          description: A property whose name starts with a digit.
+        user_name:
+          type: string
+          description: Collides with userName after PascalCasing.
+        userName:
+          type: string
+          description: Collides with user_name after PascalCasing.
+        rating:
+          type: integer
+          format: int32
+          minimum: 1.0
+          maximum: 5.0
+          description: An integer whose bounds are written as decimals.
+        price:
+          type: number
+          format: decimal
+          default: 9.95
+          description: A decimal with a default.
+        ratio:
+          type: number
+          format: float
+          default: 1.5
+          description: A float with a default.
+        size:
+          $ref: '#/components/schemas/Note-Size'
+        model:
+          $ref: '#/components/schemas/3DModel'
+        quota:
+          $ref: '#/components/schemas/Quota'
+    Note-Size:
+      type: object
+      description: A schema whose name holds a hyphen.
+      properties:
+        width:
+          type: integer
+          format: int32
+    3DModel:
+      type: object
+      description: A schema whose name starts with a digit.
+      properties:
+        name:
+          type: string
+    Quota:
+      type: integer
+      format: int64
+      description: An enum whose values need 64 bits.
+      enum:
+        - 1
+        - 5000000000
+    NoteKind:
+      type: string
+      description: 'The kind */ of <note> & "more".'
+      enum:
+        - plain
+        - "it's"
+        - 'say "hi"'
+        - 'back\slash'

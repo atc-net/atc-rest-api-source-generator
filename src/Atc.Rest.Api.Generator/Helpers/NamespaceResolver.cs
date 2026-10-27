@@ -24,22 +24,6 @@ namespace Atc.Rest.Api.Generator.Helpers;
 public static class NamespaceResolver
 {
     /// <summary>
-    /// C# keywords that cannot be used as a namespace segment.
-    /// </summary>
-    private static readonly HashSet<string> ReservedKeywords = new(StringComparer.Ordinal)
-    {
-        "abstract", "as", "base", "bool", "break", "byte", "case", "catch", "char", "checked",
-        "class", "const", "continue", "decimal", "default", "delegate", "do", "double", "else",
-        "enum", "event", "explicit", "extern", "false", "finally", "fixed", "float", "for",
-        "foreach", "goto", "if", "implicit", "in", "int", "interface", "internal", "is", "lock",
-        "long", "namespace", "new", "null", "object", "operator", "out", "override", "params",
-        "private", "protected", "public", "readonly", "ref", "return", "sbyte", "sealed", "short",
-        "sizeof", "stackalloc", "static", "string", "struct", "switch", "this", "throw", "true",
-        "try", "typeof", "uint", "ulong", "unchecked", "unsafe", "ushort", "using", "virtual",
-        "void", "volatile", "while",
-    };
-
-    /// <summary>
     /// Resolves the root namespace using the three-rule precedence chain.
     /// </summary>
     /// <param name="configNamespace">The <c>namespace</c> value from the marker file, if any.</param>
@@ -53,7 +37,7 @@ public static class NamespaceResolver
     {
         if (!string.IsNullOrWhiteSpace(configNamespace))
         {
-            return configNamespace!.Trim();
+            return ToValidNamespace(configNamespace!.Trim());
         }
 
         var fromTitle = TryGetNamespaceFromTitle(documentTitle);
@@ -62,7 +46,30 @@ public static class NamespaceResolver
             return fromTitle;
         }
 
-        return Path.GetFileNameWithoutExtension(yamlPath);
+        return ToValidNamespace(Path.GetFileNameWithoutExtension(yamlPath));
+    }
+
+    /// <summary>
+    /// Makes a name a valid C# namespace, keeping one that already is: each dot-separated segment that is no
+    /// identifier is rebuilt from its words with a capital first letter (<c>my-api</c> becomes <c>MyApi</c>), a
+    /// segment starting with a digit gets an underscore (<c>1api</c> becomes <c>_1api</c>), a keyword is capitalised
+    /// (<c>class</c> becomes <c>Class</c>), and empty segments are dropped.
+    /// </summary>
+    /// <param name="name">The name - a file name, a marker value.</param>
+    /// <returns>A valid namespace; <c>Api</c> when nothing of the name can be used.</returns>
+    public static string ToValidNamespace(string? name)
+    {
+        var segments = new List<string>();
+        foreach (var segment in (name ?? string.Empty).Split('.'))
+        {
+            var valid = ToValidSegment(segment);
+            if (valid.Length > 0)
+            {
+                segments.Add(valid);
+            }
+        }
+
+        return segments.Count == 0 ? "Api" : string.Join(".", segments);
     }
 
     /// <summary>
@@ -100,7 +107,7 @@ public static class NamespaceResolver
     private static bool IsValidIdentifier(string segment)
     {
         if (segment.Length == 0 ||
-            ReservedKeywords.Contains(segment))
+            CSharpKeywords.IsKeyword(segment))
         {
             return false;
         }
@@ -123,5 +130,39 @@ public static class NamespaceResolver
         }
 
         return true;
+    }
+
+    private static string ToValidSegment(string segment)
+    {
+        if (IsValidIdentifier(segment))
+        {
+            return segment;
+        }
+
+        if (CSharpKeywords.IsKeyword(segment))
+        {
+            return IdentifierCasingHelper.ToUpper(segment[0]) + segment.Substring(1);
+        }
+
+        var sb = new StringBuilder(segment.Length + 1);
+        var startOfWord = true;
+        foreach (var c in segment)
+        {
+            if (!char.IsLetterOrDigit(c) && c != '_')
+            {
+                startOfWord = true;
+                continue;
+            }
+
+            sb.Append(startOfWord ? IdentifierCasingHelper.ToUpper(c) : c);
+            startOfWord = false;
+        }
+
+        if (sb.Length > 0 && char.IsDigit(sb[0]))
+        {
+            sb.Insert(0, '_');
+        }
+
+        return sb.ToString();
     }
 }

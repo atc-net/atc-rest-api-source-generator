@@ -19,10 +19,7 @@ public static class TypeScriptApiServiceExtractor
 
         var sb = new StringBuilder();
 
-        if (headerContent is not null)
-        {
-            sb.Append(headerContent);
-        }
+        sb.Append(headerContent);
 
         AppendImports(sb, clientClassNames);
         AppendClass(sb, clientClassNames);
@@ -50,6 +47,9 @@ public static class TypeScriptApiServiceExtractor
     {
         sb.AppendLine("export class ApiService {");
 
+        // The base URL the clients were built with (no trailing slash, as ApiClient keeps it): a hub connects under it
+        sb.AppendLine("  readonly baseUrl: string;");
+
         // Readonly properties
         foreach (var className in clientClassNames)
         {
@@ -61,6 +61,7 @@ public static class TypeScriptApiServiceExtractor
 
         // Constructor
         sb.AppendLine("  constructor(baseUrl: string, options?: ApiClientOptions) {");
+        sb.AppendLine("    this.baseUrl = baseUrl.replace(/\\/+$/, '');");
         sb.AppendLine("    const api = new ApiClient(baseUrl, options);");
 
         foreach (var className in clientClassNames)

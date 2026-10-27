@@ -5,6 +5,9 @@ namespace Polymorphism.ApiHandlers;
 /// </summary>
 public sealed class ListPaymentsHandler : IListPaymentsHandler
 {
+    /// <summary>
+    /// Executes the ListPayments operation.
+    /// </summary>
     public Task<ListPaymentsResult> ExecuteAsync(
         CancellationToken cancellationToken = default)
     {

@@ -5,6 +5,9 @@ namespace SecurityHybrid.ApiHandlers;
 /// </summary>
 public sealed class GetOrderTrackingHandler : IGetOrderTrackingHandler
 {
+    /// <summary>
+    /// Executes the GetOrderTracking operation.
+    /// </summary>
     public Task<GetOrderTrackingResult> ExecuteAsync(
         GetOrderTrackingParameters parameters,
         CancellationToken cancellationToken = default)

@@ -115,6 +115,10 @@ paths:
     x-cache-type: output
     x-cache-policy: accounts
     x-cache-expiration-seconds: 60
+    # The account list is the same for every caller, and every caller is signed in (the root security): without
+    # x-cache-shared the output cache's default policy never caches an authenticated request - see ATC_API_CACHE002.
+    # The handlers that change an account evict the cached lists by their tag.
+    x-cache-shared: true
     x-cache-vary-by-query:
       - limit
     x-cache-tags:
@@ -197,6 +201,7 @@ paths:
     delete:
       summary: Delete a specific account
       operationId: deleteAccountById
+      x-audit: true
       tags:
         - accounts
       parameters:
@@ -344,6 +349,7 @@ paths:
     delete:
       summary: Delete a specific task
       operationId: deleteTaskById
+      x-audit: true
       tags:
         - tasks
       parameters:
@@ -524,6 +530,44 @@ paths:
           description: Validation error
         '409':
           description: User with this email already exists
+  /users/import:
+    post:
+      summary: Import users - a list as JSON or XML
+      description: |-
+        Creates every user of the list. The list is accepted as JSON or as XML (`<users><user>...</user></users>`):
+        the generated server binds it by its Content-Type, and the validation filter checks every item.
+      operationId: importUsers
+      tags:
+        - users
+      security:
+        - oauth2: ["users:write", "admin"]
+      x-retry-enabled: false
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              maxItems: 100
+              items:
+                $ref: "#/components/schemas/CreateUserRequest"
+          application/xml:
+            schema:
+              type: array
+              maxItems: 100
+              xml:
+                name: users
+              items:
+                $ref: "#/components/schemas/CreateUserRequest"
+      responses:
+        '200':
+          description: The imported users (an existing email is the existing user)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Users"
+        '400':
+          description: Validation error
   /users/{userId}:
     # Inherit users policy
     x-ratelimit-policy: users
@@ -554,9 +598,12 @@ paths:
         - users
       responses:
         '200':
-          description: User details
+          description: User details - as JSON, or as XML when the Accept header asks for it
           content:
             application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+            application/xml:
               schema:
                 $ref: "#/components/schemas/User"
         '404':
@@ -590,6 +637,7 @@ paths:
     delete:
       summary: Delete a specific user
       operationId: deleteUserById
+      x-audit: true
       tags:
         - users
       # Admin-only operation
@@ -664,6 +712,11 @@ paths:
           multipart/form-data:
             schema:
               $ref: '#/components/schemas/FileAsFormDataRequest'
+            # The metadata is a URL-encoded part (author=Ada&confidential=true): a model whose properties are each one
+            # value. Without an encoding it would be an application/json part
+            encoding:
+              metadata:
+                contentType: application/x-www-form-urlencoded
     parameters: []
   /files/form-data/singleObjectMultiFile:
     # Inherit file-uploads policy
@@ -727,6 +780,201 @@ paths:
               items:
                 type: string
                 format: binary
+
+  # ============================================
+  # DOCUMENTS - PDF, Excel, PNG and JPEG as raw bodies
+  # ============================================
+  /documents:
+    # Its own limits: the documents page uploads and downloads a lot
+    x-ratelimit-policy: documents
+    x-ratelimit-permit-limit: 200
+    x-ratelimit-window-seconds: 60
+    get:
+      operationId: listDocuments
+      summary: List the uploaded documents
+      tags:
+        - documents
+      responses:
+        '200':
+          description: The documents, newest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Document"
+    post:
+      operationId: uploadDocument
+      summary: Upload a document - a PDF, an Excel workbook, a PNG or a JPEG - as the raw request body
+      description: >
+        The request body is the file itself, sent with its own media type. The handler gets the type that arrived
+        (the generated parameters carry it, as the upload declares several).
+      tags:
+        - documents
+      x-retry-enabled: false
+      parameters:
+        - name: fileName
+          in: query
+          required: true
+          description: The document's file name
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 200
+      requestBody:
+        required: true
+        content:
+          application/pdf:
+            schema:
+              type: string
+              format: binary
+          application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+            schema:
+              type: string
+              format: binary
+          image/png:
+            schema:
+              type: string
+              format: binary
+          image/jpeg:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '201':
+          description: The stored document
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Document"
+        '400':
+          description: Bad Request
+  /documents/{documentId}:
+    x-ratelimit-policy: documents
+    parameters:
+      - name: documentId
+        in: path
+        required: true
+        description: The document id
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getDocument
+      summary: Download a document - with its own media type and file name
+      tags:
+        - documents
+      responses:
+        '200':
+          description: The document
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: Document not found
+  /documents/{documentId}/summary:
+    x-ratelimit-policy: documents
+    parameters:
+      - name: documentId
+        in: path
+        required: true
+        description: The document id
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getDocumentSummary
+      summary: A document's summary - as JSON, or as a printable PDF
+      description: >
+        A model or a file: the summary as JSON, or (printable) the same summary as a PDF. The client reads either,
+        told apart by the response's Content-Type.
+      tags:
+        - documents
+      parameters:
+        - name: printable
+          in: query
+          required: false
+          description: Answer the summary as a PDF
+          schema:
+            type: boolean
+            default: false
+        - name: If-None-Match
+          in: header
+          required: false
+          description: The ETag of a summary read earlier - unchanged, the answer is 304 Not Modified
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The summary, or the summary as a PDF
+          headers:
+            ETag:
+              description: The summary's version - send it back as If-None-Match
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentSummary"
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '304':
+          description: The summary has not changed since the ETag sent as If-None-Match
+          headers:
+            ETag:
+              description: The summary's version, unchanged
+              schema:
+                type: string
+        '404':
+          description: Document not found
+
+  # 303 See Other: the copy is made, and the client is sent to read it (post / redirect / get)
+  /documents/{documentId}/copy:
+    x-ratelimit-policy: documents
+    parameters:
+      - name: documentId
+        in: path
+        required: true
+        description: The document id
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: copyDocument
+      summary: Copy a document - answered with 303 See Other to the copy's summary
+      description: >
+        Makes a copy of the document and answers 303 See Other with the copy's summary as the Location; a client that
+        follows redirects (browsers, HttpClient) reads the summary with a GET.
+      tags:
+        - documents
+      x-retry-enabled: false
+      responses:
+        '303':
+          description: The copy was made; its summary is at the Location
+          headers:
+            Location:
+              description: The copy's summary
+              schema:
+                type: string
+                format: uri
+        '404':
+          description: Document not found
 
   # ============================================
   # NOTIFICATIONS - Subscription management
@@ -796,6 +1044,7 @@ paths:
     delete:
       summary: Cancel a subscription
       operationId: deleteSubscription
+      x-audit: true
       tags:
         - notifications
       responses:
@@ -811,8 +1060,9 @@ paths:
       tags:
         - notifications
       description: |
-        Server-Sent Events (SSE) endpoint for real-time notifications.
-        Alternative to WebSocket/SignalR for simple notification streaming.
+        The notifications as they happen, as one streamed JSON array (application/json): every client reads it
+        item by item, and the response ends when the client stops reading. For Server-Sent Events see the
+        /streams/prices operations; for pushing to many clients see the notifications hub (x-signalr-hubs).
       x-return-async-enumerable: true
       parameters:
         - name: topics
@@ -831,6 +1081,288 @@ paths:
                 $ref: '#/components/schemas/NotificationEvents'
 
   # ============================================
+  # STREAMS - the same prices in each of the five stream formats
+  # ============================================
+  /streams/prices/events:
+    # No retry: the page shows the 503 of a closed exchange as it is answered, not after the retries
+    x-retry-enabled: false
+    get:
+      summary: Live prices as Server-Sent Events
+      operationId: listPriceEvents
+      tags:
+        - streams
+      description: |
+        One price at a time, as the server has it - the response is Server-Sent Events (text/event-stream).
+        Every format carries the same items; the generated clients read all five the same way.
+        Every event has an id (the price's sequence number): a client whose stream dropped sends the last id it
+        read as Last-Event-ID, and the stream goes on after it.
+      x-return-async-enumerable: true
+      parameters:
+        - $ref: '#/components/parameters/priceCount'
+        - $ref: '#/components/parameters/exchangeClosed'
+        - name: dropAfter
+          in: query
+          required: false
+          description: Drop the connection after this many events - to show a resume. Not applied to a resumed stream
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+        - name: Last-Event-ID
+          in: header
+          required: false
+          description: The id of the last event read - the stream goes on after it
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The prices, one at a time
+          headers:
+            X-Stream-Format:
+              description: The format the prices are streamed in
+              schema:
+                type: string
+          content:
+            text/event-stream:
+              schema:
+                $ref: '#/components/schemas/PriceTick'
+        '503':
+          description: The exchange is closed
+          headers:
+            Retry-After:
+              description: Seconds until the exchange opens
+              schema:
+                type: integer
+                format: int32
+
+  /streams/prices/live:
+    # No retry: a live stream is not sent again from the start
+    x-retry-enabled: false
+    get:
+      summary: The live price feed as Server-Sent Events
+      operationId: listLivePriceEvents
+      tags:
+        - streams
+      description: |
+        The one live feed every subscriber shares - what a long-lived event stream needs besides its items.
+        Every event's id is the price's sequence: a client that sends the last id it read as Last-Event-ID gets
+        the prices after it from a buffer of the latest ones (X-Events-Missed says how many the buffer no longer
+        had), then the live ones. When no price comes for heartbeatSeconds, a named event "ping" - which the
+        clients read past - keeps a proxy from closing the idle connection. A subscriber that falls behind is cut
+        off (and resumes), so it never holds up the feed.
+      x-return-async-enumerable: true
+      parameters:
+        - name: heartbeatSeconds
+          in: query
+          required: false
+          description: Seconds without a price before a ping event (15 when left out)
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 60
+        - name: count
+          in: query
+          required: false
+          description: End the stream after this many prices (left out, it does not end)
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+        - name: Last-Event-ID
+          in: header
+          required: false
+          description: The id of the last event read - the stream goes on after it
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The live prices, one at a time
+          headers:
+            X-Events-Missed:
+              description: How many prices after Last-Event-ID the buffer no longer had (0 when it had them all)
+              schema:
+                type: integer
+                format: int64
+          content:
+            text/event-stream:
+              schema:
+                $ref: '#/components/schemas/PriceTick'
+
+  /streams/prices/import:
+    post:
+      summary: Import prices sent as JSON Lines
+      operationId: importPrices
+      tags:
+        - streams
+      description: |
+        The prices are sent as JSON Lines (application/jsonl): one price per line, written by the client as it has
+        them, read by the handler one at a time - an import of any size takes the memory of one price. Each price is
+        validated as it arrives: the first one that is not valid stops the import with a 400 that names it
+        ([3].price).
+      requestBody:
+        required: true
+        content:
+          application/jsonl:
+            schema:
+              $ref: '#/components/schemas/PriceTick'
+      responses:
+        '200':
+          description: What was imported
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PriceImportSummary'
+        '400':
+          description: A price is not valid
+
+  /streams/prices/lines:
+    # No retry: the page shows the 503 of a closed exchange as it is answered, not after the retries
+    x-retry-enabled: false
+    get:
+      summary: Live prices as JSON Lines
+      operationId: listPriceLines
+      tags:
+        - streams
+      description: |
+        One price at a time, as the server has it - the response is JSON Lines (application/jsonl).
+        Every format carries the same items; the generated clients read all five the same way.
+      x-return-async-enumerable: true
+      parameters:
+        - $ref: '#/components/parameters/priceCount'
+        - $ref: '#/components/parameters/exchangeClosed'
+      responses:
+        '200':
+          description: The prices, one at a time
+          headers:
+            X-Stream-Format:
+              description: The format the prices are streamed in
+              schema:
+                type: string
+          content:
+            application/jsonl:
+              schema:
+                $ref: '#/components/schemas/PriceTick'
+        '503':
+          description: The exchange is closed
+          headers:
+            Retry-After:
+              description: Seconds until the exchange opens
+              schema:
+                type: integer
+                format: int32
+
+  /streams/prices/array:
+    # No retry: the page shows the 503 of a closed exchange as it is answered, not after the retries
+    x-retry-enabled: false
+    get:
+      summary: Live prices as a JSON array
+      operationId: listPriceElements
+      tags:
+        - streams
+      description: |
+        One price at a time, as the server has it - the response is a JSON array (application/json).
+        Every format carries the same items; the generated clients read all five the same way.
+      x-return-async-enumerable: true
+      parameters:
+        - $ref: '#/components/parameters/priceCount'
+        - $ref: '#/components/parameters/exchangeClosed'
+      responses:
+        '200':
+          description: The prices, one at a time
+          headers:
+            X-Stream-Format:
+              description: The format the prices are streamed in
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PriceTick'
+        '503':
+          description: The exchange is closed
+          headers:
+            Retry-After:
+              description: Seconds until the exchange opens
+              schema:
+                type: integer
+                format: int32
+
+  /streams/prices/sequence:
+    # No retry: the page shows the 503 of a closed exchange as it is answered, not after the retries
+    x-retry-enabled: false
+    get:
+      summary: Live prices as a JSON Text Sequence (RFC 7464)
+      operationId: listPriceRecords
+      tags:
+        - streams
+      description: |
+        One price at a time, as the server has it - the response is a JSON Text Sequence (RFC 7464) (application/json-seq).
+        Every format carries the same items; the generated clients read all five the same way.
+      x-return-async-enumerable: true
+      parameters:
+        - $ref: '#/components/parameters/priceCount'
+        - $ref: '#/components/parameters/exchangeClosed'
+      responses:
+        '200':
+          description: The prices, one at a time
+          headers:
+            X-Stream-Format:
+              description: The format the prices are streamed in
+              schema:
+                type: string
+          content:
+            application/json-seq:
+              schema:
+                $ref: '#/components/schemas/PriceTick'
+        '503':
+          description: The exchange is closed
+          headers:
+            Retry-After:
+              description: Seconds until the exchange opens
+              schema:
+                type: integer
+                format: int32
+
+  /streams/prices/parts:
+    # No retry: the page shows the 503 of a closed exchange as it is answered, not after the retries
+    x-retry-enabled: false
+    get:
+      summary: Live prices as multipart/mixed
+      operationId: listPriceParts
+      tags:
+        - streams
+      description: |
+        One price at a time, as the server has it - the response is multipart/mixed (multipart/mixed).
+        Every format carries the same items; the generated clients read all five the same way.
+      x-return-async-enumerable: true
+      parameters:
+        - $ref: '#/components/parameters/priceCount'
+        - $ref: '#/components/parameters/exchangeClosed'
+      responses:
+        '200':
+          description: The prices, one at a time
+          headers:
+            X-Stream-Format:
+              description: The format the prices are streamed in
+              schema:
+                type: string
+          content:
+            multipart/mixed:
+              schema:
+                $ref: '#/components/schemas/PriceTick'
+        '503':
+          description: The exchange is closed
+          headers:
+            Retry-After:
+              description: Seconds until the exchange opens
+              schema:
+                type: integer
+                format: int32
+
+  # ============================================
   # TESTING - Exception handling test endpoints
   # ============================================
   /testing/exception/{code}:
@@ -845,9 +1377,9 @@ paths:
         - 0: Success (no exception)
         - 1: General Exception → 500 Internal Server Error
         - 2: ArgumentException → 400 Bad Request
-        - 3: ArgumentNullException → 400 Bad Request
-        - 4: InvalidOperationException → 409 Conflict
-        - 5: UnauthorizedAccessException → 401 Unauthorized
+        - 3: ArgumentNullException → 500 Internal Server Error (a server-side bug, not a bad request)
+        - 4: InvalidOperationException → 500 Internal Server Error (map it to 409 with MapException if you throw it on purpose)
+        - 5: UnauthorizedAccessException → 500 Internal Server Error
         - 6: NotImplementedException → 501 Not Implemented
         - 7: TimeoutException → 504 Gateway Timeout
         - 8: ValidationException (DataAnnotations) → 400 Bad Request
@@ -880,8 +1412,239 @@ paths:
                 $ref: "#/components/schemas/ExceptionTestResponse"
         '404':
           description: Not Found (invalid code)
+
+  /testing/error-responses/{status}:
+    # Disable retry for testing - we want to see actual error responses, not retries
+    x-retry-enabled: false
+    post:
+      summary: Test error responses
+      description: |
+        Returns the requested error status through the generated result factories, to show the error
+        contract: every error a handler returns is an RFC 9457 ProblemDetails (`application/problem+json`),
+        unless the specification declares another body for that status.
+
+        Supported statuses: 400, 404, 409, 422 and 429 (with `Retry-After`); any other value returns 204.
+      operationId: getErrorResponseTest
+      tags:
+        - testing
+      # Public endpoint - no auth required for testing
+      security: []
+      parameters:
+        - name: status
+          in: path
+          required: true
+          description: The error status to return (400, 404, 409, 422 or 429).
+          schema:
+            type: integer
+            format: int32
+        - name: reason
+          in: query
+          required: false
+          description: With 400, a refusal that is no field error - written as the problem's detail instead of field errors.
+          schema:
+            type: string
+      responses:
+        '204':
+          description: No error requested
+        '400':
+          description: Bad Request (a validation problem)
+        '404':
+          description: Not Found
+        '409':
+          description: Conflict
+        '422':
+          description: Unprocessable Entity
+        '429':
+          description: Too Many Requests (with Retry-After)
+
+  /testing/declared-bad-request:
+    # Disable retry for testing - we want to see actual error responses, not retries
+    x-retry-enabled: false
+    post:
+      summary: Test a declared 400 model
+      description: |
+        Declares its own 400 body (`TestingProblem`, a problem without field errors). A request body that breaks
+        its rules is rejected by the generated ValidationFilter with a ValidationProblemDetails; the name "taken"
+        is rejected by the handler with a `TestingProblem`. The C# EndpointPerOperation client reads both as the
+        declared `TestingProblem` (`BadRequestContent`) and gives the ValidationFilter's field errors through
+        `BadRequestValidationErrors`.
+      operationId: postDeclaredBadRequestTest
+      tags:
+        - testing
+      # Public endpoint - no auth required for testing
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeclaredBadRequestTestRequest"
+      responses:
+        '204':
+          description: The request was valid
+        '400':
+          description: Bad Request - the declared model
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TestingProblem"
+
+  /testing/enum-wire:
+    x-retry-enabled: false
+    post:
+      summary: Echo a string enum
+      description: |
+        Answers the body as the server read it. The server marker sets `readEnumMemberNames`, so the enum is read by
+        its value (`DARK_BLUE`) and by its C# member name (`DarkBlue`) - what a client built on 2.x sent; the answer
+        has the value, as the specification writes it.
+      operationId: echoEnumWire
+      tags:
+        - testing
+      # Public endpoint - no auth required for testing
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EnumWire"
+      responses:
+        '200':
+          description: The body as the server read it
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnumWire"
+        '400':
+          description: Bad Request - a value that is no value of Shade
 components:
   schemas:
+    EnumWire:
+      title: EnumWire
+      type: object
+      description: A body with a string enum whose values are not its member names
+      required:
+        - shade
+      properties:
+        shade:
+          $ref: "#/components/schemas/Shade"
+    Shade:
+      type: string
+      description: A shade - on the wire as LIGHT or DARK_BLUE (the C# member of DARK_BLUE is DarkBlue)
+      enum:
+        - LIGHT
+        - DARK_BLUE
+    PriceTick:
+      title: PriceTick
+      type: object
+      description: One price of one symbol
+      required:
+        - symbol
+        - price
+        - change
+        - sequence
+      properties:
+        symbol:
+          type: string
+          minLength: 1
+        price:
+          type: number
+          format: double
+          minimum: 0
+        change:
+          type: number
+          format: double
+        sequence:
+          type: integer
+          format: int64
+    PriceImportSummary:
+      title: PriceImportSummary
+      type: object
+      description: What an import of prices read
+      required:
+        - count
+        - symbols
+        - lowest
+        - highest
+      properties:
+        count:
+          type: integer
+          format: int32
+          description: The prices read
+        symbols:
+          type: array
+          description: The symbols, each once, in the order they first came
+          items:
+            type: string
+        lowest:
+          type: number
+          format: double
+        highest:
+          type: number
+          format: double
+    Document:
+      title: Document
+      type: object
+      required:
+        - id
+        - fileName
+        - contentType
+        - length
+        - sha256
+        - uploadedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: The document id
+        fileName:
+          type: string
+          description: The file name it was uploaded with
+        contentType:
+          type: string
+          description: The media type it arrived as
+        length:
+          type: integer
+          format: int64
+          description: Its length in bytes
+        sha256:
+          type: string
+          description: The SHA-256 of its bytes, as hex
+        uploadedAt:
+          type: string
+          format: date-time
+          description: When it was uploaded
+    DocumentSummary:
+      title: DocumentSummary
+      type: object
+      required:
+        - id
+        - fileName
+        - kind
+        - contentType
+        - length
+        - sha256
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: The document id
+        fileName:
+          type: string
+          description: The file name
+        kind:
+          type: string
+          description: What kind of document it is (pdf, spreadsheet, image)
+        contentType:
+          type: string
+          description: Its media type
+        length:
+          type: integer
+          format: int64
+          description: Its length in bytes
+        sha256:
+          type: string
+          description: The SHA-256 of its bytes, as hex
     # ============================================
     # WEBHOOK PAYLOADS - Event schemas
     # ============================================
@@ -1187,6 +1950,42 @@ components:
           type: string
           format: date-time
           description: When the request was processed
+    DeclaredBadRequestTestRequest:
+      title: DeclaredBadRequestTestRequest
+      type: object
+      description: A request body with rules the generated ValidationFilter checks
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 20
+          description: A name of 3-20 characters ("taken" is rejected by the handler)
+        age:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 150
+          description: An age of 0-150
+    TestingProblem:
+      title: TestingProblem
+      type: object
+      description: The API's own 400 body - a problem without field errors
+      properties:
+        type:
+          type: string
+          description: A URI reference that identifies the problem type
+        title:
+          type: string
+          description: A short summary of the problem
+        status:
+          type: integer
+          format: int32
+          description: The HTTP status code
+        detail:
+          type: string
+          description: An explanation specific to this occurrence
     Account:
       title: Account
       type: object
@@ -1220,9 +2019,20 @@ components:
           type: array
           items:
             type: string
+        metadata:
+          $ref: '#/components/schemas/FileMetadata'
       required:
         - itemName
         - items
+    FileMetadata:
+      title: FileMetadata
+      description: About an uploaded file; the form's encoding sends it as an application/x-www-form-urlencoded part.
+      type: object
+      properties:
+        author:
+          type: string
+        confidential:
+          type: boolean
     FilesAsFormDataRequest:
       title: FilesAsFormDataRequest
       type: object
@@ -1333,6 +2143,8 @@ components:
     CreateUserRequest:
       title: CreateUserRequest
       type: object
+      xml:
+        name: user
       required:
         - firstName
         - lastName
@@ -1567,6 +2379,25 @@ components:
           type: array
           items: {}
   parameters:
+    priceCount:
+      name: count
+      in: query
+      required: false
+      description: How many prices to stream before the response ends
+      schema:
+        type: integer
+        format: int32
+        minimum: 1
+        maximum: 500
+        default: 40
+    exchangeClosed:
+      name: closed
+      in: query
+      required: false
+      description: Answer as a closed exchange does - 503 with a problem and a Retry-After header
+      schema:
+        type: boolean
+        default: false
     continuation:
       name: continuation
       in: query
@@ -1627,3 +2458,19 @@ components:
       in: header
       name: X-API-Key
       description: API key authentication
+x-signalr-hubs:
+  notifications:
+    url: /hubs/notifications
+    events:
+      - name: SystemNotification
+        payload: '#/components/schemas/SystemNotification'
+      - name: UserActivity
+        payload: '#/components/schemas/UserActivityEvent'
+      - name: DataChange
+        payload: '#/components/schemas/DataChangeEvent'
+    methods:
+      - name: Subscribe
+        payload: string[]
+        returns: string
+      - name: Unsubscribe
+        payload: string

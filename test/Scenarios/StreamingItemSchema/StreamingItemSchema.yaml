@@ -60,9 +60,78 @@ paths:
             multipart/mixed:
               itemSchema:
                 $ref: "#/components/schemas/Event"
+  /events-array:
+    get:
+      operationId: streamEventsArray
+      summary: Stream events as the elements of a JSON array
+      tags:
+        - events
+      x-return-async-enumerable: true
+      responses:
+        "200":
+          description: A stream of events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Event"
+  /events-sse-named:
+    get:
+      operationId: streamEventsSseNamed
+      summary: Stream events as named server-sent events, with typed errors and headers
+      description: >
+        The items come in events named created and updated (x-sse-item-events); a heartbeat or a control frame of
+        another name is read past. The operation declares its errors and response headers like any other.
+      tags:
+        - events
+      x-sse-item-events: [created, updated]
+      responses:
+        "200":
+          description: A stream of events
+          headers:
+            X-Stream-Id:
+              description: The id of this stream
+              schema:
+                type: string
+                format: uuid
+          content:
+            text/event-stream:
+              itemSchema:
+                $ref: "#/components/schemas/Event"
+        "404":
+          description: No such stream
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StreamError"
+        "503":
+          description: The stream is not available now
+          headers:
+            Retry-After:
+              description: Seconds until it is
+              schema:
+                type: integer
+                format: int32
+        default:
+          description: Any other error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StreamError"
 
 components:
   schemas:
+    StreamError:
+      type: object
+      title: StreamError
+      required:
+        - code
+      properties:
+        code:
+          type: string
+        message:
+          type: string
     Event:
       type: object
       title: Event

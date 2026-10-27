@@ -23,22 +23,133 @@ public static class SecurityPoliciesExtractor
         }
 
         // Collect all unique policies from security requirements
-        var (policies, deprecatedPolicies, mutualTlsPolicies, metadataUrls) = CollectPolicies(openApiDoc, includeDeprecated);
+        var (policies, deprecatedPolicies, mutualTlsPolicies, metadataUrls, anyOfPolicies) = CollectPolicies(openApiDoc, includeDeprecated);
 
-        if (policies.Count == 0)
+        if (policies.Count == 0 && anyOfPolicies.Count == 0)
         {
             return null;
         }
 
         // Generate the complete class content
-        return GenerateFileContent(projectName, policies, deprecatedPolicies, mutualTlsPolicies, metadataUrls);
+        return GenerateFileContent(projectName, policies, deprecatedPolicies, mutualTlsPolicies, metadataUrls, anyOfPolicies);
+    }
+
+    /// <summary>
+    /// Whether the document generates a <c>SecurityPolicies</c> class: some operation requires a scope.
+    /// </summary>
+    public static bool HasPolicies(
+        OpenApiDocument openApiDoc,
+        bool includeDeprecated = false)
+    {
+        var (policies, _, _, _, anyOfPolicies) = CollectPolicies(openApiDoc, includeDeprecated);
+        return policies.Count > 0 || anyOfPolicies.Count > 0;
+    }
+
+    /// <summary>
+    /// The policy an operation's security requirements call for beyond being authenticated: the scope policy of
+    /// its one requirement with scopes, or - when the alternatives differ - an any-of policy that is met by any of
+    /// them (a requirement without scopes by the caller its scheme authenticated, one with scopes by a caller its
+    /// scheme authenticated who has them all). <see langword="null"/> when no requirement has scopes.
+    /// </summary>
+    /// <param name="requirements">The operation's requirements (alternatives).</param>
+    /// <returns>The policy name, or <see langword="null"/>.</returns>
+    public static string? OperationPolicyName(
+        IReadOnlyList<SecurityRequirement> requirements)
+    {
+        if (requirements is null || requirements.All(r => r.Scopes.Count == 0))
+        {
+            return null;
+        }
+
+        var names = requirements
+            .Select(AlternativeName)
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(n => n, StringComparer.Ordinal)
+            .ToList();
+
+        return names.Count == 1 ? names[0] : string.Join("|", names);
+    }
+
+    /// <summary>
+    /// One alternative of an operation's security: the scheme the host authenticates with, and the scopes it must find.
+    /// </summary>
+    internal sealed record PolicyAlternative(
+        string AuthenticationScheme,
+        IReadOnlyList<string> Scopes);
+
+    /// <summary>
+    /// Generates the policy name for a scheme and its scopes.
+    /// </summary>
+    /// <param name="schemeName">The security scheme name.</param>
+    /// <param name="scopes">The required scopes.</param>
+    /// <returns>A policy name string.</returns>
+    public static string GeneratePolicyName(
+        string schemeName,
+        IEnumerable<string> scopes)
+    {
+        var scopeList = scopes.ToList();
+
+        if (scopeList.Count == 0)
+        {
+            return schemeName;
+        }
+
+        if (scopeList.Count == 1)
+        {
+            return $"{schemeName}:{scopeList[0]}";
+        }
+
+        // Multiple scopes: AND logic
+        return $"{schemeName}:{string.Join("+", scopeList.OrderBy(s => s, StringComparer.Ordinal))}";
+    }
+
+    /// <summary>
+    /// Generates a valid C# constant name from a policy name: each part in PascalCase, <c>+</c> read as
+    /// <c>And</c>, <c>|</c> as <c>Or</c>.
+    /// </summary>
+    /// <param name="policyName">The policy name (e.g., "oauth2:pets:read", "api_key|oauth2:pets:read").</param>
+    /// <returns>A valid C# identifier (e.g., "Oauth2PetsRead", "ApiKeyOrOauth2PetsRead").</returns>
+    public static string GenerateConstantName(string policyName)
+    {
+        if (policyName is null)
+        {
+            throw new ArgumentNullException(nameof(policyName));
+        }
+
+        var result = new StringBuilder();
+        var part = new StringBuilder();
+        var joiner = string.Empty;
+        foreach (var character in policyName + ":")
+        {
+            if (character is not (':' or '+' or '|'))
+            {
+                part.Append(character);
+                continue;
+            }
+
+            if (part.Length > 0)
+            {
+                result.Append(joiner).Append(part.ToString().ToPascalCaseForDotNet());
+                part.Clear();
+            }
+
+            joiner = character switch
+            {
+                '+' => "And",
+                '|' => "Or",
+                _ => string.Empty,
+            };
+        }
+
+        return result.ToString();
     }
 
     /// <summary>
     /// Collects all unique policies from security requirements across all operations.
-    /// Returns the policy dict, deprecated policy names, mutualTLS policy names, and OAuth2 metadata URLs.
+    /// Returns the policy dict, deprecated policy names, mutualTLS policy names, OAuth2 metadata URLs, and the
+    /// any-of policies (an operation whose alternatives differ) with their alternatives.
     /// </summary>
-    internal static (Dictionary<string, List<string>> Policies, HashSet<string> DeprecatedPolicies, HashSet<string> MutualTlsPolicies, Dictionary<string, Uri> MetadataUrls) CollectPolicies(
+    internal static (Dictionary<string, List<string>> Policies, HashSet<string> DeprecatedPolicies, HashSet<string> MutualTlsPolicies, Dictionary<string, Uri> MetadataUrls, Dictionary<string, List<PolicyAlternative>> AnyOfPolicies) CollectPolicies(
         OpenApiDocument openApiDoc,
         bool includeDeprecated)
     {
@@ -46,10 +157,11 @@ public static class SecurityPoliciesExtractor
         var deprecatedPolicies = new HashSet<string>(StringComparer.Ordinal);
         var mutualTlsPolicies = new HashSet<string>(StringComparer.Ordinal);
         var metadataUrls = CollectMetadataUrls(openApiDoc);
+        var anyOfPolicies = new Dictionary<string, List<PolicyAlternative>>(StringComparer.Ordinal);
 
         if (openApiDoc.Paths is null || openApiDoc.Paths.Count == 0)
         {
-            return (policies, deprecatedPolicies, mutualTlsPolicies, metadataUrls);
+            return (policies, deprecatedPolicies, mutualTlsPolicies, metadataUrls, anyOfPolicies);
         }
 
         foreach (var pathPair in openApiDoc.Paths)
@@ -80,6 +192,17 @@ public static class SecurityPoliciesExtractor
                 if (securityRequirements is null || securityRequirements.Count == 0)
                 {
                     continue;
+                }
+
+                // Alternatives that differ: one any-of policy for the operation
+                var operationPolicy = OperationPolicyName(securityRequirements);
+                if (operationPolicy is not null && operationPolicy.Contains('|') && !anyOfPolicies.ContainsKey(operationPolicy))
+                {
+                    anyOfPolicies[operationPolicy] = securityRequirements
+                        .GroupBy(AlternativeName, StringComparer.Ordinal)
+                        .OrderBy(g => g.Key, StringComparer.Ordinal)
+                        .Select(g => new PolicyAlternative(g.First().AuthenticationScheme, g.First().Scopes.OrderBy(s => s, StringComparer.Ordinal).ToList()))
+                        .ToList();
                 }
 
                 // Group requirements by scheme to handle AND logic within same scheme
@@ -175,8 +298,15 @@ public static class SecurityPoliciesExtractor
             }
         }
 
-        return (policies, deprecatedPolicies, mutualTlsPolicies, metadataUrls);
+        return (policies, deprecatedPolicies, mutualTlsPolicies, metadataUrls, anyOfPolicies);
     }
+
+    /// <summary>
+    /// The name of one alternative: the scheme alone (<c>api_key</c>) or the scheme with its scopes
+    /// (<c>oauth2:orders:read</c>, <c>oauth2:admin+orders:write</c>).
+    /// </summary>
+    private static string AlternativeName(SecurityRequirement requirement)
+        => GeneratePolicyName(requirement.SchemeName, requirement.Scopes.OrderBy(s => s, StringComparer.Ordinal));
 
     /// <summary>
     /// Generates the complete file content.
@@ -186,58 +316,38 @@ public static class SecurityPoliciesExtractor
         Dictionary<string, List<string>> policies,
         HashSet<string> deprecatedPolicies,
         HashSet<string> mutualTlsPolicies,
-        Dictionary<string, Uri> metadataUrls)
+        Dictionary<string, Uri> metadataUrls,
+        Dictionary<string, List<PolicyAlternative>> anyOfPolicies)
     {
-        var builder = new StringBuilder();
-
-        builder.AppendLine("// <auto-generated />");
-        builder.AppendLine("#nullable enable");
-        builder.AppendLine();
-        builder.AppendLine("using System.CodeDom.Compiler;");
-        builder.AppendLine();
-        builder.AppendLine($"namespace {projectName}.Generated.Security;");
-        builder.AppendLine();
-        builder.AppendLine("/// <summary>");
-        builder.AppendLine("/// Authorization policy name constants generated from OpenAPI security requirements.");
-        builder.AppendLine("/// </summary>");
-        builder.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
-        builder.AppendLine("public static class SecurityPolicies");
-        builder.AppendLine("{");
-
-        var sortedPolicies = policies
+        // The scope policies, then the any-of policies (an operation whose alternatives differ), as the constants
+        var constants = policies
             .OrderBy(p => p.Key, StringComparer.Ordinal)
-            .ToList();
+            .Select(p => new PolicyConstant(
+                GenerateConstantName(p.Key),
+                p.Key,
+                mutualTlsPolicies.Contains(p.Key)
+                    ? "Requires TLS client certificate — no HTTP credential injected; configure at HttpClient transport level."
+                    : p.Value.Count == 1
+                        ? $"Policy requiring scope: {p.Value[0]}"
+                        : $"Policy requiring scopes: {string.Join(" AND ", p.Value)} (all required)",
+                deprecatedPolicies.Contains(p.Key) ? "[Obsolete(\"Security scheme marked deprecated in OpenAPI spec.\")]" : null))
+            .Concat(anyOfPolicies
+                .OrderBy(p => p.Key, StringComparer.Ordinal)
+                .Select(p => new PolicyConstant(
+                    GenerateConstantName(p.Key),
+                    p.Key,
+                    "Policy met by any of: " + string.Join("; ", p.Value.Select(a => a.Scopes.Count == 0
+                        ? $"{a.AuthenticationScheme} (authenticated)"
+                        : $"{a.AuthenticationScheme} with {(a.Scopes.Count == 1 ? "scope" : "scopes")} {string.Join(" AND ", a.Scopes)}")))));
 
-        var isFirst = true;
-
-        foreach (var policyKvp in sortedPolicies)
-        {
-            if (!isFirst)
-            {
-                builder.AppendLine();
-            }
-
-            isFirst = false;
-
-            var policyName = policyKvp.Key;
-            var scopes = policyKvp.Value;
-            var constantName = GenerateConstantName(policyName);
-            var scopeDescription = mutualTlsPolicies.Contains(policyName)
-                ? "Requires TLS client certificate — no HTTP credential injected; configure at HttpClient transport level."
-                : scopes.Count == 1
-                    ? $"Policy requiring scope: {scopes[0]}"
-                    : $"Policy requiring scopes: {string.Join(" AND ", scopes)} (all required)";
-
-            builder.AppendLine(4, "/// <summary>");
-            builder.AppendLine(4, $"/// {scopeDescription}");
-            builder.AppendLine(4, "/// </summary>");
-            if (deprecatedPolicies.Contains(policyName))
-            {
-                builder.AppendLine(4, "[Obsolete(\"Security scheme marked deprecated in OpenAPI spec.\")]");
-            }
-
-            builder.AppendLine(4, $"public const string {constantName} = \"{policyName}\";");
-        }
+        var builder = new StringBuilder();
+        PolicyConstantsClassBuilder.AppendClass(
+            builder,
+            projectName,
+            "Security",
+            "SecurityPolicies",
+            "Authorization policy name constants generated from OpenAPI security requirements.",
+            constants);
 
         // Emit RFC 8414 metadata URL constants when oauth2MetadataUrl is set on any scheme
         if (metadataUrls.Count > 0)
@@ -299,69 +409,6 @@ public static class SecurityPoliciesExtractor
         }
 
         return result;
-    }
-
-    /// <summary>
-    /// Generates the policy name for a scheme and its scopes.
-    /// </summary>
-    /// <param name="schemeName">The security scheme name.</param>
-    /// <param name="scopes">The required scopes.</param>
-    /// <returns>A policy name string.</returns>
-    public static string GeneratePolicyName(
-        string schemeName,
-        IEnumerable<string> scopes)
-    {
-        var scopeList = scopes.ToList();
-
-        if (scopeList.Count == 0)
-        {
-            return schemeName;
-        }
-
-        if (scopeList.Count == 1)
-        {
-            return $"{schemeName}:{scopeList[0]}";
-        }
-
-        // Multiple scopes: AND logic
-        return $"{schemeName}:{string.Join("+", scopeList.OrderBy(s => s, StringComparer.Ordinal))}";
-    }
-
-    /// <summary>
-    /// Generates a valid C# constant name from a policy name.
-    /// </summary>
-    /// <param name="policyName">The policy name (e.g., "oauth2:pets:read").</param>
-    /// <returns>A valid C# identifier (e.g., "OAuth2PetsRead").</returns>
-    public static string GenerateConstantName(string policyName)
-    {
-        // Split by ':' and '+' separators
-        var parts = policyName.Split(new[] { ':', '+' }, StringSplitOptions.RemoveEmptyEntries);
-
-        var result = new StringBuilder();
-        var partsList = parts.ToList();
-
-        for (var i = 0; i < partsList.Count; i++)
-        {
-            var part = partsList[i];
-
-            // Convert each part to PascalCase
-            var pascalPart = part.ToPascalCaseForDotNet();
-
-            // Handle '+' becoming 'And' for combined scopes
-            if (result.Length > 0 && policyName.Contains("+") && i > 0)
-            {
-                // Check if this is after a '+' separator
-                var beforeIndex = policyName.IndexOf(part, StringComparison.Ordinal);
-                if (beforeIndex > 0 && policyName[beforeIndex - 1] == '+')
-                {
-                    result.Append("And");
-                }
-            }
-
-            result.Append(pascalPart);
-        }
-
-        return result.ToString();
     }
 
     private static bool IsMutualTlsScheme(

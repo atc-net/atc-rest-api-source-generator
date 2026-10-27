@@ -1,3 +1,4 @@
+#pragma warning disable CS1591
 global using RateLimit.Generated.Exports.Handlers;
 global using RateLimit.Generated.Exports.Parameters;
 global using RateLimit.Generated.Exports.Results;

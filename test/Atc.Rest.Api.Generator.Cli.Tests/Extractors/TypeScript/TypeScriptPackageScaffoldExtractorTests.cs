@@ -79,6 +79,87 @@ public class TypeScriptPackageScaffoldExtractorTests
     }
 
     [Fact]
+    public void GeneratePackageJson_ReactQueryHooks_DeclareReactQueryAndReact()
+    {
+        var json = TypeScriptPackageScaffoldExtractor.GeneratePackageJson("pkg", "1.0.0", description: null, new TypeScriptClientConfig { HooksStyle = TypeScriptHooksStyle.ReactQuery });
+
+        Assert.Contains("\"@tanstack/react-query\": \"^5.81.0\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"react\": \"^18.0.0\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"@types/react\": \"^18.0.0\"", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"swr\"", json, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GeneratePackageJson_SwrHooks_DeclareSwrAndReact()
+    {
+        // The generated SWR hooks import 'swr', 'swr/infinite', 'swr/mutation' and 'react'; tsconfig includes
+        // every .ts file, so a scaffold without these does not build.
+        var json = TypeScriptPackageScaffoldExtractor.GeneratePackageJson("pkg", "1.0.0", description: null, new TypeScriptClientConfig { HooksStyle = TypeScriptHooksStyle.Swr });
+
+        Assert.Contains("\"swr\": \"^2.2.0\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"react\": \"^18.0.0\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"@types/react\": \"^18.0.0\"", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("@tanstack/react-query", json, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GeneratePackageJson_MswHandlers_DeclareMswAsADevDependency()
+    {
+        // mocks/*.ts import 'msw'.
+        var json = TypeScriptPackageScaffoldExtractor.GeneratePackageJson("pkg", "1.0.0", description: null, new TypeScriptClientConfig { GenerateMswHandlers = true });
+
+        Assert.Contains("\"msw\": \"^2.7.0\"", json, StringComparison.Ordinal);
+        Assert.True(json.IndexOf("\"devDependencies\"", StringComparison.Ordinal) < json.IndexOf("\"msw\"", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void GeneratePackageJson_SignalRHubs_DeclareSignalR_AndReactOnlyWithReactHooks()
+    {
+        // hubs/*Hub.ts import '@microsoft/signalr' (the hubs come from the document's x-signalr-hubs, not from a
+        // flag, so the service tells the scaffold whether any were emitted); the React hooks over them, and so
+        // 'react', come only with a React hooks style
+        var json = TypeScriptPackageScaffoldExtractor.GeneratePackageJson("pkg", "1.0.0", description: null, new TypeScriptClientConfig(), hasSignalRHubs: true);
+        var withHooks = TypeScriptPackageScaffoldExtractor.GeneratePackageJson("pkg", "1.0.0", description: null, new TypeScriptClientConfig { HooksStyle = TypeScriptHooksStyle.ReactQuery }, hasSignalRHubs: true);
+
+        Assert.Contains("\"@microsoft/signalr\": \"^8.0.0\"", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"react\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"@microsoft/signalr\": \"^8.0.0\"", withHooks, StringComparison.Ordinal);
+        Assert.Contains("\"react\": \"^18.0.0\"", withHooks, StringComparison.Ordinal);
+        Assert.Contains("\"@types/react\": \"^18.0.0\"", withHooks, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GeneratePackageJson_NoFeatures_DeclaresOnlyTypeScript()
+    {
+        var json = TypeScriptPackageScaffoldExtractor.GeneratePackageJson("pkg", "1.0.0", description: null, new TypeScriptClientConfig());
+
+        Assert.DoesNotContain("\"react\"", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"msw\"", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"swr\"", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("@microsoft/signalr", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"dependencies\"", json, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GenerateReadme_UsesTheApiClientConstructorThatExists()
+    {
+        // The ApiClient is `new ApiClient(baseUrl, options)`, its options take `getAccessToken` and a
+        // `defaultHeaders` record - not an options bag with baseUrl, nor a defaultHeaders function.
+        var readme = TypeScriptPackageScaffoldExtractor.GenerateReadme(
+            "pet-store",
+            title: "Pet Store",
+            description: null,
+            new[] { "PetsClient" },
+            new TypeScriptClientConfig { HooksStyle = TypeScriptHooksStyle.None });
+
+        Assert.Contains("const api = new ApiClient('https://api.example.com');", readme, StringComparison.Ordinal);
+        Assert.Contains("getAccessToken: () => getToken(),", readme, StringComparison.Ordinal);
+        Assert.Contains("apiKeys: { ApiKeyAuth: apiKey },", readme, StringComparison.Ordinal);
+        Assert.DoesNotContain("new ApiClient({", readme, StringComparison.Ordinal);
+        Assert.DoesNotContain("defaultHeaders: () =>", readme, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void GenerateTsConfig_EmitsStrictModernCompilerOptions()
     {
         var json = TypeScriptPackageScaffoldExtractor.GenerateTsConfig();

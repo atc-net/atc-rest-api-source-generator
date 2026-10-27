@@ -31,9 +31,25 @@ public sealed partial class GatewayService
     }
 
     /// <summary>
+    /// Query users by a set of ids (HTTP QUERY - the ids travel in the request body). Unknown ids are skipped.
+    /// </summary>
+    public async Task<(User[]? Users, string? Error)> QueryUsersAsync(
+        IReadOnlyCollection<Guid> ids,
+        CancellationToken cancellationToken = default)
+    {
+        var parameters = new QueryUsersParameters(Request: new UserQuery(Ids: [.. ids]));
+
+        var result = await queryUsersEndpoint.ExecuteAsync(parameters, cancellationToken: cancellationToken);
+
+        return result.IsOk
+            ? (result.OkContent.ToArray(), null)
+            : (null, $"{(int)result.StatusCode} {result.StatusCode}");
+    }
+
+    /// <summary>
     /// Create a new user.
     /// </summary>
-    public async Task<(User? User, string? Error)> CreateUserAsync(
+    public async Task<(User? User, string? Error, IReadOnlyDictionary<string, string[]>? FieldErrors)> CreateUserAsync(
         CreateUserRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -44,40 +60,24 @@ public sealed partial class GatewayService
 
             if (result.IsCreated)
             {
-                return (result.CreatedContent, null);
+                return (result.CreatedContent, null, null);
             }
 
             if (result.IsBadRequest)
             {
-                try
-                {
-                    var content = result.BadRequestContent;
-                    if (content?.Errors is { Count: > 0 })
-                    {
-                        var errorMessages = content
-                            .Errors
-                            .SelectMany(e => e.Value.Select(v => $"{e.Key}: {v}"));
-                        return (null, $"Validation errors: {string.Join("; ", errorMessages)}");
-                    }
-
-                    return (null, $"Bad Request: {content?.Detail ?? content?.Title ?? "Validation error"}");
-                }
-                catch
-                {
-                    return (null, "Bad Request: Validation error");
-                }
+                return BadRequest(result.BadRequestContent);
             }
 
             if (result.IsConflict)
             {
-                return (null, "User with this email already exists");
+                return (null, "User with this email already exists", null);
             }
 
-            return (null, $"Server error: {(int)result.StatusCode} {result.StatusCode}");
+            return (null, $"Server error: {(int)result.StatusCode} {result.StatusCode}", null);
         }
         catch (Exception ex)
         {
-            return (null, $"Request failed: {ex.Message}");
+            return (null, $"Request failed: {ex.Message}", null);
         }
     }
 
@@ -125,14 +125,14 @@ public sealed partial class GatewayService
     /// <summary>
     /// Update a user by ID.
     /// </summary>
-    public async Task<(User? User, string? Error)> UpdateUserByIdAsync(
+    public async Task<(User? User, string? Error, IReadOnlyDictionary<string, string[]>? FieldErrors)> UpdateUserByIdAsync(
         string userId,
         UpdateUserRequest request,
         CancellationToken cancellationToken = default)
     {
         if (!Guid.TryParse(userId, out var parsedUserId))
         {
-            return (null, "Invalid user ID format");
+            return (null, "Invalid user ID format", null);
         }
 
         try
@@ -142,40 +142,34 @@ public sealed partial class GatewayService
 
             if (result.IsOk)
             {
-                return (result.OkContent, null);
+                return (result.OkContent, null, null);
             }
 
             if (result.IsNotFound)
             {
-                return (null, "User not found");
+                return (null, "User not found", null);
             }
 
             if (result.IsBadRequest)
             {
-                try
-                {
-                    var content = result.BadRequestContent;
-                    if (content?.Errors is { Count: > 0 })
-                    {
-                        var errorMessages = content
-                            .Errors
-                            .SelectMany(e => e.Value.Select(v => $"{e.Key}: {v}"));
-                        return (null, $"Validation errors: {string.Join("; ", errorMessages)}");
-                    }
-
-                    return (null, $"Bad Request: {content?.Detail ?? content?.Title ?? "Validation error"}");
-                }
-                catch
-                {
-                    return (null, "Bad Request: Validation error");
-                }
+                return BadRequest(result.BadRequestContent);
             }
 
-            return (null, $"Server error: {(int)result.StatusCode} {result.StatusCode}");
+            return (null, $"Server error: {(int)result.StatusCode} {result.StatusCode}", null);
         }
         catch (Exception ex)
         {
-            return (null, $"Request failed: {ex.Message}");
+            return (null, $"Request failed: {ex.Message}", null);
         }
     }
+
+    /// <summary>
+    /// A 400: the validation errors by the wire names the request used (<c>firstName</c>, <c>address.city</c>) - the
+    /// specification's (DataAnnotations) and the domain's (FluentValidation) alike - for the form to show at each field.
+    /// </summary>
+    private static (User? User, string? Error, IReadOnlyDictionary<string, string[]>? FieldErrors) BadRequest(
+        ValidationProblemDetails? content)
+        => content?.Errors is { Count: > 0 } errors
+            ? (null, "The server did not accept the user - see the marked fields.", errors.AsReadOnly())
+            : (null, $"Bad Request: {content?.Detail ?? content?.Title ?? "Validation error"}", null);
 }

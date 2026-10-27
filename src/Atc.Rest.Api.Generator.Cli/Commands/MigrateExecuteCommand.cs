@@ -8,12 +8,23 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
 {
     private readonly INugetPackageVersionService nugetService;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="MigrateExecuteCommand"/> class.
+    /// </summary>
+    /// <param name="nugetService">Resolves the source generator package version written into the migrated project files.</param>
     public MigrateExecuteCommand(INugetPackageVersionService nugetService)
     {
         this.nugetService = nugetService;
     }
 
-    protected override int Execute(
+    /// <summary>
+    /// Re-runs the migration validation and, when the solution is ready, rewrites it for the source generators.
+    /// </summary>
+    /// <param name="context">The Spectre.Console command context.</param>
+    /// <param name="settings">The parsed command-line settings.</param>
+    /// <param name="cancellationToken">Cancels the command.</param>
+    /// <returns>0 when the migration (or dry run) completed; otherwise 1.</returns>
+    public override int Execute(
         CommandContext context,
         MigrateExecuteCommandSettings settings,
         CancellationToken cancellationToken)
@@ -27,11 +38,11 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
         var solutionPath = Path.GetFullPath(settings.SolutionPath);
         var specPath = Path.GetFullPath(settings.SpecificationPath);
 
-        AnsiConsole.MarkupLine($"[blue]Solution:[/]      {Markup.Escape(solutionPath)}");
-        AnsiConsole.MarkupLine($"[blue]Specification:[/] {Markup.Escape(specPath)}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Solution:[/]      {solutionPath}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Specification:[/] {specPath}");
         foreach (var note in settings.PathNotes)
         {
-            AnsiConsole.MarkupLine($"[yellow]Note:[/]          {Markup.Escape(note)}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]Note:[/]          {note}");
         }
 
         if (settings.DryRun)
@@ -50,17 +61,23 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
                 SpecificationPath = settings.SpecificationPath,
             };
 
-            var report = RunValidation(validationSettings);
+            var report = MigrationValidator.Validate(validationSettings);
 
             if (!report.CanMigrate)
             {
                 AnsiConsole.MarkupLine("[red]✗ Project cannot be migrated. Please fix the blocking issues first.[/]");
                 foreach (var issue in report.BlockingIssues)
                 {
-                    AnsiConsole.MarkupLine($"  [red]•[/] {Markup.Escape(issue)}");
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [red]•[/] {issue}");
                 }
 
                 return 1;
+            }
+
+            // What validate would warn about, before anything changes
+            foreach (var warning in report.Warnings)
+            {
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]![/] {warning}");
             }
 
             // Step 2: Git status check
@@ -85,8 +102,267 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]✗ Error:[/] {Markup.Escape(ex.Message)}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗ Error:[/] {ex.Message}");
             return 1;
+        }
+    }
+
+    internal static void UpdateGlobalUsings(
+        MigrationValidationReport report,
+        string projectName,
+        bool dryRun,
+        MigrationSummary summary)
+    {
+        var contractsNamespace = $"{projectName}.Api.Contracts";
+
+        // Process Domain project
+        if (!string.IsNullOrEmpty(report.ProjectStructure.DomainProject))
+        {
+            var domainDir = Path.GetDirectoryName(report.ProjectStructure.DomainProject)!;
+            ProcessGlobalUsingsForProject(report, domainDir, contractsNamespace, addGeneratedUsings: true, dryRun, summary);
+        }
+
+        // Process Domain.Tests project: only what its code used (its references were rewritten); every segment's
+        // namespaces would make a type ambiguous with another project's type of the same name
+        if (!string.IsNullOrEmpty(report.ProjectStructure.DomainTestProject))
+        {
+            var testDir = Path.GetDirectoryName(report.ProjectStructure.DomainTestProject)!;
+            ProcessGlobalUsingsForProject(report, testDir, contractsNamespace, addGeneratedUsings: false, dryRun, summary);
+        }
+    }
+
+    /// <summary>
+    /// Rewrites the references to the old generator's contracts (<c>{Project}.Api.Generated.Contracts[.{Segment}]</c>) to
+    /// the source generator's namespaces in every C# file of the solution - every project that used the contracts, not
+    /// only the domain - outside build output, laid out from the specification.
+    /// </summary>
+    /// <summary>
+    /// Describes the packages the source generator makes obsolete, each with its direct dependencies (from its .nuspec
+    /// in <paramref name="packagesFolder"/>): removing a package drops what it brought in transitively, which the host
+    /// may still use.
+    /// </summary>
+    internal static List<string> DescribeObsoletePackages(
+        PackageReferenceResult references,
+        string packagesFolder)
+        => references.PackagesToRemove
+            .Select(package =>
+            {
+                var version = references.AtcPackages.GetValueOrDefault(package, string.Empty);
+                var dependencies = version.Length == 0 ? null : NuGetPackageDependencies.Read(package, version, packagesFolder);
+                return dependencies switch
+                {
+                    null => $"{package} {version} - its dependencies are unknown (the package is not in the NuGet cache)",
+                    { Count: 0 } => $"{package} {version} - it brings no other package",
+                    _ => $"{package} {version} - add these as direct references if the build needs them: {string.Join(", ", dependencies)}",
+                };
+            })
+            .ToList();
+
+    /// <summary>
+    /// Renames the old generated projects (Api.Generated to Api.Contracts, ApiClient.Generated to the client name).
+    /// </summary>
+    /// <returns>What stood in the way of a rename that left no project under the new name, per project; empty when every project is there under its new name.</returns>
+    internal static List<string> RenameProjects(
+        MigrationValidationReport report,
+        string projectName,
+        string? clientSuffix,
+        bool dryRun,
+        MigrationSummary summary)
+    {
+        var errors = new List<string>();
+
+        // Rename Api.Generated → Api.Contracts
+        if (!string.IsNullOrEmpty(report.ProjectStructure.ApiGeneratedProject))
+        {
+            var serverDir = Path.GetDirectoryName(report.ProjectStructure.ApiGeneratedProject)!;
+            var result = ProjectRenamer.RenameServerProject(serverDir, projectName, dryRun);
+            if (result.Success)
+            {
+                summary.RenamedProjects.Add($"{result.OldName} → {result.NewName}");
+
+                // Report old directory deletion when target already existed
+                if (result.OldDirectoryDeleted)
+                {
+                    summary.DeletedFolders.Add(result.OldPath);
+                }
+            }
+            else if (!string.IsNullOrEmpty(result.Error))
+            {
+                // Without the new folder nothing the next steps write would exist: stop. With it (the old folder is
+                // left beside it, holding files) the new names are real: say so and go on.
+                if (string.IsNullOrEmpty(result.NewPath) || !Directory.Exists(result.NewPath))
+                {
+                    errors.Add(result.Error);
+                }
+                else
+                {
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]Warning:[/] {result.Error}");
+                }
+            }
+        }
+
+        // Rename ApiClient.Generated → client suffix (default: ApiClient)
+        if (!string.IsNullOrEmpty(report.ProjectStructure.ApiClientGeneratedProject))
+        {
+            var clientDir = Path.GetDirectoryName(report.ProjectStructure.ApiClientGeneratedProject)!;
+            var result = ProjectRenamer.RenameClientProject(clientDir, projectName, clientSuffix, dryRun);
+            if (result.Success)
+            {
+                summary.RenamedProjects.Add($"{result.OldName} → {result.NewName}");
+
+                // Report old directory deletion when target already existed
+                if (result.OldDirectoryDeleted)
+                {
+                    summary.DeletedFolders.Add(result.OldPath);
+                }
+            }
+            else if (!string.IsNullOrEmpty(result.Error))
+            {
+                // Without the new folder nothing the next steps write would exist: stop. With it (the old folder is
+                // left beside it, holding files) the new names are real: say so and go on.
+                if (string.IsNullOrEmpty(result.NewPath) || !Directory.Exists(result.NewPath))
+                {
+                    errors.Add(result.Error);
+                }
+                else
+                {
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]Warning:[/] {result.Error}");
+                }
+            }
+        }
+
+        // A dry run only says what it would do
+        if (dryRun)
+        {
+            foreach (var error in errors)
+            {
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]Warning:[/] {error}");
+            }
+        }
+
+        return errors;
+    }
+
+    internal static void UpdateContractsReferences(
+        MigrationValidationReport report,
+        string projectName,
+        string solutionRoot,
+        bool dryRun,
+        MigrationSummary summary)
+    {
+        if (string.IsNullOrEmpty(report.SpecificationPath) ||
+            !File.Exists(report.SpecificationPath) ||
+            !Directory.Exists(solutionRoot))
+        {
+            return;
+        }
+
+        var (_, merged) = SpecificationService.ReadAndMergeResolved(report.SpecificationPath);
+        if (merged?.Document is null)
+        {
+            AnsiConsole.MarkupLine("[yellow]Warning:[/] the specification could not be read; the contracts namespaces were not rewritten.");
+            return;
+        }
+
+        var map = ContractsNamespaceMap.Build(merged.Document, projectName);
+        var sources = new List<(string Path, string Content)>();
+        foreach (var filePath in Directory.EnumerateFiles(solutionRoot, "*.cs", SearchOption.AllDirectories))
+        {
+            if (IsBuildOutput(solutionRoot, filePath))
+            {
+                continue;
+            }
+
+            var content = File.ReadAllText(filePath);
+            var (updated, replacements) = content.Contains("Api.Generated.Contracts", StringComparison.Ordinal)
+                ? ContractsNamespaceRewriter.Rewrite(content, map)
+                : (content, Array.Empty<string>());
+            sources.Add((Path.GetRelativePath(solutionRoot, filePath), updated));
+            if (replacements.Count == 0)
+            {
+                continue;
+            }
+
+            if (!dryRun)
+            {
+                File.WriteAllText(filePath, updated);
+            }
+
+            var fileUpdate = new DomainFileUpdate { FilePath = filePath };
+            fileUpdate.Replacements.AddRange(replacements);
+            summary.DomainCodeUpdates.Add(fileUpdate);
+            summary.DomainCodeTotalReplacements += replacements.Count;
+            if (!summary.ModifiedFiles.Contains(filePath, StringComparer.Ordinal))
+            {
+                summary.ModifiedFiles.Add(filePath);
+            }
+        }
+
+        // The old call shapes the generated code no longer fits - reported for the user to review
+        summary.CallShapeFindings.AddRange(CallShapeDetector.Detect(merged.Document, sources));
+    }
+
+    internal static void UpdateHostProject(
+        MigrationValidationReport report,
+        string projectName,
+        bool dryRun,
+        MigrationSummary summary)
+    {
+        if (string.IsNullOrEmpty(report.ProjectStructure.HostApiProject))
+        {
+            return;
+        }
+
+        var hostDir = Path.GetDirectoryName(report.ProjectStructure.HostApiProject)!;
+
+        // Required namespaces for MapEndpoints() and AddApiHandlersFromDomain()
+        var requiredNamespaces = new List<string>
+        {
+            $"{projectName}.Api.Contracts",
+            $"{projectName}.Api.Contracts.Generated.Endpoints",
+        };
+
+        // Update GlobalUsings.cs - remove old patterns, add required, sort properly
+        var globalUsingsResult = GlobalUsingsModifier.CleanupAndSortGlobalUsings(
+            hostDir,
+            projectName,
+            requiredNamespaces,
+            dryRun: dryRun);
+
+        if (globalUsingsResult.WasModified)
+        {
+            if (!summary.ModifiedFiles.Contains(globalUsingsResult.FilePath, StringComparer.Ordinal))
+            {
+                summary.ModifiedFiles.Add(globalUsingsResult.FilePath);
+            }
+
+            summary.HostProjectUpdates.AddRange(globalUsingsResult.RemovedUsings.Select(ns => $"- {ns}"));
+            summary.HostProjectUpdates.AddRange(globalUsingsResult.AddedUsings.Select(ns => $"+ {ns}"));
+            summary.HostProjectUpdates.AddRange(globalUsingsResult.UpdatedUsings);
+        }
+
+        // Update Program.cs - remove old patterns, add new ones
+        var programResult = ProgramCsModifier.UpdateToSourceGenerator(hostDir, projectName, dryRun);
+        if (programResult.WasModified)
+        {
+            if (!summary.ModifiedFiles.Contains(programResult.FilePath, StringComparer.Ordinal))
+            {
+                summary.ModifiedFiles.Add(programResult.FilePath);
+            }
+
+            summary.HostProjectUpdates.AddRange(programResult.RemovedStatements.Select(s => $"- {s}"));
+            summary.HostProjectUpdates.AddRange(programResult.ReplacedStatements);
+            summary.HostProjectUpdates.AddRange(programResult.AddedStatements.Select(s => $"+ {s}"));
+        }
+
+        if (!string.IsNullOrEmpty(globalUsingsResult.Error))
+        {
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]Warning:[/] {globalUsingsResult.Error}");
+        }
+
+        if (!string.IsNullOrEmpty(programResult.Error))
+        {
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]Warning:[/] {programResult.Error}");
         }
     }
 
@@ -155,19 +431,31 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
 
                 // Step 10: Rename projects
                 ctx.Status(dryRun ? "Analyzing project renames..." : "Renaming projects...");
-                RenameProjects(report, projectName, settings.ClientProjectSuffix, dryRun, summary);
+                var renameErrors = RenameProjects(report, projectName, settings.ClientProjectSuffix, dryRun, summary);
+                if (renameErrors.Count > 0 && !dryRun)
+                {
+                    // The steps after this write the new project names into the solution and every reference: with a
+                    // project still under its old name they would point at folders that are not there
+                    foreach (var renameError in renameErrors)
+                    {
+                        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]Error:[/] {renameError}");
+                    }
+
+                    AnsiConsole.MarkupLine("[red]The migration stopped before the solution and the references were updated.[/] Fix what is in the way and run the command again to complete it.");
+                    return 1;
+                }
 
                 // Step 11: Update solution and references
                 ctx.Status(dryRun ? "Analyzing solution updates..." : "Updating solution and references...");
                 UpdateSolutionAndReferences(report, projectName, settings.ClientProjectSuffix, dryRun, summary);
 
-                // Step 12: Update GlobalUsings.cs in Domain project
+                // Step 12: Rewrite the old contracts namespaces in every project of the solution
+                ctx.Status(dryRun ? "Analyzing contracts namespaces..." : "Updating contracts namespaces...");
+                UpdateContractsReferences(report, projectName, rootDirectory, dryRun, summary);
+
+                // Step 13: Update GlobalUsings.cs in the Domain project (and its tests)
                 ctx.Status(dryRun ? "Analyzing GlobalUsings.cs..." : "Updating GlobalUsings.cs...");
                 UpdateGlobalUsings(report, projectName, dryRun, summary);
-
-                // Step 13: Update namespace references in Domain code files
-                ctx.Status(dryRun ? "Analyzing domain code namespaces..." : "Updating domain code namespaces...");
-                UpdateDomainCodeNamespaces(report, projectName, dryRun, summary);
 
                 // Step 14: Migrate parameter property names in handler code
                 ctx.Status(dryRun ? "Analyzing parameter names..." : "Migrating parameter names...");
@@ -176,6 +464,9 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
                 // Step 15: Update Host project (Program.cs and GlobalUsings)
                 ctx.Status(dryRun ? "Analyzing Host project..." : "Updating Host project...");
                 UpdateHostProject(report, projectName, dryRun, summary);
+
+                // The packages the source generator makes obsolete, with what removing them would drop
+                summary.ObsoletePackages.AddRange(DescribeObsoletePackages(report.PackageReferences, NuGetPackageDependencies.DefaultPackagesFolder));
 
                 // Display summary
                 DisplayMigrationSummary(summary, dryRun);
@@ -364,6 +655,7 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
             }
 
             summary.DeletedFiles.AddRange(result.DeletedFiles);
+            summary.PreservedFiles.AddRange(result.PreservedFiles);
         }
 
         // Clean ApiClient.Generated
@@ -377,48 +669,7 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
             }
 
             summary.DeletedFiles.AddRange(result.DeletedFiles);
-        }
-    }
-
-    private static void RenameProjects(
-        MigrationValidationReport report,
-        string projectName,
-        string? clientSuffix,
-        bool dryRun,
-        MigrationSummary summary)
-    {
-        // Rename Api.Generated → Api.Contracts
-        if (!string.IsNullOrEmpty(report.ProjectStructure.ApiGeneratedProject))
-        {
-            var serverDir = Path.GetDirectoryName(report.ProjectStructure.ApiGeneratedProject)!;
-            var result = ProjectRenamer.RenameServerProject(serverDir, projectName, dryRun);
-            if (result.Success)
-            {
-                summary.RenamedProjects.Add($"{result.OldName} → {result.NewName}");
-
-                // Report old directory deletion when target already existed
-                if (result.OldDirectoryDeleted)
-                {
-                    summary.DeletedFolders.Add(result.OldPath);
-                }
-            }
-        }
-
-        // Rename ApiClient.Generated → client suffix (default: ApiClient)
-        if (!string.IsNullOrEmpty(report.ProjectStructure.ApiClientGeneratedProject))
-        {
-            var clientDir = Path.GetDirectoryName(report.ProjectStructure.ApiClientGeneratedProject)!;
-            var result = ProjectRenamer.RenameClientProject(clientDir, projectName, clientSuffix, dryRun);
-            if (result.Success)
-            {
-                summary.RenamedProjects.Add($"{result.OldName} → {result.NewName}");
-
-                // Report old directory deletion when target already existed
-                if (result.OldDirectoryDeleted)
-                {
-                    summary.DeletedFolders.Add(result.OldPath);
-                }
-            }
+            summary.PreservedFiles.AddRange(result.PreservedFiles);
         }
     }
 
@@ -462,33 +713,11 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
         }
     }
 
-    private static void UpdateGlobalUsings(
-        MigrationValidationReport report,
-        string projectName,
-        bool dryRun,
-        MigrationSummary summary)
-    {
-        var contractsNamespace = $"{projectName}.Api.Contracts";
-
-        // Process Domain project
-        if (!string.IsNullOrEmpty(report.ProjectStructure.DomainProject))
-        {
-            var domainDir = Path.GetDirectoryName(report.ProjectStructure.DomainProject)!;
-            ProcessGlobalUsingsForProject(report, domainDir, contractsNamespace, dryRun, summary);
-        }
-
-        // Process Domain.Tests project
-        if (!string.IsNullOrEmpty(report.ProjectStructure.DomainTestProject))
-        {
-            var testDir = Path.GetDirectoryName(report.ProjectStructure.DomainTestProject)!;
-            ProcessGlobalUsingsForProject(report, testDir, contractsNamespace, dryRun, summary);
-        }
-    }
-
     private static void ProcessGlobalUsingsForProject(
         MigrationValidationReport report,
         string projectDir,
         string contractsNamespace,
+        bool addGeneratedUsings,
         bool dryRun,
         MigrationSummary summary)
     {
@@ -514,8 +743,8 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
             summary.UpdatedGlobalUsings.AddRange(removeResult.RemovedUsings.Select(ns => $"- {ns}"));
         }
 
-        // Step 3: Add new generated namespace usings based on the OpenAPI spec
-        if (!string.IsNullOrEmpty(report.SpecificationPath))
+        // Step 3: Add new generated namespace usings based on the OpenAPI spec (the domain's handlers need them all)
+        if (addGeneratedUsings && !string.IsNullOrEmpty(report.SpecificationPath))
         {
             var addResult = GlobalUsingsModifier.AddGeneratedNamespaceUsings(
                 projectDir,
@@ -535,125 +764,24 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
 
             if (!string.IsNullOrEmpty(addResult.Error))
             {
-                AnsiConsole.MarkupLine($"[yellow]Warning:[/] {Markup.Escape(addResult.Error)}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]Warning:[/] {addResult.Error}");
             }
         }
 
         // Step 4: Sort global usings (System first, then by namespace group)
-        GlobalUsingsModifier.SortGlobalUsings(projectDir, dryRun);
+        GlobalUsingsModifier.SortGlobalUsings(projectDir, dryRun: dryRun);
     }
 
-    private static void UpdateDomainCodeNamespaces(
-        MigrationValidationReport report,
-        string projectName,
-        bool dryRun,
-        MigrationSummary summary)
+    private static readonly char[] PathSeparators = [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar];
+
+    private static bool IsBuildOutput(
+        string solutionRoot,
+        string filePath)
     {
-        // Process Domain project
-        if (!string.IsNullOrEmpty(report.ProjectStructure.DomainProject))
-        {
-            var domainDir = Path.GetDirectoryName(report.ProjectStructure.DomainProject)!;
-            ProcessCodeNamespacesForProject(domainDir, projectName, dryRun, summary);
-        }
-
-        // Process Domain.Tests project
-        if (!string.IsNullOrEmpty(report.ProjectStructure.DomainTestProject))
-        {
-            var testDir = Path.GetDirectoryName(report.ProjectStructure.DomainTestProject)!;
-            ProcessCodeNamespacesForProject(testDir, projectName, dryRun, summary);
-        }
-    }
-
-    private static void ProcessCodeNamespacesForProject(
-        string projectDir,
-        string projectName,
-        bool dryRun,
-        MigrationSummary summary)
-    {
-        var result = DomainCodeNamespaceUpdater.UpdateNamespaceReferences(projectDir, projectName, dryRun);
-
-        if (result.UpdatedFiles.Count > 0)
-        {
-            summary.DomainCodeUpdates.AddRange(result.UpdatedFiles);
-            summary.DomainCodeTotalReplacements += result.TotalReplacements;
-
-            foreach (var file in result.UpdatedFiles)
-            {
-                if (!summary.ModifiedFiles.Contains(file.FilePath, StringComparer.Ordinal))
-                {
-                    summary.ModifiedFiles.Add(file.FilePath);
-                }
-            }
-        }
-
-        if (!string.IsNullOrEmpty(result.Error))
-        {
-            AnsiConsole.MarkupLine($"[yellow]Warning:[/] {Markup.Escape(result.Error)}");
-        }
-    }
-
-    private static void UpdateHostProject(
-        MigrationValidationReport report,
-        string projectName,
-        bool dryRun,
-        MigrationSummary summary)
-    {
-        if (string.IsNullOrEmpty(report.ProjectStructure.HostApiProject))
-        {
-            return;
-        }
-
-        var hostDir = Path.GetDirectoryName(report.ProjectStructure.HostApiProject)!;
-
-        // Required namespaces for MapEndpoints() and AddApiHandlersFromDomain()
-        var requiredNamespaces = new List<string>
-        {
-            $"{projectName}.Api.Contracts",
-            $"{projectName}.Api.Contracts.Generated.Endpoints",
-        };
-
-        // Update GlobalUsings.cs - remove old patterns, add required, sort properly
-        var globalUsingsResult = GlobalUsingsModifier.CleanupAndSortGlobalUsings(
-            hostDir,
-            projectName,
-            requiredNamespaces,
-            dryRun);
-
-        if (globalUsingsResult.WasModified)
-        {
-            if (!summary.ModifiedFiles.Contains(globalUsingsResult.FilePath, StringComparer.Ordinal))
-            {
-                summary.ModifiedFiles.Add(globalUsingsResult.FilePath);
-            }
-
-            summary.HostProjectUpdates.AddRange(globalUsingsResult.RemovedUsings.Select(ns => $"- {ns}"));
-            summary.HostProjectUpdates.AddRange(globalUsingsResult.AddedUsings.Select(ns => $"+ {ns}"));
-            summary.HostProjectUpdates.AddRange(globalUsingsResult.UpdatedUsings);
-        }
-
-        // Update Program.cs - remove old patterns, add new ones
-        var programResult = ProgramCsModifier.UpdateToSourceGenerator(hostDir, projectName, dryRun);
-        if (programResult.WasModified)
-        {
-            if (!summary.ModifiedFiles.Contains(programResult.FilePath, StringComparer.Ordinal))
-            {
-                summary.ModifiedFiles.Add(programResult.FilePath);
-            }
-
-            summary.HostProjectUpdates.AddRange(programResult.RemovedStatements.Select(s => $"- {s}"));
-            summary.HostProjectUpdates.AddRange(programResult.ReplacedStatements);
-            summary.HostProjectUpdates.AddRange(programResult.AddedStatements.Select(s => $"+ {s}"));
-        }
-
-        if (!string.IsNullOrEmpty(globalUsingsResult.Error))
-        {
-            AnsiConsole.MarkupLine($"[yellow]Warning:[/] {Markup.Escape(globalUsingsResult.Error)}");
-        }
-
-        if (!string.IsNullOrEmpty(programResult.Error))
-        {
-            AnsiConsole.MarkupLine($"[yellow]Warning:[/] {Markup.Escape(programResult.Error)}");
-        }
+        var relative = Path.GetRelativePath(solutionRoot, filePath);
+        return relative
+            .Split(PathSeparators)
+            .Any(part => part is "bin" or "obj" or "node_modules" or ".git");
     }
 
     private static void MigrateParameterNames(
@@ -703,7 +831,7 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
 
             if (!string.IsNullOrEmpty(result.Error))
             {
-                AnsiConsole.MarkupLine($"[yellow]Warning:[/] {Markup.Escape(result.Error)}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]Warning:[/] {result.Error}");
             }
         }
     }
@@ -767,7 +895,7 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
             AnsiConsole.MarkupLine("[blue]Files to Create[/]");
             foreach (var file in summary.CreatedFiles)
             {
-                AnsiConsole.MarkupLine($"  [green]+[/] {Markup.Escape(file)}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [green]+[/] {file}");
             }
 
             AnsiConsole.WriteLine();
@@ -778,12 +906,50 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
             AnsiConsole.MarkupLine("[blue]Files/Folders to Delete[/]");
             foreach (var folder in summary.DeletedFolders)
             {
-                AnsiConsole.MarkupLine($"  [red]-[/] {Markup.Escape(folder)}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [red]-[/] {folder}");
             }
 
             foreach (var file in summary.DeletedFiles)
             {
-                AnsiConsole.MarkupLine($"  [red]-[/] {Markup.Escape(file)}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [red]-[/] {file}");
+            }
+
+            AnsiConsole.WriteLine();
+        }
+
+        if (summary.CallShapeFindings.Count > 0)
+        {
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Code written for the old generator's shapes ({summary.CallShapeFindings.Count}, best-effort - review each)[/]");
+            foreach (var finding in summary.CallShapeFindings.Take(100))
+            {
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [yellow]![/] {finding}");
+            }
+
+            if (summary.CallShapeFindings.Count > 100)
+            {
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [dim]... and {summary.CallShapeFindings.Count - 100} more[/]");
+            }
+
+            AnsiConsole.WriteLine();
+        }
+
+        if (summary.ObsoletePackages.Count > 0)
+        {
+            AnsiConsole.MarkupLine("[blue]Packages the source generator makes obsolete (remove them when nothing else uses them)[/]");
+            foreach (var package in summary.ObsoletePackages)
+            {
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [yellow]![/] {package}");
+            }
+
+            AnsiConsole.WriteLine();
+        }
+
+        if (summary.PreservedFiles.Count > 0)
+        {
+            AnsiConsole.MarkupLine("[blue]Hand-written files kept in the generated folders (move them where they belong)[/]");
+            foreach (var file in summary.PreservedFiles)
+            {
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [yellow]![/] {file}");
             }
 
             AnsiConsole.WriteLine();
@@ -794,7 +960,7 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
             AnsiConsole.MarkupLine("[blue]Files to Modify[/]");
             foreach (var file in summary.ModifiedFiles.Distinct(StringComparer.Ordinal))
             {
-                AnsiConsole.MarkupLine($"  [yellow]~[/] {Markup.Escape(file)}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [yellow]~[/] {file}");
             }
 
             AnsiConsole.WriteLine();
@@ -805,7 +971,7 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
             AnsiConsole.MarkupLine("[blue]Projects to Rename[/]");
             foreach (var rename in summary.RenamedProjects)
             {
-                AnsiConsole.MarkupLine($"  [cyan]↳[/] {Markup.Escape(rename)}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [cyan]↳[/] {rename}");
             }
 
             AnsiConsole.WriteLine();
@@ -816,7 +982,7 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
             AnsiConsole.MarkupLine("[blue]Project References to Update[/]");
             foreach (var reference in summary.UpdatedReferences)
             {
-                AnsiConsole.MarkupLine($"  [cyan]↳[/] {Markup.Escape(reference)}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [cyan]↳[/] {reference}");
             }
 
             AnsiConsole.WriteLine();
@@ -827,7 +993,7 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
             AnsiConsole.MarkupLine("[blue]GlobalUsings.cs Namespace Updates[/]");
             foreach (var update in summary.UpdatedGlobalUsings)
             {
-                AnsiConsole.MarkupLine($"  [cyan]↳[/] {Markup.Escape(update)}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [cyan]↳[/] {update}");
             }
 
             AnsiConsole.WriteLine();
@@ -836,21 +1002,21 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
         if (summary.DirectoryBuildPropsUpgraded)
         {
             AnsiConsole.MarkupLine("[blue]Directory.Build.props Upgrade[/]");
-            AnsiConsole.MarkupLine($"  [cyan]↳[/] TargetFramework → {summary.UpgradedTargetFramework}");
-            AnsiConsole.MarkupLine($"  [cyan]↳[/] LangVersion → {summary.UpgradedLangVersion}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [cyan]↳[/] TargetFramework → {summary.UpgradedTargetFramework}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [cyan]↳[/] LangVersion → {summary.UpgradedLangVersion}");
             AnsiConsole.WriteLine();
         }
 
         if (summary.DomainCodeUpdates.Count > 0)
         {
-            AnsiConsole.MarkupLine($"[blue]Domain Code Namespace Updates ({summary.DomainCodeTotalReplacements} replacements)[/]");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Domain Code Namespace Updates ({summary.DomainCodeTotalReplacements} replacements)[/]");
             foreach (var fileUpdate in summary.DomainCodeUpdates)
             {
                 var relativePath = Path.GetFileName(fileUpdate.FilePath);
-                AnsiConsole.MarkupLine($"  [yellow]~[/] {Markup.Escape(relativePath)} ({fileUpdate.Replacements.Count} replacements)");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [yellow]~[/] {relativePath} ({fileUpdate.Replacements.Count} replacements)");
                 foreach (var replacement in fileUpdate.Replacements)
                 {
-                    AnsiConsole.MarkupLine($"    [cyan]↳[/] {Markup.Escape(replacement)}");
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"    [cyan]↳[/] {replacement}");
                 }
             }
 
@@ -862,7 +1028,7 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
             AnsiConsole.MarkupLine("[blue]Host Project Updates[/]");
             foreach (var update in summary.HostProjectUpdates)
             {
-                AnsiConsole.MarkupLine($"  [cyan]↳[/] {Markup.Escape(update)}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [cyan]↳[/] {update}");
             }
 
             AnsiConsole.WriteLine();
@@ -873,7 +1039,7 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
             AnsiConsole.MarkupLine("[blue]Parameter Name Migrations[/]");
             foreach (var migration in summary.ParameterMigrations)
             {
-                AnsiConsole.MarkupLine($"  [cyan]↳[/] {Markup.Escape(migration)}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [cyan]↳[/] {migration}");
             }
 
             AnsiConsole.WriteLine();
@@ -885,93 +1051,11 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
             AnsiConsole.WriteLine();
         }
 
-        AnsiConsole.MarkupLine($"[dim]Summary: " +
-                               $"{summary.CreatedFiles.Count} create, " +
-                               $"{summary.DeletedFolders.Count + summary.DeletedFiles.Count} delete, " +
-                               $"{summary.ModifiedFiles.Distinct(StringComparer.Ordinal).Count()} modify, " +
-                               $"{summary.RenamedProjects.Count} rename[/]");
-    }
-
-    private static MigrationValidationReport RunValidation(
-        MigrateValidateCommandSettings settings)
-    {
-        var report = new MigrationValidationReport
-        {
-            SolutionPath = settings.SolutionPath,
-            SpecificationPath = settings.SpecificationPath,
-        };
-
-        var rootDirectory = settings.GetSolutionDirectory();
-
-        // Run all validators
-        report.ProjectStructure = ProjectStructureValidator.Validate(settings.SolutionPath);
-
-        if (!report.ProjectStructure.HasSolutionFile)
-        {
-            report.BlockingIssues.Add("No solution file (.sln/.slnx) found in path");
-        }
-
-        if (!report.ProjectStructure.HasApiGeneratedProject)
-        {
-            report.BlockingIssues.Add("No Api.Generated project found. Is this an ATC-generated API?");
-        }
-
-        report.DetectedProjectName = report.ProjectStructure.DetectedProjectName;
-        report.DetectedNamespace = report.ProjectStructure.DetectedProjectName;
-
-        report.Specification = SpecificationValidator.Validate(settings.SpecificationPath);
-
-        if (!report.Specification.FileExists)
-        {
-            report.BlockingIssues.Add($"Specification file not found: {settings.SpecificationPath}");
-        }
-        else if (!report.Specification.IsValid)
-        {
-            foreach (var error in report.Specification.ValidationErrors)
-            {
-                report.BlockingIssues.Add($"OpenAPI validation error: {error}");
-            }
-        }
-
-        report.GeneratorOptions = GeneratorOptionsAnalyzer.Analyze(rootDirectory);
-        report.PackageReferences = PackageReferenceAnalyzer.Analyze(report.ProjectStructure.AllProjects);
-        report.GeneratedCode = GeneratedCodeAnalyzer.Analyze(
-            report.ProjectStructure.ApiGeneratedProject,
-            report.ProjectStructure.ApiClientGeneratedProject);
-        report.Handlers = HandlerAnalyzer.Analyze(
-            report.ProjectStructure.DomainProject,
-            report.GeneratedCode.HandlerInterfaces);
-        report.TargetFramework = TargetFrameworkValidator.Validate(rootDirectory, report.ProjectStructure.AllProjects);
-
-        if (report.TargetFramework.IsBlocked)
-        {
-            if (!report.TargetFramework.IsTargetFrameworkCompatible)
-            {
-                report.BlockingIssues.Add($"Target framework not supported. Minimum: net8.0");
-            }
-
-            if (!report.TargetFramework.IsLangVersionCompatible)
-            {
-                report.BlockingIssues.Add($"Language version not supported. Minimum: C# 12");
-            }
-        }
-
-        report.RequiresUpgrade = report.TargetFramework.RequiresAnyUpgrade;
-
-        if (report.BlockingIssues.Count > 0)
-        {
-            report.Status = MigrationValidationStatus.Blocked;
-        }
-        else if (report.RequiresUpgrade)
-        {
-            report.Status = MigrationValidationStatus.RequiresUpgrade;
-        }
-        else
-        {
-            report.Status = MigrationValidationStatus.Ready;
-        }
-
-        return report;
+        var deleteCount = summary.DeletedFolders.Count + summary.DeletedFiles.Count;
+        var modifyCount = summary.ModifiedFiles.Distinct(StringComparer.Ordinal).Count();
+        AnsiConsole.MarkupLineInterpolated(
+            CultureInfo.InvariantCulture,
+            $"[dim]Summary: {summary.CreatedFiles.Count} create, {deleteCount} delete, {modifyCount} modify, {summary.RenamedProjects.Count} rename[/]");
     }
 
     private static bool CheckGitStatus(
@@ -994,7 +1078,7 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
 
         if (gitStatus.GitCommandFailed)
         {
-            AnsiConsole.MarkupLine($"[yellow]![/] Git command failed: {gitStatus.ErrorMessage}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]![/] Git command failed: {gitStatus.ErrorMessage}");
             return true;
         }
 
@@ -1002,14 +1086,14 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
         {
             if (dryRun)
             {
-                AnsiConsole.MarkupLine($"[yellow]⚠ Git status: {gitStatus.UncommittedFiles.Count} uncommitted changes detected[/]");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]⚠ Git status: {gitStatus.UncommittedFiles.Count} uncommitted changes detected[/]");
                 AnsiConsole.MarkupLine("  [dim](Use --force to skip this check)[/]");
                 return true;
             }
 
             if (force)
             {
-                AnsiConsole.MarkupLine($"[yellow]⚠ Git status: {gitStatus.UncommittedFiles.Count} uncommitted changes (--force specified)[/]");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]⚠ Git status: {gitStatus.UncommittedFiles.Count} uncommitted changes (--force specified)[/]");
                 return true;
             }
 
@@ -1026,12 +1110,12 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
         AnsiConsole.MarkupLine("[yellow]![/] Target framework and language version upgrade required");
         AnsiConsole.WriteLine();
         AnsiConsole.MarkupLine("[dim]Current configuration:[/]");
-        AnsiConsole.MarkupLine($"  • Target framework: {report.TargetFramework.CurrentTargetFramework ?? "unknown"} → {TargetFrameworkResult.RequiredTargetFramework}");
-        AnsiConsole.MarkupLine($"  • Language version: C# {report.TargetFramework.CurrentLangVersion ?? "unknown"} → C# {TargetFrameworkResult.RequiredLangVersion}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  • Target framework: {report.TargetFramework.CurrentTargetFramework ?? "unknown"} → {TargetFrameworkResult.RequiredTargetFramework}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  • Language version: C# {report.TargetFramework.CurrentLangVersion ?? "unknown"} → C# {TargetFrameworkResult.RequiredLangVersion}");
         AnsiConsole.WriteLine();
-        AnsiConsole.MarkupLine($"The source generator requires .NET 10 with C# {TargetFrameworkResult.RequiredLangVersion}. Migration will update:");
-        AnsiConsole.MarkupLine($"  • Directory.Build.props: TargetFramework → {TargetFrameworkResult.RequiredTargetFramework}");
-        AnsiConsole.MarkupLine($"  • Directory.Build.props: LangVersion → {TargetFrameworkResult.RequiredLangVersion}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"The source generator requires .NET 10 with C# {TargetFrameworkResult.RequiredLangVersion}. Migration will update:");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  • Directory.Build.props: TargetFramework → {TargetFrameworkResult.RequiredTargetFramework}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  • Directory.Build.props: LangVersion → {TargetFrameworkResult.RequiredLangVersion}");
         AnsiConsole.WriteLine();
 
         return AnsiConsole.Confirm("Do you want to proceed with the upgrade?", defaultValue: true);

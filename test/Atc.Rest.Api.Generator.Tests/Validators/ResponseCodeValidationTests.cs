@@ -1,5 +1,11 @@
 namespace Atc.Rest.Api.Generator.Tests.Validators;
 
+[RuleTest("ATC_API_OPR010")]
+[RuleTest("ATC_API_OPR021")]
+[RuleTest("ATC_API_OPR022")]
+[RuleTest("ATC_API_OPR023")]
+[RuleTest("ATC_API_OPR024")]
+[RuleTest("ATC_API_OPR025")]
 public class ResponseCodeValidationTests
 {
     private const string TestFilePath = "test.yaml";

@@ -5,6 +5,9 @@ namespace SecurityHybrid.ApiHandlers;
 /// </summary>
 public sealed class CreateOrderHandler : ICreateOrderHandler
 {
+    /// <summary>
+    /// Executes the CreateOrder operation.
+    /// </summary>
     public Task<CreateOrderResult> ExecuteAsync(
         CreateOrderParameters parameters,
         CancellationToken cancellationToken = default)

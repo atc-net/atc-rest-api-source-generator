@@ -25,4 +25,9 @@ internal enum ResponsePayloadKind
     /// A text payload read as <c>string</c>.
     /// </summary>
     Text,
+
+    /// <summary>
+    /// An XML payload read into the operation's return type by the model's generated XML mapping.
+    /// </summary>
+    Xml,
 }

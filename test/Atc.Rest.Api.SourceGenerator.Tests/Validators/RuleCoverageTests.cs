@@ -2,151 +2,110 @@
 namespace Atc.Rest.Api.SourceGenerator.Tests.Validators;
 
 /// <summary>
-/// Ensures every rule in RuleIdentifiers has at least one test.
-/// This test fails the build if a new rule is added without corresponding tests.
+/// Ensures every rule in RuleIdentifiers has at least one test, and says which: a test class or method marked
+/// <c>[RuleTest("ATC_API_...")]</c> in either test project, or a test method of this assembly whose name carries the
+/// rule's short code (<c>..._ReportsNAM001</c>). A new rule without a test fails the build.
 /// </summary>
 public class RuleCoverageTests
 {
     /// <summary>
-    /// Rules that cannot be unit tested (with documented reasons).
-    /// Each entry explains why the rule requires integration testing or is not yet implemented.
+    /// Rules that cannot be unit tested, each with its reason. The catch of each generator step (GEN001, GEN003, GEN005,
+    /// GEN008) is tested in Generators.GeneratorFailureDiagnosticsTests; the other GEN ids (a document that does not
+    /// parse, no output directory, no endpoints to inject, the summary) are produced by a real generator run in
+    /// Generators.GeneratorDiagnosticsTests.
     /// </summary>
-    private static readonly Dictionary<string, string> ExcludedRules = new(StringComparer.Ordinal)
-    {
-        // ========== Generation Rules (GEN) - Runtime errors ==========
-        ["ATC_API_GEN001"] = "ServerGenerationError - Reported during code generation, requires integration test",
-        ["ATC_API_GEN002"] = "ServerParsingError - Reported during parsing, requires integration test",
-        ["ATC_API_GEN003"] = "ClientGenerationError - Reported during client generation, requires integration test",
-        ["ATC_API_GEN004"] = "ClientParsingError - Reported during parsing, requires integration test",
-        ["ATC_API_GEN005"] = "HandlerScaffoldGenerationError - Reported during scaffold generation, requires integration test",
-        ["ATC_API_GEN006"] = "DomainParsingError - Reported during parsing, requires integration test",
-        ["ATC_API_GEN007"] = "OutputDirectoryNotSpecified - Configuration warning, requires integration test",
-        ["ATC_API_GEN008"] = "EndpointInjectionGenerationError - Reported during injection, requires integration test",
-        ["ATC_API_GEN009"] = "NoEndpointsFoundForInjection - Runtime warning, requires integration test",
-        ["ATC_API_GEN010"] = "GenerationSummary - Info message, requires integration test",
+    internal static readonly Dictionary<string, string> ExcludedRules = new(StringComparer.Ordinal);
 
-        // ========== Dependency Rules (DEP) - Package reference validation ==========
-        ["ATC_API_DEP001"] = "ServerRequiresAspNetCore - Requires project with missing package reference",
-        ["ATC_API_DEP002"] = "DomainRequiresAspNetCore - Requires project with missing package reference",
-        ["ATC_API_DEP003"] = "ClientRequiresAtcRestClient - Requires project with missing package reference",
-        ["ATC_API_DEP004"] = "RateLimitingRequiresPackage - Requires project with missing package reference",
-        ["ATC_API_DEP005"] = "ResilienceRequiresPackage - Requires project with missing package reference",
-        ["ATC_API_DEP006"] = "JwtBearerRequiresPackage - Requires project with missing package reference",
-        ["ATC_API_DEP007"] = "MinimalApiPackageRequired - Requires project with missing package reference",
-        ["ATC_API_DEP008"] = "LoggingRequiresPackage - Requires project with injectLogger but no logging reference",
-        ["ATC_API_DEP009"] = "HealthCheckPathConflict - Requires both healthChecks config and matching spec paths",
-        ["ATC_API_DEP010"] = "HealthChecksPackageRecommended - Info diagnostic when Atc.Rest.HealthChecks not referenced",
+    private static readonly string[] TestProjects = ["Atc.Rest.Api.Generator.Tests", "Atc.Rest.Api.SourceGenerator.Tests"];
 
-        // ========== OpenAPI Validation Rules (VAL) - Parsing errors ==========
-        ["ATC_API_VAL001"] = "OpenApiCoreError - Reported by Microsoft.OpenApi parser, requires malformed YAML",
-        ["ATC_API_VAL002"] = "OpenApi20NotSupported - Tested in Atc.Rest.Api.SourceGenerator.Tests.OpenApiVersionValidationTests",
-
-        // ========== Multi-Part Rules (MPT) - Requires integration tests ==========
-        ["ATC_API_MPT001"] = "DuplicatePathInPart - Requires multi-file parsing, integration test needed",
-        ["ATC_API_MPT002"] = "DuplicateSchemaInPart - Requires multi-file parsing, integration test needed",
-        ["ATC_API_MPT003"] = "PartFileContainsProhibitedSection - Requires multi-file parsing, integration test needed",
-        ["ATC_API_MPT004"] = "MultiPartMergeSuccessful - Info message for multi-file merge, integration test needed",
-        ["ATC_API_MPT005"] = "PartFileNotFound - Requires file system access, integration test needed",
-        ["ATC_API_MPT006"] = "UnresolvedReferenceAfterMerge - Requires multi-file parsing, integration test needed",
-        ["ATC_API_MPT007"] = "PartFileMissingOpenApiVersion - Requires multi-file parsing, integration test needed",
-        ["ATC_API_MPT008"] = "BaseFileNotFound - Requires file system access, integration test needed",
-        ["ATC_API_MPT009"] = "DuplicateParameterInPart - Tested in Atc.Rest.Api.Generator.Tests.SpecificationServiceTests",
-        ["ATC_API_MPT010"] = "NonIdenticalMergeConflict - Tested in Atc.Rest.Api.Generator.Tests.SpecificationServiceTests",
-
-        // ========== Rules tested in Atc.Rest.Api.Generator.Tests ==========
-        // These rules have tests but in a separate test project
-        ["ATC_API_OPR010"] = "BadRequestWithoutParameters - Tested in Atc.Rest.Api.Generator.Tests.ResponseCodeValidationTests",
-        ["ATC_API_OPR021"] = "UnauthorizedWithoutSecurity - Tested in Atc.Rest.Api.Generator.Tests.ResponseCodeValidationTests",
-        ["ATC_API_OPR022"] = "ForbiddenWithoutAuthorization - Tested in Atc.Rest.Api.Generator.Tests.ResponseCodeValidationTests",
-        ["ATC_API_OPR023"] = "NotFoundOnPostOperation - Tested in Atc.Rest.Api.Generator.Tests.ResponseCodeValidationTests",
-        ["ATC_API_OPR024"] = "ConflictOnNonMutatingOperation - Tested in Atc.Rest.Api.Generator.Tests.ResponseCodeValidationTests",
-        ["ATC_API_OPR025"] = "TooManyRequestsWithoutRateLimiting - Tested in Atc.Rest.Api.Generator.Tests.ResponseCodeValidationTests",
-        ["ATC_API_CACHE001"] = "OutputCacheOnNonCacheableMethod - Tested in Atc.Rest.Api.Generator.Tests.Validators.OutputCacheValidationTests",
-        ["ATC_API_OPR027"] = "LargeArrayQueryParameterShouldUseQueryMethod - Tested in Atc.Rest.Api.Generator.Tests.Validators.LargeArrayQueryParameterValidationTests",
-        ["ATC_API_OPR028"] = "QueryOperationWithoutRequestBody - Tested in Atc.Rest.Api.Generator.Tests.Validators.QueryOperationShapeValidationTests",
-        ["ATC_API_OPR029"] = "QueryOperationWithMutationResponse - Tested in Atc.Rest.Api.Generator.Tests.Validators.QueryOperationShapeValidationTests",
-
-        // ========== Client Rules (CLT) ==========
-        ["ATC_API_CLT001"] = "SingleClientTypeNameCollision - Tested in Atc.Rest.Api.Generator.Tests.Validators.SingleClientCollisionValidatorTests",
-        ["ATC_API_CLT002"] = "ClientNameIgnoredForPerArea - Emitted by ApiClientGenerator, requires a Roslyn generator run with a clientName under PerArea",
-
-        // ========== Spec Version Migration Rules (VER) ==========
-        ["ATC_API_VER001"] = "NullableWithoutSiblingType - Tested in Atc.Rest.Api.Generator.Tests.Validators.SpecVersionMigrationValidationTests",
-        ["ATC_API_VER002"] = "NullableKeywordRemovedInSpecVersion - Tested in Atc.Rest.Api.Generator.Tests.Validators.SpecVersionMigrationValidationTests",
-        ["ATC_API_VER003"] = "ExclusiveBoundBooleanForm - Tested in Atc.Rest.Api.Generator.Tests.Validators.SpecVersionMigrationValidationTests",
-        ["ATC_API_VER004"] = "TypeArrayNotSupportedInSpecVersion - Tested in Atc.Rest.Api.Generator.Tests.Validators.SpecVersionMigrationValidationTests",
-    };
+    private static readonly TimeSpan RegexTimeout = TimeSpan.FromSeconds(1);
 
     [Fact]
     public void AllRules_ShouldHaveTests()
     {
-        // Arrange: Get all rule IDs from RuleIdentifiers via reflection
+        // Arrange
         var allRules = GetAllRuleIdentifiers();
 
-        // Act: Find which rules are tested by scanning test assemblies
-        var testedRules = GetTestedRules();
+        // Act
+        var testedRules = GetRuleTests();
 
-        // Assert: Check that all non-excluded rules have tests
+        // Assert
         var untestedRules = allRules
             .Except(ExcludedRules.Keys, StringComparer.Ordinal)
-            .Except(testedRules, StringComparer.Ordinal)
+            .Where(r => !testedRules.ContainsKey(r))
             .OrderBy(r => r, StringComparer.Ordinal)
             .ToList();
 
         Assert.True(
             untestedRules.Count == 0,
-            $"The following rules have no unit tests:\n" +
-            $"{string.Join("\n", untestedRules.Select(r => $"  - {r}"))}");
+            $"The following rules have no unit tests:\n{string.Join("\n", untestedRules.Select(r => $"  - {r}"))}");
     }
 
     [Fact]
     public void ExcludedRules_ShouldExistInRuleIdentifiers()
     {
-        // Arrange: Get all rule IDs from RuleIdentifiers
-        var allRules = GetAllRuleIdentifiers();
-
-        // Act: Find excluded rules that don't exist in RuleIdentifiers
         var invalidExclusions = ExcludedRules.Keys
-            .Except(allRules, StringComparer.Ordinal)
+            .Except(GetAllRuleIdentifiers(), StringComparer.Ordinal)
             .OrderBy(r => r, StringComparer.Ordinal)
             .ToList();
 
-        // Assert: All excluded rules should exist
         Assert.True(
             invalidExclusions.Count == 0,
-            $"The following excluded rules do not exist in RuleIdentifiers:\n" +
-            $"{string.Join("\n", invalidExclusions.Select(r => $"  - {r}"))}");
+            $"The following excluded rules do not exist in RuleIdentifiers:\n{string.Join("\n", invalidExclusions.Select(r => $"  - {r}"))}");
+    }
+
+    /// <summary>
+    /// A <c>[RuleTest]</c> names a rule that exists, on a class that mentions it (its short code or its
+    /// RuleIdentifiers name) - a typo or a test rewritten for another rule otherwise counts a rule as tested.
+    /// </summary>
+    [Fact]
+    public void RuleTestAttributes_NameARuleTheTestCovers()
+    {
+        var allRules = GetAllRuleIdentifiers();
+        var ruleNames = typeof(Generator.RuleIdentifiers)
+            .GetFields(BindingFlags.Public | BindingFlags.Static)
+            .Where(f => f.IsLiteral && f.GetValue(null) is string)
+            .ToDictionary(f => (string)f.GetValue(null)!, f => f.Name, StringComparer.Ordinal);
+        var problems = new List<string>();
+
+        foreach (var (ruleId, testClass, source) in FindRuleTestAttributes())
+        {
+            if (!allRules.Contains(ruleId))
+            {
+                problems.Add($"{testClass}: [RuleTest(\"{ruleId}\")] names no rule");
+                continue;
+            }
+
+            var withoutAttributes = source.Replace($"[RuleTest(\"{ruleId}\")]", string.Empty, StringComparison.Ordinal);
+            if (!withoutAttributes.Contains(ExtractShortCode(ruleId)!, StringComparison.OrdinalIgnoreCase) &&
+                !withoutAttributes.Contains(ruleNames[ruleId], StringComparison.Ordinal))
+            {
+                problems.Add($"{testClass}: [RuleTest(\"{ruleId}\")] but the class mentions neither {ExtractShortCode(ruleId)} nor {ruleNames[ruleId]}");
+            }
+        }
+
+        Assert.True(problems.Count == 0, "Rule tests that cover no rule:\n" + string.Join("\n", problems));
     }
 
     [Fact]
     public void ExcludedRules_ShouldNotBeAccidentallyTested()
     {
-        // Arrange: Get tested rules (in this assembly only)
-        var testedRules = GetTestedRules();
-
-        // Act: Find excluded rules that actually have tests in this assembly
-        // (We skip rules marked as "Tested in Atc.Rest.Api.Generator.Tests")
-        var testedExclusions = ExcludedRules
-            .Where(kvp => !kvp.Value.Contains("Tested in Atc.Rest.Api.Generator.Tests", StringComparison.Ordinal))
-            .Select(kvp => kvp.Key)
-            .Intersect(testedRules, StringComparer.Ordinal)
+        var testedExclusions = ExcludedRules.Keys
+            .Where(GetRuleTests().ContainsKey)
             .OrderBy(r => r, StringComparer.Ordinal)
             .ToList();
 
-        // Assert: Excluded rules should not have tests (otherwise remove from exclusion list)
         Assert.True(
             testedExclusions.Count == 0,
-            $"The following excluded rules now have tests and should be removed from ExcludedRules:\n" +
-            $"{string.Join("\n", testedExclusions.Select(r => $"  - {r}"))}");
+            $"The following excluded rules now have tests and should be removed from ExcludedRules:\n{string.Join("\n", testedExclusions.Select(r => $"  - {r}"))}");
     }
 
-    private static HashSet<string> GetAllRuleIdentifiers()
+    internal static HashSet<string> GetAllRuleIdentifiers()
     {
-        var ruleIdentifiersType = typeof(Generator.RuleIdentifiers);
-        var fields = ruleIdentifiersType.GetFields(
-            System.Reflection.BindingFlags.Public |
-            System.Reflection.BindingFlags.Static |
-            System.Reflection.BindingFlags.FlattenHierarchy);
+        var fields = typeof(Generator.RuleIdentifiers).GetFields(
+            BindingFlags.Public |
+            BindingFlags.Static |
+            BindingFlags.FlattenHierarchy);
 
         var rules = new HashSet<string>(StringComparer.Ordinal);
         foreach (var field in fields)
@@ -163,58 +122,82 @@ public class RuleCoverageTests
         return rules;
     }
 
-    private static HashSet<string> GetTestedRules()
+    /// <summary>
+    /// Every rule that has a test, with the test classes that cover it (full names): the classes and methods marked
+    /// <c>[RuleTest]</c> in either test project, and the test methods of this assembly named after the rule.
+    /// </summary>
+    internal static Dictionary<string, SortedSet<string>> GetRuleTests()
     {
-        var testedRules = new HashSet<string>(StringComparer.Ordinal);
+        var tests = new Dictionary<string, SortedSet<string>>(StringComparer.Ordinal);
 
-        // Get all rule ID values for lookup
-        var ruleIdValues = GetAllRuleIdentifiers();
-
-        // Only scan this test assembly
-        var assembly = typeof(RuleCoverageTests).Assembly;
-
-        var testClasses = assembly
-            .GetTypes()
-            .Where(t => t.IsClass && !t.IsAbstract)
-            .Where(t => t
-                .GetMethods()
-                .Any(m => m.GetCustomAttributes(typeof(FactAttribute), inherit: false).Length != 0 ||
-                          m.GetCustomAttributes(typeof(TheoryAttribute), inherit: false).Length != 0));
-
-        foreach (var testClass in testClasses)
+        void Add(
+            string ruleId,
+            string testClass)
         {
-            // Skip this test class to avoid circular reference
-            if (testClass == typeof(RuleCoverageTests))
+            if (!tests.TryGetValue(ruleId, out var classes))
             {
-                continue;
+                classes = new SortedSet<string>(StringComparer.Ordinal);
+                tests[ruleId] = classes;
             }
 
-            var testMethods = testClass
-                .GetMethods()
-                .Where(m => m.GetCustomAttributes(typeof(FactAttribute), inherit: false).Length != 0 ||
-                            m.GetCustomAttributes(typeof(TheoryAttribute), inherit: false).Length != 0);
+            classes.Add(testClass);
+        }
 
-            foreach (var method in testMethods)
+        foreach (var (ruleId, testClass, _) in FindRuleTestAttributes())
+        {
+            Add(ruleId, testClass);
+        }
+
+        var ruleIds = GetAllRuleIdentifiers();
+        foreach (var testClass in typeof(RuleCoverageTests).Assembly.GetTypes().Where(t => t.IsClass && !t.IsAbstract && t != typeof(RuleCoverageTests)))
+        {
+            foreach (var method in testClass.GetMethods().Where(m => m.IsDefined(typeof(FactAttribute), inherit: false) || m.IsDefined(typeof(TheoryAttribute), inherit: false)))
             {
-                // Check method name for rule references (e.g., "Validate_..._ReportsNAM001")
-                foreach (var ruleId in ruleIdValues)
+                foreach (var ruleId in ruleIds.Where(r => method.Name.Contains(ExtractShortCode(r)!, StringComparison.OrdinalIgnoreCase)))
                 {
-                    // Extract the short code from ATC_API_XXX### format
-                    var shortCode = ExtractShortCode(ruleId);
-                    if (shortCode is not null && method.Name.Contains(shortCode, StringComparison.OrdinalIgnoreCase))
-                    {
-                        testedRules.Add(ruleId);
-                    }
+                    Add(ruleId, testClass.FullName!);
                 }
             }
         }
 
-        return testedRules;
+        return tests;
+    }
+
+    /// <summary>
+    /// The <c>[RuleTest("...")]</c> attributes in the test projects' sources, with the test class each is in (the class
+    /// declared after the attribute) and that class's file.
+    /// </summary>
+    private static IEnumerable<(string RuleId, string TestClass, string Source)> FindRuleTestAttributes()
+    {
+        var testRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ".."));
+        var separator = Path.DirectorySeparatorChar;
+        foreach (var project in TestProjects)
+        {
+            var files = Directory
+                .EnumerateFiles(Path.Combine(testRoot, project), "*.cs", SearchOption.AllDirectories)
+                .Where(f => !f.Contains($"{separator}obj{separator}", StringComparison.Ordinal) && !f.Contains($"{separator}bin{separator}", StringComparison.Ordinal));
+            foreach (var file in files)
+            {
+                var source = File.ReadAllText(file);
+                if (!source.Contains("[RuleTest(\"", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                var ns = Regex.Match(source, @"(?m)^namespace (?<ns>[\w.]+);", RegexOptions.ExplicitCapture, RegexTimeout).Groups["ns"].Value;
+                foreach (Match attribute in Regex.Matches(source, @"\[RuleTest\(""(?<id>ATC_API_\w+)""\)\]", RegexOptions.ExplicitCapture, RegexTimeout))
+                {
+                    var declaration = Regex.Match(source[attribute.Index..], @"\b(class|void|Task)\s+\w+", RegexOptions.ExplicitCapture, RegexTimeout);
+                    var owner = Regex.Matches(source[..(attribute.Index + declaration.Index + declaration.Length)], @"\bclass\s+(?<name>\w+)", RegexOptions.ExplicitCapture, RegexTimeout).LastOrDefault()?.Groups["name"].Value;
+                    yield return (attribute.Groups["id"].Value, $"{ns}.{owner}", source);
+                }
+            }
+        }
     }
 
     private static string? ExtractShortCode(string ruleId)
     {
-        // Convert "ATC_API_NAM001" to "NAM001"
+        // "ATC_API_NAM001" -> "NAM001"
         const string prefix = "ATC_API_";
         return ruleId.StartsWith(prefix, StringComparison.Ordinal)
             ? ruleId[prefix.Length..]

@@ -100,4 +100,38 @@ public class ServerConfig : BaseConfig
     /// </summary>
     [JsonConverter(typeof(InlineParameterEnumModeConverter))]
     public InlineParameterEnumMode InlineParameterEnums { get; set; } = InlineParameterEnumMode.Enum;
+
+    /// <summary>
+    /// Whether the endpoints that bind a form (a file upload, a URL-encoded form) validate an antiforgery token.
+    /// Default: false - they call <c>DisableAntiforgery()</c>: an API's callers authenticate with a token in a header,
+    /// which a cross-site form cannot send. Set it for a host whose browser clients authenticate with a cookie; the
+    /// host then calls <c>AddAntiforgery()</c> and <c>UseAntiforgery()</c>, or a form post fails at request time.
+    /// </summary>
+    public bool UseAntiforgery { get; set; }
+
+    /// <summary>
+    /// Whether a string enum is also read by its C# member name. Default: false - only the specification's value
+    /// (<c>rtsp</c>) is read. When true, a JSON body may also carry the member name (<c>Rtsp</c>), in another casing
+    /// when only one member matches; the value is still what is written. For a rollout: a client built on 2.x wrote
+    /// the member name for a value that is no member name (2.x wrote <c>Rtsp</c> for <c>rtsp</c>).
+    /// </summary>
+    public bool ReadEnumMemberNames { get; set; }
+
+    /// <summary>
+    /// Whether a string enum is an extensible enum, as in the clients: a <c>readonly record struct</c> over the value on
+    /// the wire, with the specification's values as named members, their constants in <c>Names</c> for a switch, and
+    /// <c>KnownValues</c>. Default: false - a strict C# enum, and a request with a value the specification does not list
+    /// is a <c>400</c>. When true, such a value reaches the handler with <c>IsKnown</c> false, and a handler can answer
+    /// with a value the specification does not list yet - for an API that adds values faster than it ships its
+    /// specification. Integer enums are C# enums either way.
+    /// </summary>
+    public bool ExtensibleEnums { get; set; }
+
+    /// <summary>
+    /// The API's name in the generated host methods: <c>Add{ApiName}Api()</c>, <c>Map{ApiName}Api()</c>,
+    /// <c>Map{ApiName}Webhooks()</c>, <c>Add{ApiName}OpenIdConnectAuthentication()</c>. Default: null - the namespace's last segment
+    /// that names the API (a trailing <c>Contracts</c>, <c>Api</c> or <c>Server</c> is skipped:
+    /// <c>Contoso.IoT.Nexus.Api.Contracts</c> gives <c>AddNexusApi()</c>).
+    /// </summary>
+    public string? ApiName { get; set; }
 }

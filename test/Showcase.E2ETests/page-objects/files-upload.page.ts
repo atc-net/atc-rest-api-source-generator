@@ -6,6 +6,8 @@ export class FilesUploadPage {
   readonly multipleFilesTab: Locator;
   readonly fileWithMetadataTab: Locator;
   readonly multiWithMetadataTab: Locator;
+  // Both apps render the file input of the selected tab only
+  readonly fileInput: Locator;
 
   constructor(private readonly page: Page) {
     // Blazor: "Files - Upload", React: "File Upload"
@@ -15,6 +17,7 @@ export class FilesUploadPage {
     this.fileWithMetadataTab = page.getByRole('tab', { name: 'File with Metadata', exact: true });
     // Blazor: "Multiple Files with Metadata", React: "Multi with Metadata"
     this.multiWithMetadataTab = page.getByRole('tab', { name: /multi.*with metadata/i });
+    this.fileInput = page.locator('input[type="file"]');
   }
 
   async goto() {
@@ -22,17 +25,7 @@ export class FilesUploadPage {
   }
 
   async selectTab(index: number) {
-    const tabs = [
-      this.singleFileTab,
-      this.multipleFilesTab,
-      this.fileWithMetadataTab,
-      this.multiWithMetadataTab,
-    ];
+    const tabs = [this.singleFileTab, this.multipleFilesTab, this.fileWithMetadataTab, this.multiWithMetadataTab];
     await tabs[index].click();
-  }
-
-  getUploadButton() {
-    // Match "Upload", "Upload All", "Upload with Metadata", "Upload All with Metadata"
-    return this.page.getByRole('button', { name: /upload/i }).first();
   }
 }

@@ -21,7 +21,8 @@ public class CompilationVerificationTests
             scenarioName,
             yamlFileName,
             ".atc-rest-api-client",
-            "Client-Typed");
+            "Client-Typed",
+            references: CompilationVerificationHarness.GetMinimalClientReferences());
 
         // Assert — should produce source files
         Assert.True(
@@ -57,6 +58,9 @@ public class CompilationVerificationTests
     [InlineData("StreamingItemSchema", "StreamingItemSchema.yaml")]
     [InlineData("ParameterSerialization", "ParameterSerialization.yaml")]
     [InlineData("ComponentsReuse", "ComponentsReuse.yaml")]
+    [InlineData("HostileNames", "HostileNames.yaml")]
+    [InlineData("HostileSchemas", "HostileSchemas.yaml")]
+    [InlineData("HostileTypeScript", "HostileTypeScript.yaml")]
     public void ClientGenerator_GeneratedCode_CompilesWithoutErrors(
         string scenarioName,
         string yamlFileName)
@@ -67,7 +71,8 @@ public class CompilationVerificationTests
             scenarioName,
             yamlFileName,
             ".atc-rest-api-client",
-            "Client-Typed");
+            "Client-Typed",
+            references: CompilationVerificationHarness.GetMinimalClientReferences());
 
         Assert.NotEmpty(generatedSources);
 
@@ -91,6 +96,9 @@ public class CompilationVerificationTests
     // the static HttpMethod.Query property rather than new HttpMethod("QUERY"). Compiling it
     // here is what proves that property actually exists on the targeted framework.
     [InlineData("HttpMethods", "HttpMethods.yaml")]
+    [InlineData("HostileNames", "HostileNames.yaml")]
+    [InlineData("HostileSchemas", "HostileSchemas.yaml")]
+    [InlineData("HostileTypeScript", "HostileTypeScript.yaml")]
     public void ClientGenerator_PerOperation_GeneratedCode_CompilesWithoutErrors(
         string scenarioName,
         string yamlFileName)
@@ -127,6 +135,9 @@ public class CompilationVerificationTests
     [InlineData("ComponentsReuse", "ComponentsReuse.yaml")]
     [InlineData("RateLimit", "RateLimit.yaml")]
     [InlineData("CachingOutput", "CachingOutput.yaml")]
+    [InlineData("HostileNames", "HostileNames.yaml")]
+    [InlineData("HostileSchemas", "HostileSchemas.yaml")]
+    [InlineData("HostileTypeScript", "HostileTypeScript.yaml")]
     public void ServerGenerator_GeneratedCode_CompilesWithoutErrors(
         string scenarioName,
         string yamlFileName)

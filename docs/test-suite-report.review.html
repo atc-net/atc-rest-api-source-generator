@@ -1,0 +1,130 @@
+<p><b>Scope:</b> this review covers the error-body matrix only (the Error bodies tab and its <code>MapEndpoints()</code>
+and OpenAPI 3.1 variants), as it stood on 2026-10-04. The other matrices (Body media, Request binding, Security &amp; rate
+limiting, Features, Enum casing) are not part of it; each has its own verdict test that proves a wrong result fails.</p>
+
+<p>The rules and the data were checked by five independent reviewers. Each started with no context from the
+session that built the harness, and each worked from the wiki (the documented contract), the code and the JSON
+alone.</p>
+
+<div class="table-wrap"><table>
+<thead><tr><th>Review</th><th>Method</th><th>Result</th><th>What changed because of it</th></tr></thead>
+<tbody>
+<tr><td><b>1. Blind reproduction</b></td>
+  <td>28 cells across every client and group. For each, the reviewer derived the expected result from the wiki, the
+  spec and the wire body before looking at the cell.</td>
+  <td>28 of 28 agree; no verdict disagreements.</td>
+  <td>One inaccurate wiki sentence fixed: TypeScript named arms exist only for 400, 401, 403, 404, 409, 422 and 429.</td></tr>
+<tr><td><b>2. Rules against the docs</b></td>
+  <td>Read every verdict rule next to the wiki statement it enforces, looking for branches that could never
+  fail.</td>
+  <td>18 findings, among them rules that could never fail and two contradictions between the docs and the code.</td>
+  <td>
+    <ul class="tight">
+      <li>Every rule was rewritten: accessor, type and arm come from the spec, and values are compared field by
+        field.</li>
+      <li>Two contradictions: the C# string accessor over a ProblemDetails is fixed in the product; the validation
+        400 against a declared 400 body is decision 2 on the readiness tab.</li>
+    </ul>
+  </td></tr>
+<tr><td><b>3. Coverage gaps</b></td>
+  <td>Listed what the matrix does not exercise, or exercises without being able to fail.</td>
+  <td>7 gap areas.</td>
+  <td>
+    <ul class="tight">
+      <li>Added to the matrix:
+        <ul class="tight">
+          <li>a model under <code>application/problem+json</code>;</li>
+          <li>a <code>$ref</code> to <code>components/responses</code>;</li>
+          <li>the exception → status mapping;</li>
+          <li>Retry-After on every 429;</li>
+          <li>the undeclared-status <code>Content</code> check;</li>
+          <li>TypeScript <code>type</code>, <code>title</code>, <code>detail</code> and <code>instance</code>;</li>
+          <li>a stub with foreign bodies;</li>
+          <li>provenance of the uncommitted tree.</li>
+        </ul></li>
+      <li>Three product bugs found by reading code were each reproduced by a failing test, then fixed: the TypedClient
+        Result download body, Axios and Fetch on non-JSON bodies, and C# on non-text bodies.</li>
+      <li>Everything else is listed under <i>Not exercised</i>.</li>
+    </ul>
+  </td></tr>
+<tr><td><b>4. Final review</b></td>
+  <td>The same three angles (rule soundness, blind reproduction, lossy groups), plus the product changes of this
+  round.</td>
+  <td>55 cells derived blind: 52 agree, 3 agree only by assuming the implementation (now documented), 1 disagreed with a
+  wiki page. The report's legend and three method claims were overstated. The JSON was older than the rule code.</td>
+  <td>
+    <ul class="tight">
+      <li>Two product bugs, each reproduced by a new matrix case before the fix:
+        <ul class="tight">
+          <li>a declared-model accessor threw on a foreign body (stubs now also run on a declared-model route);</li>
+          <li>Axios parsed a JSON-string error twice (a <code>"42"</code> stub).</li>
+        </ul></li>
+      <li>The wiki now states that client-added statuses are ProblemDetails in every format but Custom; Marker-Files
+        and Working-with-Security contradicted the code.</li>
+      <li>Documented that a declared model fills only the shared fields; a body without a Content-Type is not affected.</li>
+      <li>The rest of the exception mapping was added to the matrix.</li>
+      <li>The negative control was widened to every rule, and a charset test was added.</li>
+      <li>The legend and the method text were corrected, and the report was regenerated from a fresh build with a
+        working-tree hash.</li>
+    </ul>
+  </td></tr>
+<tr><td><b>5. Every HttpStatusCode</b></td>
+  <td>A fresh reviewer for the statuses below 400 and the validation-400 change: product correctness against RFC 9110
+  and ASP.NET Core, rule soundness, blind reproduction, docs.</td>
+  <td>
+    <ul class="tight">
+      <li>Provenance is exact: the report's stash tree equals the working tree.</li>
+      <li>16 of 16 blind cells agree.</li>
+      <li>The product changes are correct against RFC 9110 and ASP.NET Core.</li>
+      <li>Findings: a redirect factory taking a <code>string</code> let a v2 <code>X(message)</code> call compile into a
+        redirect to the message; the redirect cells only proved platform redirect-following; a redirect declared
+        before 200 lost the 200's TypeScript type; a text body on a redirect gave wrong metadata; the 1xx wire text
+        was inaccurate; two doc caveats.</li>
+    </ul>
+  </td>
+  <td>
+    <ul class="tight">
+      <li>Redirect factories now take a <code>Uri</code>, so old calls fail at compile time.</li>
+      <li>New test <code>Redirects_NotFollowed_AreTheirOwnAccessors</code> checks the generated
+        <code>Is…</code> accessors with auto-redirect off.</li>
+      <li>TypeScript redirect arms are added after the declared 2xx, and <code>redirection</code> is in the union.</li>
+      <li>Metadata no longer advertises a body on a redirect.</li>
+      <li>The 1xx wire text now states what happened.</li>
+      <li>422 is pinned to <code>UnprocessableEntity</code>.</li>
+      <li>The Upgrading rows cover text-bodied factories and the ValidationProblemDetails type-test order.</li>
+    </ul>
+  </td></tr>
+</tbody></table></div>
+
+<h3>Negative control</h3>
+<p>The test <code>MatrixVerdicts_FailRegressedResults</code> feeds every verdict rule a correct result, which must
+pass, and one regressed result per failure mode, which must fail. The regressions it covers:</p>
+<ul class="tight">
+  <li>a changed or lost value, or a JSON string where a message belongs;</li>
+  <li>a wrong custom-model field;</li>
+  <li>the default body on the status's own accessor;</li>
+  <li>an undeclared status without its raw <code>Content</code>;</li>
+  <li>a wrong TypeScript arm, a missing named arm in the generated union, or a wrong <code>detail</code>;</li>
+  <li>a wrong default body on the wire, or a 5xx <code>detail</code> outside Development;</li>
+  <li>a missing Retry-After on a 429;</li>
+  <li>a handler value missing from its ProblemDetails;</li>
+  <li>a lost XML body in C#;</li>
+  <li>a stub wire mismatch;</li>
+  <li>a parsed model on a TypedClient Result error.</li>
+</ul>
+
+<h3>Bugs the matrix found, now fixed (each reproduced by a failing test first)</h3>
+<ul class="tight">
+  <li><b>C#, a declared error model over a foreign body.</b> The accessor threw
+    <code>InvalidContentAccessException</code>; it now reads the body leniently.</li>
+  <li><b>TypeScript Axios, a JSON-string error body.</b> It was parsed twice: <code>"42"</code> became a number.</li>
+  <li><b>C#, a declared string or text status with no body from the handler.</b> The accessor gave the host wiring's
+    ProblemDetails as JSON text; it now gives its message.</li>
+  <li><b>C#, <code>application/xml</code> / <code>application/octet-stream</code> error bodies.</b>
+    <code>Content</code> and the typed accessors were empty, because Atc.Rest.Client keeps such bodies as bytes. The
+    generated client now reads them as text.</li>
+  <li><b>C# TypedClient, Result style.</b> A download's error body was not in <code>Content</code>.</li>
+  <li><b>TypeScript Axios.</b> Kept <code>application/octet-stream</code> and untyped error bodies as the
+    <code>body</code>.</li>
+  <li><b>TypeScript Fetch.</b> Dropped XML error bodies, although it reads XML success bodies as text.</li>
+</ul>

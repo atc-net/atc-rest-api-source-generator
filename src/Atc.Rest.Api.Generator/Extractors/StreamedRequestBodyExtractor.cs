@@ -1,0 +1,668 @@
+namespace Atc.Rest.Api.Generator.Extractors;
+
+/// <summary>
+/// Emits the server's <c>StreamedRequestBody&lt;T&gt;</c>: a request body sent as JSON Lines or JSON Text Sequences
+/// (and, when the operation offers it too, a JSON array), read one record at a time as the handler enumerates it.
+/// The endpoint checks the media type and a missing body before the handler runs (<c>Expect</c>); every record is
+/// validated as it arrives, and one that cannot be read or is not valid stops the read with a 400 that names it
+/// (<c>[1].value</c>), answered by the endpoint's <c>WithRequestBodyProblems()</c>.
+/// </summary>
+public static class StreamedRequestBodyExtractor
+{
+    /// <summary>
+    /// The name of the emitted type.
+    /// </summary>
+    public const string TypeName = "StreamedRequestBody";
+
+    /// <summary>
+    /// The most bytes one record may have (16 MB), the same as the clients' stream readers allow.
+    /// </summary>
+    public const int MaxRecordLength = 16 * 1024 * 1024;
+
+    /// <summary>
+    /// Whether any operation or webhook of the document takes a streamed request body.
+    /// </summary>
+    /// <param name="openApiDoc">The OpenAPI document.</param>
+    /// <returns>True when the server needs <c>StreamedRequestBody&lt;T&gt;</c>.</returns>
+    public static bool DocumentHasStreamedRequestBody(
+        OpenApiDocument openApiDoc)
+        => openApiDoc.GetAllOperationsAndWebhooks().Any(operation => operation.GetStreamedRequestBody() is not null);
+
+    /// <summary>
+    /// The server's body type for a streamed request body of records of <paramref name="itemTypeName"/>.
+    /// </summary>
+    /// <param name="itemTypeName">The C# type of one record.</param>
+    /// <returns>The type name, e.g. <c>StreamedRequestBody&lt;Reading&gt;</c>.</returns>
+    public static string BodyTypeName(string itemTypeName)
+        => $"{TypeName}<{itemTypeName.TrimEnd('?')}>";
+
+    /// <summary>
+    /// The statement the generated endpoint runs before the handler: the rules the specification declares for the
+    /// body (its media types, whether it is required, its count, the validation of each record). It answers a body
+    /// of another media type (415) or a missing required body (400) before the handler sees it.
+    /// </summary>
+    /// <param name="streamed">The streamed request body.</param>
+    /// <param name="validateRecords">Whether each record is validated (the validation filter is on and a record is a
+    /// model).</param>
+    /// <param name="accessor">The body expression, e.g. <c>parameters.Request</c>.</param>
+    /// <param name="recordAttributes">The validation attributes of a record of a primitive type (a string with a
+    /// <c>maxLength</c>, a number with a <c>minimum</c>), as construction expressions; empty for a model.</param>
+    /// <param name="nullRecords">Whether a record may be <c>null</c> (the record's schema is nullable).</param>
+    /// <returns>The statement, ending with the early return of the rejection.</returns>
+    public static string ExpectStatement(
+        StreamedRequestBody streamed,
+        bool validateRecords,
+        string accessor = "parameters.Request",
+        IReadOnlyList<string>? recordAttributes = null,
+        bool nullRecords = false)
+    {
+        if (streamed is null)
+        {
+            throw new ArgumentNullException(nameof(streamed));
+        }
+
+        var mediaTypes = streamed.MediaTypes.ToList();
+        if (streamed.JsonMediaType is { } jsonMediaType)
+        {
+            mediaTypes.Add(jsonMediaType);
+        }
+
+        var arguments = new List<string>
+        {
+            $"required: {(streamed.IsRequired ? "true" : "false")}",
+            $"mediaTypes: [{string.Join(", ", mediaTypes.Select(m => $"\"{m}\""))}]",
+        };
+
+        if (streamed.MinItems is { } minItems)
+        {
+            arguments.Add($"minItems: {minItems.ToString(CultureInfo.InvariantCulture)}");
+        }
+
+        if (streamed.MaxItems is { } maxItems)
+        {
+            arguments.Add($"maxItems: {maxItems.ToString(CultureInfo.InvariantCulture)}");
+        }
+
+        if (validateRecords)
+        {
+            arguments.Add("validate: static async (record, context) => (await RequestValidation.ValidateAsync(record, context, isParametersWrapper: false))?.ProblemDetails");
+        }
+
+        if (streamed.JsonMediaType is not null && !streamed.JsonIsArray)
+        {
+            arguments.Add("jsonArray: false");
+        }
+
+        if (nullRecords)
+        {
+            arguments.Add("nullRecords: true");
+        }
+
+        if (recordAttributes is { Count: > 0 })
+        {
+            arguments.Add($"recordAttributes: [{string.Join(", ", recordAttributes)}]");
+        }
+
+        return $$"""
+                 if ({{accessor}}.Expect({{string.Join(", ", arguments)}}) is { } rejected)
+                 {
+                     return rejected;
+                 }
+                 """;
+    }
+
+    /// <summary>
+    /// The validation attributes of a record of a primitive type - what the generator writes on a property of that
+    /// schema (<c>ApiMaxLength(3)</c>, <c>Range(0, 10)</c>, a pattern) - as construction expressions; empty for a model
+    /// (validated by its own attributes) and for a record without constraints.
+    /// </summary>
+    /// <param name="itemSchema">The schema of one record.</param>
+    /// <returns>The expressions, e.g. <c>new ApiMaxLengthAttribute(3)</c>.</returns>
+    public static IReadOnlyList<string> RecordAttributeExpressions(
+        IOpenApiSchema itemSchema)
+    {
+        if (itemSchema is null || ResponseBodyClassifier.IsModelSchema(itemSchema))
+        {
+            return [];
+        }
+
+        var expressions = new List<string>();
+        foreach (var attribute in itemSchema.GetValidationAttributes(isRequired: false))
+        {
+            var open = attribute.IndexOf('(');
+            var name = open < 0 ? attribute : attribute.Substring(0, open);
+            if (string.Equals(name, "Required", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var arguments = open < 0 ? string.Empty : attribute.Substring(open + 1, attribute.Length - open - 2);
+            var initializers = new List<string>();
+            if (string.Equals(name, "Range", StringComparison.Ordinal))
+            {
+                // The bounds are positional; an exclusive bound is a property (MinimumIsExclusive = true)
+                var parts = arguments.Split(',').Select(part => part.Trim()).ToList();
+                initializers.AddRange(parts.Where(part => part.Contains('=')));
+                arguments = string.Join(", ", parts.Where(part => !part.Contains('=')));
+            }
+
+            var type = name.StartsWith("Api", StringComparison.Ordinal)
+                ? name + "Attribute"
+                : "global::System.ComponentModel.DataAnnotations." + name + "Attribute";
+            expressions.Add(initializers.Count == 0
+                ? $"new {type}({arguments})"
+                : $"new {type}({arguments}) {{ {string.Join(", ", initializers)} }}");
+        }
+
+        return expressions;
+    }
+
+    /// <summary>
+    /// Whether a record may be <c>null</c>: the record's schema is nullable.
+    /// </summary>
+    /// <param name="itemSchema">The schema of one record.</param>
+    /// <returns>True when a <c>null</c> record is a record.</returns>
+    public static bool RecordsMayBeNull(IOpenApiSchema itemSchema)
+    {
+        var schema = itemSchema is OpenApiSchemaReference { Target: { } target } ? target : itemSchema;
+        return schema?.Type?.HasFlag(JsonSchemaType.Null) == true;
+    }
+
+    /// <summary>
+    /// Generates <c>StreamedRequestBody&lt;T&gt;</c> in the server's generated namespace.
+    /// </summary>
+    /// <param name="projectName">The project name.</param>
+    /// <returns>The source.</returns>
+    public static string GenerateContent(string projectName)
+        => $$"""
+            // <auto-generated />
+            #nullable enable
+
+            namespace {{projectName}}.Generated;
+
+            /// <summary>
+            /// A request body sent as a stream of records - JSON Lines (<c>application/jsonl</c>, <c>application/x-ndjson</c>,
+            /// <c>application/x-jsonlines</c>), JSON Text Sequences (<c>application/json-seq</c>, any <c>+json-seq</c>), or a JSON
+            /// array when the operation offers one too. Read it once, with <c>await foreach</c>: each record is read, converted
+            /// and validated as it arrives, so a body of any size takes the memory of one record.
+            /// </summary>
+            /// <remarks>
+            /// A record that cannot be read or is not valid stops the read: the enumeration throws, and the endpoint answers
+            /// 400 with the record's key (<c>[1].value</c>) - unless the response has started already (a stream written while
+            /// the body is read), when the connection is aborted.
+            /// </remarks>
+            /// <typeparam name="T">The record.</typeparam>
+            [global::System.CodeDom.Compiler.GeneratedCode("{{GeneratorInfo.Name}}", "{{GeneratorInfo.Version}}")]
+            public sealed class {{TypeName}}<T> : global::System.Collections.Generic.IAsyncEnumerable<T>
+            {
+                /// <summary>
+                /// The most bytes one record may have; a longer record is a 413.
+                /// </summary>
+                public const int MaxRecordLength = {{MaxRecordLength.ToString(CultureInfo.InvariantCulture)}};
+
+                private const byte LineFeed = 0x0A;
+                private const byte RecordSeparator = 0x1E;
+
+                private readonly global::Microsoft.AspNetCore.Http.HttpContext context;
+                private Framing framing;
+                private int? minItems;
+                private int? maxItems;
+                private global::System.Func<T, global::Microsoft.AspNetCore.Http.HttpContext, global::System.Threading.Tasks.ValueTask<global::Microsoft.AspNetCore.Http.HttpValidationProblemDetails?>>? validate;
+                private global::System.ComponentModel.DataAnnotations.ValidationAttribute[]? recordAttributes;
+                private bool jsonArray = true;
+                private bool nullRecords;
+                private int read;
+                private bool expected;
+
+                private {{TypeName}}(global::Microsoft.AspNetCore.Http.HttpContext context)
+                    => this.context = context;
+
+                private enum Framing
+                {
+                    None,
+                    Lines,
+                    Sequence,
+                    Array,
+                    Single,
+                }
+
+                /// <summary>
+                /// Binds the body without reading it: the records are read when the handler enumerates them.
+                /// </summary>
+                public static global::System.Threading.Tasks.ValueTask<{{TypeName}}<T>?> BindAsync(
+                    global::Microsoft.AspNetCore.Http.HttpContext context,
+                    global::System.Reflection.ParameterInfo parameter)
+                {
+                    global::System.ArgumentNullException.ThrowIfNull(context);
+                    return global::System.Threading.Tasks.ValueTask.FromResult<{{TypeName}}<T>?>(new {{TypeName}}<T>(context));
+                }
+
+                /// <summary>
+                /// The rules the specification declares for the body, set by the generated endpoint before the handler runs.
+                /// </summary>
+                /// <returns>The answer to a body of another media type (415) or a missing required body (400); otherwise
+                /// <see langword="null"/>.</returns>
+                public global::Microsoft.AspNetCore.Http.IResult? Expect(
+                    bool required,
+                    string[] mediaTypes,
+                    int? minItems = null,
+                    int? maxItems = null,
+                    global::System.Func<T, global::Microsoft.AspNetCore.Http.HttpContext, global::System.Threading.Tasks.ValueTask<global::Microsoft.AspNetCore.Http.HttpValidationProblemDetails?>>? validate = null,
+                    bool jsonArray = true,
+                    bool nullRecords = false,
+                    global::System.ComponentModel.DataAnnotations.ValidationAttribute[]? recordAttributes = null)
+                {
+                    global::System.ArgumentNullException.ThrowIfNull(mediaTypes);
+                    expected = true;
+                    this.minItems = minItems;
+                    this.maxItems = maxItems;
+                    this.validate = validate;
+                    this.jsonArray = jsonArray;
+                    this.nullRecords = nullRecords;
+                    this.recordAttributes = recordAttributes;
+
+                    var request = context.Request;
+                    var contentType = request.ContentType;
+                    if (string.IsNullOrWhiteSpace(contentType))
+                    {
+                        // Whether the request has a body at all: the server knows (HTTP/2 and HTTP/3 send neither a length
+                        // nor Transfer-Encoding)
+                        var canHaveBody = context.Features.Get<global::Microsoft.AspNetCore.Http.Features.IHttpRequestBodyDetectionFeature>()?.CanHaveBody
+                                          ?? (request.ContentLength is > 0 || request.Headers.ContainsKey("Transfer-Encoding"));
+                        if (!canHaveBody)
+                        {
+                            if (required)
+                            {
+                                return global::Microsoft.AspNetCore.Http.Results.Problem(
+                                    detail: $"The request body is required: send the records as {mediaTypes[0]}.",
+                                    statusCode: global::Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest);
+                            }
+
+                            framing = Framing.None;
+                            return null;
+                        }
+
+                        return Unsupported("none", mediaTypes);
+                    }
+
+                    var mediaType = contentType.Split(';')[0].Trim();
+                    framing = FramingOf(mediaType, mediaTypes, jsonArray);
+                    return framing == Framing.None
+                        ? Unsupported(mediaType, mediaTypes)
+                        : null;
+                }
+
+                /// <inheritdoc />
+                public async global::System.Collections.Generic.IAsyncEnumerator<T> GetAsyncEnumerator(
+                    global::System.Threading.CancellationToken cancellationToken = default)
+                {
+                    if (global::System.Threading.Interlocked.Exchange(ref read, 1) == 1)
+                    {
+                        throw new global::System.InvalidOperationException("A streamed request body can be read once.");
+                    }
+
+                    // Read without the endpoint's rules (a hand-written endpoint): whatever framing this type reads that arrived
+                    if (!expected &&
+                        Expect(required: false, mediaTypes: [context.Request.ContentType ?? string.Empty]) is not null)
+                    {
+                        throw {{XmlModelMapperExtractor.RequestBodyProblemsTypeName}}.Rejected(
+                            context,
+                            $"The request body must be JSON Lines, a JSON Text Sequence or JSON, not '{context.Request.ContentType}'.",
+                            global::Microsoft.AspNetCore.Http.StatusCodes.Status415UnsupportedMediaType);
+                    }
+
+                    if (framing == Framing.None)
+                    {
+                        if (minItems is > 0)
+                        {
+                            throw TooFew(0);
+                        }
+
+                        yield break;
+                    }
+
+                    using var linked = global::System.Threading.CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, context.RequestAborted);
+                    var options = {{XmlModelMapperExtractor.RequestBodyProblemsTypeName}}.SerializerOptionsOf(context);
+                    var typeInfo = (global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<T>)options.GetTypeInfo(typeof(T));
+                    var records = framing switch
+                    {
+                        Framing.Array => ReadArrayAsync(typeInfo, linked.Token),
+                        Framing.Single => ReadSingleAsync(typeInfo, linked.Token),
+                        _ => ReadRecordsAsync(typeInfo, linked.Token),
+                    };
+
+                    var index = 0;
+                    await foreach (var record in records.ConfigureAwait(false))
+                    {
+                        if (maxItems is { } max && index >= max)
+                        {
+                            throw {{XmlModelMapperExtractor.RequestBodyProblemsTypeName}}.Invalid(
+                                context,
+                                new global::System.Collections.Generic.Dictionary<string, string[]>(global::System.StringComparer.Ordinal)
+                                {
+                                    [$"[{index}]"] = [$"The request body may have at most {max} records."],
+                                });
+                        }
+
+                        if (record is null && !nullRecords)
+                        {
+                            throw {{XmlModelMapperExtractor.RequestBodyProblemsTypeName}}.Invalid(
+                                context,
+                                new global::System.Collections.Generic.Dictionary<string, string[]>(global::System.StringComparer.Ordinal)
+                                {
+                                    [$"[{index}]"] = [$"Record {index + 1} is null; every record must be a value."],
+                                });
+                        }
+
+                        if (validate is not null &&
+                            await validate(record!, context).ConfigureAwait(false) is { Errors.Count: > 0 } problem)
+                        {
+                            var errors = new global::System.Collections.Generic.Dictionary<string, string[]>(global::System.StringComparer.Ordinal);
+                            foreach (var error in problem.Errors)
+                            {
+                                errors[error.Key.Length == 0 ? $"[{index}]" : $"[{index}].{error.Key}"] = error.Value;
+                            }
+
+                            throw {{XmlModelMapperExtractor.RequestBodyProblemsTypeName}}.Invalid(context, errors);
+                        }
+
+                        // A record of a primitive type: the constraints its schema declares
+                        if (recordAttributes is { Length: > 0 })
+                        {
+                            var messages = new global::System.Collections.Generic.List<string>();
+                            foreach (var attribute in recordAttributes)
+                            {
+                                if (!attribute.IsValid(record))
+                                {
+                                    messages.Add(attribute.FormatErrorMessage("record"));
+                                }
+                            }
+
+                            if (messages.Count > 0)
+                            {
+                                throw {{XmlModelMapperExtractor.RequestBodyProblemsTypeName}}.Invalid(
+                                    context,
+                                    new global::System.Collections.Generic.Dictionary<string, string[]>(global::System.StringComparer.Ordinal)
+                                    {
+                                        [$"[{index}]"] = [.. messages],
+                                    });
+                            }
+                        }
+
+                        yield return record!;
+                        index++;
+                    }
+
+                    if (minItems is { } min && index < min)
+                    {
+                        throw TooFew(index);
+                    }
+                }
+
+                // The marker the problems step sets on a rejected body (a BadHttpRequestException of the reader's own)
+                private const string RejectedMarker = "\u001Frequest-body-rejected";
+
+                private static Framing FramingOf(
+                    string mediaType,
+                    string[] declared,
+                    bool jsonArray)
+                {
+                    foreach (var candidate in declared)
+                    {
+                        var declaredType = candidate.Split(';')[0].Trim();
+                        if (string.Equals(mediaType, declaredType, global::System.StringComparison.OrdinalIgnoreCase))
+                        {
+                            return Classify(mediaType, jsonArray);
+                        }
+
+                        // Every JSON Lines name is the same body: one declared takes the others
+                        if (Classify(declaredType, jsonArray) == Framing.Lines && Classify(mediaType, jsonArray) == Framing.Lines)
+                        {
+                            return Framing.Lines;
+                        }
+                    }
+
+                    return Framing.None;
+                }
+
+                // JSON beside a stream (application/json, a +json type) is an array of the records, or one record
+                private static Framing Classify(
+                    string mediaType,
+                    bool jsonArray)
+                    => mediaType.ToLowerInvariant() switch
+                    {
+                        "application/jsonl" or "application/x-ndjson" or "application/x-jsonlines" => Framing.Lines,
+                        "application/json-seq" => Framing.Sequence,
+                        var type when type.EndsWith("+json-seq", global::System.StringComparison.Ordinal) => Framing.Sequence,
+                        "application/json" => jsonArray ? Framing.Array : Framing.Single,
+                        var type when type.EndsWith("+json", global::System.StringComparison.Ordinal) => jsonArray ? Framing.Array : Framing.Single,
+                        _ => Framing.None,
+                    };
+
+                private static global::Microsoft.AspNetCore.Http.IResult Unsupported(
+                    string mediaType,
+                    string[] mediaTypes)
+                    => global::Microsoft.AspNetCore.Http.Results.Problem(
+                        detail: $"The request body must be {string.Join(" or ", mediaTypes)}, not '{mediaType}'.",
+                        statusCode: global::Microsoft.AspNetCore.Http.StatusCodes.Status415UnsupportedMediaType);
+
+                private global::Microsoft.AspNetCore.Http.BadHttpRequestException TooFew(int count)
+                    => {{XmlModelMapperExtractor.RequestBodyProblemsTypeName}}.Rejected(
+                        context,
+                        $"The request body must have at least {minItems} records, not {count}.",
+                        global::Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest);
+
+                // JSON Lines and JSON Text Sequences: the body is split into records at the separator (a line feed, or the
+                // record separator a JSON value cannot contain) and each record is read on its own - its index and line are
+                // exact, a record that cannot be read stops the read at that record, and memory is one record
+                private async global::System.Collections.Generic.IAsyncEnumerable<T?> ReadRecordsAsync(
+                    global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> typeInfo,
+                    [global::System.Runtime.CompilerServices.EnumeratorCancellation] global::System.Threading.CancellationToken cancellationToken)
+                {
+                    var reader = context.Request.BodyReader;
+                    var separator = framing == Framing.Sequence ? RecordSeparator : LineFeed;
+                    var batch = new global::System.Collections.Generic.List<(byte[] Bytes, int Line)>();
+                    var index = 0;
+                    var line = 1;
+                    while (true)
+                    {
+                        global::System.IO.Pipelines.ReadResult result;
+                        try
+                        {
+                            result = await reader.ReadAsync(cancellationToken).ConfigureAwait(false);
+                        }
+                        catch (global::Microsoft.AspNetCore.Http.BadHttpRequestException ex) when (!context.Items.ContainsKey(RejectedMarker))
+                        {
+                            // The server's own answer to the body (larger than it allows: 413), with its status
+                            throw {{XmlModelMapperExtractor.RequestBodyProblemsTypeName}}.Rejected(context, ex.Message, ex.StatusCode, ex);
+                        }
+
+                        var buffer = result.Buffer;
+                        batch.Clear();
+                        while (global::System.Buffers.BuffersExtensions.PositionOf(buffer, separator) is { } end)
+                        {
+                            line = Collect(batch, buffer.Slice(0, end), line, index + batch.Count);
+                            buffer = buffer.Slice(buffer.GetPosition(1, end));
+                        }
+
+                        if (buffer.Length > MaxRecordLength)
+                        {
+                            throw TooLong(index + batch.Count);
+                        }
+
+                        if (result.IsCompleted)
+                        {
+                            Collect(batch, buffer, line, index + batch.Count);
+                            buffer = buffer.Slice(buffer.End);
+                        }
+
+                        reader.AdvanceTo(buffer.Start, buffer.End);
+                        foreach (var record in batch)
+                        {
+                            yield return Deserialize(record.Bytes, typeInfo, index, record.Line);
+                            index++;
+                        }
+
+                        if (result.IsCompleted)
+                        {
+                            yield break;
+                        }
+                    }
+                }
+
+                // One record's bytes, unless it is blank (a blank line, the whitespace around a record separator); the line
+                // the next record starts on
+                private int Collect(
+                    global::System.Collections.Generic.List<(byte[] Bytes, int Line)> batch,
+                    global::System.Buffers.ReadOnlySequence<byte> record,
+                    int line,
+                    int index)
+                {
+                    if (record.Length > MaxRecordLength)
+                    {
+                        throw TooLong(index);
+                    }
+
+                    var bytes = global::System.Buffers.BuffersExtensions.ToArray(record);
+
+                    // A UTF-8 byte order mark before the first record is no part of it
+                    if (index == 0 && line == 1 && bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
+                    {
+                        bytes = bytes[3..];
+                    }
+
+                    foreach (var b in bytes)
+                    {
+                        if (b is not ((byte)' ' or (byte)'\t' or (byte)'\r' or LineFeed))
+                        {
+                            batch.Add((bytes, line));
+                            break;
+                        }
+                    }
+
+                    return framing == Framing.Lines ? line + 1 : line;
+                }
+
+                private T? Deserialize(
+                    byte[] bytes,
+                    global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> typeInfo,
+                    int index,
+                    int line)
+                {
+                    try
+                    {
+                        return global::System.Text.Json.JsonSerializer.Deserialize(bytes, typeInfo);
+                    }
+                    catch (global::System.Text.Json.JsonException ex)
+                    {
+                        throw NotReadable(ex, index, framing == Framing.Lines ? line : null);
+                    }
+                }
+
+                // One record as JSON (offered beside JSON Lines): the body, read whole
+                private async global::System.Collections.Generic.IAsyncEnumerable<T?> ReadSingleAsync(
+                    global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> typeInfo,
+                    [global::System.Runtime.CompilerServices.EnumeratorCancellation] global::System.Threading.CancellationToken cancellationToken)
+                {
+                    T? record;
+                    try
+                    {
+                        record = await global::System.Text.Json.JsonSerializer.DeserializeAsync(context.Request.Body, typeInfo, cancellationToken).ConfigureAwait(false);
+                    }
+                    catch (global::System.Text.Json.JsonException ex)
+                    {
+                        throw NotReadable(ex, 0, line: null);
+                    }
+                    catch (global::Microsoft.AspNetCore.Http.BadHttpRequestException ex) when (!context.Items.ContainsKey(RejectedMarker))
+                    {
+                        throw {{XmlModelMapperExtractor.RequestBodyProblemsTypeName}}.Rejected(context, ex.Message, ex.StatusCode, ex);
+                    }
+
+                    yield return record;
+                }
+
+                // A JSON array (offered beside JSON Lines): its elements, streamed; an element that cannot be read is named
+                // by its index in the array
+                private async global::System.Collections.Generic.IAsyncEnumerable<T?> ReadArrayAsync(
+                    global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> typeInfo,
+                    [global::System.Runtime.CompilerServices.EnumeratorCancellation] global::System.Threading.CancellationToken cancellationToken)
+                {
+                    var index = 0;
+                    await using var enumerator = global::System.Text.Json.JsonSerializer
+                        .DeserializeAsyncEnumerable(context.Request.Body, typeInfo, topLevelValues: false, cancellationToken)
+                        .GetAsyncEnumerator(cancellationToken);
+                    while (true)
+                    {
+                        T? record;
+                        try
+                        {
+                            if (!await enumerator.MoveNextAsync().ConfigureAwait(false))
+                            {
+                                yield break;
+                            }
+
+                            record = enumerator.Current;
+                        }
+                        catch (global::System.Text.Json.JsonException ex)
+                        {
+                            throw NotReadable(ex, index, line: null);
+                        }
+                        catch (global::Microsoft.AspNetCore.Http.BadHttpRequestException ex) when (!context.Items.ContainsKey(RejectedMarker))
+                        {
+                            throw {{XmlModelMapperExtractor.RequestBodyProblemsTypeName}}.Rejected(context, ex.Message, ex.StatusCode, ex);
+                        }
+
+                        yield return record;
+                        index++;
+                    }
+                }
+
+                private global::Microsoft.AspNetCore.Http.BadHttpRequestException TooLong(int index)
+                    => {{XmlModelMapperExtractor.RequestBodyProblemsTypeName}}.Rejected(
+                        context,
+                        $"Record {index + 1} is longer than {MaxRecordLength} bytes.",
+                        global::Microsoft.AspNetCore.Http.StatusCodes.Status413PayloadTooLarge);
+
+                // A value that does not convert to its member's type names the member ([1].value); a record that is not JSON
+                // names the record, with its line in JSON Lines
+                private global::Microsoft.AspNetCore.Http.BadHttpRequestException NotReadable(
+                    global::System.Text.Json.JsonException ex,
+                    int index,
+                    int? line)
+                {
+                    var message = ex.Message.IndexOf(" Path:", global::System.StringComparison.Ordinal) is var end and > 0 ? ex.Message[..end] : ex.Message;
+                    // JSON that is not well formed is the reader's exception (a JsonException itself), rethrown with a path: only a
+                    // value the converter rejects names its member
+                    var isConversion = ex.GetType() == typeof(global::System.Text.Json.JsonException) && ex.InnerException is not global::System.Text.Json.JsonException;
+                    string member;
+                    if (isConversion && framing != Framing.Array && ex.Path is { Length: > 2 } path && path.StartsWith("$.", global::System.StringComparison.Ordinal))
+                    {
+                        member = $"[{index}].{path[2..]}";
+                    }
+                    else if (framing == Framing.Array && ex.Path is { Length: > 1 } elementPath && elementPath.StartsWith("$[", global::System.StringComparison.Ordinal))
+                    {
+                        member = elementPath[1..];
+                    }
+                    else
+                    {
+                        member = $"[{index}]";
+                    }
+
+                    if (!isConversion)
+                    {
+                        message = line is { } lineNumber
+                            ? $"Record {index + 1} (line {lineNumber}) is not valid JSON: {message}"
+                            : $"Record {index + 1} is not valid JSON: {message}";
+                    }
+
+                    return {{XmlModelMapperExtractor.RequestBodyProblemsTypeName}}.Invalid(
+                        context,
+                        new global::System.Collections.Generic.Dictionary<string, string[]>(global::System.StringComparer.Ordinal)
+                        {
+                            [member] = [message],
+                        },
+                        ex);
+                }
+            }
+            """;
+}

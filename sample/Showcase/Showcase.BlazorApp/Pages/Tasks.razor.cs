@@ -16,6 +16,9 @@ public partial class Tasks
     private int? limit;
     private string newTaskName = string.Empty;
     private string? newTaskTag;
+    private Showcase.Generated.Tasks.Models.Task? editTarget;
+    private string editName = string.Empty;
+    private string? editTag;
 
     private async Task LoadTasksAsync()
     {
@@ -60,6 +63,48 @@ public partial class Tasks
                 newTaskName = string.Empty;
                 newTaskTag = null;
                 await LoadTasksAsync().ConfigureAwait(false);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void StartEdit(Showcase.Generated.Tasks.Models.Task task)
+    {
+        editTarget = task;
+        editName = task.Name;
+        editTag = task.Tag;
+    }
+
+    private async System.Threading.Tasks.Task UpdateTaskAsync()
+    {
+        if (editTarget is null || string.IsNullOrWhiteSpace(editName))
+        {
+            Snackbar.Add("Name is required", Severity.Warning);
+            return;
+        }
+
+        isLoading = true;
+        try
+        {
+            var updated = await Gateway.UpdateTaskByIdAsync(
+                editTarget.Id.ToString(CultureInfo.InvariantCulture),
+                editTarget with { Name = editName, Tag = editTag ?? string.Empty });
+            if (updated is not null)
+            {
+                Snackbar.Add($"Task updated: {updated.Name}", Severity.Success);
+                editTarget = null;
+                await LoadTasksAsync();
+            }
+            else
+            {
+                Snackbar.Add("Failed to update the task", Severity.Error);
             }
         }
         catch (Exception ex)

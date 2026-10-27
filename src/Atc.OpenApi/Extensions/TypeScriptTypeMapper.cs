@@ -65,7 +65,9 @@ public static class TypeScriptTypeMapper
     {
         /// <summary>
         /// Maps an OpenAPI schema to a TypeScript type string for model properties.
-        /// Handles $ref, allOf, arrays, nullable (T | null), Record&lt;string, T&gt;, and primitives.
+        /// Handles $ref, allOf, arrays, nullable (T | null), Record&lt;string, T&gt;, and primitives. An optional
+        /// property is <c>T | null</c> too: a .NET server writes <c>null</c> for a property without a value, so
+        /// <c>note?: string</c> alone would be a type the wire does not keep.
         /// </summary>
         /// <param name="isRequired">Whether the property is in the required array.</param>
         /// <param name="convertDates">When true, maps date/date-time formats to Date instead of string.</param>
@@ -74,10 +76,27 @@ public static class TypeScriptTypeMapper
             bool isRequired,
             bool convertDates = false)
         {
+            var type = schema.ToTypeScriptTypeForModelWithoutOptionalNull(isRequired, convertDates);
+            return isRequired || type.EndsWith(" | null", StringComparison.Ordinal)
+                ? type
+                : type + " | null";
+        }
+
+        /// <summary>
+        /// <see cref="ToTypeScriptTypeForModel"/> without the <c>| null</c> an optional property gets: the type the
+        /// schema declares, nullable only where the schema says so.
+        /// </summary>
+        /// <param name="isRequired">Whether the property is in the required array.</param>
+        /// <param name="convertDates">When true, maps date/date-time formats to Date instead of string.</param>
+        /// <returns>A TypeScript type string representation.</returns>
+        public string ToTypeScriptTypeForModelWithoutOptionalNull(
+            bool isRequired,
+            bool convertDates = false)
+        {
             // Handle schema references
             if (schema is OpenApiSchemaReference schemaRef)
             {
-                var refName = schemaRef.Reference.Id ?? schemaRef.Id ?? "unknown";
+                var refName = schemaRef.ComponentName ?? "unknown";
                 return refName;
             }
 
@@ -88,7 +107,7 @@ public static class TypeScriptTypeMapper
             }
 
             // Check if schema has nullable: true
-            var isNullable = actualSchema.IsNullable();
+            var isNullable = actualSchema.IsNullable;
 
             // Handle allOf compositions (commonly used for nullable $ref in OpenAPI 3.0)
             if (actualSchema.AllOf is { Count: > 0 })
@@ -97,7 +116,7 @@ public static class TypeScriptTypeMapper
                 {
                     if (subSchema is OpenApiSchemaReference allOfRef)
                     {
-                        var refName = allOfRef.Reference.Id ?? allOfRef.Id ?? "unknown";
+                        var refName = allOfRef.ComponentName ?? "unknown";
                         return isNullable ? $"{refName} | null" : refName;
                     }
                 }
@@ -135,7 +154,7 @@ public static class TypeScriptTypeMapper
             // Handle prefixItems (OpenAPI 3.1 / JSON Schema 2020-12 tuple types).
             // Must come before the regular array branch — a prefixItems schema also has
             // type: array, but the tuple shape is the more specific signal.
-            if (actualSchema.HasPrefixItems())
+            if (actualSchema.HasPrefixItems)
             {
                 var tupleType = BuildTupleTypeForTypeScript(actualSchema, convertDates);
                 if (tupleType is not null)
@@ -147,7 +166,7 @@ public static class TypeScriptTypeMapper
             // Handle array types
             if (actualSchema.Type?.HasFlag(JsonSchemaType.Array) == true)
             {
-                var itemType = GetArrayItemTypeScript(actualSchema);
+                var itemType = GetArrayItemTypeScript(actualSchema, convertDates);
                 return isNullable ? $"{itemType}[] | null" : $"{itemType}[]";
             }
 
@@ -167,7 +186,7 @@ public static class TypeScriptTypeMapper
             // Handle schema references
             if (schema is OpenApiSchemaReference schemaRef)
             {
-                return schemaRef.Reference.Id ?? schemaRef.Id ?? "unknown";
+                return schemaRef.ComponentName ?? "unknown";
             }
 
             if (schema is not OpenApiSchema actualSchema)
@@ -185,40 +204,12 @@ public static class TypeScriptTypeMapper
             // Handle allOf (pagination pattern: allOf with $ref to PaginatedResult + inline results)
             if (actualSchema.AllOf is { Count: > 0 })
             {
-                string? refTypeName = null;
-                string? arrayItemType = null;
-
-                foreach (var subSchema in actualSchema.AllOf)
-                {
-                    if (subSchema is OpenApiSchemaReference allOfRef)
-                    {
-                        refTypeName = allOfRef.Reference.Id ?? allOfRef.Id;
-                    }
-                    else if (subSchema is OpenApiSchema inlineSchema && inlineSchema.Properties is { Count: > 0 })
-                    {
-                        // Look for an array property with $ref items (e.g., results: Account[])
-                        foreach (var prop in inlineSchema.Properties.Values)
-                        {
-                            if (prop is OpenApiSchema { Type: JsonSchemaType.Array } arrayProp &&
-                                arrayProp.Items is OpenApiSchemaReference itemRef)
-                            {
-                                arrayItemType = itemRef.Reference.Id ?? itemRef.Id;
-                            }
-                        }
-                    }
-                }
-
-                if (refTypeName is not null && arrayItemType is not null)
-                {
-                    return $"{refTypeName}<{arrayItemType}>";
-                }
-
-                return refTypeName ?? "unknown";
+                return BuildAllOfTypeScriptType(actualSchema.AllOf);
             }
 
             // Handle prefixItems (OpenAPI 3.1 / JSON Schema 2020-12 tuple types).
             // Must come before the regular array branch (same reason as ToTypeScriptTypeForModel).
-            if (actualSchema.HasPrefixItems())
+            if (actualSchema.HasPrefixItems)
             {
                 var tupleType = BuildTupleTypeForTypeScript(actualSchema, convertDates: false);
                 if (tupleType is not null)
@@ -240,6 +231,105 @@ public static class TypeScriptTypeMapper
     }
 
     /// <summary>
+    /// Recognizes the generic pagination form of an <c>allOf</c>: exactly one <c>$ref</c>, to a generic pagination
+    /// base (emitted as <c>Base&lt;T&gt;</c>), and an inline member whose array property supplies the item type.
+    /// </summary>
+    /// <remarks>
+    /// The array property may be an array (also a nullable one, <c>type: [array, 'null']</c>) or a <c>$ref</c> to
+    /// an array alias. An item that is itself an array alias (<c>items: $ref Accounts</c>, Accounts = Account[]) is
+    /// unwrapped to its element, as the C# generator does: the server writes the page's items as one flat array.
+    /// </remarks>
+    /// <param name="allOf">The <c>allOf</c> members.</param>
+    /// <param name="baseName">The pagination base's schema name.</param>
+    /// <param name="itemType">The TypeScript item type (a schema name or a primitive type).</param>
+    /// <param name="itemSchemaName">The item's schema name to import, or <see langword="null"/> for a primitive.</param>
+    /// <returns><see langword="true"/> for the generic pagination form.</returns>
+    public static bool TryGetGenericPagination(
+        IList<IOpenApiSchema> allOf,
+        out string baseName,
+        out string itemType,
+        out string? itemSchemaName)
+    {
+        if (allOf is null)
+        {
+            throw new ArgumentNullException(nameof(allOf));
+        }
+
+        baseName = string.Empty;
+        itemType = string.Empty;
+        itemSchemaName = null;
+
+        var refs = allOf.OfType<OpenApiSchemaReference>().ToList();
+        if (refs.Count != 1 ||
+            !IsGenericPaginationBase(refs[0].Target) ||
+            (refs[0].Reference.Id ?? refs[0].Id) is not { } name)
+        {
+            return false;
+        }
+
+        var items = allOf
+            .OfType<OpenApiSchema>()
+            .Where(s => s.Properties is { Count: > 0 })
+            .SelectMany(s => s.Properties!.Values)
+            .Select(p => p switch
+            {
+                OpenApiSchemaReference { Target: { Type: { } aliasType } alias } when aliasType.HasFlag(JsonSchemaType.Array) => alias.Items,
+                OpenApiSchema { Type: { } arrayType } array when arrayType.HasFlag(JsonSchemaType.Array) => array.Items,
+                _ => null,
+            })
+            .FirstOrDefault(i => i is not null);
+
+        switch (items)
+        {
+            case OpenApiSchemaReference itemRef:
+                var element = itemRef.Target is OpenApiSchema { Type: { } itemTargetType, Items: OpenApiSchemaReference elementRef } &&
+                              itemTargetType.HasFlag(JsonSchemaType.Array)
+                    ? elementRef
+                    : itemRef;
+                itemSchemaName = element.ComponentName;
+                if (itemSchemaName is null)
+                {
+                    return false;
+                }
+
+                itemType = itemSchemaName;
+                break;
+            case OpenApiSchema { Type: not null } itemSchema:
+                itemType = itemSchema.ToTypeScriptReturnType();
+                break;
+            default:
+                return false;
+        }
+
+        baseName = name;
+        return true;
+    }
+
+    /// <summary>
+    /// Locates the <c>prefixItems</c> JSON array on a schema. OpenAPI 3.1 specs land it in
+    /// <see cref="Microsoft.OpenApi.OpenApiSchema.UnrecognizedKeywords"/>; older specs that
+    /// jam it through the extension layer land it in <see cref="Microsoft.OpenApi.OpenApiSchema.Extensions"/>.
+    /// </summary>
+    internal static JsonArray? GetPrefixItemsArray(OpenApiSchema schema)
+    {
+        if (schema.UnrecognizedKeywords is not null &&
+            schema.UnrecognizedKeywords.TryGetValue("prefixItems", out var unrecognizedNode) &&
+            unrecognizedNode is JsonArray unrecognizedArray)
+        {
+            return unrecognizedArray;
+        }
+
+        if (schema.Extensions is not null &&
+            schema.Extensions.TryGetValue("prefixItems", out var extension) &&
+            extension is JsonNodeExtension { Node: JsonArray extensionArray })
+        {
+            return extensionArray;
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// Gets the TypeScript type name for String JsonSchemaType with format.
     /// </summary>
     private static string GetStringTypeName(
@@ -256,6 +346,62 @@ public static class TypeScriptTypeMapper
             "uri" => "string",
             _ => "string",
         };
+
+    /// <summary>
+    /// The TypeScript type of an inline <c>allOf</c>: <c>Base&lt;Item&gt;</c> when the referenced base is a
+    /// generic pagination base (an array property with untyped items - the TypeScript model is emitted as
+    /// <c>Base&lt;T&gt;</c>) and the inline member supplies the item type; otherwise the intersection of the
+    /// referenced types and the inline members (<c>(PaginationResult &amp; { items?: Item[] })</c>).
+    /// </summary>
+    private static string BuildAllOfTypeScriptType(IList<IOpenApiSchema> allOf)
+    {
+        var refs = allOf.OfType<OpenApiSchemaReference>().ToList();
+        var inlineMembers = allOf.OfType<OpenApiSchema>().Where(s => s.Properties is { Count: > 0 }).ToList();
+
+        if (TryGetGenericPagination(allOf, out var baseName, out var itemType, out _))
+        {
+            return $"{baseName}<{itemType}>";
+        }
+
+        var parts = refs
+            .Select(r => r.ComponentName)
+            .Where(name => !string.IsNullOrEmpty(name))
+            .Select(name => name!)
+            .ToList();
+
+        foreach (var member in inlineMembers)
+        {
+            var required = member.Required ?? new HashSet<string>(StringComparer.Ordinal);
+            var members = member.Properties!.Select(p =>
+                $"{(IsTypeScriptIdentifier(p.Key) ? p.Key : $"'{p.Key}'")}{(required.Contains(p.Key) ? string.Empty : "?")}: {p.Value.ToTypeScriptReturnType()}");
+            parts.Add("{ " + string.Join("; ", members) + " }");
+        }
+
+        return parts.Count switch
+        {
+            0 => "unknown",
+            1 => parts[0],
+
+            // Parenthesized so it stays one type where callers embed it (`readonly X[]`, `X | null`).
+            _ => "(" + string.Join(" & ", parts) + ")",
+        };
+    }
+
+    /// <summary>
+    /// A pagination base: an object with an array property whose items are untyped (<c>items: {}</c>) -
+    /// the TypeScript model extractor emits it as <c>Name&lt;T&gt;</c>.
+    /// </summary>
+    private static bool IsGenericPaginationBase(IOpenApiSchema? schema)
+        => schema?.Properties?.Values.Any(p =>
+               p is OpenApiSchema arraySchema && arraySchema.IsOfType(JsonSchemaType.Array) &&
+               (arraySchema.Items is null ||
+                (arraySchema.Items is OpenApiSchema { Type: null } itemSchema &&
+                 itemSchema.Properties?.Count is null or 0))) == true;
+
+    private static bool IsTypeScriptIdentifier(string name)
+        => name.Length > 0 &&
+           (char.IsLetter(name[0]) || name[0] is '_' or '$') &&
+           name.All(c => char.IsLetterOrDigit(c) || c is '_' or '$');
 
     /// <summary>
     /// Builds a TypeScript union from a schema's <c>oneOf</c> or <c>anyOf</c> branches, e.g.
@@ -296,7 +442,7 @@ public static class TypeScriptTypeMapper
                 return null;
             }
 
-            var refName = branchRef.Reference.Id ?? branchRef.Id;
+            var refName = branchRef.ComponentName;
             if (string.IsNullOrEmpty(refName))
             {
                 return null;
@@ -355,7 +501,7 @@ public static class TypeScriptTypeMapper
         }
 
         // Open tuple: the regular Items schema describes the rest element type.
-        var restType = GetArrayItemTypeScript(schema);
+        var restType = GetArrayItemTypeScript(schema, convertDates);
         return "[" + string.Join(", ", prefixTypes) + ", ..." + restType + "[]]";
     }
 
@@ -393,14 +539,14 @@ public static class TypeScriptTypeMapper
         JsonObject schemaObj,
         bool convertDates)
     {
-        var refStr = schemaObj["$ref"]?.GetValue<string>();
+        var refStr = JsonKeywordReader.StringOrNull(schemaObj["$ref"]);
         if (refStr is not null)
         {
             return ExtractRefName(refStr);
         }
 
-        var typeStr = schemaObj["type"]?.GetValue<string>();
-        var format = schemaObj["format"]?.GetValue<string>();
+        var typeStr = JsonKeywordReader.StringOrNull(schemaObj["type"]);
+        var format = JsonKeywordReader.StringOrNull(schemaObj["format"]);
 
         return typeStr switch
         {
@@ -411,31 +557,6 @@ public static class TypeScriptTypeMapper
             "array" => "unknown[]",
             _ => "unknown",
         };
-    }
-
-    /// <summary>
-    /// Locates the <c>prefixItems</c> JSON array on a schema. OpenAPI 3.1 specs land it in
-    /// <see cref="Microsoft.OpenApi.OpenApiSchema.UnrecognizedKeywords"/>; older specs that
-    /// jam it through the extension layer land it in <see cref="Microsoft.OpenApi.OpenApiSchema.Extensions"/>.
-    /// </summary>
-    private static JsonArray? GetPrefixItemsArray(OpenApiSchema schema)
-    {
-        if (schema.UnrecognizedKeywords is not null &&
-            schema.UnrecognizedKeywords.TryGetValue("prefixItems", out var unrecognizedNode) &&
-            unrecognizedNode is JsonArray unrecognizedArray)
-        {
-            return unrecognizedArray;
-        }
-
-        if (schema.Extensions is not null &&
-            schema.Extensions.TryGetValue("prefixItems", out var extension) &&
-            extension is JsonNodeExtension jsonNodeExt &&
-            jsonNodeExt.Node is JsonArray extensionArray)
-        {
-            return extensionArray;
-        }
-
-        return null;
     }
 
     private static string ExtractRefName(string refStr)
@@ -450,7 +571,9 @@ public static class TypeScriptTypeMapper
     /// <summary>
     /// Gets the TypeScript item type for an array schema.
     /// </summary>
-    private static string GetArrayItemTypeScript(OpenApiSchema arraySchema)
+    private static string GetArrayItemTypeScript(
+        OpenApiSchema arraySchema,
+        bool convertDates = false)
     {
         if (arraySchema.Items is null)
         {
@@ -459,12 +582,12 @@ public static class TypeScriptTypeMapper
 
         if (arraySchema.Items is OpenApiSchemaReference itemRef)
         {
-            return itemRef.Reference.Id ?? itemRef.Id ?? "unknown";
+            return itemRef.ComponentName ?? "unknown";
         }
 
         if (arraySchema.Items is OpenApiSchema itemSchema)
         {
-            return itemSchema.Type.ToTypeScriptTypeName(itemSchema.Format);
+            return itemSchema.Type.ToTypeScriptTypeName(itemSchema.Format, convertDates);
         }
 
         return "unknown";

@@ -34,12 +34,15 @@ internal static class PolymorphicTypeEmitter
     /// <param name="projectName">The root namespace.</param>
     /// <param name="schemaNames">The schema names owned by this namespace.</param>
     /// <param name="pathSegment">The path segment, or <see langword="null"/> for shared models.</param>
+    /// <param name="boundRequestModels">The server's models bound by their own reader: a base among them (a JSON-only request
+    /// body) is partial and gets the generated <c>BindAsync</c>. Null for a client.</param>
     public static void Emit(
         GeneratedSourceContext context,
         OpenApiDocument openApiDoc,
         string projectName,
         HashSet<string> schemaNames,
-        string? pathSegment)
+        string? pathSegment,
+        Dictionary<string, ServerBoundModel>? boundRequestModels = null)
     {
         var polymorphicConfigs = PolymorphicTypeExtractor.ExtractPolymorphicConfigs(openApiDoc);
 
@@ -67,9 +70,20 @@ internal static class PolymorphicTypeEmitter
                 ? PolymorphicTypeExtractor.GenerateUnionBaseType(config, projectName, pathSegment, additionalUsings)
                 : PolymorphicTypeExtractor.GeneratePolymorphicBaseType(config, projectName, pathSegment, additionalUsings);
 
-            context.AddSource(
+            // A base a JSON-only request body is: partial, with the generated reader that names a value it cannot read
+            if (boundRequestModels?.TryGetValue(polymorphicConfig.Key, out var bound) == true)
+            {
+                baseContent = baseContent
+                    .Replace($"public abstract record {config.BaseTypeName};", $"public abstract partial record {config.BaseTypeName};")
+                    .Replace($"public sealed record {config.BaseTypeName}(", $"public sealed partial record {config.BaseTypeName}(");
+                context.AddGeneratedSource(
+                    NamespaceBuilder.ToFileName(modelsNamespace, config.BaseTypeName + "Binding"),
+                    XmlModelMapperExtractor.GenerateBinding(config.BaseTypeName, modelsNamespace, projectName, bound));
+            }
+
+            context.AddGeneratedSource(
                 NamespaceBuilder.ToFileName(modelsNamespace, config.BaseTypeName),
-                SourceText.From(baseContent.NormalizeForSourceOutput(), Encoding.UTF8));
+                baseContent);
 
             var converterContent = GetConverterContent(config, projectName, pathSegment, additionalUsings);
             if (converterContent is null)
@@ -77,9 +91,9 @@ internal static class PolymorphicTypeEmitter
                 continue;
             }
 
-            context.AddSource(
+            context.AddGeneratedSource(
                 NamespaceBuilder.ToFileName(modelsNamespace, $"{config.BaseTypeName}JsonConverter"),
-                SourceText.From(converterContent.NormalizeForSourceOutput(), Encoding.UTF8));
+                converterContent);
         }
     }
 
@@ -98,11 +112,11 @@ internal static class PolymorphicTypeEmitter
             return PolymorphicTypeExtractor.GenerateUnionConverter(config, projectName, pathSegment, additionalUsings);
         }
 
-        // A discriminated type only needs a converter to honour a defaultMapping fallback;
-        // otherwise [JsonPolymorphic] on the base already does the dispatch.
-        return config.DefaultVariantTypeName is null
-            ? null
-            : PolymorphicTypeExtractor.GenerateDiscriminatorFallbackConverter(config, projectName, pathSegment, additionalUsings);
+        // A discriminated type needs a converter to honour a defaultMapping fallback, or when a variant declares
+        // the discriminator property ([JsonPolymorphic] refuses that); otherwise the attributes do the dispatch.
+        return config.UsesDiscriminatorConverter
+            ? PolymorphicTypeExtractor.GenerateDiscriminatorFallbackConverter(config, projectName, pathSegment, additionalUsings)
+            : null;
     }
 
     /// <summary>

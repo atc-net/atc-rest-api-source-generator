@@ -969,6 +969,8 @@ components:
     # ========================================
     Address:
       title: Address
+      x-implements:
+        - IEquatable<Address>
       description: Postal address with validation constraints
       type: object
       required:

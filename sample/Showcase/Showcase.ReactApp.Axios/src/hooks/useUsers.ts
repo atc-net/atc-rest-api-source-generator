@@ -65,6 +65,10 @@ export function useCreateUser() {
       if (result.status === 'created') {
         return result.data;
       }
+      // A 400 keeps its field errors (the specification's and the domain's), for the form to show at each field
+      if (result.status === 'badRequest') {
+        throw result.error;
+      }
       throw new ApiError(
         result.response.status,
         result.response.statusText,
@@ -85,6 +89,9 @@ export function useUpdateUser(userId: string) {
       const result = await usersClient.updateUserById(userId, body);
       if (result.status === 'ok') {
         return result.data;
+      }
+      if (result.status === 'badRequest') {
+        throw result.error;
       }
       throw new ApiError(
         result.response.status,
@@ -114,8 +121,11 @@ export function useDeleteUser() {
         result.response,
       );
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: userKeys.all });
+    onSuccess: (_, userId) => {
+      // The deleted user is gone: its details are marked stale but not read again now (that would be a 404 on the
+      // page that just deleted it) - only the lists are refreshed
+      queryClient.invalidateQueries({ queryKey: userKeys.detail(userId), refetchType: 'none' });
+      queryClient.invalidateQueries({ queryKey: [...userKeys.all, 'list'] });
     },
   });
 }

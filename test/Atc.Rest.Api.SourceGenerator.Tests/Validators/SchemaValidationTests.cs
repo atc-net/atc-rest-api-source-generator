@@ -776,6 +776,46 @@ public class SchemaValidationTests
         Assert.Contains("User_Profile", sch018.Message, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// Two schema names that differ only by case (<c>User</c> / <c>user</c>) are two types with one file name - the
+    /// generator fails on the duplicate hint name - so the collision is an error under every strategy, None included.
+    /// </summary>
+    [Theory]
+    [InlineData(ValidateSpecificationStrategy.None)]
+    [InlineData(ValidateSpecificationStrategy.Standard)]
+    [InlineData(ValidateSpecificationStrategy.Strict)]
+    public void Validate_SchemaNamesThatDifferOnlyByCase_ReportsSCH018UnderEveryStrategy(
+        ValidateSpecificationStrategy strategy)
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                User:
+                                  type: object
+                                  properties:
+                                    name:
+                                      type: string
+                                user:
+                                  type: object
+                                  properties:
+                                    age:
+                                      type: integer
+                            """;
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var diagnostics = OpenApiDocumentValidator.Validate(strategy, document, [], TestFilePath);
+
+        var sch018 = Assert.Single(diagnostics, d => d.RuleId == Generator.RuleIdentifiers.SchemaNameCollision);
+        Assert.Equal(Generator.Models.DiagnosticSeverity.Error, sch018.Severity);
+        Assert.Contains("user", sch018.Message, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void Validate_SchemasWithDistinctIdentifiers_NoSCH018()
     {

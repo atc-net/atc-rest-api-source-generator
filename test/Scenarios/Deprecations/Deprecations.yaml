@@ -1,0 +1,103 @@
+openapi: 3.0.1
+info:
+  title: Deprecations
+  version: 1.0.0
+paths:
+  /pets:
+    get:
+      operationId: listPets
+      parameters:
+        - name: tag
+          in: query
+          deprecated: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Pet'
+    post:
+      operationId: createPet
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Pet'
+          application/xml:
+            schema:
+              $ref: '#/components/schemas/Pet'
+      responses:
+        '201':
+          description: Created
+  /pets/legacy:
+    get:
+      operationId: listLegacyPets
+      deprecated: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LegacyPet'
+  /pets/{petId}/photo:
+    put:
+      operationId: updatePetPhoto
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PetPhoto'
+      responses:
+        '204':
+          description: Uploaded
+components:
+  schemas:
+    Pet:
+      title: Pet
+      type: object
+      xml:
+        name: pet
+      properties:
+        name:
+          type: string
+        nickname:
+          type: string
+          deprecated: true
+          description: Use name.
+    LegacyPet:
+      title: LegacyPet
+      type: object
+      deprecated: true
+      properties:
+        name:
+          type: string
+    PetPhoto:
+      title: PetPhoto
+      type: object
+      properties:
+        file:
+          type: string
+          format: binary
+        caption:
+          type: string
+          deprecated: true

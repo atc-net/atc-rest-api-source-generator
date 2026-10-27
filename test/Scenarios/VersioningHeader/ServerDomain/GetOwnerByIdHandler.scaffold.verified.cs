@@ -5,6 +5,9 @@ namespace VersioningHeader.ApiHandlers;
 /// </summary>
 public sealed class GetOwnerByIdHandler : IGetOwnerByIdHandler
 {
+    /// <summary>
+    /// Executes the GetOwnerById operation.
+    /// </summary>
     public Task<GetOwnerByIdResult> ExecuteAsync(
         GetOwnerByIdParameters parameters,
         CancellationToken cancellationToken = default)

@@ -3,7 +3,6 @@ namespace Atc.Rest.Api.Generator.Tests.Helpers;
 public class JsonPropertyNameHelperTests
 {
     [Theory]
-    [InlineData("Status", "Status")]
     [InlineData("id", "Id")]
     [InlineData("errorText", "ErrorText")]
     public void CreateJsonPropertyNameAttribute_WhenNotRequired_ReturnsNull(
@@ -22,6 +21,7 @@ public class JsonPropertyNameHelperTests
     [InlineData("x-correlation-id", "XCorrelationId", "x-correlation-id")]
     [InlineData("sender_MarketParticipant.name", "SenderMarketParticipantName", "sender_MarketParticipant.name")]
     [InlineData("mRID", "MRid", "mRID")]
+    [InlineData("Status", "Status", "Status")]
     public void CreateJsonPropertyNameAttribute_WhenRequired_ReturnsExpectedAttribute(
         string jsonKey,
         string csharpPropertyName,
@@ -54,11 +54,18 @@ public class JsonPropertyNameHelperTests
         Assert.False(result);
     }
 
+    /// <summary>
+    /// A key that already is the C# name (PascalCase) still needs the attribute: the camelCase naming policy of the
+    /// web serializer defaults would write it as "status", not "Status".
+    /// </summary>
     [Theory]
     [InlineData("Status", "Status")]
     [InlineData("Id", "Id")]
     [InlineData("ErrorText", "ErrorText")]
-    public void RequiresJsonPropertyName_WithExactMatch_ReturnsFalse(
+    [InlineData("Success", "Success")]
+    [InlineData("Pet", "Pet")]
+    [InlineData("StatusValue", "StatusValue")]
+    public void RequiresJsonPropertyName_WithPascalCaseKeyEqualToThePropertyName_ReturnsTrue(
         string jsonKey,
         string csharpPropertyName)
     {
@@ -66,7 +73,7 @@ public class JsonPropertyNameHelperTests
             jsonKey,
             csharpPropertyName);
 
-        Assert.False(result);
+        Assert.True(result);
     }
 
     [Theory]
@@ -143,7 +150,6 @@ public class JsonPropertyNameHelperTests
     }
 
     [Theory]
-    [InlineData("StatusValue", "StatusValue")]
     [InlineData("statusValue", "StatusValue")]
     public void RequiresJsonPropertyName_WithEnclosingTypeCollisionRename_ReturnsFalse(
         string jsonKey,
@@ -178,20 +184,6 @@ public class JsonPropertyNameHelperTests
     [InlineData("errorText", "ErrorText")]
     [InlineData("id", "Id")]
     public void RequiresJsonPropertyName_StandardCamelCase_ReturnsFalse(
-        string jsonKey,
-        string csharpPropertyName)
-    {
-        var result = JsonPropertyNameHelper.RequiresJsonPropertyName(
-            jsonKey,
-            csharpPropertyName);
-
-        Assert.False(result);
-    }
-
-    [Theory]
-    [InlineData("Success", "Success")]
-    [InlineData("Pet", "Pet")]
-    public void RequiresJsonPropertyName_StandardPascalCase_ReturnsFalse(
         string jsonKey,
         string csharpPropertyName)
     {

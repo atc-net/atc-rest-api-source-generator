@@ -1,0 +1,90 @@
+@page "/documents"
+
+<PageTitle>Documents</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-2">Documents</MudText>
+<MudText Typo="Typo.body2" Class="mb-4">
+    PDF, Excel, PNG and JPEG files sent as the raw request body, with their own media type (the upload declares
+    several, and the server's handler gets the one that arrived). A download comes back with its media type and its
+    file name, and the summary is a model or a file: JSON, or the same summary as a PDF.
+</MudText>
+
+<MudPaper Class="pa-4 mb-4" Elevation="1">
+    <MudText Typo="Typo.h6" Class="mb-2">Upload</MudText>
+    <InputFile OnChange="UploadAsync" multiple accept=".pdf,.xlsx,.png,.jpg,.jpeg" data-testid="documents-file" />
+    <MudText Typo="Typo.body2" Class="mt-2" data-testid="documents-status">@status</MudText>
+</MudPaper>
+
+<MudPaper Class="pa-4 mb-4" Elevation="1">
+    <MudText Typo="Typo.h6" Class="mb-2">Uploaded documents</MudText>
+    @if (documents.Count == 0)
+    {
+        <MudText Typo="Typo.body2" data-testid="documents-empty">No documents yet - upload one above.</MudText>
+    }
+    else
+    {
+        <MudSimpleTable Dense="true" Hover="true">
+            <thead>
+                <tr>
+                    <th>File name</th>
+                    <th>Media type</th>
+                    <th>Size</th>
+                    <th>SHA-256</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var document in documents)
+                {
+                    <tr data-testid="document-row" data-file-name="@document.FileName">
+                        <td>@document.FileName</td>
+                        <td>@document.ContentType</td>
+                        <td>@FormatSize(document.Length)</td>
+                        <td><code>@document.Sha256[..12]…</code></td>
+                        <td>
+                            <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="() => DownloadAsync(document)" data-testid="document-download">Download</MudButton>
+                            <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="() => PreviewAsync(document)" data-testid="document-preview">Preview</MudButton>
+                            <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="() => SummaryAsync(document, printable: false)" data-testid="document-summary">Summary</MudButton>
+                            <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="() => SummaryAsync(document, printable: true)" data-testid="document-summary-pdf">Summary as PDF</MudButton>
+                            <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="() => CopyAsync(document)" data-testid="document-copy">Copy</MudButton>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </MudSimpleTable>
+    }
+    @if (copyStatus is not null)
+    {
+        <MudText Typo="Typo.body2" Class="mt-2" data-testid="document-copy-status">@copyStatus</MudText>
+    }
+</MudPaper>
+
+@if (previewDataUrl is not null)
+{
+    <MudPaper Class="pa-4 mb-4" Elevation="1">
+        <MudText Typo="Typo.h6" Class="mb-2">Preview: @previewFileName</MudText>
+        <img src="@previewDataUrl" alt="@previewFileName" style="max-width: 100%; max-height: 320px;" data-testid="document-preview-image" />
+    </MudPaper>
+}
+else if (previewMessage is not null)
+{
+    <MudAlert Severity="Severity.Info" Class="mb-4" data-testid="document-preview-message">@previewMessage</MudAlert>
+}
+
+@if (summary is not null)
+{
+    <MudPaper Class="pa-4 mb-4" Elevation="1" data-testid="document-summary-json">
+        <MudText Typo="Typo.h6" Class="mb-2">Summary (JSON)</MudText>
+        <MudText Typo="Typo.body2">File name: <span data-testid="summary-file-name">@summary.FileName</span></MudText>
+        <MudText Typo="Typo.body2">Kind: <span data-testid="summary-kind">@summary.Kind</span></MudText>
+        <MudText Typo="Typo.body2">Media type: @summary.ContentType</MudText>
+        <MudText Typo="Typo.body2">Size: @FormatSize(summary.Length)</MudText>
+        <MudText Typo="Typo.body2">SHA-256: <code>@summary.Sha256</code></MudText>
+        <MudText Typo="Typo.body2">ETag: <code data-testid="summary-etag">@summaryETag</code></MudText>
+        <MudButton Size="Size.Small" Variant="Variant.Outlined" Class="mt-2" OnClick="CheckSummaryAsync" data-testid="summary-check">Check for changes</MudButton>
+        @if (summaryCheck is not null)
+        {
+            <MudText Typo="Typo.body2" Class="mt-2" data-testid="summary-check-status">@summaryCheck</MudText>
+        }
+    </MudPaper>
+}

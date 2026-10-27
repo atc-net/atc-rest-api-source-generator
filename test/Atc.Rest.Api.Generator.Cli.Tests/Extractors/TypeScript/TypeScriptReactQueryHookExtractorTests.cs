@@ -9,12 +9,274 @@ public class TypeScriptReactQueryHookExtractorTests
             () => TypeScriptReactQueryHookExtractor.Extract(openApiDoc: null, headerContent: null));
     }
 
+    /// <summary>
+    /// HEAD, OPTIONS and TRACE read nothing a component renders and change nothing: they get no hook - least of all
+    /// a mutation that invalidates the cached queries - while the GET next to them keeps its own.
+    /// </summary>
+    [Theory]
+    [InlineData("head", "Head")]
+    [InlineData("options", "Options")]
+    [InlineData("trace", "Trace")]
+    public void Extract_ASafeMetadataVerb_GetsNoHook(
+        string method,
+        string name)
+    {
+        var yaml = $$"""
+                     openapi: 3.0.0
+                     info: { title: T, version: 1.0.0 }
+                     paths:
+                       /pets:
+                         get:
+                           operationId: listPets
+                           responses:
+                             '200':
+                               description: OK
+                               content:
+                                 application/json:
+                                   schema:
+                                     type: array
+                                     items: { type: string }
+                         {{method}}:
+                           operationId: {{method}}Pets
+                           responses:
+                             '200':
+                               description: OK
+                     """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptReactQueryHookExtractor.Extract(doc, headerContent: null));
+
+        Assert.Contains("useListPets", content, StringComparison.Ordinal);
+        Assert.DoesNotContain($"use{name}Pets", content, StringComparison.Ordinal);
+        Assert.DoesNotContain($"{method}Pets(", content, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void Extract_NoPaths_ReturnsEmpty()
     {
         var result = TypeScriptReactQueryHookExtractor.Extract(new OpenApiDocument(), headerContent: null);
 
         Assert.Empty(result);
+    }
+
+    [Fact]
+    public void Extract_Hooks_RethrowTheClientsApiError()
+    {
+        // The client already built the right ApiError (a ValidationError with its errors, the parsed
+        // body, detail, title); the hook re-throws it instead of rebuilding a bare ApiError.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /pets:
+                                get:
+                                  operationId: listPets
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: array
+                                            items: { type: string }
+                                post:
+                                  operationId: createPet
+                                  requestBody:
+                                    content:
+                                      application/json:
+                                        schema: { type: string }
+                                  responses:
+                                    '201':
+                                      description: Created
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptReactQueryHookExtractor.Extract(doc, headerContent: null));
+
+        Assert.Equal(2, CountOccurrences(content, "if ('error' in result && result.error instanceof ApiError) {"));
+        Assert.Equal(2, CountOccurrences(content, "throw result.error;"));
+
+        static int CountOccurrences(
+            string text,
+            string value)
+            => (text.Length - text.Replace(value, string.Empty, StringComparison.Ordinal).Length) / value.Length;
+    }
+
+    [Fact]
+    public void Extract_QueryKeyNames_AreUniqueWithinTheSegment()
+    {
+        // listAccounts and list both derive "list", allAccounts derives "all" (the factory's own base key):
+        // each would be a duplicate property of accountsKeys (TS1117) and share cache entries.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /accounts:
+                                get:
+                                  operationId: listAccounts
+                                  responses:
+                                    '200': { description: OK, content: { application/json: { schema: { type: string } } } }
+                              /accounts/list:
+                                get:
+                                  operationId: list
+                                  responses:
+                                    '200': { description: OK, content: { application/json: { schema: { type: string } } } }
+                              /accounts/all:
+                                get:
+                                  operationId: allAccounts
+                                  responses:
+                                    '200': { description: OK, content: { application/json: { schema: { type: string } } } }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptReactQueryHookExtractor.Extract(doc, headerContent: null));
+
+        var keyFactory = content[content.IndexOf("const accountsKeys = {", StringComparison.Ordinal)..content.IndexOf("};", StringComparison.Ordinal)];
+        var keyNames = Regex.Matches(keyFactory, @"^  (?<key>\w+):", RegexOptions.Multiline, TimeSpan.FromSeconds(1))
+            .Select(m => m.Groups["key"].Value)
+            .ToList();
+        Assert.Equal(keyNames.Distinct(StringComparer.Ordinal).Count(), keyNames.Count);
+        Assert.Equal(["all", "list", "list2", "allAccounts"], keyNames);
+        Assert.Contains("accountsKeys.allAccounts()", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_QueryOptionsFactory_PassesReactQuerysSignal_AndTheHooksAreBuiltOnIt()
+    {
+        // queryOptions is the TanStack v5 way to share a query between useQuery, prefetchQuery,
+        // ensureQueryData and route loaders; the queryFn hands React Query's signal to the client so an
+        // unused or cancelled query stops its request. A mutation is not cancelled by React Query.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /pets:
+                                get:
+                                  operationId: listPets
+                                  parameters:
+                                    - { name: limit, in: query, schema: { type: integer } }
+                                  responses:
+                                    '200': { description: OK, content: { application/json: { schema: { type: array, items: { type: string } } } } }
+                                post:
+                                  operationId: createPet
+                                  requestBody:
+                                    required: true
+                                    content:
+                                      application/json:
+                                        schema: { type: string }
+                                  responses:
+                                    '201': { description: Created }
+                              /pets/{petId}:
+                                get:
+                                  operationId: showPetById
+                                  parameters:
+                                    - { name: petId, in: path, required: true, schema: { type: string } }
+                                  responses:
+                                    '200': { description: OK, content: { application/json: { schema: { type: string } } } }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptReactQueryHookExtractor.Extract(doc, headerContent: null));
+        var normalized = content.Replace("\r\n", "\n", StringComparison.Ordinal);
+
+        Assert.Contains("import { queryOptions, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';", normalized, StringComparison.Ordinal);
+        Assert.Contains("import type { ApiService } from '../client/ApiService';", normalized, StringComparison.Ordinal);
+        Assert.Contains("const petsQueries = {", normalized, StringComparison.Ordinal);
+        Assert.Contains("export { petsQueries };", normalized, StringComparison.Ordinal);
+        Assert.Contains("  listPets: (api: ApiService, query?: { limit?: number }) => queryOptions<string[], ApiError>({\n    queryKey: petsKeys.list(query),\n    queryFn: async ({ signal }) => {\n      const result = await api.pets.listPets(query, signal);", normalized, StringComparison.Ordinal);
+        Assert.Contains("  showPetById: (api: ApiService, petId: string) => queryOptions<string, ApiError>({", normalized, StringComparison.Ordinal);
+        Assert.Contains("const result = await api.pets.showPetById(petId, signal);", normalized, StringComparison.Ordinal);
+        Assert.Contains("  return useQuery({\n    ...petsQueries.listPets(api, query),\n    ...options,\n  });", normalized, StringComparison.Ordinal);
+        Assert.Contains("  return useQuery({\n    ...petsQueries.showPetById(api, petId),\n    ...options,\n    enabled: petId != null && (options?.enabled ?? true),\n  });", normalized, StringComparison.Ordinal);
+        Assert.Contains("const result = await api.pets.createPet(body);", normalized, StringComparison.Ordinal);
+        Assert.DoesNotContain("createPet: (api", normalized, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_OnlyMutations_HaveNoQueryOptionsFactory()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /pets:
+                                post:
+                                  operationId: createPet
+                                  responses:
+                                    '201': { description: Created }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptReactQueryHookExtractor.Extract(doc, headerContent: null));
+
+        Assert.DoesNotContain("Queries = {", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("queryOptions", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("import type { ApiService }", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_QueryHook_LeavesRetryToTheApiClient_WhenTheSpecificationDeclaresRetry()
+    {
+        // The ApiClient retries per operation (x-retry-*); React Query's own retry would multiply the
+        // attempts. retry: false comes before ...options so a caller can still turn it back on.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            x-retry-policy: standard
+                            paths:
+                              /pets:
+                                get:
+                                  operationId: listPets
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: array
+                                            items: { type: string }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptReactQueryHookExtractor.Extract(doc, headerContent: null));
+
+        var retry = content.IndexOf("    retry: false,", StringComparison.Ordinal);
+        Assert.True(retry >= 0, "expected retry: false in the query hook");
+        Assert.True(retry < content.IndexOf("    ...options,", retry, StringComparison.Ordinal), "retry: false must precede ...options");
+    }
+
+    [Fact]
+    public void Extract_QueryHook_LeavesRetryToTheApp_WhenTheSpecificationDeclaresNone()
+    {
+        // Without x-retry-* the ApiClient does not retry: the app's own retry default (its QueryClient) applies
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /pets:
+                                get:
+                                  operationId: listPets
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: array
+                                            items: { type: string }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptReactQueryHookExtractor.Extract(doc, headerContent: null));
+
+        Assert.DoesNotContain("retry: false", content, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -212,16 +474,16 @@ public class TypeScriptReactQueryHookExtractorTests
 
         // The hook function signature includes a headers arg.
         Assert.Contains(
-            "headers?: { 'X-Correlation-Id': string }",
+            "headers: { 'X-Correlation-Id': string }",
             content,
             StringComparison.Ordinal);
 
         // Headers are forwarded to the client method call inside the queryFn.
-        Assert.Contains("api.items.listItems(query, headers)", content, StringComparison.Ordinal);
+        Assert.Contains("api.items.listItems(query, headers, signal)", content, StringComparison.Ordinal);
 
-        // The keys factory (everything before the first `export function`) must NOT
+        // The keys factory (everything before its export) must NOT
         // mention the header name — that's the cache-fragmentation we explicitly avoid.
-        var keysFactorySection = content[..content.IndexOf("export function", StringComparison.Ordinal)];
+        var keysFactorySection = content[..content.IndexOf("export { itemsKeys };", StringComparison.Ordinal)];
         Assert.DoesNotContain("X-Correlation-Id", keysFactorySection, StringComparison.Ordinal);
     }
 
@@ -406,7 +668,7 @@ public class TypeScriptReactQueryHookExtractorTests
         // Query bag must contribute to the effect dependency list so changing the filter
         // restarts the stream instead of staying on the previous filter's data.
         Assert.Contains("const keyDep = JSON.stringify({ query });", content, StringComparison.Ordinal);
-        Assert.Contains("}, [enabled, keyDep]);", content, StringComparison.Ordinal);
+        Assert.Contains("}, [enabled, api, keyDep]);", content, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -584,7 +846,7 @@ public class TypeScriptReactQueryHookExtractorTests
 
         var (_, content) = Assert.Single(TypeScriptReactQueryHookExtractor.Extract(doc, headerContent: null));
 
-        Assert.Contains("api.items._1stPage(", content, StringComparison.Ordinal);
+        Assert.Contains("api.items.op1stPage(", content, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -683,7 +945,7 @@ public class TypeScriptReactQueryHookExtractorTests
 
         // Spread order: caller options spread FIRST, then the composed onSuccess wins.
         var spreadIdx = content.IndexOf("...options,", StringComparison.Ordinal);
-        var onSuccessIdx = content.IndexOf("onSuccess: (data, variables, onMutateResult, context)", StringComparison.Ordinal);
+        var onSuccessIdx = content.IndexOf("onSuccess: async (data, variables, onMutateResult, context)", StringComparison.Ordinal);
         Assert.True(
             spreadIdx > 0 &&
             onSuccessIdx > 0 &&
@@ -762,7 +1024,7 @@ public class TypeScriptReactQueryHookExtractorTests
             headerContent: null,
             hooksMode: TypeScriptHooksMode.Suspense));
 
-        Assert.Contains("import { useSuspenseQuery } from '@tanstack/react-query';", content, StringComparison.Ordinal);
+        Assert.Contains("import { queryOptions, useSuspenseQuery } from '@tanstack/react-query';", content, StringComparison.Ordinal);
         Assert.Contains("import type { UseSuspenseQueryOptions } from '@tanstack/react-query';", content, StringComparison.Ordinal);
         Assert.Contains("return useSuspenseQuery({", content, StringComparison.Ordinal);
         Assert.Contains(
@@ -812,7 +1074,7 @@ public class TypeScriptReactQueryHookExtractorTests
             headerContent: null,
             hooksMode: TypeScriptHooksMode.Both));
 
-        Assert.Contains("import { useQuery, useSuspenseQuery } from '@tanstack/react-query';", content, StringComparison.Ordinal);
+        Assert.Contains("import { queryOptions, useQuery, useSuspenseQuery } from '@tanstack/react-query';", content, StringComparison.Ordinal);
         Assert.Contains("export function useListPets(", content, StringComparison.Ordinal);
         Assert.Contains("export function useListPetsSuspense(", content, StringComparison.Ordinal);
         Assert.Contains("return useQuery({", content, StringComparison.Ordinal);
@@ -820,11 +1082,73 @@ public class TypeScriptReactQueryHookExtractorTests
     }
 
     [Fact]
-    public void Extract_PaginatedStreamingOperation_EmitsBothStreamAndInfiniteHooks()
+    public void Extract_PaginatedRead_EmitsAnInfiniteHookThroughItsContinuationParameter()
     {
-        // Operations with x-return-async-enumerable + allOf(PaginationResult, ...) get
-        // BOTH the streaming hook (Option A) AND a useInfiniteQuery sibling (Option B)
-        // that consumes a synthesized non-streaming Page companion on the client.
+        // A plain paginated GET gets its query hook AND a useInfiniteQuery sibling: the response's
+        // token property goes back through the operation's own continuation query parameter.
+        const string yaml = """
+                            openapi: 3.0.3
+                            info: { title: t, version: '1' }
+                            paths:
+                              /items/paginated:
+                                get:
+                                  operationId: listPaginatedItems
+                                  parameters:
+                                    - { name: pageSize, in: query, schema: { type: integer } }
+                                    - { name: continuation, in: query, schema: { type: string } }
+                                    - { name: x-tenant, in: header, schema: { type: string } }
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            allOf:
+                                              - $ref: '#/components/schemas/PaginatedResult'
+                                              - type: object
+                                                properties:
+                                                  results:
+                                                    type: array
+                                                    items:
+                                                      $ref: '#/components/schemas/Item'
+                            components:
+                              schemas:
+                                Item:
+                                  type: object
+                                  properties:
+                                    id: { type: string }
+                                PaginatedResult:
+                                  type: object
+                                  properties:
+                                    continuation:
+                                      type: string
+                                      nullable: true
+                                    results: { type: array, items: {} }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptReactQueryHookExtractor.Extract(doc, headerContent: null));
+
+        Assert.Contains("import { queryOptions, infiniteQueryOptions, useQuery, useInfiniteQuery } from '@tanstack/react-query';", content, StringComparison.Ordinal);
+        Assert.Contains("export function useListPaginatedItems(query?: { pageSize?: number; continuation?: string }, headers?: { 'x-tenant'?: string }", content, StringComparison.Ordinal);
+        Assert.Contains("export function useListPaginatedItemsInfinite(query?: { pageSize?: number }, headers?: { 'x-tenant'?: string }, options?: Omit<UseInfiniteQueryOptions<", content, StringComparison.Ordinal);
+        Assert.Contains("'queryKey' | 'queryFn' | 'initialPageParam' | 'getNextPageParam'>) {", content, StringComparison.Ordinal);
+        Assert.Contains("    ...itemsQueries.listPaginatedItemsInfinite(api, query, headers),\n    ...options,\n  });", content.Replace("\r\n", "\n", StringComparison.Ordinal), StringComparison.Ordinal);
+        Assert.Contains("listPaginatedItemsInfinite: (api: ApiService, query?: { pageSize?: number }, headers?: { 'x-tenant'?: string }) => infiniteQueryOptions<", content, StringComparison.Ordinal);
+        Assert.Contains("queryFn: async ({ pageParam, signal }: { pageParam: string | undefined; signal: AbortSignal }) => {", content, StringComparison.Ordinal);
+        Assert.Contains("queryKey: itemsKeys.listPaginatedInfinite(query),", content, StringComparison.Ordinal);
+        Assert.Contains("listPaginatedInfinite: (query?: { pageSize?: number })", content, StringComparison.Ordinal);
+        Assert.Contains("api.items.listPaginatedItems({ ...query, continuation: pageParam ?? undefined }, headers, signal)", content, StringComparison.Ordinal);
+        Assert.Contains("getNextPageParam: (lastPage, _allPages, lastPageParam) => { const next = lastPage.continuation || undefined; return next !== lastPageParam ? next : undefined; },", content, StringComparison.Ordinal);
+
+        // No x-retry-*: the app's own retry applies to the pages too
+        Assert.DoesNotContain("retry: false,", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_PaginatedStreamingOperation_EmitsOnlyTheStreamHook()
+    {
         const string yaml = """
                             openapi: 3.0.3
                             info: { title: t, version: '1' }
@@ -834,9 +1158,7 @@ public class TypeScriptReactQueryHookExtractorTests
                                   operationId: listItemPages
                                   x-return-async-enumerable: true
                                   parameters:
-                                    - name: pageSize
-                                      in: query
-                                      schema: { type: integer }
+                                    - { name: continuation, in: query, schema: { type: string } }
                                   responses:
                                     '200':
                                       description: OK
@@ -853,46 +1175,27 @@ public class TypeScriptReactQueryHookExtractorTests
                                                       $ref: '#/components/schemas/Item'
                             components:
                               schemas:
-                                Item:
-                                  type: object
-                                  properties:
-                                    id: { type: string }
+                                Item: { type: object }
                                 PaginationResult:
                                   type: object
                                   properties:
-                                    continuationToken:
-                                      type: string
-                                      nullable: true
+                                    continuationToken: { type: string, nullable: true }
                             """;
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
         var (_, content) = Assert.Single(TypeScriptReactQueryHookExtractor.Extract(doc, headerContent: null));
 
-        // Streaming hook stays (Option A) for the "show everything as it arrives" UX.
         Assert.Contains("export function useListItemPagesStream(", content, StringComparison.Ordinal);
-
-        // Infinite hook arrives (Option B) for the "paginated with fetchNextPage" UX.
-        Assert.Contains("import { useInfiniteQuery", content, StringComparison.Ordinal);
-        Assert.Contains("export function useListItemPagesInfinite(", content, StringComparison.Ordinal);
-        Assert.Contains("return useInfiniteQuery({", content, StringComparison.Ordinal);
-
-        // Continuation header is threaded through from useInfiniteQuery's pageParam.
-        Assert.Contains("pageParam ? { 'x-continuation': pageParam } : undefined", content, StringComparison.Ordinal);
-
-        // getNextPageParam wires the next continuationToken into the next iteration.
-        Assert.Contains("getNextPageParam: (lastPage) => lastPage.continuationToken", content, StringComparison.Ordinal);
-
-        // The key factory has an entry for the infinite hook so its cache lives under
-        // the segment's `all` prefix.
-        Assert.Contains("listItemPagesInfinite:", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("useInfiniteQuery", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("Infinite", content, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void Extract_PaginatedStreamingOperation_ClientGainsPageCompanion()
+    public void Extract_PaginatedStreamingOperation_ClientHasNoPageCompanion()
     {
-        // The client extractor emits a `<methodName>Page` non-streaming companion
-        // alongside the existing async-generator method. The hook above relies on this.
+        // A stream of pages is one response (a JSON array of pages from the generated server), so
+        // the client has no single-page companion to page through with a token.
         const string yaml = """
                             openapi: 3.0.3
                             info: { title: t, version: '1' }
@@ -928,15 +1231,9 @@ public class TypeScriptReactQueryHookExtractorTests
 
         var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(doc, headerContent: null));
 
-        // Streaming async-generator stays.
         Assert.Contains("async *listItemPages(", content, StringComparison.Ordinal);
-
-        // Page companion adds the synthesized continuation header and returns the per-op
-        // result type, not the streaming item type.
-        Assert.Contains("async listItemPagesPage(", content, StringComparison.Ordinal);
-        Assert.Contains("'x-continuation'?: string", content, StringComparison.Ordinal);
-        Assert.Contains("Promise<ListItemPagesPageResult>", content, StringComparison.Ordinal);
-        Assert.Contains("data: PaginationResult<Item>", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("listItemPagesPage", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("x-continuation", content, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1054,7 +1351,7 @@ public class TypeScriptReactQueryHookExtractorTests
 
         var (_, content) = Assert.Single(TypeScriptReactQueryHookExtractor.Extract(doc, headerContent: null));
 
-        Assert.Contains("onSuccess: (data, variables, onMutateResult, context) => {", content, StringComparison.Ordinal);
+        Assert.Contains("onSuccess: async (data, variables, onMutateResult, context) => {", content, StringComparison.Ordinal);
         Assert.Contains("options?.onSuccess?.(data, variables, onMutateResult, context);", content, StringComparison.Ordinal);
         Assert.DoesNotContain("options?.onSuccess?.(data, variables, context);", content, StringComparison.Ordinal);
     }
@@ -1183,7 +1480,7 @@ public class TypeScriptReactQueryHookExtractorTests
         var (_, content) = Assert.Single(result);
 
         Assert.Contains("useQueryTenantResources(tenantId: string, body: ResourceQuery,", content, StringComparison.Ordinal);
-        Assert.Contains("enabled: !!tenantId && !!body,", content, StringComparison.Ordinal);
+        Assert.Contains("enabled: tenantId != null && body != null && (options?.enabled ?? true),", content, StringComparison.Ordinal);
     }
 
     private static OpenApiDocument? ParseYaml(string yaml)

@@ -5,7 +5,14 @@ namespace Atc.Rest.Api.Generator.Cli.Commands;
 /// </summary>
 public sealed class OptionsCreateCommand : Command<OptionsCommandSettings>
 {
-    protected override int Execute(
+    /// <summary>
+    /// Writes a default ApiGeneratorOptions.json to the output path, refusing to overwrite an existing file unless forced.
+    /// </summary>
+    /// <param name="context">The Spectre.Console command context.</param>
+    /// <param name="settings">The parsed command-line settings.</param>
+    /// <param name="cancellationToken">Cancels the command.</param>
+    /// <returns>0 when the file was written; otherwise 1.</returns>
+    public override int Execute(
         CommandContext context,
         OptionsCommandSettings settings,
         CancellationToken cancellationToken)
@@ -21,13 +28,13 @@ public sealed class OptionsCreateCommand : Command<OptionsCommandSettings>
             ? Path.Combine(outputPath, ApiGeneratorOptions.FileName)
             : outputPath;
 
-        AnsiConsole.MarkupLine($"[blue]Output path:[/] {filePath}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Output path:[/] {filePath}");
         AnsiConsole.WriteLine();
 
         // Check if file already exists
         if (File.Exists(filePath) && !settings.Force)
         {
-            AnsiConsole.MarkupLine($"[yellow]File already exists:[/] {filePath}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]File already exists:[/] {filePath}");
             AnsiConsole.MarkupLine("[yellow]Use --force to overwrite.[/]");
             return 1;
         }
@@ -39,7 +46,7 @@ public sealed class OptionsCreateCommand : Command<OptionsCommandSettings>
             return 1;
         }
 
-        AnsiConsole.MarkupLine($"[green]Created:[/] {filePath}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]Created:[/] {filePath}");
         AnsiConsole.WriteLine();
         AnsiConsole.MarkupLine("[dim]You can now customize the options file for your project.[/]");
 

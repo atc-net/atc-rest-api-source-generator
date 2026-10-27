@@ -6,9 +6,18 @@ namespace Atc.Rest.Api.Generator.Cli.Services.Migration;
 internal static class PackageReferenceAnalyzer
 {
     private static readonly Regex PackageReferencePattern = new(
-        @"<PackageReference\s+Include=""(?<package>[^""]+)""\s+Version=""(?<version>[^""]+)""",
+        @"<PackageReference\s+Include=""(?<package>[^""]+)""(?:\s+Version=""(?<version>[^""]+)"")?",
         RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.ExplicitCapture,
         TimeSpan.FromSeconds(1));
+
+    // The packages the generated code builds on: the version it needs, and the build error an older one gives
+    private static readonly (string Package, Version Minimum, string RuleId)[] MinimumVersions =
+    [
+        ("Atc.Rest.MinimalApi", PackageVersionDefaults.MinimalApiMin, "ATC_API_DEP013"),
+        ("Atc.Rest.Client", PackageVersionDefaults.RestClientMinFallback, "ATC_API_DEP011"),
+    ];
+
+    private static readonly char[] VersionSuffixStart = ['-', '+'];
 
     private static readonly string[] AtcPackagePrefixes =
     [
@@ -58,6 +67,7 @@ internal static class PackageReferenceAnalyzer
 
         // Identify packages that need to be removed during migration
         IdentifyPackagesToRemove(result);
+        IdentifyPackagesToUpgrade(result);
 
         return result;
     }
@@ -76,10 +86,16 @@ internal static class PackageReferenceAnalyzer
             var content = File.ReadAllText(projectFile);
             var matches = PackageReferencePattern.Matches(content);
 
+            // A versionless reference takes its version from Directory.Packages.props (Central Package Management)
+            var centralFile = CentralPackageVersions.FindFile(projectFile);
+            var centralContent = centralFile is null ? null : File.ReadAllText(centralFile);
+
             foreach (Match match in matches)
             {
                 var packageName = match.Groups["package"].Value;
-                var packageVersion = match.Groups["version"].Value;
+                var packageVersion = match.Groups["version"].Success
+                    ? match.Groups["version"].Value
+                    : CentralVersion(centralContent, packageName) ?? string.Empty;
 
                 if (IsAtcPackage(packageName))
                 {
@@ -103,11 +119,11 @@ internal static class PackageReferenceAnalyzer
 
     private static void IdentifyPackagesToRemove(PackageReferenceResult result)
     {
-        // These packages will be replaced by the source generator
-        // Note: Atc.Rest.Client is NOT removed - it's required by generated client code
+        // The old generator's runtime that the source generator replaces. Atc.Rest.MinimalApi (the server code builds
+        // on it) and Atc.Rest.Client (the client code) are upgraded, not obsolete.
         string[] packagesToRemove =
         [
-            "Atc.Rest.MinimalApi",
+            "Atc.Rest.Extended",
             "Atc.Rest.Extended.Options",
         ];
 
@@ -118,5 +134,47 @@ internal static class PackageReferenceAnalyzer
                 result.PackagesToRemove.Add(package);
             }
         }
+    }
+
+    // The packages the generated code builds on, in the version it needs: an older one stops the first build with the
+    // generator's error, so the migration names it beforehand
+    private static void IdentifyPackagesToUpgrade(PackageReferenceResult result)
+    {
+        foreach (var (package, minimum, ruleId) in MinimumVersions)
+        {
+            if (result.AtcPackages.TryGetValue(package, out var referenced) &&
+                ReleaseVersionOf(referenced) is { } version &&
+                version < minimum)
+            {
+                result.PackagesToUpgrade.Add(new PackageUpgrade(package, referenced, minimum.ToString(3), ruleId));
+            }
+        }
+    }
+
+    // A version as NuGet writes it, without its pre-release and build parts ("2.7.1-preview.3" is 2.7.1); null for a
+    // property or a range the project resolves at build time
+    private static Version? ReleaseVersionOf(string version)
+    {
+        var release = version.Split(VersionSuffixStart)[0];
+        return Version.TryParse(release, out var parsed)
+            ? new Version(parsed.Major, parsed.Minor, System.Math.Max(parsed.Build, 0))
+            : null;
+    }
+
+    private static string? CentralVersion(
+        string? centralContent,
+        string packageName)
+    {
+        if (centralContent is null)
+        {
+            return null;
+        }
+
+        var match = Regex.Match(
+            centralContent,
+            $@"<PackageVersion\s+Include=""{Regex.Escape(packageName)}""\s+Version=""(?<version>[^""]+)""",
+            RegexOptions.IgnoreCase | RegexOptions.ExplicitCapture,
+            TimeSpan.FromSeconds(1));
+        return match.Success ? match.Groups["version"].Value : null;
     }
 }

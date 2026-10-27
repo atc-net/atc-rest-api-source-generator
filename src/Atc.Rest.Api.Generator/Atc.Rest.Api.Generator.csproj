@@ -33,6 +33,7 @@
       <_VersionLine Include="%20" />
       <_VersionLine Include="public static partial class GeneratorInfo" />
       <_VersionLine Include="{" />
+      <_VersionLine Include="    /// &lt;summary&gt;The package version the generator was built as (stamped into GeneratedCode).&lt;/summary&gt;" />
       <_VersionLine Include="    public const string Version = %22$(Version)%22%3B" />
       <_VersionLine Include="}" />
     </ItemGroup>

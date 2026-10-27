@@ -22,9 +22,16 @@ Console.WriteLine();
 const string demoToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZW1vLXVzZXIiLCJuYW1lIjoiRGVtbyBVc2VyIiwiaWF0IjoxNzE2MjM5MDIyfQ.demo-signature";
 #pragma warning restore S6418 // Secrets should not be hard-coded
 
-// Create HTTP client with base address and demo auth token
-using var httpClient = new HttpClient { BaseAddress = new Uri(apiBaseUrl) };
-httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", demoToken);
+// Create HTTP client with base address; the generated credentials handler sends the demo token to the operations whose
+// security asks for it
+var credentials = new Showcase.Generated.ApiCredentials
+{
+    AccessToken = _ => new ValueTask<string?>(demoToken),
+};
+using var httpClient = new HttpClient(new Showcase.Generated.ApiCredentialsHandler(credentials) { InnerHandler = new HttpClientHandler() })
+{
+    BaseAddress = new Uri(apiBaseUrl),
+};
 
 var client = new AccountsClient(httpClient);
 
@@ -321,7 +328,8 @@ try
         var formDataRequest = new FileAsFormDataRequest(
             ItemName: "Q4 Financial Report",
             File: new StreamFileContent(objectFileStream, "financial-report.txt"),
-            Items: ["finance", "quarterly", "confidential"]);
+            Items: ["finance", "quarterly", "confidential"],
+            Metadata: new FileMetadata(Author: "Contoso Finance", Confidential: true));
 
         await filesClient
             .UploadSingleObjectWithFileAsFormDataAsync(
@@ -332,6 +340,7 @@ try
         Console.WriteLine("   Uploaded object with file successfully:");
         Console.WriteLine($"   - ItemName: {formDataRequest.ItemName}");
         Console.WriteLine($"   - Tags: [{string.Join(", ", formDataRequest.Items)}]");
+        Console.WriteLine($"   - Metadata (an application/json part): {formDataRequest.Metadata}");
         Console.WriteLine($"   - File size: {objectFileContent.Length} bytes");
     }
 

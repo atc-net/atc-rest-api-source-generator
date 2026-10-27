@@ -6,7 +6,14 @@ namespace Atc.Rest.Api.Generator.Cli.Commands;
 [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "CLI needs graceful error handling.")]
 public sealed class SpecValidateCommand : Command<SpecValidateCommandSettings>
 {
-    protected override int Execute(
+    /// <summary>
+    /// Validates the specification (or multi-part set) with the strict or standard strategy and prints the diagnostics.
+    /// </summary>
+    /// <param name="context">The Spectre.Console command context.</param>
+    /// <param name="settings">The parsed command-line settings.</param>
+    /// <param name="cancellationToken">Cancels the command.</param>
+    /// <returns>0 when the specification has no errors; otherwise 1.</returns>
+    public override int Execute(
         CommandContext context,
         SpecValidateCommandSettings settings,
         CancellationToken cancellationToken)
@@ -21,8 +28,8 @@ public sealed class SpecValidateCommand : Command<SpecValidateCommandSettings>
             ? ValidateSpecificationStrategy.Strict
             : ValidateSpecificationStrategy.Standard;
 
-        AnsiConsole.MarkupLine($"[blue]Validation mode:[/] {strategy}");
-        AnsiConsole.MarkupLine($"[blue]Multi-part mode:[/] {(settings.UseMultiPart ? "Yes" : "No")}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Validation mode:[/] {strategy}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Multi-part mode:[/] {(settings.UseMultiPart ? "Yes" : "No")}");
         AnsiConsole.WriteLine();
 
         return AnsiConsole
@@ -44,7 +51,7 @@ public sealed class SpecValidateCommand : Command<SpecValidateCommandSettings>
                 }
                 catch (Exception ex)
                 {
-                    AnsiConsole.MarkupLine($"[red]✗[/] Error: {ex.Message}");
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Error: {ex.Message}");
                     return 1;
                 }
             });
@@ -56,7 +63,7 @@ public sealed class SpecValidateCommand : Command<SpecValidateCommandSettings>
         StatusContext ctx)
     {
         var specPath = Path.GetFullPath(settings.SpecificationPath);
-        AnsiConsole.MarkupLine($"[blue]Specification:[/] {specPath}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Specification:[/] {specPath}");
         AnsiConsole.WriteLine();
 
         // Read the specification file
@@ -67,41 +74,35 @@ public sealed class SpecValidateCommand : Command<SpecValidateCommandSettings>
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]✗[/] Error reading file: {ex.Message}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Error reading file: {ex.Message}");
             return 1;
         }
 
-        // Parse the OpenAPI document
-        ctx.Status("Parsing OpenAPI document...");
+        // The overlays apply before the parse, as in the build
+        if (settings.Overlays.Length > 0 && OverlayCliHelper.Apply(yamlContent, settings.Overlays) is { } effective)
+        {
+            yamlContent = effective;
+        }
+        else if (settings.Overlays.Length > 0)
+        {
+            return 1;
+        }
 
-        var (openApiDoc, openApiDiagnostic) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(yamlContent, specPath);
-
-        if (openApiDoc is null)
+        // Parse and validate the OpenAPI document
+        ctx.Status("Parsing and validating the OpenAPI document...");
+        var result = SpecificationPipeline.ParseAndValidate(specPath, yamlContent, strategy);
+        if (result.Document is null)
         {
             AnsiConsole.MarkupLine("[red]✗[/] Failed to parse OpenAPI specification");
-
-            if (openApiDiagnostic?.Errors is not null)
+            foreach (var error in result.Diagnostics)
             {
-                foreach (var error in openApiDiagnostic.Errors)
-                {
-                    AnsiConsole.MarkupLine($"  [red]•[/] {Markup.Escape(error.Message)}");
-                }
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [red]•[/] {error.Message}");
             }
 
             return 1;
         }
 
-        // Validate the document
-        ctx.Status("Running validation rules...");
-        var diagnostics = OpenApiDocumentValidator.Validate(
-            strategy,
-            openApiDoc,
-            openApiDiagnostic?.Errors ?? [],
-            specPath,
-            yamlContent);
-
-        // Display results
-        return DisplayValidationResults(diagnostics);
+        return DisplayValidationResults(result.Diagnostics);
     }
 
     private static int ExecuteMultiPartValidation(
@@ -122,7 +123,7 @@ public sealed class SpecValidateCommand : Command<SpecValidateCommandSettings>
         AnsiConsole.MarkupLine("[blue]Files to validate:[/]");
         foreach (var file in filesToValidate)
         {
-            AnsiConsole.MarkupLine($"  [dim]•[/] {Path.GetFileName(file)}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [dim]•[/] {Path.GetFileName(file)}");
         }
 
         AnsiConsole.WriteLine();
@@ -134,19 +135,16 @@ public sealed class SpecValidateCommand : Command<SpecValidateCommandSettings>
 
         if (baseSpec.Document is null)
         {
-            AnsiConsole.MarkupLine($"[red]✗[/] Failed to parse base specification: {Path.GetFileName(baseFile)}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Failed to parse base specification: {Path.GetFileName(baseFile)}");
             return 1;
         }
 
         // If only one file, validate it directly
-        if (filesToValidate.Count == 1)
+        if (filesToValidate.Count == 1 && settings.Overlays.Length == 0)
         {
             ctx.Status("Running validation rules...");
-            var singleDiagnostics = SpecificationService.Validate(
-                baseSpec.Document,
-                baseFile,
-                strategy);
-            return DisplayValidationResults(singleDiagnostics);
+            var single = SpecificationPipeline.Validate(baseSpec.Document, [(baseFile, baseSpec.Content)], strategy);
+            return DisplayValidationResults(single.Diagnostics);
         }
 
         // Read part files
@@ -157,7 +155,7 @@ public sealed class SpecValidateCommand : Command<SpecValidateCommandSettings>
             var spec = SpecificationService.ReadFromFile(partFile);
             if (spec.Document is null)
             {
-                AnsiConsole.MarkupLine($"[yellow]Warning:[/] Failed to parse part file: {Path.GetFileName(partFile)}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]Warning:[/] Failed to parse part file: {Path.GetFileName(partFile)}");
                 continue;
             }
 
@@ -179,10 +177,10 @@ public sealed class SpecValidateCommand : Command<SpecValidateCommandSettings>
 
         if (mergeErrors.Count > 0)
         {
-            AnsiConsole.MarkupLine($"[red]Merge errors ({mergeErrors.Count}):[/]");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]Merge errors ({mergeErrors.Count}):[/]");
             foreach (var error in mergeErrors)
             {
-                AnsiConsole.MarkupLine($"  [red]•[/] {Markup.Escape(error.Message)}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [red]•[/] {error.Message}");
             }
 
             AnsiConsole.WriteLine();
@@ -196,18 +194,30 @@ public sealed class SpecValidateCommand : Command<SpecValidateCommandSettings>
             return 1;
         }
 
-        AnsiConsole.MarkupLine($"[blue]Merged:[/] {mergeResult.AllFiles.Count.ToString(CultureInfo.InvariantCulture)} files, {mergeResult.TotalPaths.ToString(CultureInfo.InvariantCulture)} paths, {mergeResult.TotalSchemas.ToString(CultureInfo.InvariantCulture)} schemas");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Merged:[/] {mergeResult.AllFiles.Count.ToString(CultureInfo.InvariantCulture)} files, {mergeResult.TotalPaths.ToString(CultureInfo.InvariantCulture)} paths, {mergeResult.TotalSchemas.ToString(CultureInfo.InvariantCulture)} schemas");
         AnsiConsole.WriteLine();
 
-        // Validate the merged document
-        ctx.Status("Running validation rules on merged specification...");
-        var diagnostics = SpecificationService.Validate(
-            mergeResult.Document,
-            baseFile,
-            strategy);
+        // The overlays see the whole merged document, as in the build
+        var document = mergeResult.Document;
+        if (settings.Overlays.Length > 0)
+        {
+            var effective = OverlayCliHelper.Apply(SpecificationService.SerializeToJson(document), settings.Overlays);
+            if (effective is null || OpenApiDocumentHelper.TryParseYamlWithDiagnostic(effective, baseFile).Document is not { } overlaid)
+            {
+                return 1;
+            }
 
-        // Display results
-        return DisplayValidationResults(diagnostics);
+            document = overlaid;
+        }
+
+        // Validate the merged document: each diagnostic on the line of the file - the base or a part - that declares
+        // what it is about
+        ctx.Status("Running validation rules on merged specification...");
+        var merged = SpecificationPipeline.Validate(
+            document,
+            [(baseFile, baseSpec.Content), .. partSpecs.Select(p => (p.FilePath, p.Content))],
+            strategy);
+        return DisplayValidationResults(merged.Diagnostics);
     }
 
     private static List<string> GetFilesToValidate(
@@ -234,7 +244,7 @@ public sealed class SpecValidateCommand : Command<SpecValidateCommandSettings>
                 }
                 else
                 {
-                    AnsiConsole.MarkupLine($"[yellow]Warning:[/] File not found: {file}");
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]Warning:[/] File not found: {file}");
                 }
             }
 
@@ -245,22 +255,10 @@ public sealed class SpecValidateCommand : Command<SpecValidateCommandSettings>
         if (!string.IsNullOrWhiteSpace(settings.SpecificationPath))
         {
             var specPath = Path.GetFullPath(settings.SpecificationPath);
-            var specDir = Path.GetDirectoryName(specPath) ?? ".";
-            var baseName = Path.GetFileNameWithoutExtension(specPath);
-            var extension = Path.GetExtension(specPath);
 
-            // Add base file first
+            // The base file first, then its parts as the build finds them
             files.Add(specPath);
-
-            // Find part files matching pattern: {BaseName}_{PartName}.yaml
-            var partPattern = $"{baseName}_*{extension}";
-            var partFiles = Directory
-                .GetFiles(specDir, partPattern)
-                .Where(f => !f.Equals(specPath, StringComparison.OrdinalIgnoreCase))
-                .OrderBy(f => f, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-
-            files.AddRange(partFiles);
+            files.AddRange(SpecificationService.DiscoverPartFilePaths(specPath));
         }
 
         return files;
@@ -292,7 +290,7 @@ public sealed class SpecValidateCommand : Command<SpecValidateCommandSettings>
             case > 0:
             {
                 // Display errors with rich formatting
-                AnsiConsole.MarkupLine($"[red]Errors ({errors.Count}):[/]");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]Errors ({errors.Count}):[/]");
                 AnsiConsole.WriteLine();
                 foreach (var error in errors)
                 {
@@ -306,7 +304,7 @@ public sealed class SpecValidateCommand : Command<SpecValidateCommandSettings>
         // Display warnings with rich formatting
         if (warnings.Count > 0)
         {
-            AnsiConsole.MarkupLine($"[yellow]Warnings ({warnings.Count}):[/]");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]Warnings ({warnings.Count}):[/]");
             AnsiConsole.WriteLine();
             foreach (var warning in warnings)
             {
@@ -317,11 +315,11 @@ public sealed class SpecValidateCommand : Command<SpecValidateCommandSettings>
         // Summary
         if (errors.Count > 0)
         {
-            AnsiConsole.MarkupLine($"[red]✗ Validation failed with {errors.Count} error(s) and {warnings.Count} warning(s).[/]");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗ Validation failed with {errors.Count} error(s) and {warnings.Count} warning(s).[/]");
             return 1;
         }
 
-        AnsiConsole.MarkupLine($"[green]✓ Validation passed with {warnings.Count} warning(s).[/]");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓ Validation passed with {warnings.Count} warning(s).[/]");
         return 0;
     }
 

@@ -1,3 +1,4 @@
+#pragma warning disable CS1591
 global using System.Threading.Tasks;
 global using System.Threading;
 global using System;

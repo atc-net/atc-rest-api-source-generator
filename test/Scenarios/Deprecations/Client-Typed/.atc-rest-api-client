@@ -1,0 +1,5 @@
+{
+    "generationMode": "TypedClient",
+    "useServersBasePath": false,
+    "includeDeprecated": true
+}

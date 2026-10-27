@@ -67,34 +67,6 @@ internal static class DirectoryBuildPropsModifier
     }
 
     /// <summary>
-    /// Gets the current target framework from Directory.Build.props.
-    /// </summary>
-    /// <param name="rootDirectory">The solution root directory.</param>
-    /// <returns>The current target framework, or null if not found.</returns>
-    public static string? GetCurrentTargetFramework(string rootDirectory)
-    {
-        var propsPath = Path.Combine(rootDirectory, "Directory.Build.props");
-
-        if (!File.Exists(propsPath))
-        {
-            return null;
-        }
-
-        var content = File.ReadAllText(propsPath);
-        var match = TargetFrameworkPattern.Match(content);
-
-        if (match.Success)
-        {
-            var value = match.Value;
-            var start = value.IndexOf('>', StringComparison.Ordinal) + 1;
-            var end = value.LastIndexOf('<');
-            return value.Substring(start, end - start);
-        }
-
-        return null;
-    }
-
-    /// <summary>
     /// Upgrades the target framework in all .csproj files that have an explicit TargetFramework element.
     /// </summary>
     /// <param name="rootDirectory">The solution root directory.</param>

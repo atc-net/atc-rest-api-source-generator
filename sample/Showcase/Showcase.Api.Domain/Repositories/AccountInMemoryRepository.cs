@@ -20,6 +20,9 @@ public sealed class AccountInMemoryRepository
 
     private static readonly string[] Tags = ["enterprise", "startup", "small-business", "mid-market"];
 
+    // Requests run in parallel: every change happens under the gate, and every read works on a copy (a stream that
+    // reads for seconds must not see the list change under it)
+    private readonly Lock gate = new();
     private readonly List<Account> accounts = [];
     private long nextId = 1;
 
@@ -44,7 +47,7 @@ public sealed class AccountInMemoryRepository
             .Delay(1)
             .ConfigureAwait(false);
 
-        var query = accounts.AsEnumerable();
+        var query = Snapshot().AsEnumerable();
 
         if (limit.HasValue)
         {
@@ -62,7 +65,7 @@ public sealed class AccountInMemoryRepository
 
         if (long.TryParse(id, out var accountId))
         {
-            return accounts.FirstOrDefault(a => a.Id == accountId);
+            return Snapshot().FirstOrDefault(a => a.Id == accountId);
         }
         else
         {
@@ -79,23 +82,32 @@ public sealed class AccountInMemoryRepository
             .Delay(1)
             .ConfigureAwait(false);
 
-        // Check if account with this ID already exists
-        var existing = accounts.FirstOrDefault(a => a.Id == id);
-        if (existing is not null)
+        lock (gate)
         {
-            return existing;
+            // No id from the client (the apps send 0): assign the next one
+            if (id <= 0)
+            {
+                id = nextId;
+            }
+
+            // Check if account with this ID already exists
+            var existing = accounts.FirstOrDefault(a => a.Id == id);
+            if (existing is not null)
+            {
+                return existing;
+            }
+
+            var newAccount = new Account(id, name, tag ?? string.Empty);
+            accounts.Add(newAccount);
+
+            // Update nextId if necessary
+            if (id >= nextId)
+            {
+                nextId = id + 1;
+            }
+
+            return newAccount;
         }
-
-        var newAccount = new Account(id, name, tag ?? string.Empty);
-        accounts.Add(newAccount);
-
-        // Update nextId if necessary
-        if (id >= nextId)
-        {
-            nextId = id + 1;
-        }
-
-        return newAccount;
     }
 
     public async Task<Account?> Update(
@@ -112,16 +124,19 @@ public sealed class AccountInMemoryRepository
             return null;
         }
 
-        var existingIndex = accounts.FindIndex(a => a.Id == accountId);
-        if (existingIndex < 0)
+        lock (gate)
         {
-            return null;
+            var existingIndex = accounts.FindIndex(a => a.Id == accountId);
+            if (existingIndex < 0)
+            {
+                return null;
+            }
+
+            var updatedAccount = new Account(accountId, name, tag ?? string.Empty);
+            accounts[existingIndex] = updatedAccount;
+
+            return updatedAccount;
         }
-
-        var updatedAccount = new Account(accountId, name, tag ?? string.Empty);
-        accounts[existingIndex] = updatedAccount;
-
-        return updatedAccount;
     }
 
     public async Task<Account?> Delete(string id)
@@ -135,16 +150,19 @@ public sealed class AccountInMemoryRepository
             return null;
         }
 
-        var existingIndex = accounts.FindIndex(a => a.Id == accountId);
-        if (existingIndex < 0)
+        lock (gate)
         {
-            return null;
+            var existingIndex = accounts.FindIndex(a => a.Id == accountId);
+            if (existingIndex < 0)
+            {
+                return null;
+            }
+
+            var deletedAccount = accounts[existingIndex];
+            accounts.RemoveAt(existingIndex);
+
+            return deletedAccount;
         }
-
-        var deletedAccount = accounts[existingIndex];
-        accounts.RemoveAt(existingIndex);
-
-        return deletedAccount;
     }
 
     public async Task<(List<Account> Items, int TotalCount)> GetPaginated(
@@ -156,7 +174,7 @@ public sealed class AccountInMemoryRepository
             .Delay(1)
             .ConfigureAwait(false);
 
-        var query = accounts.AsEnumerable();
+        var query = Snapshot().AsEnumerable();
 
         // Apply search filter if provided
         if (!string.IsNullOrWhiteSpace(queryString))
@@ -188,7 +206,7 @@ public sealed class AccountInMemoryRepository
         string? queryString = null,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        var query = accounts.AsEnumerable();
+        var query = Snapshot().AsEnumerable();
 
         // Apply search filter if provided
         if (!string.IsNullOrWhiteSpace(queryString))
@@ -218,6 +236,14 @@ public sealed class AccountInMemoryRepository
             await Task.Delay(10, cancellationToken).ConfigureAwait(false);
 
             yield return account;
+        }
+    }
+
+    private List<Account> Snapshot()
+    {
+        lock (gate)
+        {
+            return [.. accounts];
         }
     }
 }

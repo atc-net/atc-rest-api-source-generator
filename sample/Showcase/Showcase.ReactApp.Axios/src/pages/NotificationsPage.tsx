@@ -18,6 +18,7 @@ import WifiIcon from '@mui/icons-material/Wifi';
 import WifiOffIcon from '@mui/icons-material/WifiOff';
 import ClearAllIcon from '@mui/icons-material/ClearAll';
 import { useNotificationHub } from '../hooks/useNotificationHub';
+import NotificationsStream from '../components/NotificationsStream';
 import type { SystemNotification } from '../api/models/SystemNotification';
 
 const topics = ['System', 'User', 'Data', 'Alert', 'Metric'] as const;
@@ -134,6 +135,8 @@ export default function NotificationsPage() {
         </Stack>
       </Paper>
 
+      <NotificationsStream />
+
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
         <Typography variant="h6">
           Feed ({notifications.length} notifications)
@@ -157,7 +160,7 @@ export default function NotificationsPage() {
 
       <Stack spacing={2}>
         {notifications.map((n, idx) => (
-          <Card key={`${n.id}-${idx}`} variant="outlined">
+          <Card key={`${n.id}-${idx}`} variant="outlined" data-testid="notification-item">
             <CardContent>
               <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
                 <Chip label={n.type} size="small" color="primary" variant="outlined" />

@@ -1,0 +1,5 @@
+{
+    "generationMode": "EndpointPerOperation",
+    "useServersBasePath": false,
+    "includeDeprecated": true
+}

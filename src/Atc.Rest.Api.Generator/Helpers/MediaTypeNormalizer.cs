@@ -1,0 +1,215 @@
+namespace Atc.Rest.Api.Generator.Helpers;
+
+/// <summary>
+/// Makes every media type of the document canonical, in the document itself, before any generator looks a body
+/// up by it: the parameters are dropped (<c>application/json; charset=utf-8</c> is <c>application/json</c>), the
+/// name is lower case (<c>Application/JSON</c>), and a wildcard that carries a model - <c>*/*</c> or
+/// <c>application/*</c>, springdoc's default - is read as JSON, which is what such a server writes. A wildcard with
+/// a binary or text schema stays what it is. Two declarations that become one media type keep the first; when the
+/// second has another schema the validator warns about it (<c>ATC_API_OPR040</c>).
+/// </summary>
+public static class MediaTypeNormalizer
+{
+    // The declarations that were dropped, kept on the document: the parsed document is cached and rewritten in place,
+    // so a later validation of the same specification sees one declaration - and must still warn
+    private const string DroppedKey = "atc:media-types-dropped";
+
+    /// <summary>
+    /// Rewrites the media types of every request body and response (the operations', the webhooks' and the
+    /// components') to their canonical form.
+    /// </summary>
+    /// <param name="document">The parsed document; it is changed in place.</param>
+    /// <returns>The same document.</returns>
+    public static OpenApiDocument WithCanonicalMediaTypes(
+        OpenApiDocument document)
+    {
+        if (document is null)
+        {
+            throw new ArgumentNullException(nameof(document));
+        }
+
+        var dropped = DroppedDeclarations(document);
+        if (dropped.Count > 0)
+        {
+            document.Metadata ??= new Dictionary<string, object>(StringComparer.Ordinal);
+            document.Metadata[DroppedKey] = dropped.ToList();
+        }
+
+        foreach (var (_, content, _) in ContentOf(document))
+        {
+            Rewrite(content);
+        }
+
+        return document;
+    }
+
+    /// <summary>
+    /// The declarations that become a media type their request body or response has already declared, with another
+    /// schema - what the rewrite drops, or has dropped, while saying something the kept declaration does not.
+    /// </summary>
+    /// <param name="document">The parsed document, before or after the rewrite.</param>
+    /// <returns>
+    /// Where (<c>the 200 response of operation 'getPet'</c>), the media type kept and the one dropped, both as declared,
+    /// and the operation it is at (a <see cref="Validators.SpecSuppressions"/> scope; null for a webhook or a component).
+    /// </returns>
+    public static IReadOnlyList<(string Where, string Kept, string Dropped, string? Scope)> DroppedDeclarations(
+        OpenApiDocument document)
+    {
+        if (document is null)
+        {
+            throw new ArgumentNullException(nameof(document));
+        }
+
+        var dropped = document.Metadata is { } metadata && metadata.TryGetValue(DroppedKey, out var recorded) && recorded is List<(string Where, string Kept, string Dropped, string? Scope)> earlier
+            ? earlier.ToList()
+            : [];
+        foreach (var (where, content, scope) in ContentOf(document))
+        {
+            var first = new Dictionary<string, KeyValuePair<string, IOpenApiMediaType>>(StringComparer.Ordinal);
+            foreach (var entry in content.Where(e => e.Value is not null))
+            {
+                var key = Canonical(entry.Key, entry.Value.Schema);
+                if (!first.TryGetValue(key, out var kept))
+                {
+                    first[key] = entry;
+                }
+                else if (!IsSameSchema(kept.Value.Schema, entry.Value.Schema))
+                {
+                    dropped.Add((where, kept.Key, entry.Key, scope));
+                }
+            }
+        }
+
+        return dropped;
+    }
+
+    /// <summary>
+    /// The canonical form of one media type: without parameters, lower case, and <c>application/json</c> for a
+    /// wildcard that carries a model.
+    /// </summary>
+    /// <param name="mediaType">The media type as declared.</param>
+    /// <param name="schema">The schema declared under it, if any.</param>
+    /// <returns>The canonical media type.</returns>
+    public static string Canonical(
+        string mediaType,
+        IOpenApiSchema? schema)
+    {
+        var type = mediaType.BaseType.ToLowerInvariant();
+        return (type is "*/*" or "application/*") && IsModel(schema)
+            ? "application/json"
+            : type;
+    }
+
+    private static bool IsModel(IOpenApiSchema? schema)
+        => schema is OpenApiSchemaReference ||
+           (schema is OpenApiSchema own &&
+            (own.Properties is { Count: > 0 } ||
+             own.AllOf is { Count: > 0 } ||
+             own.OneOf is { Count: > 0 } ||
+             own.AnyOf is { Count: > 0 } ||
+             own.IsOfType(JsonSchemaType.Object) ||
+             own.IsOfType(JsonSchemaType.Array)));
+
+    // Nothing twice, the same component twice, or two schemas that are written out the same
+    private static bool IsSameSchema(
+        IOpenApiSchema? first,
+        IOpenApiSchema? second)
+    {
+        if (first is null || second is null)
+        {
+            return first is null && second is null;
+        }
+
+        if (first is OpenApiSchemaReference one)
+        {
+            return second is OpenApiSchemaReference other &&
+                   string.Equals(one.Reference.Id, other.Reference.Id, StringComparison.Ordinal);
+        }
+
+        return second is not OpenApiSchemaReference &&
+               string.Equals(Written(first), Written(second), StringComparison.Ordinal);
+    }
+
+    private static string Written(IOpenApiSchema schema)
+    {
+        using var writer = new StringWriter(CultureInfo.InvariantCulture);
+        schema.SerializeAsV31(new OpenApiJsonWriter(writer));
+        return writer.ToString();
+    }
+
+    // Every content map of the document that is its owner's (a reference's is its component's), with what it belongs to
+    private static IEnumerable<(string Where, IDictionary<string, IOpenApiMediaType> Content, string? Scope)> ContentOf(
+        OpenApiDocument document)
+    {
+        var pathItems = (document.Paths ?? []).Select(p => (p.Key, p.Value, IsWebhook: false))
+            .Concat((document.Webhooks ?? new Dictionary<string, IOpenApiPathItem>(StringComparer.Ordinal)).Select(w => (w.Key, w.Value, IsWebhook: true)));
+        foreach (var (pathKey, pathItem, isWebhook) in pathItems)
+        {
+            foreach (var entry in pathItem?.Operations ?? new Dictionary<HttpMethod, OpenApiOperation>())
+            {
+                var operation = entry.Value;
+                var operationId = operation?.OperationId ?? $"{entry.Key.ToString().ToUpperInvariant()} {pathKey}";
+                var scope = isWebhook ? null : Validators.SpecSuppressions.Operation(entry.Key.Method, pathKey);
+                if (operation?.RequestBody is OpenApiRequestBody { Content: { Count: > 0 } bodyContent })
+                {
+                    yield return ($"the request body of operation '{operationId}'", bodyContent, scope);
+                }
+
+                foreach (var response in operation?.Responses ?? [])
+                {
+                    if (response.Value is OpenApiResponse { Content: { Count: > 0 } responseContent })
+                    {
+                        yield return ($"the {response.Key} response of operation '{operationId}'", responseContent, scope);
+                    }
+                }
+            }
+        }
+
+        foreach (var requestBody in document.Components?.RequestBodies ?? new Dictionary<string, IOpenApiRequestBody>(StringComparer.Ordinal))
+        {
+            if (requestBody.Value is OpenApiRequestBody { Content: { Count: > 0 } content })
+            {
+                yield return ($"the request body '{requestBody.Key}' (components)", content, null);
+            }
+        }
+
+        foreach (var response in document.Components?.Responses ?? new Dictionary<string, IOpenApiResponse>(StringComparer.Ordinal))
+        {
+            if (response.Value is OpenApiResponse { Content: { Count: > 0 } content })
+            {
+                yield return ($"the response '{response.Key}' (components)", content, null);
+            }
+        }
+    }
+
+    private static void Rewrite(IDictionary<string, IOpenApiMediaType>? content)
+    {
+        if (content is null || content.Count == 0)
+        {
+            return;
+        }
+
+        var declared = content.ToList();
+        var canonical = new List<KeyValuePair<string, IOpenApiMediaType>>(declared.Count);
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var entry in declared)
+        {
+            var key = Canonical(entry.Key, entry.Value?.Schema);
+            if (entry.Value is not null && seen.Add(key))
+            {
+                canonical.Add(new KeyValuePair<string, IOpenApiMediaType>(key, entry.Value));
+            }
+        }
+
+        if (canonical.Select(e => e.Key).SequenceEqual(declared.Select(e => e.Key), StringComparer.Ordinal))
+        {
+            return;
+        }
+
+        content.Clear();
+        foreach (var entry in canonical)
+        {
+            content[entry.Key] = entry.Value;
+        }
+    }
+}

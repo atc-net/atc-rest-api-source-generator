@@ -10,20 +10,23 @@ public static class OpenIdConnectDependencyInjectionExtractor
     /// </summary>
     /// <param name="oidcConfig">The OpenID Connect configuration.</param>
     /// <param name="projectName">The project name for namespace.</param>
+    /// <param name="apiName">The server marker's <c>apiName</c>, or null (see <see cref="CasingHelper.GetApiName"/>).</param>
     /// <returns>Generated code content for the OpenID Connect service collection extensions, or null if not configured.</returns>
     public static string? Extract(
         OpenIdConnectConfig? oidcConfig,
-        string projectName)
+        string projectName,
+        string? apiName = null)
         => oidcConfig is null
             ? null
-            : GenerateFileContent(oidcConfig, projectName);
+            : GenerateFileContent(oidcConfig, projectName, CasingHelper.GetApiName(projectName, apiName));
 
     /// <summary>
     /// Generates the complete file content.
     /// </summary>
     private static string GenerateFileContent(
         OpenIdConnectConfig oidcConfig,
-        string projectName)
+        string projectName,
+        string apiName)
     {
         // Generate content first to analyze for required usings
         var contentBuilder = new StringBuilder();
@@ -55,7 +58,7 @@ public static class OpenIdConnectDependencyInjectionExtractor
         builder.AppendLine("{");
 
         // Generate Add{ProjectName}OpenIdConnectAuthentication method
-        var methodName = $"Add{CasingHelper.GetLastNameSegment(projectName)}OpenIdConnectAuthentication";
+        var methodName = $"Add{apiName}OpenIdConnectAuthentication";
         var configSection = "Authentication:OpenIdConnect";
 
         builder.AppendLine(4, "/// <summary>");

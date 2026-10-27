@@ -44,6 +44,48 @@ public static class ResultClassExtractor
         => ExtractInternal(openApiDoc, projectName, pathSegment, registry, systemTypeResolver, includeDeprecated, inlineSchemas: null);
 
     /// <summary>
+    /// The enums the response headers of a path segment's operations declare inline: generated next to the result
+    /// classes, whose factories take them (see <see cref="ResponseHeaderFactoryHelper.InlineEnumsOf"/>).
+    /// </summary>
+    /// <param name="openApiDoc">The OpenAPI document.</param>
+    /// <param name="pathSegment">The path segment to filter by; all operations when null.</param>
+    /// <param name="includeDeprecated">Whether to include deprecated operations.</param>
+    /// <returns>Per enum: its type name and its schema.</returns>
+    public static List<(string TypeName, OpenApiSchema Schema)> HeaderInlineEnums(
+        OpenApiDocument openApiDoc,
+        string? pathSegment,
+        bool includeDeprecated = false)
+    {
+        var enums = new List<(string TypeName, OpenApiSchema Schema)>();
+        if (openApiDoc?.Paths is null)
+        {
+            return enums;
+        }
+
+        var componentTypeNames = TypeConflictRegistry.ComponentTypeNamesOf(openApiDoc);
+        foreach (var path in openApiDoc.Paths)
+        {
+            if (path.Key.ShouldSkipForPathSegment(pathSegment) || path.Value?.Operations is null)
+            {
+                continue;
+            }
+
+            foreach (var operation in path.Value.Operations)
+            {
+                if (operation.Value is null || (!includeDeprecated && operation.Value.Deprecated))
+                {
+                    continue;
+                }
+
+                var operationId = OperationIdHelper.Effective(operation.Value, operation.Key.ToString(), path.Key);
+                enums.AddRange(ResponseHeaderFactoryHelper.InlineEnumsOf(operation.Value, operationId.ToPascalCaseForDotNet(), componentTypeNames));
+            }
+        }
+
+        return enums;
+    }
+
+    /// <summary>
     /// Extracts result class parameters along with any inline schemas discovered.
     /// </summary>
     /// <param name="openApiDoc">The OpenAPI document containing path and operation definitions.</param>
@@ -53,7 +95,7 @@ public static class ResultClassExtractor
     /// <param name="systemTypeResolver">Resolver for system type conflicts.</param>
     /// <param name="includeDeprecated">Whether to include deprecated operations.</param>
     /// <returns>A tuple containing the result classes and a dictionary of discovered inline schemas.</returns>
-    public static (List<ClassParameters>? ResultClasses, Dictionary<string, ResultClassInlineSchemaInfo> InlineSchemas) ExtractWithInlineSchemas(
+    public static (List<ClassParameters>? ResultClasses, Dictionary<string, InlineSchemaInfo> InlineSchemas) ExtractWithInlineSchemas(
         OpenApiDocument openApiDoc,
         string projectName,
         string? pathSegment,
@@ -62,10 +104,388 @@ public static class ResultClassExtractor
         bool includeDeprecated = false,
         string? namespaceSegment = null)
     {
-        var inlineSchemas = new Dictionary<string, ResultClassInlineSchemaInfo>(StringComparer.Ordinal);
+        var inlineSchemas = new Dictionary<string, InlineSchemaInfo>(StringComparer.Ordinal);
         var resultClasses = ExtractInternal(openApiDoc, projectName, pathSegment, registry, systemTypeResolver, includeDeprecated, inlineSchemas, namespaceSegment);
+
+        // The inline models live in the models namespace the Results file imports: the collapsed segment
+        // (e.g. none, on a spec whose paths share one first segment), not the raw path segment.
+        if (namespaceSegment is not null)
+        {
+            foreach (var key in inlineSchemas.Keys.ToList())
+            {
+                inlineSchemas[key] = inlineSchemas[key] with { PathSegment = namespaceSegment };
+            }
+        }
+
         return (resultClasses, inlineSchemas);
     }
+
+    /// <summary>
+    /// The <c>JsonTypeInfoHttpResult&lt;T&gt;</c> type the factories of a JSON body use: the value written through the
+    /// <c>JsonTypeInfo</c> the app's JSON options resolve (<c>ConfigureHttpJsonOptions</c>), never the reflection-based
+    /// serializer overloads - so the result is trim- and Native AOT-safe, with the metadata of a trimmed or AOT app from
+    /// its <c>JsonSerializerContext</c>. ASP.NET Core's own JSON result writes it, as it would have.
+    /// </summary>
+    /// <param name="baseNamespace">The generated root namespace, where <c>GeneratedJsonOptions</c> is.</param>
+    /// <returns>The source.</returns>
+    public static string JsonTypeInfoHttpResultSource(string baseNamespace)
+        => $$"""
+
+            /// <summary>
+            /// Creates a <see cref="JsonTypeInfoHttpResult{T}"/>, its value type inferred.
+            /// </summary>
+            [GeneratedCode("{{GeneratorInfo.Name}}", "{{GeneratorInfo.Version}}")]
+            internal static class JsonTypeInfoHttpResult
+            {
+                public static JsonTypeInfoHttpResult<T> Of<T>(
+                    T value,
+                    string? contentType,
+                    int? statusCode)
+                    => new(value, contentType, statusCode);
+            }
+
+            /// <summary>
+            /// Writes a JSON body through the <see cref="global::System.Text.Json.Serialization.Metadata.JsonTypeInfo{T}"/>
+            /// the app's JSON options resolve.
+            /// </summary>
+            [GeneratedCode("{{GeneratorInfo.Name}}", "{{GeneratorInfo.Version}}")]
+            internal sealed class JsonTypeInfoHttpResult<T> : IResult, IStatusCodeHttpResult, IValueHttpResult, IValueHttpResult<T>, IContentTypeHttpResult
+            {
+                private static readonly global::System.Text.Json.JsonSerializerOptions FallbackOptions = new global::Microsoft.AspNetCore.Http.Json.JsonOptions().SerializerOptions;
+
+                public JsonTypeInfoHttpResult(
+                    T value,
+                    string? contentType,
+                    int? statusCode)
+                {
+                    Value = value;
+                    ContentType = contentType;
+                    StatusCode = statusCode;
+                }
+
+                public T Value { get; }
+
+                object? IValueHttpResult.Value => Value;
+
+                public string? ContentType { get; }
+
+                public int? StatusCode { get; }
+
+                public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
+                {
+                    var options = global::Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions
+                        .GetService<global::Microsoft.Extensions.Options.IOptions<global::Microsoft.AspNetCore.Http.Json.JsonOptions>>(httpContext.RequestServices)?.Value.SerializerOptions
+                        ?? FallbackOptions;
+
+                    return TypedResults.Json(Value, global::{{baseNamespace}}.GeneratedJsonOptions.TypeInfo<T>(options), ContentType, StatusCode).ExecuteAsync(httpContext);
+                }
+            }
+            """;
+
+    /// <summary>
+    /// The <c>LocationHttpResult</c> type the 303 factories use (ASP.NET Core has no redirect result for 303): the
+    /// wrapped result, written with a <c>Location</c> header.
+    /// </summary>
+    public static string LocationHttpResultSource()
+        => $$"""
+
+            /// <summary>
+            /// Writes the wrapped result with a <c>Location</c> header. Its status code and its value are the wrapped
+            /// result's, so a test reads them the same way with or without a location; <see cref="Result"/> is the
+            /// wrapped result itself.
+            /// </summary>
+            [GeneratedCode("{{GeneratorInfo.Name}}", "{{GeneratorInfo.Version}}")]
+            internal sealed class LocationHttpResult : IResult, IStatusCodeHttpResult, IValueHttpResult, INestedHttpResult, IHeaderWritingHttpResult
+            {
+                public LocationHttpResult(
+                    IResult inner,
+                    string location)
+                {
+                    Result = inner;
+                    Location = location;
+                }
+
+                public IResult Result { get; }
+
+                public string Location { get; }
+
+                public int? StatusCode
+                    => (Result as IStatusCodeHttpResult)?.StatusCode;
+
+                public object? Value
+                    => (Result as IValueHttpResult)?.Value;
+
+                public IEnumerable<KeyValuePair<string, string>> Headers
+                    => new[] { new KeyValuePair<string, string>("Location", Location) };
+
+                public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
+                {
+                    httpContext.Response.Headers.Location = Location;
+                    return Result.ExecuteAsync(httpContext);
+                }
+            }
+            """;
+
+    /// <summary>
+    /// The <c>XmlHttpResult</c> type the factories of an XML body use: the status, the declared media type (UTF-8) and
+    /// the body the generated <c>{Model}Xml</c> wrote.
+    /// </summary>
+    public static string XmlHttpResultSource()
+        => $$"""
+
+            /// <summary>
+            /// Writes an XML body (the model's generated XML mapping) with its status and media type; <see cref="Value"/> is
+            /// the model it was written from.
+            /// </summary>
+            [GeneratedCode("{{GeneratorInfo.Name}}", "{{GeneratorInfo.Version}}")]
+            internal sealed class XmlHttpResult : IResult, IStatusCodeHttpResult, IValueHttpResult, IContentTypeHttpResult
+            {
+                private readonly byte[] body;
+
+                public XmlHttpResult(
+                    int statusCode,
+                    string mediaType,
+                    byte[] body,
+                    object? value)
+                {
+                    StatusCode = statusCode;
+                    ContentType = mediaType + "; charset=utf-8";
+                    this.body = body;
+                    Value = value;
+                }
+
+                public int StatusCode { get; }
+
+                int? IStatusCodeHttpResult.StatusCode => StatusCode;
+
+                public object? Value { get; }
+
+                public string ContentType { get; }
+
+                public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
+                {
+                    httpContext.Response.StatusCode = StatusCode;
+                    httpContext.Response.ContentType = ContentType;
+                    httpContext.Response.ContentLength = body.Length;
+                    return httpContext.Response.Body.WriteAsync(body, httpContext.RequestAborted).AsTask();
+                }
+            }
+            """;
+
+    /// <summary>
+    /// The <c>NegotiatedHttpResult</c> type the factories of a body offered as JSON and XML use: the JSON result unless
+    /// the request's <c>Accept</c> prefers one of the XML media types (a higher quality than any JSON one; <c>*/*</c>
+    /// and a tie are JSON - never a 406).
+    /// </summary>
+    public static string NegotiatedHttpResultSource()
+        => $$"""
+
+            /// <summary>
+            /// Writes the JSON result, or the XML one when the request's Accept prefers XML. Its status code and its value
+            /// are the JSON result's (<see cref="Result"/>) - the XML one writes the same model.
+            /// </summary>
+            [GeneratedCode("{{GeneratorInfo.Name}}", "{{GeneratorInfo.Version}}")]
+            internal sealed class NegotiatedHttpResult : IResult, IStatusCodeHttpResult, IValueHttpResult, INestedHttpResult
+            {
+                private readonly IResult json;
+                private readonly global::System.Func<string, IResult> xml;
+                private readonly string[] xmlMediaTypes;
+
+                public NegotiatedHttpResult(
+                    IResult json,
+                    global::System.Func<string, IResult> xml,
+                    params string[] xmlMediaTypes)
+                {
+                    this.json = json;
+                    this.xml = xml;
+                    this.xmlMediaTypes = xmlMediaTypes;
+                }
+
+                public IResult Result => json;
+
+                public int? StatusCode
+                    => (json as IStatusCodeHttpResult)?.StatusCode;
+
+                public object? Value
+                    => (json as IValueHttpResult)?.Value;
+
+                public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
+                {
+                    // The body depends on Accept: a cache must not answer one Accept with the other's
+                    httpContext.Response.Headers.Append("Vary", "Accept");
+                    return PreferredXmlMediaType(httpContext.Request.Headers.Accept) is { } mediaType
+                        ? xml(mediaType).ExecuteAsync(httpContext)
+                        : json.ExecuteAsync(httpContext);
+                }
+
+                private string? PreferredXmlMediaType(global::Microsoft.Extensions.Primitives.StringValues accept)
+                {
+                    if (accept.Count == 0 ||
+                        !global::Microsoft.Net.Http.Headers.MediaTypeHeaderValue.TryParseList(accept, out var values))
+                    {
+                        return null;
+                    }
+
+                    var jsonQuality = 0d;
+                    var xmlQuality = 0d;
+                    string? chosen = null;
+                    foreach (var value in values)
+                    {
+                        var quality = value.Quality ?? 1d;
+                        var type = value.MediaType.Value ?? string.Empty;
+                        // Media types are case-insensitive (RFC 9110 §8.3.1)
+                        if (type == "*/*" ||
+                            string.Equals(type, "application/*", global::System.StringComparison.OrdinalIgnoreCase) ||
+                            string.Equals(type, "application/json", global::System.StringComparison.OrdinalIgnoreCase) ||
+                            type.EndsWith("+json", global::System.StringComparison.OrdinalIgnoreCase))
+                        {
+                            jsonQuality = global::System.Math.Max(jsonQuality, quality);
+                        }
+
+                        foreach (var xmlMediaType in xmlMediaTypes)
+                        {
+                            if (string.Equals(type, xmlMediaType, global::System.StringComparison.OrdinalIgnoreCase) && quality > xmlQuality)
+                            {
+                                xmlQuality = quality;
+                                chosen = xmlMediaType;
+                            }
+                        }
+                    }
+
+                    return xmlQuality > jsonQuality ? chosen : null;
+                }
+            }
+            """;
+
+    /// <summary>
+    /// The helper the problem factories pass a handler's problem through with: the handler's own instance - its type,
+    /// its <c>errors</c>, its own properties - with the response's status, emitted once into a Results file whose
+    /// factories use it.
+    /// </summary>
+    public static string ProblemWithStatusSource()
+        => $$"""
+
+            /// <summary>
+            /// A handler's problem as it is, with the status of the response it is written to.
+            /// </summary>
+            [GeneratedCode("{{GeneratorInfo.Name}}", "{{GeneratorInfo.Version}}")]
+            internal static class ProblemWithStatus
+            {
+                public static TProblem Of<TProblem>(
+                    TProblem problem,
+                    int status)
+                    where TProblem : global::Microsoft.AspNetCore.Mvc.ProblemDetails
+                {
+                    problem.Status = status;
+                    return problem;
+                }
+            }
+            """;
+
+    /// <summary>
+    /// The source of the <c>IResult</c> wrapper that adds a <c>Retry-After</c> header, emitted once into a
+    /// Results file whose factories use it (429 responses).
+    /// </summary>
+    public static string RetryAfterHttpResultSource()
+        => $$"""
+
+            /// <summary>
+            /// Writes the wrapped result with a <c>Retry-After</c> header (in seconds), when one is given. Its status code
+            /// and its value are the wrapped result's; <see cref="Result"/> is the wrapped result itself.
+            /// </summary>
+            [GeneratedCode("{{GeneratorInfo.Name}}", "{{GeneratorInfo.Version}}")]
+            internal sealed class RetryAfterHttpResult : IResult, IStatusCodeHttpResult, IValueHttpResult, INestedHttpResult, IHeaderWritingHttpResult
+            {
+                private readonly int? retryAfterSeconds;
+
+                public RetryAfterHttpResult(
+                    IResult inner,
+                    int? retryAfterSeconds)
+                {
+                    Result = inner;
+                    this.retryAfterSeconds = retryAfterSeconds;
+                }
+
+                public IResult Result { get; }
+
+                public int? StatusCode
+                    => (Result as IStatusCodeHttpResult)?.StatusCode;
+
+                public object? Value
+                    => (Result as IValueHttpResult)?.Value;
+
+                public IEnumerable<KeyValuePair<string, string>> Headers
+                    => retryAfterSeconds is null
+                        ? global::System.Array.Empty<KeyValuePair<string, string>>()
+                        : new[] { new KeyValuePair<string, string>("Retry-After", retryAfterSeconds.Value.ToString(global::System.Globalization.CultureInfo.InvariantCulture)) };
+
+                public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
+                {
+                    if (retryAfterSeconds is not null)
+                    {
+                        httpContext.Response.Headers.RetryAfter = retryAfterSeconds.Value.ToString(global::System.Globalization.CultureInfo.InvariantCulture);
+                    }
+
+                    return Result.ExecuteAsync(httpContext);
+                }
+            }
+            """;
+
+    /// <summary>
+    /// The <c>ResultHeaders</c> helper behind an <c>{Operation}Result</c>'s <c>Headers</c> and <c>Location</c>, and the
+    /// <c>IHeaderWritingHttpResult</c> the header wrappers implement, emitted once per Results namespace.
+    /// </summary>
+    /// <returns>The source.</returns>
+    public static string ResultHeadersSource()
+        => $$"""
+
+            /// <summary>
+            /// A result that writes response headers before the result it wraps.
+            /// </summary>
+            [GeneratedCode("{{GeneratorInfo.Name}}", "{{GeneratorInfo.Version}}")]
+            internal interface IHeaderWritingHttpResult
+            {
+                IEnumerable<KeyValuePair<string, string>> Headers { get; }
+            }
+
+            /// <summary>
+            /// The headers a result writes: its wrappers' (a location, the declared headers, Retry-After) and the Location
+            /// of a framework Created or Accepted result.
+            /// </summary>
+            [GeneratedCode("{{GeneratorInfo.Name}}", "{{GeneratorInfo.Version}}")]
+            internal static class ResultHeaders
+            {
+                public static IReadOnlyDictionary<string, string> Of(IResult result)
+                {
+                    var headers = new Dictionary<string, string>(global::System.StringComparer.OrdinalIgnoreCase);
+                    for (var current = result; current is not null; current = (current as INestedHttpResult)?.Result)
+                    {
+                        // The wrapped result writes after its wrapper: the inner value wins
+                        switch (current)
+                        {
+                            case IHeaderWritingHttpResult writer:
+                                foreach (var header in writer.Headers)
+                                {
+                                    headers[header.Key] = header.Value;
+                                }
+
+                                break;
+                            case global::Microsoft.AspNetCore.Http.HttpResults.Created { Location: { } created }:
+                                headers["Location"] = created;
+                                break;
+                            case global::Microsoft.AspNetCore.Http.HttpResults.Accepted { Location: { } accepted }:
+                                headers["Location"] = accepted;
+                                break;
+                        }
+                    }
+
+                    return headers;
+                }
+
+                public static string? Location(IResult result)
+                    => Of(result).TryGetValue("Location", out var location) ? location : null;
+            }
+            """;
 
     private static List<ClassParameters>? ExtractInternal(
         OpenApiDocument openApiDoc,
@@ -74,7 +494,7 @@ public static class ResultClassExtractor
         TypeConflictRegistry? registry,
         SystemTypeConflictResolver systemTypeResolver,
         bool includeDeprecated,
-        Dictionary<string, ResultClassInlineSchemaInfo>? inlineSchemas,
+        Dictionary<string, InlineSchemaInfo>? inlineSchemas,
         string? namespaceSegment = null)
     {
         if (openApiDoc is null)
@@ -117,13 +537,12 @@ public static class ResultClassExtractor
                     continue;
                 }
 
-                var operationId = operationValue?.OperationId;
-
-                if (string.IsNullOrEmpty(operationId))
+                if (operationValue is null)
                 {
                     continue;
                 }
 
+                var operationId = OperationIdHelper.Effective(operationValue, operation.Key.ToString(), pathKey);
                 var currentPathSegment = PathSegmentHelper.GetFirstPathSegment(pathKey);
                 var classParams = ExtractResultClass(
                     openApiDoc,
@@ -155,7 +574,7 @@ public static class ResultClassExtractor
         TypeConflictRegistry? registry,
         SystemTypeConflictResolver systemTypeResolver,
         string pathSegment,
-        Dictionary<string, ResultClassInlineSchemaInfo>? inlineSchemas)
+        Dictionary<string, InlineSchemaInfo>? inlineSchemas)
     {
         var className = $"{operationId.ToPascalCaseForDotNet()}Result";
         var summary = operationValue.Summary ?? $"Result for operation: {operationId}";
@@ -176,13 +595,18 @@ public static class ResultClassExtractor
         {
             foreach (var response in operationValue.Responses)
             {
-                if (response.Value is not OpenApiResponse openApiResponse)
+                if (response.Value is not { } openApiResponse)
                 {
                     continue;
                 }
 
                 var factoryMethods = GenerateFactoryMethods(openApiDoc, projectName, className, response.Key, openApiResponse, isAsyncEnumerable, operationValue.GetStreamingFraming(), registry, operationId, pathSegment, inlineSchemas);
-                methods.AddRange(factoryMethods);
+                methods.AddRange(ResponseHeaderFactoryHelper.WithDeclaredHeaders(
+                    factoryMethods,
+                    openApiResponse,
+                    registry,
+                    operationId.ToPascalCaseForDotNet(),
+                    TypeConflictRegistry.ComponentTypeNamesOf(openApiDoc)));
             }
         }
 
@@ -280,8 +704,100 @@ public static class ResultClassExtractor
                 UseExpressionBody: true,
                 UseRequired: false,
                 Content: "innerResult"),
+            new(
+                DocumentationTags: new CodeDocumentationTags("The status code the result answers with (a test asserts it without casting)."),
+                Attributes: null,
+                DeclarationModifier: DeclarationModifiers.Public,
+                GenericTypeName: null,
+                TypeName: "int",
+                IsNullableType: true,
+                Name: "StatusCode",
+                JsonName: null,
+                DefaultValue: null,
+                IsReferenceType: false,
+                IsGenericListType: false,
+                UseAutoProperty: false,
+                UseGet: true,
+                UseSet: false,
+                UseExpressionBody: true,
+                UseRequired: false,
+                Content: "(innerResult as IStatusCodeHttpResult)?.StatusCode"),
+            new(
+                DocumentationTags: new CodeDocumentationTags("The value the result writes: the model, the items, the problem - null for a result without a body."),
+                Attributes: null,
+                DeclarationModifier: DeclarationModifiers.Public,
+                GenericTypeName: null,
+                TypeName: "object",
+                IsNullableType: true,
+                Name: "Value",
+                JsonName: null,
+                DefaultValue: null,
+                IsReferenceType: true,
+                IsGenericListType: false,
+                UseAutoProperty: false,
+                UseGet: true,
+                UseSet: false,
+                UseExpressionBody: true,
+                UseRequired: false,
+                Content: "(innerResult as IValueHttpResult)?.Value"),
+            new(
+                DocumentationTags: new CodeDocumentationTags("The problem the result answers with (a ValidationProblemDetails for field errors), else null."),
+                Attributes: null,
+                DeclarationModifier: DeclarationModifiers.Public,
+                GenericTypeName: null,
+                TypeName: "global::Microsoft.AspNetCore.Mvc.ProblemDetails",
+                IsNullableType: true,
+                Name: "Problem",
+                JsonName: null,
+                DefaultValue: null,
+                IsReferenceType: true,
+                IsGenericListType: false,
+                UseAutoProperty: false,
+                UseGet: true,
+                UseSet: false,
+                UseExpressionBody: true,
+                UseRequired: false,
+                Content: "Value as global::Microsoft.AspNetCore.Mvc.ProblemDetails"),
+            new(
+                DocumentationTags: new CodeDocumentationTags("The Location header the result writes (a created resource, an accepted job, a redirect), else null."),
+                Attributes: null,
+                DeclarationModifier: DeclarationModifiers.Public,
+                GenericTypeName: null,
+                TypeName: "string",
+                IsNullableType: true,
+                Name: "Location",
+                JsonName: null,
+                DefaultValue: null,
+                IsReferenceType: true,
+                IsGenericListType: false,
+                UseAutoProperty: false,
+                UseGet: true,
+                UseSet: false,
+                UseExpressionBody: true,
+                UseRequired: false,
+                Content: "ResultHeaders.Location(innerResult)"),
+            new(
+                DocumentationTags: new CodeDocumentationTags("The response headers the result writes, by name: the ones the response declares that have a value, Location and Retry-After."),
+                Attributes: null,
+                DeclarationModifier: DeclarationModifiers.Public,
+                GenericTypeName: null,
+                TypeName: "IReadOnlyDictionary<string, string>",
+                IsNullableType: false,
+                Name: "Headers",
+                JsonName: null,
+                DefaultValue: null,
+                IsReferenceType: true,
+                IsGenericListType: false,
+                UseAutoProperty: false,
+                UseGet: true,
+                UseSet: false,
+                UseExpressionBody: true,
+                UseRequired: false,
+                Content: "ResultHeaders.Of(innerResult)"),
         };
 
+        // INestedHttpResult: one test helper unwraps any operation's result through Result, without reflection; its
+        // status, value and problem forward to the result it wraps (as LocationHttpResult's do)
         return new ClassParameters(
             HeaderContent: null, // Header added separately per file
             Namespace: namespaceValue,
@@ -295,7 +811,7 @@ public static class ResultClassExtractor
             GenericTypeName: null,
             InheritedClassTypeName: null,
             InheritedGenericClassTypeName: null,
-            InheritedInterfaceTypeName: "IResult",
+            InheritedInterfaceTypeName: $"IResult, INestedHttpResult, IStatusCodeHttpResult, IValueHttpResult, {ApiResultExtractor.InterfaceReference(projectName)}",
             Constructors: new List<ConstructorParameters> { constructor },
             Properties: properties,
             Methods: methods,
@@ -307,48 +823,56 @@ public static class ResultClassExtractor
         string projectName,
         string className,
         string statusCode,
-        OpenApiResponse responseValue,
+        IOpenApiResponse responseValue,
         bool isAsyncEnumerable,
         StreamingFraming streamingFraming,
         TypeConflictRegistry? registry,
         string operationId,
         string pathSegment,
-        Dictionary<string, ResultClassInlineSchemaInfo>? inlineSchemas)
+        Dictionary<string, InlineSchemaInfo>? inlineSchemas)
     {
         var methods = new List<MethodParameters>();
         var description = responseValue.Summary ?? responseValue.Description ?? string.Empty;
 
-        // Check for binary file download response first
-        var isFileDownload = false;
-
-        if (responseValue.Content is not null)
+        // Error responses (4xx, 5xx, default) follow the error contract: what the spec declares is what the
+        // factory takes and writes; nothing declared means an RFC 9457 ProblemDetails.
+        if (ErrorResponseShapeResolver.IsErrorStatusCode(statusCode))
         {
-            foreach (var contentEntry in responseValue.Content)
-            {
-                if (OpenApiOperationExtensions.IsFileDownloadContentType(contentEntry.Key))
-                {
-                    isFileDownload = true;
-                    break;
-                }
-            }
+            return GenerateErrorFactoryMethods(openApiDoc, className, description, statusCode, responseValue, registry, operationId, pathSegment, inlineSchemas);
         }
+
+        // A file download when the primary (first declared) body is binary - the rule every generator shares
+        var isFileDownload = ResponseBodyClassifier.PrimaryBody(responseValue.Content)?.Kind == ResponseBodyKind.Binary;
 
         // Determine response type - use generic support for allOf patterns like PaginatedResult<T>
         string? contentType = null;
-        if (!isFileDownload && responseValue.Content is not null && responseValue.Content.TryGetValue("application/json", out var mediaType))
+        if (!isFileDownload && responseValue.Content is not null && responseValue.Content.JsonBody is { } mediaType)
         {
             contentType = GetSchemaTypeName(mediaType.Schema, openApiDoc, registry, operationId, pathSegment, "Response", inlineSchemas);
         }
 
-        // OpenAPI 3.2 streaming: when a response media type declares an itemSchema, the
-        // streamed element type comes from it directly (wrapped as IAsyncEnumerable<T> below).
+        // An XML-only model body (no JSON media type declared): the model, written as its generated XML; a JSON body
+        // offered as XML too: negotiated by Accept (JSON unless XML is preferred)
+        XmlBody? xmlBody = null;
+        if (!isFileDownload && contentType is null && responseValue.Content.XmlOnlyBody is { } xml)
+        {
+            contentType = GetSchemaTypeName(responseValue.Content![xml.MediaType].Schema, openApiDoc, registry, operationId, pathSegment, "Response", inlineSchemas);
+            xmlBody = contentType is null ? null : xml;
+        }
+        else if (!isFileDownload && !isAsyncEnumerable && contentType is not null && responseValue.Content.XmlAlternative is { } alternative)
+        {
+            xmlBody = alternative;
+        }
+
+        // A sequential stream: the element comes from the media type's itemSchema (OpenAPI 3.2), or from the
+        // schema under a streaming media type (wrapped as IAsyncEnumerable<T> below).
         if (!isFileDownload && contentType is null && isAsyncEnumerable && responseValue.Content is not null)
         {
-            foreach (var mt in responseValue.Content.Values)
+            foreach (var mt in responseValue.Content)
             {
-                if (mt.ItemSchema is not null)
+                if ((mt.Value.ItemSchema ?? StreamingMediaType.ItemSchemaOf(mt.Key, mt.Value.Schema)) is { } itemSchema)
                 {
-                    contentType = GetSchemaTypeName(mt.ItemSchema, openApiDoc, registry, operationId, pathSegment, "Response", inlineSchemas);
+                    contentType = GetSchemaTypeName(itemSchema, openApiDoc, registry, operationId, pathSegment, "Response", inlineSchemas);
                     break;
                 }
             }
@@ -367,61 +891,42 @@ public static class ResultClassExtractor
             contentType = "string";
         }
 
+        // A JSON body under another JSON media type (application/hal+json, a vendor +json) is written with it - the JSON
+        // results send application/json
+        var jsonMediaType = !isFileDownload && !isAsyncEnumerable && !isTextResponse && contentType is not null
+            ? responseValue.Content.OtherJsonBodyMediaType
+            : null;
+
         switch (statusCode)
         {
             // Generate factory method based on status code
             case "200":
-                methods.AddRange(GenerateOkMethods(projectName, className, description, contentType, isAsyncEnumerable, streamingFraming, isFileDownload, isTextResponse, textResponseMediaType));
+                methods.AddRange(GenerateOkMethods(projectName, className, description, contentType, isAsyncEnumerable, streamingFraming, isFileDownload, isTextResponse, textResponseMediaType, ResponseBodyClassifier.PrimaryBody(responseValue.Content)?.MediaType, xmlBody, StreamingMediaTypeOf(responseValue), jsonMediaType));
+
+                // A model or a file: the file factories too (the content type defaults to the first declared file type)
+                if (!isFileDownload && contentType is not null && ResponseBodyClassifier.FileAlternatives(responseValue.Content) is { Count: > 0 } fileMediaTypes)
+                {
+                    methods.AddRange(GenerateOkMethods(projectName, className, description, contentType: null, isAsyncEnumerable: false, streamingFraming, isFileDownload: true, fileMediaType: fileMediaTypes[0]));
+                }
+
                 break;
             case "201":
-                methods.AddRange(GenerateCreatedMethods(className, description, contentType));
+                methods.AddRange(GenerateCreatedMethods(className, description, contentType, xmlBody, jsonMediaType));
                 break;
             case "202":
-                methods.Add(GenerateAcceptedMethod(className, description, contentType));
+                methods.Add(GenerateAcceptedMethod(className, description, contentType, xmlBody, jsonMediaType));
                 break;
             case "204":
                 methods.Add(GenerateNoContentMethod(className, description));
                 break;
-            case "400":
-                methods.Add(GenerateBadRequestMethod(className, description, contentType));
-                break;
-            case "401":
-                methods.Add(GenerateUnauthorizedMethod(className, description));
-                break;
-            case "403":
-                methods.Add(GenerateForbiddenMethod(className, description));
-                break;
-            case "404":
-                methods.Add(GenerateNotFoundMethod(className, description));
-                break;
-            case "409":
-                methods.Add(GenerateConflictMethod(className, description));
-                break;
-            case "412":
-                methods.Add(GeneratePreconditionFailedMethod(className, description));
-                break;
-            case "422":
-                methods.Add(GenerateUnprocessableEntityMethod(className, description));
-                break;
-            case "429":
-                methods.Add(GenerateTooManyRequestsMethod(className, description));
-                break;
-            case "500":
-                methods.Add(GenerateInternalServerErrorMethod(className, description, contentType));
-                break;
-            case "504":
-                methods.Add(GenerateGatewayTimeoutMethod(className, description, contentType));
-                break;
             default:
             {
-                if (statusCode.Equals("default", StringComparison.OrdinalIgnoreCase))
+                // An informational (1xx) status is never a final response (RFC 9110 §15.2): no factory
+                // (ATC_API_OPR030 warns about the declaration).
+                if (int.TryParse(statusCode, NumberStyles.Integer, CultureInfo.InvariantCulture, out var statusCodeInt) &&
+                    statusCodeInt >= 200)
                 {
-                    methods.Add(GenerateErrorMethod(className, description, contentType));
-                }
-                else if (int.TryParse(statusCode, NumberStyles.Integer, CultureInfo.InvariantCulture, out var statusCodeInt))
-                {
-                    var methodName = HttpStatusCodeHelper.ToEnumName(statusCodeInt);
-                    methods.Add(GenerateGenericStatusCodeMethod(className, description, statusCode, methodName));
+                    methods.Add(GenerateStatusMethod(className, description, statusCodeInt, contentType, isTextResponse, textResponseMediaType, xmlBody, jsonMediaType));
                 }
 
                 break;
@@ -430,6 +935,336 @@ public static class ResultClassExtractor
 
         return methods;
     }
+
+    /// <summary>
+    /// Generates the factory methods for one error response (4xx, 5xx or <c>default</c>).
+    /// </summary>
+    /// <remarks>
+    /// <list type="bullet">
+    ///   <item>Nothing declared, or a schema named <c>ProblemDetails</c> / <c>ValidationProblemDetails</c>:
+    ///   an RFC 9457 ProblemDetails (<c>application/problem+json</c>) whose status is the response status.
+    ///   The 2.x call shapes keep compiling: <c>X(string? message = null)</c>, 400 with
+    ///   <c>ValidationProblemDetails?</c>, 500/504 with <c>ProblemDetails?</c>, 429 with <c>int? retryAfterSeconds</c>.
+    ///   A declared problem schema adds an <c>X(ProblemDetails problem)</c> overload.</item>
+    ///   <item>Any other JSON schema <c>T</c>: <c>X(T? error = null)</c> writes <c>T</c> with the declared media type.</item>
+    ///   <item>A JSON string or text: <c>X(string? message = null)</c> writes it as declared.</item>
+    ///   <item>A declared body left empty (<c>X()</c>) has no body; 429 always sets <c>Retry-After</c> when given.</item>
+    /// </list>
+    /// </remarks>
+    private static List<MethodParameters> GenerateErrorFactoryMethods(
+        OpenApiDocument openApiDoc,
+        string className,
+        string description,
+        string statusCode,
+        IOpenApiResponse responseValue,
+        TypeConflictRegistry? registry,
+        string operationId,
+        string pathSegment,
+        Dictionary<string, InlineSchemaInfo>? inlineSchemas)
+    {
+        var shape = ErrorResponseShapeResolver.Resolve(responseValue);
+        var isDefault = !int.TryParse(statusCode, NumberStyles.Integer, CultureInfo.InvariantCulture, out var code);
+        var name = isDefault ? "Error" : HttpStatusCodeHelper.ToEnumName(code);
+        var status = isDefault ? "statusCode" : code.ToString(CultureInfo.InvariantCulture);
+        var doc = isDefault
+            ? $"Default error response - {description}"
+            : $"{statusCode} {Regex.Replace(HttpStatusCodeHelper.ToEnumName(code), "(?<=[a-z])(?=[A-Z])", " ", RegexOptions.None, TimeSpan.FromSeconds(1))} - {description}";
+        var isTooManyRequests = code == 429;
+
+        // default: the status is a parameter (default 500), so "any other status" stays expressible.
+        List<ParameterBaseParameters> statusParameter = isDefault
+            ? [CreateParameter("int", "statusCode", nullable: false, isReference: false, defaultValue: "500")]
+            : [];
+
+        string Wrap(string result)
+            => isTooManyRequests
+                ? $"new(new RetryAfterHttpResult({result}, retryAfterSeconds))"
+                : $"new({result})";
+
+        var methods = new List<MethodParameters>();
+
+        if (shape.IsProblem)
+        {
+            var problemFromMessage = $"TypedResults.Problem(detail: message, statusCode: {status})";
+
+            // A declared problem schema adds a ProblemDetails overload next to the 2.x shape. A null
+            // argument keeps resolving to the 2.x shape, as it did in 2.x, instead of being ambiguous.
+            var hasProblemOverload = shape.IsDeclared && code is not (400 or 500 or 504);
+            IList<AttributeParameters>? legacyShapeAttributes = hasProblemOverload
+                ? [new AttributeParameters("System.Runtime.CompilerServices.OverloadResolutionPriority", "1")]
+                : null;
+
+            if (code == 400)
+            {
+                // 2.x shape: BadRequest(ValidationProblemDetails? errors = null) (or the declared ProblemDetails).
+                var errorsType = shape is { Kind: ErrorResponseKind.Problem, IsDeclared: true } ? "ProblemDetails" : "ValidationProblemDetails";
+                var fromErrors = ProblemExpression("errors", "400");
+                methods.Add(CreateErrorFactory(
+                    className,
+                    doc,
+                    name,
+                    [CreateParameter(errorsType, "errors", nullable: true, isReference: true, defaultValue: "null")],
+                    $"new(errors is null ? TypedResults.Problem(statusCode: 400) : {fromErrors})",
+                    [new AttributeParameters("System.Runtime.CompilerServices.OverloadResolutionPriority", "1")]));
+
+                // A request refused for a reason that is no field error, as NotFound("…") says it. No default, so
+                // BadRequest() and BadRequest(null) stay the 2.x shape above.
+                methods.Add(CreateErrorFactory(
+                    className,
+                    doc,
+                    name,
+                    [CreateParameter("string", "message", nullable: false, isReference: true, defaultValue: null)],
+                    $"new({problemFromMessage})"));
+            }
+            else if (code is 500 or 504)
+            {
+                // 2.x shape: X(ProblemDetails? error = null).
+                methods.Add(CreateErrorFactory(
+                    className,
+                    doc,
+                    name,
+                    [CreateParameter("ProblemDetails", "error", nullable: true, isReference: true, defaultValue: "null")],
+                    $"new(error is null ? TypedResults.Problem(statusCode: {status}) : {ProblemExpression("error", status)})"));
+            }
+            else if (isTooManyRequests)
+            {
+                // 2.x shape: TooManyRequests(int? retryAfterSeconds = null), plus the message.
+                methods.Add(CreateErrorFactory(
+                    className,
+                    doc,
+                    name,
+                    [
+                        CreateParameter("int", "retryAfterSeconds", nullable: true, isReference: false, defaultValue: "null"),
+                        CreateParameter("string", "message", nullable: true, isReference: true, defaultValue: "null"),
+                    ],
+                    Wrap(problemFromMessage),
+                    legacyShapeAttributes));
+            }
+            else
+            {
+                methods.Add(CreateErrorFactory(
+                    className,
+                    doc,
+                    name,
+                    isDefault
+                        ? [CreateParameter("string", "message", nullable: true, isReference: true, defaultValue: "null"), .. statusParameter]
+                        : [CreateParameter("string", "message", nullable: true, isReference: true, defaultValue: "null")],
+                    $"new({problemFromMessage})",
+                    legacyShapeAttributes));
+            }
+
+            // A declared problem schema also accepts the problem object itself (400/500/504 already do).
+            if (hasProblemOverload)
+            {
+                var problemType = shape.Kind == ErrorResponseKind.ValidationProblem ? "ValidationProblemDetails" : "ProblemDetails";
+                var fromProblem = ProblemExpression("problem", status);
+                List<ParameterBaseParameters> parameters = [CreateParameter(problemType, "problem", nullable: false, isReference: true, defaultValue: null), .. statusParameter];
+                if (isTooManyRequests)
+                {
+                    parameters.Add(CreateParameter("int", "retryAfterSeconds", nullable: true, isReference: false, defaultValue: "null"));
+                }
+
+                methods.Add(CreateErrorFactory(className, doc, name, parameters, Wrap(fromProblem)));
+            }
+
+            return methods;
+        }
+
+        // A declared, non-problem body: the handler's value is written as declared.
+        var (valueType, valueName, written) = shape.Kind switch
+        {
+            ErrorResponseKind.Text => (
+                "string",
+                "message",
+                $"TypedResults.Text(message, \"{shape.MediaTypeLiteral}\", statusCode: {status})"),
+            ErrorResponseKind.JsonString => (
+                "string",
+                "message",
+                JsonResultExpression("message", shape.MediaTypeLiteral, status)),
+            ErrorResponseKind.XmlObject => XmlErrorFactory(shape, status, code, GetSchemaTypeName(shape.Schema, openApiDoc, registry, operationId, pathSegment, ErrorResponseShapeResolver.InlineTypeContext(statusCode), inlineSchemas)),
+            _ => JsonErrorFactory(
+                GetSchemaTypeName(shape.Schema, openApiDoc, registry, operationId, pathSegment, ErrorResponseShapeResolver.InlineTypeContext(statusCode), inlineSchemas),
+                code == 400 ? "errors" : "error",
+                shape.MediaTypeLiteral,
+                status),
+        };
+
+        if (isDefault)
+        {
+            // 2.x shape: Error(T error) - the value is required, the status optional.
+            methods.Add(CreateErrorFactory(
+                className,
+                doc,
+                name,
+                [CreateParameter(valueType, valueName, nullable: false, isReference: true, defaultValue: null), .. statusParameter],
+                $"new({written})"));
+
+            return methods;
+        }
+
+        // A declared model that cannot hold the ProblemDetails the host writes for an empty error response is required:
+        // the call without it would leave a client reading the model with an empty one
+        if (shape.Kind is ErrorResponseKind.JsonObject or ErrorResponseKind.XmlObject && !shape.CanHoldProblemDetails)
+        {
+            List<ParameterBaseParameters> requiredParameters = [CreateParameter(valueType, valueName, nullable: false, isReference: true, defaultValue: null)];
+            if (isTooManyRequests)
+            {
+                requiredParameters.Add(CreateParameter("int", "retryAfterSeconds", nullable: true, isReference: false, defaultValue: "null"));
+            }
+
+            methods.Add(CreateErrorFactory(
+                className,
+                doc,
+                name,
+                requiredParameters,
+                Wrap(written)));
+
+            return methods;
+        }
+
+        List<ParameterBaseParameters> valueParameters = [CreateParameter(valueType, valueName, nullable: true, isReference: true, defaultValue: "null")];
+        if (isTooManyRequests)
+        {
+            // First, as in the 2.x shape TooManyRequests(int? retryAfterSeconds): a 2.x call TooManyRequests(30) still compiles.
+            valueParameters.Insert(0, CreateParameter("int", "retryAfterSeconds", nullable: true, isReference: false, defaultValue: "null"));
+        }
+
+        // Called without the value, the response has no body of its own: say what the client then reads
+        methods.Add(CreateErrorFactory(
+            className,
+            doc,
+            name,
+            valueParameters,
+            Wrap($"{valueName} is null ? TypedResults.StatusCode({status}) : {written}"),
+            remark: shape.Kind is ErrorResponseKind.JsonObject or ErrorResponseKind.XmlObject
+                ? $"Without {valueName}, the response has no body of its own: the host writes its ProblemDetails (when it adds one to an empty error response), so a client reading {valueType} gets only the fields it shares with a ProblemDetails. Pass a {valueType} to send the declared body."
+                : null));
+
+        return methods;
+    }
+
+    /// <summary>
+    /// The expression of a JSON body written through the app's JSON options' <c>JsonTypeInfo</c>.
+    /// </summary>
+    /// <remarks>
+    /// The value's type is inferred, as <c>TypedResults.Json</c> inferred it: a nullable value type's value stays
+    /// nullable.
+    /// </remarks>
+    private static string JsonResultExpression(
+        string valueName,
+        string? mediaTypeLiteral,
+        string status)
+        => $"JsonTypeInfoHttpResult.Of({valueName}, {(mediaTypeLiteral is null ? "null" : $"\"{mediaTypeLiteral}\"")}, {status})";
+
+    private static (string ValueType, string ValueName, string Written) JsonErrorFactory(
+        string valueType,
+        string valueName,
+        string? mediaTypeLiteral,
+        string status)
+        => (valueType, valueName, JsonResultExpression(valueName, mediaTypeLiteral, status));
+
+    /// <summary>
+    /// The factory value of a declared XML error model: the model, written by its XML mapping with the declared media
+    /// type.
+    /// </summary>
+    private static (string ValueType, string ValueName, string Written) XmlErrorFactory(
+        ErrorResponseShape shape,
+        string status,
+        int code,
+        string modelTypeName)
+    {
+        var valueName = code == 400 ? "errors" : "error";
+        var body = new XmlBody(shape.MediaType ?? "application/xml", IsList: false, ListRootName: null);
+        return (modelTypeName, valueName, $"new XmlHttpResult({status}, \"{shape.MediaTypeLiteral}\", {XmlBodyHelper.ToUtf8BytesExpression(modelTypeName, body, valueName)}, {valueName})");
+    }
+
+    /// <summary>
+    /// The caller's problem object as it is - a <c>ValidationProblemDetails</c> keeps its errors, a type of the caller's
+    /// own its properties - with the response status (it used to be rebuilt from its five standard fields).
+    /// </summary>
+    private static string ProblemExpression(
+        string variable,
+        string status)
+        => $"TypedResults.Problem(ProblemWithStatus.Of({variable}, {status}))";
+
+    private static MethodParameters CreateErrorFactory(
+        string className,
+        string documentation,
+        string name,
+        List<ParameterBaseParameters> parameters,
+        string content,
+        IList<AttributeParameters>? attributes = null,
+        string? remark = null)
+        => new(
+            DocumentationTags: new CodeDocumentationTags(documentation) { Remark = remark },
+            Attributes: attributes,
+            DeclarationModifier: DeclarationModifiers.PublicStatic,
+            ReturnGenericTypeName: null,
+            ReturnTypeName: className,
+            Name: name,
+            Parameters: parameters,
+            AlwaysBreakDownParameters: false,
+            UseExpressionBody: true,
+            Content: content);
+
+    private static ParameterBaseParameters CreateParameter(
+        string typeName,
+        string name,
+        bool nullable,
+        bool isReference,
+        string? defaultValue)
+        => new(
+            Attributes: null,
+            GenericTypeName: null,
+            IsGenericListType: false,
+            TypeName: typeName,
+            IsNullableType: nullable,
+            IsReferenceType: isReference,
+            Name: name,
+            DefaultValue: defaultValue);
+
+    private static MethodParameters FileDownloadMethod(
+        CodeDocumentationTags doc,
+        string className,
+        string contentTypeName,
+        string contentName,
+        string body)
+        => new(
+            DocumentationTags: doc,
+            Attributes: null,
+            DeclarationModifier: DeclarationModifiers.PublicStatic,
+            ReturnGenericTypeName: null,
+            ReturnTypeName: className,
+            Name: "Ok",
+            Parameters: new List<ParameterBaseParameters>
+            {
+                new(Attributes: null, GenericTypeName: null, IsGenericListType: false, TypeName: contentTypeName, IsNullableType: false, IsReferenceType: true, Name: contentName, DefaultValue: null),
+                new(Attributes: null, GenericTypeName: null, IsGenericListType: false, TypeName: "string", IsNullableType: true, IsReferenceType: true, Name: "contentType", DefaultValue: "null"),
+                new(Attributes: null, GenericTypeName: null, IsGenericListType: false, TypeName: "string", IsNullableType: true, IsReferenceType: true, Name: "fileName", DefaultValue: "null"),
+            },
+            AlwaysBreakDownParameters: false,
+            UseExpressionBody: true,
+            Content: body);
+
+    /// <summary>
+    /// The sequential media type a response streams in (the first with a schema, as the framing is chosen), as written - <c>application/x-ndjson</c>,
+    /// <c>application/geo+json-seq</c> - or <see langword="null"/>.
+    /// </summary>
+    private static string? StreamingMediaTypeOf(IOpenApiResponse response)
+        => response.Content?
+            .Where(entry => StreamingMediaType.IsSequential(entry.Key) && (entry.Value?.Schema is not null || entry.Value?.ItemSchema is not null))
+            .Select(entry => entry.Key)
+            .FirstOrDefault();
+
+    /// <summary>
+    /// The writer's content-type argument when the declared media type is not the writer's default; empty otherwise.
+    /// </summary>
+    private static string DeclaredMediaTypeArgument(
+        string? declared,
+        string writerDefault)
+        => declared is null || string.Equals(declared, writerDefault, StringComparison.OrdinalIgnoreCase)
+            ? string.Empty
+            : $", \"{declared}\"";
 
     private static List<MethodParameters> GenerateOkMethods(
         string projectName,
@@ -440,76 +1275,29 @@ public static class ResultClassExtractor
         StreamingFraming streamingFraming,
         bool isFileDownload = false,
         bool isTextResponse = false,
-        string? textResponseMediaType = null)
+        string? textResponseMediaType = null,
+        string? fileMediaType = null,
+        XmlBody? xmlBody = null,
+        string? streamingMediaType = null,
+        string? jsonMediaType = null)
     {
         var methods = new List<MethodParameters>();
         var doc = new CodeDocumentationTags($"200 OK - {description}");
 
-        // Handle file download responses
+        // File downloads: bytes or a stream. The content type defaults to the declared media type, and no file name
+        // is an inline file (no Content-Disposition). The parameter order and names are kept from 2.x (a swap of the two
+        // strings would silently mix up existing callers).
         if (isFileDownload)
         {
-            var fileMethod = new MethodParameters(
-                DocumentationTags: doc,
-                Attributes: null,
-                DeclarationModifier: DeclarationModifiers.PublicStatic,
-                ReturnGenericTypeName: null,
-                ReturnTypeName: className,
-                Name: "Ok",
-                Parameters: new List<ParameterBaseParameters>
-                {
-                    new(
-                        Attributes: null,
-                        GenericTypeName: null,
-                        IsGenericListType: false,
-                        TypeName: "byte[]",
-                        IsNullableType: false,
-                        IsReferenceType: true,
-                        Name: "bytes",
-                        DefaultValue: null),
-                    new(
-                        Attributes: null,
-                        GenericTypeName: null,
-                        IsGenericListType: false,
-                        TypeName: "string",
-                        IsNullableType: false,
-                        IsReferenceType: true,
-                        Name: "contentType",
-                        DefaultValue: null),
-                    new(
-                        Attributes: null,
-                        GenericTypeName: null,
-                        IsGenericListType: false,
-                        TypeName: "string",
-                        IsNullableType: false,
-                        IsReferenceType: true,
-                        Name: "fileName",
-                        DefaultValue: null),
-                },
-                AlwaysBreakDownParameters: false,
-                UseExpressionBody: true,
-                Content: "new(TypedResults.File(bytes, contentType, fileName))");
-            methods.Add(fileMethod);
+            var defaultContentType = fileMediaType ?? "application/octet-stream";
+            methods.Add(FileDownloadMethod(doc, className, "byte[]", "bytes", $"new(TypedResults.File(bytes, contentType ?? \"{defaultContentType}\", fileName))"));
+            methods.Add(FileDownloadMethod(doc, className, "Stream", "stream", $"new(TypedResults.Stream(stream, contentType ?? \"{defaultContentType}\", fileName))"));
             return methods;
         }
 
         if (!string.IsNullOrEmpty(contentType))
         {
-            // For async enumerable operations, wrap the content type with IAsyncEnumerable<>
-            var parameterType = contentType!;
-            if (isAsyncEnumerable)
-            {
-                if (contentType!.StartsWith("List<", StringComparison.Ordinal) && contentType.EndsWith(">", StringComparison.Ordinal))
-                {
-                    // For List<T>, extract T and wrap as IAsyncEnumerable<T>
-                    var elementType = contentType.Substring(5, contentType.Length - 6);
-                    parameterType = $"IAsyncEnumerable<{elementType}>";
-                }
-                else
-                {
-                    // For other types like PaginationResult<T>, wrap the entire type
-                    parameterType = $"IAsyncEnumerable<{contentType}>";
-                }
-            }
+            var parameterType = OkParameterType(contentType!, isAsyncEnumerable);
 
             // For textual responses (text/plain, text/csv, application/xml, ...) the body must
             // be returned verbatim (no JSON quoting). Use TypedResults.Text(content, mediaType)
@@ -519,145 +1307,30 @@ public static class ResultClassExtractor
                 ? "response"
                 : parameterType == "string" ? "message" : "response";
 
-            // Server-Sent Events use the first-party TypedResults.ServerSentEvents writer; JSON
-            // Lines uses the emitted JsonLinesResult<T> writer (fully-qualified — the Results file
-            // has no Streaming using); all other framing's (JsonArray, ...) keep TypedResults.Ok.
-            string content;
-            if (isTextResponse)
-            {
-                content = $"new(TypedResults.Text({paramName}, \"{textResponseMediaType}\"))";
-            }
-            else if (isAsyncEnumerable && streamingFraming == StreamingFraming.ServerSentEvents)
-            {
-                content = $"new(TypedResults.ServerSentEvents({paramName}))";
-            }
-            else if (isAsyncEnumerable && streamingFraming == StreamingFraming.JsonLines)
-            {
-                content = $"new(new {projectName}.Generated.Streaming.JsonLinesResult<{contentType}>({paramName}))";
-            }
-            else if (isAsyncEnumerable && streamingFraming == StreamingFraming.JsonSequence)
-            {
-                content = $"new(new {projectName}.Generated.Streaming.JsonSequenceResult<{contentType}>({paramName}))";
-            }
-            else if (isAsyncEnumerable && streamingFraming == StreamingFraming.MultipartMixed)
-            {
-                content = $"new(new {projectName}.Generated.Streaming.MultipartMixedResult<{contentType}>({paramName}))";
-            }
-            else
-            {
-                content = $"new(TypedResults.Ok({paramName}))";
-            }
+            var content = OkContentExpression(projectName, contentType!, parameterType, paramName, isAsyncEnumerable, streamingFraming, isTextResponse, textResponseMediaType, xmlBody, streamingMediaType, jsonMediaType);
+            methods.Add(OkMethod(doc, className, parameterType, paramName, content));
 
-            // Factory method with parameter
-            var okMethod = new MethodParameters(
-                DocumentationTags: doc,
-                Attributes: null,
-                DeclarationModifier: DeclarationModifiers.PublicStatic,
-                ReturnGenericTypeName: null,
-                ReturnTypeName: className,
-                Name: "Ok",
-                Parameters: new List<ParameterBaseParameters>
-                {
-                    new(
-                        Attributes: null,
-                        GenericTypeName: null,
-                        IsGenericListType: false,
-                        TypeName: parameterType,
-                        IsNullableType: false,
-                        IsReferenceType: true,
-                        Name: paramName,
-                        DefaultValue: null),
-                },
-                AlwaysBreakDownParameters: false,
-                UseExpressionBody: true,
-                Content: content);
-            methods.Add(okMethod);
+            // An event stream can also be given as the events themselves: a handler that sets an event's id (what a
+            // client sends back as Last-Event-ID to continue after it), its name or the retry time yields SseItem<T>
+            const string asyncEnumerableOf = "IAsyncEnumerable<";
+            if (isAsyncEnumerable &&
+                streamingFraming == StreamingFraming.ServerSentEvents &&
+                parameterType.StartsWith(asyncEnumerableOf, StringComparison.Ordinal))
+            {
+                var itemType = parameterType.Substring(asyncEnumerableOf.Length, parameterType.Length - asyncEnumerableOf.Length - 1);
+                methods.Add(OkMethod(
+                    new CodeDocumentationTags("200 OK - the events as the handler writes them: each with the id, the name and the retry time it sets."),
+                    className,
+                    $"IAsyncEnumerable<global::System.Net.ServerSentEvents.SseItem<{itemType}>>",
+                    "events",
+                    $"new(new {projectName}.Generated.Streaming.StartedStreamResult<global::System.Net.ServerSentEvents.SseItem<{itemType}>>(events, static items => TypedResults.ServerSentEvents(items)))"));
+            }
 
             // Add implicit conversion if content type is List<T> or single object (but not 'object' base type)
             // Skip implicit operators for IAsyncEnumerable - they don't make sense for streaming
             if (contentType != "object" && !isAsyncEnumerable)
             {
-                if (contentType!.StartsWith("List<", StringComparison.Ordinal) && contentType.EndsWith(">", StringComparison.Ordinal))
-                {
-                    var elementType = contentType.Substring(5, contentType.Length - 6); // Extract T from List<T>
-
-                    // List implicit operator (direct)
-                    var listOperator = new MethodParameters(
-                        DocumentationTags: null,
-                        Attributes: null,
-                        DeclarationModifier: DeclarationModifiers.PublicStaticImplicitOperator,
-                        ReturnGenericTypeName: null,
-                        ReturnTypeName: className,
-                        Name: string.Empty, // Name is not used for implicit operator
-                        Parameters: new List<ParameterBaseParameters>
-                        {
-                            new(
-                                Attributes: null,
-                                GenericTypeName: "List",
-                                IsGenericListType: true,
-                                TypeName: elementType,
-                                IsNullableType: false,
-                                IsReferenceType: true,
-                                Name: "response",
-                                DefaultValue: null),
-                        },
-                        AlwaysBreakDownParameters: false,
-                        UseExpressionBody: true,
-                        Content: "Ok(response)");
-                    methods.Add(listOperator);
-
-                    // Array to List implicit operator (for backwards compatibility)
-                    var arrayOperator = new MethodParameters(
-                        DocumentationTags: null,
-                        Attributes: null,
-                        DeclarationModifier: DeclarationModifiers.PublicStaticImplicitOperator,
-                        ReturnGenericTypeName: null,
-                        ReturnTypeName: className,
-                        Name: string.Empty, // Name is not used for implicit operator
-                        Parameters: new List<ParameterBaseParameters>
-                        {
-                            new(
-                                Attributes: null,
-                                GenericTypeName: null,
-                                IsGenericListType: false,
-                                TypeName: $"{elementType}[]",
-                                IsNullableType: false,
-                                IsReferenceType: true,
-                                Name: "response",
-                                DefaultValue: null),
-                        },
-                        AlwaysBreakDownParameters: false,
-                        UseExpressionBody: true,
-                        Content: "Ok(response.ToList())");
-                    methods.Add(arrayOperator);
-                }
-                else
-                {
-                    // Single type implicit operator - use same parameter name as Ok method
-                    var implicitOperator = new MethodParameters(
-                        DocumentationTags: null,
-                        Attributes: null,
-                        DeclarationModifier: DeclarationModifiers.PublicStaticImplicitOperator,
-                        ReturnGenericTypeName: null,
-                        ReturnTypeName: className,
-                        Name: string.Empty, // Name is not used for implicit operator
-                        Parameters: new List<ParameterBaseParameters>
-                        {
-                            new(
-                                Attributes: null,
-                                GenericTypeName: null,
-                                IsGenericListType: false,
-                                TypeName: contentType,
-                                IsNullableType: false,
-                                IsReferenceType: true,
-                                Name: paramName,
-                                DefaultValue: null),
-                        },
-                        AlwaysBreakDownParameters: false,
-                        UseExpressionBody: true,
-                        Content: $"Ok({paramName})");
-                    methods.Add(implicitOperator);
-                }
+                methods.AddRange(OkImplicitOperators(className, contentType!, paramName));
             }
         }
         else
@@ -680,11 +1353,189 @@ public static class ResultClassExtractor
         return methods;
     }
 
+    /// <summary>
+    /// The Ok parameter's type: the content type, or for a stream the items as <c>IAsyncEnumerable&lt;T&gt;</c>.
+    /// </summary>
+    private static string OkParameterType(
+        string contentType,
+        bool isAsyncEnumerable)
+    {
+        var parameterType = contentType!;
+        if (isAsyncEnumerable)
+        {
+            if (contentType!.StartsWith("List<", StringComparison.Ordinal) && contentType.EndsWith(">", StringComparison.Ordinal))
+            {
+                // For List<T>, extract T and wrap as IAsyncEnumerable<T>
+                var elementType = contentType.Substring(5, contentType.Length - 6);
+                parameterType = $"IAsyncEnumerable<{elementType}>";
+            }
+            else
+            {
+                // For other types like PaginationResult<T>, wrap the entire type
+                parameterType = $"IAsyncEnumerable<{contentType}>";
+            }
+        }
+
+        return parameterType;
+    }
+
+    /// <summary>
+    /// What Ok(...) returns: the text, the XML body, the stream writer of the framing, or TypedResults.Ok.
+    /// </summary>
+    private static string OkContentExpression(
+        string projectName,
+        string contentType,
+        string parameterType,
+        string paramName,
+        bool isAsyncEnumerable,
+        StreamingFraming streamingFraming,
+        bool isTextResponse,
+        string? textResponseMediaType,
+        XmlBody? xmlBody,
+        string? streamingMediaType,
+        string? jsonMediaType)
+    {
+        // A JSON body under another JSON media type is written with it (TypedResults.Ok sends application/json)
+        var jsonResult = jsonMediaType is null
+            ? $"TypedResults.Ok({paramName})"
+            : JsonResultExpression(paramName, jsonMediaType, "200");
+
+        // A stream is written by the emitted Streaming results (fully-qualified - the Results file has no Streaming
+        // using): Server-Sent Events by the framework's TypedResults.ServerSentEvents through StartedStreamResult<T>,
+        // JSON Lines, JSON Text Sequences, multipart/mixed and a JSON array by their own writers. Each starts the response
+        // at its first item and has the status code and the items (IStatusCodeHttpResult, IValueHttpResult).
+        string content;
+        if (isTextResponse)
+        {
+            content = $"new(TypedResults.Text({paramName}, \"{textResponseMediaType}\"))";
+        }
+        else if (xmlBody is not null)
+        {
+            content = XmlResultExpression(200, contentType!, xmlBody, paramName, jsonResult);
+        }
+        else if (isAsyncEnumerable && streamingFraming == StreamingFraming.ServerSentEvents)
+        {
+            content = $"new(new {projectName}.Generated.Streaming.StartedStreamResult<{StreamItemType(parameterType)}>({paramName}, static items => TypedResults.ServerSentEvents(items)))";
+        }
+        else if (isAsyncEnumerable && streamingFraming == StreamingFraming.JsonLines)
+        {
+            content = $"new(new {projectName}.Generated.Streaming.JsonLinesResult<{contentType}>({paramName}{DeclaredMediaTypeArgument(streamingMediaType, "application/jsonl")}))";
+        }
+        else if (isAsyncEnumerable && streamingFraming == StreamingFraming.JsonSequence)
+        {
+            content = $"new(new {projectName}.Generated.Streaming.JsonSequenceResult<{contentType}>({paramName}{DeclaredMediaTypeArgument(streamingMediaType, "application/json-seq")}))";
+        }
+        else if (isAsyncEnumerable && streamingFraming == StreamingFraming.MultipartMixed)
+        {
+            content = $"new(new {projectName}.Generated.Streaming.MultipartMixedResult<{contentType}>({paramName}))";
+        }
+        else if (isAsyncEnumerable)
+        {
+            content = $"new(new {projectName}.Generated.Streaming.JsonArrayResult<{StreamItemType(parameterType)}>({paramName}))";
+        }
+        else
+        {
+            content = $"new({jsonResult})";
+        }
+
+        return content;
+    }
+
+    /// <summary>
+    /// A static Ok factory with one parameter.
+    /// </summary>
+    private static MethodParameters OkMethod(
+        CodeDocumentationTags doc,
+        string className,
+        string parameterType,
+        string parameterName,
+        string content)
+        => new(
+            DocumentationTags: doc,
+            Attributes: null,
+            DeclarationModifier: DeclarationModifiers.PublicStatic,
+            ReturnGenericTypeName: null,
+            ReturnTypeName: className,
+            Name: "Ok",
+            Parameters: new List<ParameterBaseParameters>
+            {
+                new(
+                    Attributes: null,
+                    GenericTypeName: null,
+                    IsGenericListType: false,
+                    TypeName: parameterType,
+                    IsNullableType: false,
+                    IsReferenceType: true,
+                    Name: parameterName,
+                    DefaultValue: null),
+            },
+            AlwaysBreakDownParameters: false,
+            UseExpressionBody: true,
+            Content: content);
+
+    /// <summary>
+    /// The implicit conversions to the result: from a List&lt;T&gt; and a T[] for a list, else from the content type.
+    /// </summary>
+    private static IEnumerable<MethodParameters> OkImplicitOperators(
+        string className,
+        string contentType,
+        string paramName)
+    {
+        if (contentType.StartsWith("List<", StringComparison.Ordinal) && contentType.EndsWith(">", StringComparison.Ordinal))
+        {
+            var elementType = contentType.Substring(5, contentType.Length - 6); // Extract T from List<T>
+
+            // List implicit operator (direct), and array to List (for backwards compatibility)
+            yield return ImplicitOperator(className, "List", isGenericListType: true, elementType, "response", "Ok(response)");
+            yield return ImplicitOperator(className, genericTypeName: null, isGenericListType: false, $"{elementType}[]", "response", "Ok(response.ToList())");
+        }
+        else
+        {
+            // Single type implicit operator - use same parameter name as Ok method
+            yield return ImplicitOperator(className, genericTypeName: null, isGenericListType: false, contentType, paramName, $"Ok({paramName})");
+        }
+    }
+
+    private static MethodParameters ImplicitOperator(
+        string className,
+        string? genericTypeName,
+        bool isGenericListType,
+        string typeName,
+        string parameterName,
+        string content)
+        => new(
+            DocumentationTags: null,
+            Attributes: null,
+            DeclarationModifier: DeclarationModifiers.PublicStaticImplicitOperator,
+            ReturnGenericTypeName: null,
+            ReturnTypeName: className,
+            Name: string.Empty, // Name is not used for implicit operator
+            Parameters: new List<ParameterBaseParameters>
+            {
+                new(
+                    Attributes: null,
+                    GenericTypeName: genericTypeName,
+                    IsGenericListType: isGenericListType,
+                    TypeName: typeName,
+                    IsNullableType: false,
+                    IsReferenceType: true,
+                    Name: parameterName,
+                    DefaultValue: null),
+            },
+            AlwaysBreakDownParameters: false,
+            UseExpressionBody: true,
+            Content: content);
+
     private static List<MethodParameters> GenerateCreatedMethods(
         string className,
         string description,
-        string? contentType)
+        string? contentType,
+        XmlBody? xmlBody = null,
+        string? jsonMediaType = null)
     {
+        var jsonResult = jsonMediaType is null
+            ? "TypedResults.Created((string?)null, response)"
+            : JsonResultExpression("response", jsonMediaType, "201");
         var methods = new List<MethodParameters>();
         var doc = new CodeDocumentationTags($"201 Created - {description}");
 
@@ -709,10 +1560,11 @@ public static class ResultClassExtractor
                         IsReferenceType: true,
                         Name: "response",
                         DefaultValue: null),
+                    LocationParameter(),
                 },
                 AlwaysBreakDownParameters: false,
                 UseExpressionBody: true,
-                Content: "new(TypedResults.Created((string?)null, response))");
+                Content: WithLocation(xmlBody is null ? $"new({jsonResult})" : XmlResultExpression(201, contentType!, xmlBody, "response", jsonResult)));
             methods.Add(createdWithResponse);
 
             // Generate implicit operator for convenience
@@ -790,93 +1642,6 @@ public static class ResultClassExtractor
             Content: "new(TypedResults.NoContent())");
     }
 
-    private static MethodParameters GenerateNotFoundMethod(
-        string className,
-        string description)
-    {
-        var doc = new CodeDocumentationTags($"404 Not Found - {description}");
-
-        return new MethodParameters(
-            DocumentationTags: doc,
-            Attributes: null,
-            DeclarationModifier: DeclarationModifiers.PublicStatic,
-            ReturnGenericTypeName: null,
-            ReturnTypeName: className,
-            Name: "NotFound",
-            Parameters: new List<ParameterBaseParameters>
-            {
-                new(
-                    Attributes: null,
-                    GenericTypeName: null,
-                    IsGenericListType: false,
-                    TypeName: "string",
-                    IsNullableType: true,
-                    IsReferenceType: true,
-                    Name: "message",
-                    DefaultValue: "null"),
-            },
-            AlwaysBreakDownParameters: false,
-            UseExpressionBody: true,
-            Content: "new(TypedResults.NotFound(message))");
-    }
-
-    private static MethodParameters GenerateErrorMethod(
-        string className,
-        string description,
-        string? contentType)
-    {
-        var doc = new CodeDocumentationTags($"Default error response - {description}");
-
-        if (!string.IsNullOrEmpty(contentType))
-        {
-            return new MethodParameters(
-                DocumentationTags: doc,
-                Attributes: null,
-                DeclarationModifier: DeclarationModifiers.PublicStatic,
-                ReturnGenericTypeName: null,
-                ReturnTypeName: className,
-                Name: "Error",
-                Parameters: new List<ParameterBaseParameters>
-                {
-                    new(
-                        Attributes: null,
-                        GenericTypeName: null,
-                        IsGenericListType: false,
-                        TypeName: contentType!,
-                        IsNullableType: false,
-                        IsReferenceType: true,
-                        Name: "error",
-                        DefaultValue: null),
-                },
-                AlwaysBreakDownParameters: false,
-                UseExpressionBody: true,
-                Content: "new(TypedResults.Json(error, statusCode: 500))");
-        }
-
-        return new MethodParameters(
-            DocumentationTags: doc,
-            Attributes: null,
-            DeclarationModifier: DeclarationModifiers.PublicStatic,
-            ReturnGenericTypeName: null,
-            ReturnTypeName: className,
-            Name: "Error",
-            Parameters: new List<ParameterBaseParameters>
-            {
-                new(
-                    Attributes: null,
-                    GenericTypeName: null,
-                    IsGenericListType: false,
-                    TypeName: "string",
-                    IsNullableType: false,
-                    IsReferenceType: true,
-                    Name: "message",
-                    DefaultValue: null),
-            },
-            AlwaysBreakDownParameters: false,
-            UseExpressionBody: true,
-            Content: "new(TypedResults.Problem(message))");
-    }
-
     /// <summary>
     /// Generates an Accepted (202) factory method.
     /// These methods are ONLY generated when the response is explicitly defined in the OpenAPI spec.
@@ -884,8 +1649,13 @@ public static class ResultClassExtractor
     private static MethodParameters GenerateAcceptedMethod(
         string className,
         string description,
-        string? contentType)
+        string? contentType,
+        XmlBody? xmlBody = null,
+        string? jsonMediaType = null)
     {
+        var jsonResult = jsonMediaType is null
+            ? "TypedResults.Accepted((string?)null, response)"
+            : JsonResultExpression("response", jsonMediaType, "202");
         var doc = new CodeDocumentationTags($"202 Accepted - {description}");
 
         if (!string.IsNullOrEmpty(contentType))
@@ -908,10 +1678,11 @@ public static class ResultClassExtractor
                         IsReferenceType: true,
                         Name: "response",
                         DefaultValue: null),
+                    LocationParameter(),
                 },
                 AlwaysBreakDownParameters: false,
                 UseExpressionBody: true,
-                Content: "new(TypedResults.Accepted((string?)null, response))");
+                Content: WithLocation(xmlBody is null ? $"new({jsonResult})" : XmlResultExpression(202, contentType!, xmlBody, "response", jsonResult)));
         }
 
         // TypedResults.Accepted() has no parameterless overload - every overload expects
@@ -931,279 +1702,128 @@ public static class ResultClassExtractor
             Content: "new(TypedResults.StatusCode(StatusCodes.Status202Accepted))");
     }
 
-    private static MethodParameters GenerateBadRequestMethod(
+    /// <summary>
+    /// The factory of a 2xx other than 200/201/202/204, or a 3xx (RFC 9110):
+    /// <list type="bullet">
+    ///   <item>301, 302, 303, 307, 308 take the <c>location</c> (a <c>Uri</c>, so a 2.x <c>X(message)</c> call does not
+    ///   compile into a redirect to the message) and write it as the <c>Location</c> header, no body - through
+    ///   <c>LocationHttpResult</c>, so the result reads back its status and its location.</item>
+    ///   <item>205 and 304 never carry a body (§15.3.6, §15.4.5).</item>
+    ///   <item>Any other status writes its declared body (JSON or text) with that status, or no body.</item>
+    /// </list>
+    /// </summary>
+    private static MethodParameters GenerateStatusMethod(
         string className,
         string description,
-        string? contentType)
+        int statusCode,
+        string? contentType,
+        bool isTextResponse,
+        string? textResponseMediaType,
+        XmlBody? xmlBody = null,
+        string? jsonMediaType = null)
     {
-        var doc = new CodeDocumentationTags($"400 Bad Request - {description}");
-        var errorTypeName = !string.IsNullOrEmpty(contentType) ? contentType : "ValidationProblemDetails";
-
-        return new MethodParameters(
-            DocumentationTags: doc,
-            Attributes: null,
-            DeclarationModifier: DeclarationModifiers.PublicStatic,
-            ReturnGenericTypeName: null,
-            ReturnTypeName: className,
-            Name: "BadRequest",
-            Parameters: new List<ParameterBaseParameters>
-            {
-                new(
-                    Attributes: null,
-                    GenericTypeName: null,
-                    IsGenericListType: false,
-                    TypeName: errorTypeName!,
-                    IsNullableType: true,
-                    IsReferenceType: true,
-                    Name: "errors",
-                    DefaultValue: "null"),
-            },
-            AlwaysBreakDownParameters: false,
-            UseExpressionBody: true,
-            Content: "new(\n        errors is null\n            ? TypedResults.BadRequest()\n            : TypedResults.BadRequest(errors))");
-    }
-
-    private static MethodParameters GenerateUnauthorizedMethod(
-        string className,
-        string description)
-    {
-        var doc = new CodeDocumentationTags($"401 Unauthorized - {description}");
-
-        return new MethodParameters(
-            DocumentationTags: doc,
-            Attributes: null,
-            DeclarationModifier: DeclarationModifiers.PublicStatic,
-            ReturnGenericTypeName: null,
-            ReturnTypeName: className,
-            Name: "Unauthorized",
-            Parameters: null,
-            AlwaysBreakDownParameters: false,
-            UseExpressionBody: true,
-            Content: "new(TypedResults.Unauthorized())");
-    }
-
-    private static MethodParameters GenerateForbiddenMethod(
-        string className,
-        string description)
-    {
-        var doc = new CodeDocumentationTags($"403 Forbidden - {description}");
-
-        return new MethodParameters(
-            DocumentationTags: doc,
-            Attributes: null,
-            DeclarationModifier: DeclarationModifiers.PublicStatic,
-            ReturnGenericTypeName: null,
-            ReturnTypeName: className,
-            Name: "Forbidden",
-            Parameters: null,
-            AlwaysBreakDownParameters: false,
-            UseExpressionBody: true,
-            Content: "new(TypedResults.Forbid())");
-    }
-
-    private static MethodParameters GenerateConflictMethod(
-        string className,
-        string description)
-    {
-        var doc = new CodeDocumentationTags($"409 Conflict - {description}");
-
-        return new MethodParameters(
-            DocumentationTags: doc,
-            Attributes: null,
-            DeclarationModifier: DeclarationModifiers.PublicStatic,
-            ReturnGenericTypeName: null,
-            ReturnTypeName: className,
-            Name: "Conflict",
-            Parameters: new List<ParameterBaseParameters>
-            {
-                new(
-                    Attributes: null,
-                    GenericTypeName: null,
-                    IsGenericListType: false,
-                    TypeName: "string",
-                    IsNullableType: true,
-                    IsReferenceType: true,
-                    Name: "message",
-                    DefaultValue: "null"),
-            },
-            AlwaysBreakDownParameters: false,
-            UseExpressionBody: true,
-            Content: "new(TypedResults.Conflict(message))");
-    }
-
-    private static MethodParameters GenerateUnprocessableEntityMethod(
-        string className,
-        string description)
-    {
-        var doc = new CodeDocumentationTags($"422 Unprocessable Entity - {description}");
-
-        return new MethodParameters(
-            DocumentationTags: doc,
-            Attributes: null,
-            DeclarationModifier: DeclarationModifiers.PublicStatic,
-            ReturnGenericTypeName: null,
-            ReturnTypeName: className,
-            Name: "UnprocessableEntity",
-            Parameters: new List<ParameterBaseParameters>
-            {
-                new(
-                    Attributes: null,
-                    GenericTypeName: null,
-                    IsGenericListType: false,
-                    TypeName: "string",
-                    IsNullableType: true,
-                    IsReferenceType: true,
-                    Name: "message",
-                    DefaultValue: "null"),
-            },
-            AlwaysBreakDownParameters: false,
-            UseExpressionBody: true,
-            Content: "new(TypedResults.UnprocessableEntity(message))");
-    }
-
-    private static MethodParameters GeneratePreconditionFailedMethod(
-        string className,
-        string description)
-    {
-        var doc = new CodeDocumentationTags($"412 Precondition Failed - {description}");
-
-        return new MethodParameters(
-            DocumentationTags: doc,
-            Attributes: null,
-            DeclarationModifier: DeclarationModifiers.PublicStatic,
-            ReturnGenericTypeName: null,
-            ReturnTypeName: className,
-            Name: "PreconditionFailed",
-            Parameters: null,
-            AlwaysBreakDownParameters: false,
-            UseExpressionBody: true,
-            Content: "new(TypedResults.StatusCode(StatusCodes.Status412PreconditionFailed))");
-    }
-
-    private static MethodParameters GenerateTooManyRequestsMethod(
-        string className,
-        string description)
-    {
-        var doc = new CodeDocumentationTags($"429 Too Many Requests - {description}");
-
-        return new MethodParameters(
-            DocumentationTags: doc,
-            Attributes: null,
-            DeclarationModifier: DeclarationModifiers.PublicStatic,
-            ReturnGenericTypeName: null,
-            ReturnTypeName: className,
-            Name: "TooManyRequests",
-            Parameters: new List<ParameterBaseParameters>
-            {
-                new(
-                    Attributes: null,
-                    GenericTypeName: null,
-                    IsGenericListType: false,
-                    TypeName: "int",
-                    IsNullableType: true,
-                    IsReferenceType: false,
-                    Name: "retryAfterSeconds",
-                    DefaultValue: "null"),
-            },
-            AlwaysBreakDownParameters: false,
-            UseExpressionBody: true,
-            Content: "new(TypedResults.StatusCode(429))");
-    }
-
-    private static MethodParameters GenerateInternalServerErrorMethod(
-        string className,
-        string description,
-        string? contentType)
-    {
-        var doc = new CodeDocumentationTags($"500 Internal Server Error - {description}");
-        var errorTypeName = !string.IsNullOrEmpty(contentType) ? contentType : "ProblemDetails";
-
-        return new MethodParameters(
-            DocumentationTags: doc,
-            Attributes: null,
-            DeclarationModifier: DeclarationModifiers.PublicStatic,
-            ReturnGenericTypeName: null,
-            ReturnTypeName: className,
-            Name: "InternalServerError",
-            Parameters: new List<ParameterBaseParameters>
-            {
-                new(
-                    Attributes: null,
-                    GenericTypeName: null,
-                    IsGenericListType: false,
-                    TypeName: errorTypeName!,
-                    IsNullableType: true,
-                    IsReferenceType: true,
-                    Name: "error",
-                    DefaultValue: "null"),
-            },
-            AlwaysBreakDownParameters: false,
-            UseExpressionBody: true,
-            Content: "new(\n        error is null\n            ? TypedResults.StatusCode(500)\n            : TypedResults.Json(error, statusCode: 500))");
-    }
-
-    private static MethodParameters GenerateGatewayTimeoutMethod(
-        string className,
-        string description,
-        string? contentType)
-    {
-        var doc = new CodeDocumentationTags($"504 Gateway Timeout - {description}");
-        var errorTypeName = !string.IsNullOrEmpty(contentType) ? contentType : "ProblemDetails";
-
-        return new MethodParameters(
-            DocumentationTags: doc,
-            Attributes: null,
-            DeclarationModifier: DeclarationModifiers.PublicStatic,
-            ReturnGenericTypeName: null,
-            ReturnTypeName: className,
-            Name: "GatewayTimeout",
-            Parameters: new List<ParameterBaseParameters>
-            {
-                new(
-                    Attributes: null,
-                    GenericTypeName: null,
-                    IsGenericListType: false,
-                    TypeName: errorTypeName!,
-                    IsNullableType: true,
-                    IsReferenceType: true,
-                    Name: "error",
-                    DefaultValue: "null"),
-            },
-            AlwaysBreakDownParameters: false,
-            UseExpressionBody: true,
-            Content: "new(\n        error is null\n            ? TypedResults.StatusCode(504)\n            : TypedResults.Json(error, statusCode: 504))");
-    }
-
-    private static MethodParameters GenerateGenericStatusCodeMethod(
-        string className,
-        string description,
-        string statusCode,
-        string methodName)
-    {
+        var methodName = HttpStatusCodeHelper.ToEnumName(statusCode);
         var doc = new CodeDocumentationTags($"{statusCode} {methodName} - {description}");
+        var status = statusCode.ToString(CultureInfo.InvariantCulture);
 
-        return new MethodParameters(
-            DocumentationTags: doc,
+        MethodParameters Method(
+            string? parameterType,
+            string parameterName,
+            string content)
+            => new(
+                DocumentationTags: doc,
+                Attributes: null,
+                DeclarationModifier: DeclarationModifiers.PublicStatic,
+                ReturnGenericTypeName: null,
+                ReturnTypeName: className,
+                Name: methodName,
+                Parameters: parameterType is null
+                    ? null
+                    : new List<ParameterBaseParameters>
+                    {
+                        new(
+                            Attributes: null,
+                            GenericTypeName: null,
+                            IsGenericListType: false,
+                            TypeName: parameterType,
+                            IsNullableType: false,
+                            IsReferenceType: true,
+                            Name: parameterName,
+                            DefaultValue: null),
+                    },
+                AlwaysBreakDownParameters: false,
+                UseExpressionBody: true,
+                Content: content);
+
+        return statusCode switch
+        {
+            301 => Method("System.Uri", "location", "new(new LocationHttpResult(TypedResults.StatusCode(301), location.OriginalString))"),
+            302 => Method("System.Uri", "location", "new(new LocationHttpResult(TypedResults.StatusCode(302), location.OriginalString))"),
+            303 => Method("System.Uri", "location", "new(new LocationHttpResult(TypedResults.StatusCode(303), location.OriginalString))"),
+            307 => Method("System.Uri", "location", "new(new LocationHttpResult(TypedResults.StatusCode(307), location.OriginalString))"),
+            308 => Method("System.Uri", "location", "new(new LocationHttpResult(TypedResults.StatusCode(308), location.OriginalString))"),
+            205 or 304 => Method(null, string.Empty, $"new(TypedResults.StatusCode({status}))"),
+            _ when isTextResponse && textResponseMediaType is not null =>
+                Method("string", "content", $"new(TypedResults.Text(content, \"{textResponseMediaType}\", statusCode: {status}))"),
+            _ when !string.IsNullOrEmpty(contentType) && xmlBody is not null =>
+                Method(contentType, "response", XmlResultExpression(statusCode, contentType!, xmlBody, "response", JsonResultExpression("response", jsonMediaType, status))),
+            _ when !string.IsNullOrEmpty(contentType) =>
+                Method(contentType, "response", $"new({JsonResultExpression("response", jsonMediaType, status)})"),
+            _ => Method(null, string.Empty, $"new(TypedResults.StatusCode({status}))"),
+        };
+    }
+
+    /// <summary>
+    /// The item type of a streamed factory's <c>IAsyncEnumerable&lt;T&gt;</c> parameter.
+    /// </summary>
+    private static string StreamItemType(string parameterType)
+    {
+        const string asyncEnumerableOf = "IAsyncEnumerable<";
+        return parameterType.StartsWith(asyncEnumerableOf, StringComparison.Ordinal)
+            ? parameterType.Substring(asyncEnumerableOf.Length, parameterType.Length - asyncEnumerableOf.Length - 1)
+            : parameterType;
+    }
+
+    /// <summary>
+    /// The optional <c>location</c> of a 201 or 202 with a body: where the created or accepted resource is.
+    /// </summary>
+    private static ParameterBaseParameters LocationParameter()
+        => new(
             Attributes: null,
-            DeclarationModifier: DeclarationModifiers.PublicStatic,
-            ReturnGenericTypeName: null,
-            ReturnTypeName: className,
-            Name: methodName,
-            Parameters: new List<ParameterBaseParameters>
-            {
-                new(
-                    Attributes: null,
-                    GenericTypeName: null,
-                    IsGenericListType: false,
-                    TypeName: "string",
-                    IsNullableType: true,
-                    IsReferenceType: true,
-                    Name: "message",
-                    DefaultValue: "null"),
-            },
-            AlwaysBreakDownParameters: false,
-            UseExpressionBody: true,
-            Content: $"new(TypedResults.Problem(message, statusCode: {statusCode}))");
+            GenericTypeName: null,
+            IsGenericListType: false,
+            TypeName: "string",
+            IsNullableType: true,
+            IsReferenceType: true,
+            Name: "location",
+            DefaultValue: "null");
+
+    /// <summary>
+    /// A factory's <c>new(result)</c>, with a <c>Location</c> header when <c>location</c> is given.
+    /// </summary>
+    private static string WithLocation(string factoryContent)
+    {
+        var result = factoryContent.Substring("new(".Length, factoryContent.Length - "new(".Length - 1);
+        return $"new(location is null ? (IResult){result} : new LocationHttpResult({result}, location))";
+    }
+
+    private static string XmlResultExpression(
+        int statusCode,
+        string contentType,
+        XmlBody xmlBody,
+        string valueExpression,
+        string jsonResultExpression)
+    {
+        var status = statusCode.ToString(CultureInfo.InvariantCulture);
+        var bytes = XmlBodyHelper.ToUtf8BytesExpression(contentType, xmlBody, valueExpression);
+        if (xmlBody.AlternativeMediaTypes is { } mediaTypes)
+        {
+            // Offered as JSON and XML: JSON unless the request's Accept prefers one of the XML media types
+            var xmlTypes = string.Join(", ", mediaTypes.Select(m => $"\"{m}\""));
+            return $"new(new NegotiatedHttpResult({jsonResultExpression}, mediaType => new XmlHttpResult({status}, mediaType, {bytes}, {valueExpression}), {xmlTypes}))";
+        }
+
+        return $"new(new XmlHttpResult({status}, \"{xmlBody.MediaType}\", {bytes}, {valueExpression}))";
     }
 
     private static string GetSchemaTypeName(
@@ -1213,144 +1833,13 @@ public static class ResultClassExtractor
         string operationId,
         string pathSegment,
         string context,
-        Dictionary<string, ResultClassInlineSchemaInfo>? inlineSchemas)
-    {
-        if (schema is null)
-        {
-            return "object";
-        }
-
-        // Handle schema references - decide whether to use the type name or resolve to array
-        if (schema is OpenApiSchemaReference schemaRef)
-        {
-            var refId = schemaRef.Reference.Id;
-
-            if (string.IsNullOrEmpty(refId))
-            {
-                return "object";
-            }
-
-            // Check if this reference points to an array alias (type: array with items but no prefixItems)
-            // Array aliases like "Pets" (type: array, items: $ref Pet) should resolve to Pet[]
-            // But tuple types with prefixItems (like Coordinate) should keep their type name
-            if (openApiDoc.Components?.Schemas is not null &&
-                openApiDoc.Components.Schemas.TryGetValue(refId!, out var resolvedSchema) &&
-                resolvedSchema is OpenApiSchema { Type: JsonSchemaType.Array, Items: not null } arraySchema &&
-                !arraySchema.HasPrefixItems())
-            {
-                // This is a simple array alias - resolve to the underlying array type
-                return GetArraySchemaType(arraySchema, openApiDoc, registry, operationId, pathSegment, inlineSchemas);
-            }
-
-            // Return the resolved type name for schema references
-            return OpenApiSchemaExtensions.ResolveTypeName(refId!, registry);
-        }
-
-        if (schema is OpenApiSchema actualSchema)
-        {
-            // Handle allOf composition - delegate to ToCSharpTypeWithGenericSupport for PaginatedResult patterns
-            if (actualSchema.AllOf is { Count: > 0 })
-            {
-                return actualSchema.ToCSharpTypeWithGenericSupport(openApiDoc, isRequired: true, registry);
-            }
-
-            // Handle array type specially
-            if (actualSchema.Type?.HasFlag(JsonSchemaType.Array) == true)
-            {
-                // Check if this is a resolved schema reference (e.g., Coordinate tuple type)
-                // If it's a component schema (has prefixItems or is a named array), return the schema name
-                var schemaName = FindSchemaNameByReference(openApiDoc, actualSchema);
-                if (!string.IsNullOrEmpty(schemaName))
-                {
-                    return OpenApiSchemaExtensions.ResolveTypeName(schemaName!, registry);
-                }
-
-                return GetArraySchemaType(actualSchema, openApiDoc, registry, operationId, pathSegment, inlineSchemas);
-            }
-
-            // Handle inline object schemas with properties
-            if (InlineSchemaExtractor.IsInlineObjectSchema(actualSchema) &&
-                !string.IsNullOrEmpty(operationId) &&
-                !string.IsNullOrEmpty(pathSegment) &&
-                !string.IsNullOrEmpty(context) &&
-                inlineSchemas is not null)
-            {
-                var typeName = InlineSchemaExtractor.GenerateInlineTypeName(operationId, context);
-                if (!inlineSchemas.ContainsKey(typeName))
-                {
-                    var recordParams = InlineSchemaExtractor.ExtractRecordFromInlineSchema(actualSchema, typeName, registry);
-                    inlineSchemas[typeName] = new ResultClassInlineSchemaInfo(typeName, pathSegment, recordParams);
-                }
-
-                return typeName;
-            }
-
-            // Use centralized primitive type mapping
-            return actualSchema.Type.ToPrimitiveCSharpTypeName(actualSchema.Format) ?? "object";
-        }
-
-        return "object";
-    }
-
-    /// <summary>
-    /// Finds the schema name in Components.Schemas by comparing schema properties.
-    /// This is needed when Microsoft.OpenApi resolves $ref to the actual schema object.
-    /// </summary>
-    private static string? FindSchemaNameByReference(
-        OpenApiDocument openApiDoc,
-        OpenApiSchema itemSchema)
-    {
-        if (openApiDoc.Components?.Schemas is null)
-        {
-            return null;
-        }
-
-        foreach (var kvp in openApiDoc.Components.Schemas)
-        {
-            // First try: compare by reference (same object instance)
-            if (ReferenceEquals(kvp.Value, itemSchema))
-            {
-                return kvp.Key;
-            }
-
-            // Second try: match by Title property if set
-            // OpenAPI specs often have title matching the schema name
-            if (kvp.Value is OpenApiSchema componentSchema &&
-                !string.IsNullOrEmpty(componentSchema.Title) &&
-                !string.IsNullOrEmpty(itemSchema.Title) &&
-                string.Equals(componentSchema.Title, itemSchema.Title, StringComparison.Ordinal))
-            {
-                return kvp.Key;
-            }
-        }
-
-        return null;
-    }
-
-    private static string GetArraySchemaType(
-        OpenApiSchema schema,
-        OpenApiDocument openApiDoc,
-        TypeConflictRegistry? registry,
-        string operationId,
-        string pathSegment,
-        Dictionary<string, ResultClassInlineSchemaInfo>? inlineSchemas)
-    {
-        if (schema.Items is null)
-        {
-            return "List<object>";
-        }
-
-        // Delegate to GetSchemaTypeName for proper handling of schema references, resolved schemas, and inline objects
-        // Use "ResponseItem" context for array items (e.g., ListReportsResponseItem)
-        var itemType = GetSchemaTypeName(
-            schema.Items,
+        Dictionary<string, InlineSchemaInfo>? inlineSchemas)
+        => SchemaTypeResolver.Resolve(
+            schema,
             openApiDoc,
             registry,
-            operationId,
-            pathSegment,
-            "ResponseItem",
-            inlineSchemas);
-
-        return $"List<{itemType}>";
-    }
+            collection: "List",
+            topCollection: null,
+            context,
+            SchemaTypeResolver.InlineRecords(inlineSchemas, operationId, pathSegment, registry));
 }

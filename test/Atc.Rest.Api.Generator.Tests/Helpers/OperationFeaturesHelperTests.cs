@@ -3,6 +3,90 @@ namespace Atc.Rest.Api.Generator.Tests.Helpers;
 public class OperationFeaturesHelperTests
 {
     [Fact]
+    public void DetectFeatures_PathParamDeclaredAsReference_DetectsPathParameters()
+    {
+        // Arrange - the parameter is a $ref into components/parameters (an OpenApiParameterReference)
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            paths:
+                              /pets/{petId}:
+                                get:
+                                  operationId: getPetById
+                                  parameters:
+                                    - $ref: '#/components/parameters/petId'
+                                  responses:
+                                    '200':
+                                      description: OK
+                            components:
+                              parameters:
+                                petId:
+                                  name: petId
+                                  in: path
+                                  required: true
+                                  schema:
+                                    type: integer
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+        var pathItem = document.Paths["/pets/{petId}"];
+        var operation = pathItem.Operations.Values.First();
+
+        // Act
+        var features = OperationFeaturesHelper.DetectOperationFeatures(
+            operation,
+            (OpenApiPathItem)pathItem,
+            document,
+            "GET");
+
+        // Assert
+        Assert.True(features.HasParameters);
+        Assert.True(features.HasPathParameters);
+    }
+
+    [Fact]
+    public void DetectFeatures_PathParamDeclaredOnThePathItem_DetectsPathParameters()
+    {
+        // Arrange - the parameter is declared once for all operations of the path
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            paths:
+                              /pets/{petId}:
+                                parameters:
+                                  - name: petId
+                                    in: path
+                                    required: true
+                                    schema:
+                                      type: integer
+                                get:
+                                  operationId: getPetById
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+        var pathItem = document.Paths["/pets/{petId}"];
+        var operation = pathItem.Operations.Values.First();
+
+        // Act
+        var features = OperationFeaturesHelper.DetectOperationFeatures(
+            operation,
+            (OpenApiPathItem)pathItem,
+            document,
+            "GET");
+
+        // Assert
+        Assert.True(features.HasParameters);
+        Assert.True(features.HasPathParameters);
+    }
+
+    [Fact]
     public void DetectFeatures_GetWithPathParam_DetectsParameters()
     {
         // Arrange

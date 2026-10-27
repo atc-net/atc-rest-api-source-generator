@@ -28,7 +28,8 @@ test.describe('Accounts Streaming', () => {
     });
   });
 
-  test('can cancel streaming', async () => {
+  test('can cancel streaming', async ({ browserErrors }) => {
+    browserErrors.expectAborted('/api/v1/accounts/async-enumerable', 'the test cancels the stream');
     await streamingPage.startStreaming();
 
     // Wait briefly for streaming to begin, then cancel

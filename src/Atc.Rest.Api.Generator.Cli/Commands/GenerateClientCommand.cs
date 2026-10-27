@@ -8,12 +8,29 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
 {
     private readonly INugetPackageVersionService nugetService;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="GenerateClientCommand"/> class.
+    /// </summary>
+    /// <param name="nugetService">Resolves the latest package versions written into the generated project file.</param>
     public GenerateClientCommand(INugetPackageVersionService nugetService)
     {
         this.nugetService = nugetService;
     }
 
-    protected override int Execute(
+    /// <summary>
+    /// Validates the specification, scaffolds the client project and generates the client code into it.
+    /// </summary>
+    /// <param name="context">The Spectre.Console command context.</param>
+    /// <param name="settings">The parsed command-line settings.</param>
+    /// <param name="cancellationToken">Cancels the command.</param>
+    /// <returns>0 when generation succeeded; otherwise 1.</returns>
+    public override int Execute(
+        CommandContext context,
+        GenerateClientCommandSettings settings,
+        CancellationToken cancellationToken)
+        => FileTransaction.Run(() => ExecuteCore(context, settings, cancellationToken));
+
+    private int ExecuteCore(
         CommandContext context,
         GenerateClientCommandSettings settings,
         CancellationToken cancellationToken)
@@ -29,26 +46,28 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
         var specPath = Path.GetFullPath(settings.SpecificationPath);
         var outputPath = Path.GetFullPath(settings.OutputPath);
 
-        // Use client project name override if provided
-        var projectName = !string.IsNullOrWhiteSpace(settings.ClientProjectName)
-            ? settings.ClientProjectName
-            : settings.ProjectName;
+        // Load options from file (auto-discovery or explicit path); a file that cannot be read stops the command
+        if (!ApiOptionsHelper.TryLoadOptions(settings.OptionsPath, specPath, out var options))
+        {
+            return 1;
+        }
 
-        // Load options from file (auto-discovery or explicit path)
-        var options = ApiOptionsHelper.LoadOptions(settings.OptionsPath, specPath);
+        // Project name: --client-project, then scaffolding.clientProjectName from the options file, then --name
+        var projectName = new[] { settings.ClientProjectName, options.Scaffolding.ClientProjectName }
+            .FirstOrDefault(name => !string.IsNullOrWhiteSpace(name)) ?? settings.ProjectName;
 
         // Apply CLI argument overrides
         var clientConfig = ApplyCliOverrides(options, settings);
 
-        AnsiConsole.MarkupLine($"[blue]Specification:[/] {specPath}");
-        AnsiConsole.MarkupLine($"[blue]Output path:[/] {outputPath}");
-        AnsiConsole.MarkupLine($"[blue]Project name:[/] {projectName}");
-        AnsiConsole.MarkupLine($"[blue]Validation mode:[/] {clientConfig.ValidateSpecificationStrategy}");
-        AnsiConsole.MarkupLine($"[blue]Generation mode:[/] {clientConfig.GenerationMode}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Specification:[/] {specPath}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Output path:[/] {outputPath}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Project name:[/] {projectName}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Validation mode:[/] {clientConfig.ValidateSpecificationStrategy}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Generation mode:[/] {clientConfig.GenerationMode}");
 
         if (!string.IsNullOrWhiteSpace(clientConfig.Namespace))
         {
-            AnsiConsole.MarkupLine($"[blue]Namespace:[/] {clientConfig.Namespace}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Namespace:[/] {clientConfig.Namespace}");
         }
 
         AnsiConsole.WriteLine();
@@ -77,7 +96,7 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
 
                 // Step 1: Validate the OpenAPI specification
                 ctx.Status("Validating OpenAPI specification...");
-                var validationResult = SpecificationValidationHelper.ValidateSpecificationWithStats(specPath, clientConfig.ValidateSpecificationStrategy);
+                var validationResult = SpecificationValidationHelper.ValidateSpecificationWithStats(specPath, clientConfig.ValidateSpecificationStrategy, OverlayCliHelper.All(options.General.Overlays, settings.Overlays));
                 if (!validationResult.Success)
                 {
                     return 1;
@@ -96,8 +115,18 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
                         cancellationToken));
                 }
 
+                // The SignalR client, if the spec declares hubs: the typed hub clients build on it
+                Version? signalRClientVersion = null;
+                if (parsedDocument is not null && SignalRHubHelper.Parse(parsedDocument).Count > 0)
+                {
+                    signalRClientVersion = TaskHelper.RunSync(() => nugetService.GetLatestVersionOrFallbackAsync(
+                        PackageVersionDefaults.SignalRClientPackageId,
+                        PackageVersionDefaults.SignalRClientMinFallback,
+                        cancellationToken));
+                }
+
                 // Step 2: Check for conflicting project files in output directory
-                if (!ValidateOutputDirectory(outputPath, projectName))
+                if (!ScaffoldCommandSupport.ValidateOutputDirectory(outputPath, projectName))
                 {
                     return 1;
                 }
@@ -108,13 +137,13 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
                 {
                     if (!Directory.Exists(outputPath))
                     {
-                        Directory.CreateDirectory(outputPath);
-                        AnsiConsole.MarkupLine($"[green]✓[/] Created output directory: {outputPath}");
+                        TrackedFile.CreateDirectory(outputPath);
+                        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created output directory: {outputPath}");
                     }
                 }
                 catch (Exception ex)
                 {
-                    AnsiConsole.MarkupLine($"[red]✗[/] Error creating output directory: {ex.Message}");
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Error creating output directory: {ex.Message}");
                     return 1;
                 }
 
@@ -123,6 +152,31 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
                 if (!CopySpecificationFile(specPath, outputPath, specFileName))
                 {
                     return 1;
+                }
+
+                // Multi-part specification: the part files ({Base}_{Part}.yaml) go along, or the build
+                // would generate a client for the base file only.
+                var partFileNames = new List<string>();
+                foreach (var partFile in SpecificationService.DiscoverPartFiles(specPath))
+                {
+                    var partFileName = Path.GetFileName(partFile.FilePath);
+                    if (!CopySpecificationFile(partFile.FilePath, outputPath, partFileName))
+                    {
+                        return 1;
+                    }
+
+                    partFileNames.Add(partFileName);
+                }
+
+                // The overlays go along, listed in the marker: the build applies them to the specification
+                if (!CopyOverlays(OverlayCliHelper.All(options.General.Overlays, settings.Overlays), outputPath, partFileNames, out var overlayFileNames))
+                {
+                    return 1;
+                }
+
+                if (overlayFileNames.Count > 0)
+                {
+                    clientConfig.Overlays = overlayFileNames;
                 }
 
                 // Step 5: Create or update marker file with client config
@@ -134,7 +188,7 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
 
                 // Step 6: Create or update project file (using local YAML file name)
                 ctx.Status("Creating project file...");
-                if (!CreateOrUpdateProjectFile(outputPath, projectName, specFileName, sourceGeneratorVersion, restClientVersion, resilienceVersion))
+                if (!CreateOrUpdateProjectFile(outputPath, projectName, specFileName, partFileNames, sourceGeneratorVersion, restClientVersion, resilienceVersion, signalRClientVersion))
                 {
                     return 1;
                 }
@@ -166,18 +220,10 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
                 ProjectsCreated = [projectName],
             };
 
-            ReportService.WriteToConsole(finalStats);
-
-            // Write report file if --report flag is passed
-            if (settings.GenerateReport)
-            {
-                var reportPath = Path.Combine(outputPath, ".generation-report.md");
-                ReportService.WriteToFile(finalStats, reportPath);
-                AnsiConsole.MarkupLine($"[dim]Report written to: {reportPath}[/]");
-            }
+            ScaffoldCommandSupport.WriteGenerationReport(finalStats, settings.GenerateReport, outputPath);
         }
 
-        AnsiConsole.MarkupLine($"[dim]Run 'dotnet build' in {outputPath} to generate the client code.[/]");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[dim]Run 'dotnet build' in {outputPath} to generate the client code.[/]");
 
         return 0;
     }
@@ -201,23 +247,27 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
             config.IncludeDeprecated = true;
         }
 
-        // Override namespace: client-namespace takes precedence over --namespace
+        // Namespace: --client-namespace, scaffolding.clientNamespace, --namespace, then client.namespace from the options file
         if (!string.IsNullOrWhiteSpace(settings.ClientNamespace))
         {
             config.Namespace = settings.ClientNamespace;
+        }
+        else if (!string.IsNullOrWhiteSpace(options.Scaffolding.ClientNamespace))
+        {
+            config.Namespace = options.Scaffolding.ClientNamespace;
         }
         else if (!string.IsNullOrWhiteSpace(settings.Namespace))
         {
             config.Namespace = settings.Namespace;
         }
-        else
+        else if (string.IsNullOrWhiteSpace(config.Namespace))
         {
             config.Namespace = ProjectNameHelper.ExtractSolutionName(settings.ProjectName);
         }
 
         // Override generation mode if specified
         if (!string.IsNullOrWhiteSpace(settings.GenerationMode) &&
-            Enum.TryParse<GenerationModeType>(settings.GenerationMode, ignoreCase: true, out var mode))
+            EnumOptionHelper.TryParse<GenerationModeType>(settings.GenerationMode, out var mode))
         {
             config.GenerationMode = mode;
         }
@@ -230,7 +280,7 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
 
         // Override client granularity if specified
         if (!string.IsNullOrWhiteSpace(settings.ClientGranularity) &&
-            Enum.TryParse<ClientGranularityType>(settings.ClientGranularity, ignoreCase: true, out var granularity))
+            EnumOptionHelper.TryParse<ClientGranularityType>(settings.ClientGranularity, out var granularity))
         {
             config.ClientGranularity = granularity;
         }
@@ -247,6 +297,11 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
             config.GenerateOAuthTokenManagement = false;
         }
 
+        if (settings.NoExtensibleEnums)
+        {
+            config.ExtensibleEnums = false;
+        }
+
         return config;
     }
 
@@ -257,28 +312,26 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
         AnsiConsole.WriteLine();
     }
 
-    private static bool ValidateOutputDirectory(
+    /// <summary>
+    /// Copies the <c>--overlay</c> files next to the marker and adds them to the project's AdditionalFiles.
+    /// </summary>
+    private static bool CopyOverlays(
+        IReadOnlyList<string> overlays,
         string outputPath,
-        string projectName)
+        List<string> additionalFileNames,
+        out List<string> overlayFileNames)
     {
-        if (!Directory.Exists(outputPath))
+        overlayFileNames = [];
+        foreach (var overlay in overlays.Select(OverlayCliHelper.FullPath))
         {
-            return true;
-        }
-
-        var existingCsprojFiles = Directory.GetFiles(outputPath, "*.csproj");
-        var expectedCsprojName = $"{projectName}.csproj";
-
-        foreach (var csprojFile in existingCsprojFiles)
-        {
-            var fileName = Path.GetFileName(csprojFile);
-            if (!fileName.Equals(expectedCsprojName, StringComparison.OrdinalIgnoreCase))
+            var overlayFileName = Path.GetFileName(overlay);
+            if (!CopySpecificationFile(overlay, outputPath, overlayFileName))
             {
-                AnsiConsole.MarkupLine($"[red]✗[/] Output directory contains a different project file: {fileName}");
-                AnsiConsole.MarkupLine($"  [red]Expected:[/] {expectedCsprojName}");
-                AnsiConsole.MarkupLine("  [yellow]Please use a different output directory or project name.[/]");
                 return false;
             }
+
+            overlayFileNames.Add(overlayFileName);
+            additionalFileNames.Add(overlayFileName);
         }
 
         return true;
@@ -301,25 +354,25 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
 
                 if (sourceLastWrite <= destLastWrite)
                 {
-                    AnsiConsole.MarkupLine($"[dim]✓[/] Specification file up to date: {fileName}");
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[dim]✓[/] Specification file up to date: {fileName}");
                     return true;
                 }
 
                 // Source is newer, update the file
-                File.Copy(sourcePath, destinationPath, overwrite: true);
-                AnsiConsole.MarkupLine($"[green]✓[/] Updated specification file: {fileName}");
+                TrackedFile.Copy(sourcePath, destinationPath, overwrite: true);
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Updated specification file: {fileName}");
             }
             else
             {
-                File.Copy(sourcePath, destinationPath);
-                AnsiConsole.MarkupLine($"[green]✓[/] Copied specification file: {fileName}");
+                TrackedFile.Copy(sourcePath, destinationPath);
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Copied specification file: {fileName}");
             }
 
             return true;
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]✗[/] Error copying specification file: {ex.Message}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Error copying specification file: {ex.Message}");
             return false;
         }
     }
@@ -334,31 +387,31 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
         {
             var jsonOptions = JsonSerializerOptionsFactory.Create();
 
-            var json = JsonSerializer.Serialize(config, jsonOptions);
+            var json = ConfigurationFileJsonHelper.Serialize(config, Constants.JsonSchema.Client, jsonOptions);
 
             if (File.Exists(markerFilePath))
             {
                 var existingContent = File.ReadAllText(markerFilePath);
                 if (existingContent.Trim() == json.Trim())
                 {
-                    AnsiConsole.MarkupLine($"[dim]✓[/] Marker file up to date: {Constants.MarkerFile.Client}");
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[dim]✓[/] Marker file up to date: {Constants.MarkerFile.Client}");
                     return true;
                 }
 
-                File.WriteAllText(markerFilePath, json);
-                AnsiConsole.MarkupLine($"[green]✓[/] Updated marker file: {Constants.MarkerFile.Client}");
+                // The marker file is the user's once it exists: an edit in it is not rewritten from the options
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]![/] Marker file kept as it is (it differs from the options given): {Constants.MarkerFile.Client}");
             }
             else
             {
-                File.WriteAllText(markerFilePath, json);
-                AnsiConsole.MarkupLine($"[green]✓[/] Created marker file: {Constants.MarkerFile.Client}");
+                TrackedFile.WriteAllText(markerFilePath, json);
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created marker file: {Constants.MarkerFile.Client}");
             }
 
             return true;
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]✗[/] Error creating marker file: {ex.Message}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Error creating marker file: {ex.Message}");
             return false;
         }
     }
@@ -367,9 +420,11 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
         string outputPath,
         string projectName,
         string specFileName,
+        IReadOnlyList<string> partFileNames,
         Version sourceGeneratorVersion,
         Version restClientVersion,
-        Version? resilienceVersion)
+        Version? resilienceVersion,
+        Version? signalRClientVersion)
     {
         var csprojPath = Path.Combine(outputPath, $"{projectName}.csproj");
 
@@ -377,20 +432,30 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
         {
             if (!File.Exists(csprojPath))
             {
-                var csprojContent = GenerateProjectFileContent(specFileName, sourceGeneratorVersion, restClientVersion, resilienceVersion);
-                File.WriteAllText(csprojPath, csprojContent);
-                AnsiConsole.MarkupLine($"[green]✓[/] Created project file: {projectName}.csproj");
+                var csprojContent = GenerateProjectFileContent(specFileName, sourceGeneratorVersion, restClientVersion, resilienceVersion, signalRClientVersion);
+                TrackedFile.WriteAllText(csprojPath, csprojContent);
+                foreach (var partFileName in partFileNames)
+                {
+                    UpdateProjectFileIfNeeded(csprojPath, partFileName);
+                }
+
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created project file: {projectName}.csproj");
             }
             else
             {
                 var updated = UpdateProjectFileIfNeeded(csprojPath, specFileName);
+                foreach (var partFileName in partFileNames)
+                {
+                    updated |= UpdateProjectFileIfNeeded(csprojPath, partFileName);
+                }
+
                 if (updated)
                 {
-                    AnsiConsole.MarkupLine($"[green]✓[/] Updated project file: {projectName}.csproj");
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Updated project file: {projectName}.csproj");
                 }
                 else
                 {
-                    AnsiConsole.MarkupLine($"[dim]✓[/] Project file up to date: {projectName}.csproj");
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[dim]✓[/] Project file up to date: {projectName}.csproj");
                 }
             }
 
@@ -398,7 +463,7 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]✗[/] Error creating/updating project file: {ex.Message}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Error creating/updating project file: {ex.Message}");
             return false;
         }
     }
@@ -407,12 +472,19 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
         string specFileName,
         Version sourceGeneratorVersion,
         Version restClientVersion,
-        Version? resilienceVersion)
+        Version? resilienceVersion,
+        Version? signalRClientVersion)
     {
         var resilienceRef = resilienceVersion is not null
             ? $"""
 
                    <PackageReference Include="{PackageVersionDefaults.ResiliencePackageId}" Version="{resilienceVersion}" />
+               """
+            : string.Empty;
+        var signalRClientRef = signalRClientVersion is not null
+            ? $"""
+
+                   <PackageReference Include="{PackageVersionDefaults.SignalRClientPackageId}" Version="{signalRClientVersion}" />
                """
             : string.Empty;
 
@@ -422,11 +494,13 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
               <PropertyGroup>
                 <OutputType>Library</OutputType>
                 <TargetFramework>{TargetFrameworkResult.RequiredTargetFramework}</TargetFramework>
+                <ImplicitUsings>enable</ImplicitUsings>
+                <Nullable>enable</Nullable>
               </PropertyGroup>
 
               <ItemGroup>
                 <PackageReference Include="{PackageVersionDefaults.SourceGeneratorPackageId}" Version="{sourceGeneratorVersion}" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
-                <PackageReference Include="{PackageVersionDefaults.RestClientPackageId}" Version="{restClientVersion}" />{resilienceRef}
+                <PackageReference Include="{PackageVersionDefaults.RestClientPackageId}" Version="{restClientVersion}" />{resilienceRef}{signalRClientRef}
               </ItemGroup>
 
               <ItemGroup>
@@ -438,12 +512,29 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
             """;
     }
 
+    /// <summary>
+    /// The start of the line holding the <c>&lt;/ItemGroup&gt;</c> of the item group with the <c>AdditionalFiles</c>
+    /// entries - inserting there keeps a new entry in that group, at the entries' indentation. Returns -1 when
+    /// there is no such group.
+    /// </summary>
+    private static int AdditionalFilesGroupEndLineStart(string content)
+    {
+        var entryPosition = content.LastIndexOf("<AdditionalFiles", StringComparison.OrdinalIgnoreCase);
+        var tagPosition = entryPosition < 0
+            ? -1
+            : content.IndexOf("</ItemGroup>", entryPosition, StringComparison.OrdinalIgnoreCase);
+        return tagPosition <= 0
+            ? -1
+            : content.LastIndexOf('\n', tagPosition) + 1;
+    }
+
     private static bool UpdateProjectFileIfNeeded(
         string csprojPath,
         string specFileName)
     {
         var content = File.ReadAllText(csprojPath);
         var originalContent = content;
+        var newLine = content.Contains("\r\n", StringComparison.Ordinal) ? "\r\n" : "\n";
 
         // Check if AdditionalFiles entries exist
         var hasYamlInclude = content.Contains($"Include=\"{specFileName}\"", StringComparison.OrdinalIgnoreCase);
@@ -460,22 +551,20 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
             // Find the AdditionalFiles ItemGroup and add missing entries
             if (!hasYamlInclude)
             {
-                var insertPosition = content.LastIndexOf("</ItemGroup>", StringComparison.OrdinalIgnoreCase);
-                var additionalFilesPosition = content.LastIndexOf("<AdditionalFiles", insertPosition, StringComparison.OrdinalIgnoreCase);
-                if (insertPosition >= 0 && additionalFilesPosition >= 0)
+                var insertPosition = AdditionalFilesGroupEndLineStart(content);
+                if (insertPosition >= 0)
                 {
-                    var yamlEntry = $"    <AdditionalFiles Include=\"{specFileName}\" />\n";
+                    var yamlEntry = $"    <AdditionalFiles Include=\"{specFileName}\" />{newLine}";
                     content = content.Insert(insertPosition, yamlEntry);
                 }
             }
 
             if (!hasMarkerInclude)
             {
-                var insertPosition = content.LastIndexOf("</ItemGroup>", StringComparison.OrdinalIgnoreCase);
-                var additionalFilesPosition = content.LastIndexOf("<AdditionalFiles", insertPosition, StringComparison.OrdinalIgnoreCase);
-                if (insertPosition >= 0 && additionalFilesPosition >= 0)
+                var insertPosition = AdditionalFilesGroupEndLineStart(content);
+                if (insertPosition >= 0)
                 {
-                    var markerEntry = $"    <AdditionalFiles Include=\"{Constants.MarkerFile.Client}\" />\n";
+                    var markerEntry = $"    <AdditionalFiles Include=\"{Constants.MarkerFile.Client}\" />{newLine}";
                     content = content.Insert(insertPosition, markerEntry);
                 }
             }
@@ -494,13 +583,13 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
                   </ItemGroup>
 
                 """;
-                content = content.Insert(insertPosition, newItemGroup);
+                content = content.Insert(insertPosition, newItemGroup.ReplaceLineEndings(newLine));
             }
         }
 
         if (content != originalContent)
         {
-            File.WriteAllText(csprojPath, content);
+            TrackedFile.WriteAllText(csprojPath, content);
             return true;
         }
 

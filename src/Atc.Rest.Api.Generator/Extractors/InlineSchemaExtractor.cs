@@ -4,8 +4,19 @@ namespace Atc.Rest.Api.Generator.Extractors;
 /// Extracts inline object schemas from OpenAPI operations and generates record types for them.
 /// Inline schemas are those defined directly in request bodies or responses rather than as $ref to components/schemas.
 /// </summary>
+[SuppressMessage("", "CA1034:Do not nest type", Justification = "OK - CLang14 - extension")]
 public static class InlineSchemaExtractor
 {
+    /// <param name="schema">The schema.</param>
+    extension(IOpenApiSchema? schema)
+    {
+        /// <summary>
+        /// Gets a value indicating whether the schema is an inline object with properties, not a <c>$ref</c> (<see cref="IsInlineObjectSchema"/>).
+        /// </summary>
+        public bool IsInlineObject
+            => IsInlineObjectSchema(schema);
+    }
+
     /// <summary>
     /// Checks if a schema is an inline object with properties (not a $ref to components/schemas).
     /// </summary>
@@ -69,14 +80,13 @@ public static class InlineSchemaExtractor
         var required = schema.Required ?? new HashSet<string>(StringComparer.Ordinal);
 
         var parametersList = new List<ParameterBaseParameters>();
-        var seenPropertyNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var propertyNames = new PropertyNameRegistry();
 
         foreach (var prop in properties)
         {
-            var propName = prop.Key.ToPascalCaseForDotNet();
-
-            // Skip duplicate property names
-            if (!seenPropertyNames.Add(propName))
+            // A valid, unique name for every property; the same key listed twice (allOf composition) is skipped
+            var propName = propertyNames.Resolve(prop.Key, prop.Key.ToPascalCaseForDotNet());
+            if (propName is null)
             {
                 continue;
             }
@@ -101,14 +111,14 @@ public static class InlineSchemaExtractor
                 : csharpType;
 
             // Get validation attributes
-            var validationAttributes = prop.Value.GetValidationAttributes(isRequired);
+            var validationAttributes = prop.Value.GetModelValidationAttributes(isRequired, isNullableType);
 
             var isReferenceType = cleanTypeName.IsReferenceType();
 
             IList<AttributeParameters>? attributes = BuildAttributes(prop.Key, propName, validationAttributes);
 
-            // Extract default value
-            var defaultValue = DefaultValueHelper.ExtractSchemaDefault(prop.Value, cleanTypeName);
+            // Extract default value (null for an optional property: it may be absent)
+            var defaultValue = DefaultValueHelper.ForRecordParameter(DefaultValueHelper.ExtractSchemaDefault(prop.Value, cleanTypeName, registry), isRequired, isNullableType);
 
             parametersList.Add(new ParameterBaseParameters(
                 Attributes: attributes,
@@ -157,12 +167,12 @@ public static class InlineSchemaExtractor
         var required = schema.Required ?? new HashSet<string>(StringComparer.Ordinal);
 
         var parametersList = new List<ParameterBaseParameters>();
-        var seenPropertyNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var propertyNames = new PropertyNameRegistry();
 
         foreach (var prop in properties)
         {
-            var propName = prop.Key.ToPascalCaseForDotNet();
-            if (!seenPropertyNames.Add(propName))
+            var propName = propertyNames.Resolve(prop.Key, prop.Key.ToPascalCaseForDotNet());
+            if (propName is null)
             {
                 continue;
             }
@@ -175,24 +185,24 @@ public static class InlineSchemaExtractor
             var isRequired = required.Contains(prop.Key, StringComparer.Ordinal);
 
             string csharpType;
-            if (InlineEnumExtractor.IsInlineEnumSchema(prop.Value))
+            if (prop.Value.IsInlineEnum)
             {
                 var actualSchema = (OpenApiSchema)prop.Value;
-                var enumTypeName = ResolveOrRegisterInlineEnum(actualSchema, typeName, propName, ns, pathSegment, inlineEnumsByValuesKey);
+                var enumTypeName = ResolveOrRegisterInlineEnum(actualSchema, typeName, propName, ns, pathSegment, inlineEnumsByValuesKey, registry?.ComponentTypeNames);
                 csharpType = enumTypeName ?? "string";
-                if (!isRequired || actualSchema.IsNullable())
+                if (!isRequired || actualSchema.IsNullable)
                 {
                     csharpType += "?";
                 }
             }
             else if (InlineEnumExtractor.TryGetInlineEnumArrayItems(prop.Value, out var arrayItemSchema))
             {
-                var enumTypeName = ResolveOrRegisterInlineEnum(arrayItemSchema!, typeName, propName, ns, pathSegment, inlineEnumsByValuesKey);
+                var enumTypeName = ResolveOrRegisterInlineEnum(arrayItemSchema!, typeName, propName, ns, pathSegment, inlineEnumsByValuesKey, registry?.ComponentTypeNames);
                 csharpType = enumTypeName is not null
                     ? $"List<{enumTypeName}>"
                     : prop.Value.ToCSharpTypeForModel(isRequired, registry);
 
-                if (!isRequired || ((OpenApiSchema)prop.Value).IsNullable())
+                if (!isRequired || ((OpenApiSchema)prop.Value).IsNullable)
                 {
                     csharpType += "?";
                 }
@@ -209,12 +219,12 @@ public static class InlineSchemaExtractor
                 ? csharpType.Substring(0, csharpType.Length - 1)
                 : csharpType;
 
-            var validationAttributes = prop.Value.GetValidationAttributes(isRequired);
+            var validationAttributes = prop.Value.GetModelValidationAttributes(isRequired, isNullableType);
             var isReferenceType = cleanTypeName.IsReferenceType();
 
             IList<AttributeParameters>? attributes = BuildAttributes(prop.Key, propName, validationAttributes);
 
-            var defaultValue = DefaultValueHelper.ExtractSchemaDefault(prop.Value, cleanTypeName);
+            var defaultValue = DefaultValueHelper.ForRecordParameter(DefaultValueHelper.ExtractSchemaDefault(prop.Value, cleanTypeName, registry), isRequired, isNullableType);
 
             parametersList.Add(new ParameterBaseParameters(
                 Attributes: attributes,
@@ -280,7 +290,8 @@ public static class InlineSchemaExtractor
         string propertyName,
         string ns,
         string pathSegment,
-        Dictionary<string, InlineEnumInfo> inlineEnumsByValuesKey)
+        Dictionary<string, InlineEnumInfo> inlineEnumsByValuesKey,
+        ISet<string>? componentTypeNames)
     {
         var valuesKey = InlineEnumExtractor.GetEnumValuesKey(enumSchema);
         if (inlineEnumsByValuesKey.TryGetValue(valuesKey, out var existing))
@@ -288,7 +299,7 @@ public static class InlineSchemaExtractor
             return existing.TypeName;
         }
 
-        var enumTypeName = InlineEnumExtractor.GenerateInlineEnumTypeName(parentTypeName, propertyName);
+        var enumTypeName = InlineEnumExtractor.GenerateInlineEnumTypeName(parentTypeName, propertyName, componentTypeNames);
         var enumParams = InlineEnumExtractor.ExtractEnumFromInlineSchema(enumSchema, enumTypeName, ns);
         if (enumParams is null)
         {
@@ -297,35 +308,5 @@ public static class InlineSchemaExtractor
 
         inlineEnumsByValuesKey[valuesKey] = new InlineEnumInfo(enumTypeName, pathSegment, enumParams, valuesKey);
         return enumTypeName;
-    }
-
-    /// <summary>
-    /// Checks if an array schema has inline object items.
-    /// </summary>
-    /// <param name="schema">The array schema to check.</param>
-    /// <returns>True if the array items are inline objects with properties.</returns>
-    public static bool HasInlineArrayItems(OpenApiSchema schema)
-    {
-        if (schema.Type?.HasFlag(JsonSchemaType.Array) != true)
-        {
-            return false;
-        }
-
-        return IsInlineObjectSchema(schema.Items);
-    }
-
-    /// <summary>
-    /// Gets the inline schema from an array's items.
-    /// </summary>
-    /// <param name="schema">The array schema.</param>
-    /// <returns>The inline schema if present, null otherwise.</returns>
-    public static OpenApiSchema? GetInlineArrayItemSchema(OpenApiSchema schema)
-    {
-        if (!HasInlineArrayItems(schema))
-        {
-            return null;
-        }
-
-        return schema.Items as OpenApiSchema;
     }
 }

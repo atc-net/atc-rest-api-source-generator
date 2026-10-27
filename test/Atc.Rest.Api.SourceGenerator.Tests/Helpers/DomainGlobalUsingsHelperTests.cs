@@ -3,6 +3,28 @@ namespace Atc.Rest.Api.SourceGenerator.Tests.Helpers;
 [SuppressMessage("", "SA1512:Single-line comments should not be followed by blank line", Justification = "OK")]
 public class DomainGlobalUsingsHelperTests
 {
+    // ========== Merge Tests (no file system) ==========
+
+    [Fact]
+    public void Merge_AFileThatHasEveryUsingAndEndsWithANewline_IsLeftAlone()
+    {
+        var required = new HashSet<string>(StringComparer.Ordinal) { "global using System;" };
+
+        Assert.Null(DomainGlobalUsingsHelper.Merge("global using System;\n", required, "MyApp", [], CreateEmptyOpenApiDocument(), removeNamespaceGroupSeparator: false));
+    }
+
+    [Fact]
+    public void Merge_AddsAMissingUsing_AndKeepsAHandWrittenOne()
+    {
+        var required = new HashSet<string>(StringComparer.Ordinal) { "global using System;", "global using System.Threading;" };
+
+        var content = DomainGlobalUsingsHelper.Merge("global using Contoso.Shared;\n", required, "MyApp", [], CreateEmptyOpenApiDocument(), removeNamespaceGroupSeparator: false);
+
+        Assert.NotNull(content);
+        Assert.Contains("global using System.Threading;", content, StringComparison.Ordinal);
+        Assert.Contains("global using Contoso.Shared;", content, StringComparison.Ordinal);
+    }
+
     // ========== BuildRequiredUsings Tests ==========
 
     [Fact]
@@ -456,6 +478,81 @@ public class DomainGlobalUsingsHelperTests
         }
     }
 
+    // ========== InjectLogger Tests ==========
+
+    [Fact]
+    public void BuildRequiredUsings_InjectLoggerTrue_IncludesLoggingUsing()
+    {
+        // Arrange
+        var doc = CreateOpenApiDocumentWithPaths("Pets");
+
+        // Act
+        var result = DomainGlobalUsingsHelper.BuildRequiredUsings(
+            [],
+            "TestApi",
+            ["Pets"],
+            doc,
+            injectLogger: true);
+
+        // Assert
+        Assert.Contains("global using Microsoft.Extensions.Logging;", result);
+    }
+
+    [Fact]
+    public void BuildRequiredUsings_InjectLoggerFalse_ExcludesLoggingUsing()
+    {
+        // Arrange
+        var doc = CreateOpenApiDocumentWithPaths("Pets");
+
+        // Act
+        var result = DomainGlobalUsingsHelper.BuildRequiredUsings(
+            [],
+            "TestApi",
+            ["Pets"],
+            doc,
+            injectLogger: false);
+
+        // Assert
+        Assert.DoesNotContain("global using Microsoft.Extensions.Logging;", result);
+    }
+
+    // ========== InjectTracing Tests ==========
+    [Fact]
+    public void BuildRequiredUsings_InjectTracingTrue_IncludesDiagnosticsUsing()
+    {
+        // Arrange
+        var doc = CreateOpenApiDocumentWithPaths("Pets");
+
+        // Act
+        var result = DomainGlobalUsingsHelper.BuildRequiredUsings(
+            [],
+            "TestApi",
+            ["Pets"],
+            doc,
+            injectTracing: true);
+
+        // Assert
+        Assert.Contains("global using System.Diagnostics;", result);
+    }
+
+    [Fact]
+    public void BuildRequiredUsings_InjectTracingFalse_ExcludesDiagnosticsUsing()
+    {
+        // Arrange
+        var doc = CreateOpenApiDocumentWithPaths("Pets");
+
+        // Act
+        var result = DomainGlobalUsingsHelper.BuildRequiredUsings(
+            [],
+            "TestApi",
+            ["Pets"],
+            doc,
+            injectTracing: false);
+
+        // Assert
+        Assert.DoesNotContain("global using System.Diagnostics;", result);
+    }
+
     // ========== Helper Methods ==========
 
     private static OpenApiDocument CreateEmptyOpenApiDocument()
@@ -532,80 +629,5 @@ public class DomainGlobalUsingsHelperTests
         }
 
         return doc;
-    }
-
-    // ========== InjectLogger Tests ==========
-
-    [Fact]
-    public void BuildRequiredUsings_InjectLoggerTrue_IncludesLoggingUsing()
-    {
-        // Arrange
-        var doc = CreateOpenApiDocumentWithPaths("Pets");
-
-        // Act
-        var result = DomainGlobalUsingsHelper.BuildRequiredUsings(
-            [],
-            "TestApi",
-            ["Pets"],
-            doc,
-            injectLogger: true);
-
-        // Assert
-        Assert.Contains("global using Microsoft.Extensions.Logging;", result);
-    }
-
-    [Fact]
-    public void BuildRequiredUsings_InjectLoggerFalse_ExcludesLoggingUsing()
-    {
-        // Arrange
-        var doc = CreateOpenApiDocumentWithPaths("Pets");
-
-        // Act
-        var result = DomainGlobalUsingsHelper.BuildRequiredUsings(
-            [],
-            "TestApi",
-            ["Pets"],
-            doc,
-            injectLogger: false);
-
-        // Assert
-        Assert.DoesNotContain("global using Microsoft.Extensions.Logging;", result);
-    }
-
-    // ========== InjectTracing Tests ==========
-    [Fact]
-    public void BuildRequiredUsings_InjectTracingTrue_IncludesDiagnosticsUsing()
-    {
-        // Arrange
-        var doc = CreateOpenApiDocumentWithPaths("Pets");
-
-        // Act
-        var result = DomainGlobalUsingsHelper.BuildRequiredUsings(
-            [],
-            "TestApi",
-            ["Pets"],
-            doc,
-            injectTracing: true);
-
-        // Assert
-        Assert.Contains("global using System.Diagnostics;", result);
-    }
-
-    [Fact]
-    public void BuildRequiredUsings_InjectTracingFalse_ExcludesDiagnosticsUsing()
-    {
-        // Arrange
-        var doc = CreateOpenApiDocumentWithPaths("Pets");
-
-        // Act
-        var result = DomainGlobalUsingsHelper.BuildRequiredUsings(
-            [],
-            "TestApi",
-            ["Pets"],
-            doc,
-            injectTracing: false);
-
-        // Assert
-        Assert.DoesNotContain("global using System.Diagnostics;", result);
     }
 }

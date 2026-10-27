@@ -1,0 +1,140 @@
+openapi: 3.0.3
+info:
+  title: Hostile Schemas
+  description: Enum, default and numeric keywords a specification may legally carry and that must never break the generated code - an enum without a type, number and boolean enums, a null member, duplicate and empty members, x-enum-varnames, defaults of every kind, exclusive bounds, an integer past int32.
+  version: 1.0.0
+paths:
+  /tickets:
+    get:
+      operationId: listTickets
+      summary: Lists tickets - every hostile schema in one model.
+      parameters:
+        - name: status
+          in: query
+          description: An enum without a type, as a parameter.
+          schema:
+            $ref: '#/components/schemas/Status'
+        - name: limit
+          in: query
+          description: An integer with defaults and exclusive bounds.
+          schema:
+            type: integer
+            default: 20
+            minimum: 0
+            exclusiveMinimum: true
+            maximum: 100
+            exclusiveMaximum: true
+      responses:
+        '200':
+          description: The tickets.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Ticket'
+    post:
+      operationId: createTicket
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Ticket'
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ticket'
+components:
+  schemas:
+    Status:
+      description: An enum without a type - the values say it is a string enum.
+      enum: [active, archived]
+    Ratio:
+      description: A number enum - no C# enum holds a double; the property is a double.
+      type: number
+      enum: [0.5, 1.5]
+    Flag:
+      description: A boolean enum.
+      type: boolean
+      enum: [true]
+    Tone:
+      description: A nullable string enum with a null member.
+      type: string
+      nullable: true
+      enum: [warm, cold, null]
+    Level:
+      description: An integer enum with a duplicate value and x-enum-varnames.
+      type: integer
+      enum: [1, 2, 2, 3]
+      x-enum-varnames: [Low, Medium, MediumAgain, High]
+    Mark:
+      description: A string enum with an empty member and members that are no identifier.
+      type: string
+      enum: ['', 'a', '2nd', 'with space', 'kebab-case']
+    Color:
+      type: string
+      enum: [red, dark-blue]
+    Ticket:
+      type: object
+      required: [id, title]
+      properties:
+        id:
+          type: integer
+          description: An integer whose maximum does not fit int32.
+          maximum: 4294967295
+        title:
+          type: string
+          minLength: 1
+          maxLength: 80
+          pattern: '^[^\s].*$'
+        status:
+          $ref: '#/components/schemas/Status'
+        ratio:
+          $ref: '#/components/schemas/Ratio'
+        flag:
+          $ref: '#/components/schemas/Flag'
+        tone:
+          $ref: '#/components/schemas/Tone'
+        level:
+          $ref: '#/components/schemas/Level'
+        mark:
+          $ref: '#/components/schemas/Mark'
+        color:
+          allOf:
+            - $ref: '#/components/schemas/Color'
+          default: red
+        count:
+          type: integer
+          default: 5
+          minimum: 1
+          exclusiveMinimum: true
+        weight:
+          type: number
+          format: double
+          default: 1.5
+          maximum: 10
+          exclusiveMaximum: true
+        active:
+          type: boolean
+          default: true
+        due:
+          type: string
+          format: date
+          default: '2026-01-31'
+        tags:
+          type: array
+          items:
+            type: string
+          default: [a, b]
+        priority:
+          type: integer
+          enum: [1, 2, 3]
+          default: 2
+        kind:
+          type: string
+          enum: [bug, feature]
+          default: bug

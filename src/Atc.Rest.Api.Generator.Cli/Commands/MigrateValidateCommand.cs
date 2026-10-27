@@ -6,7 +6,14 @@ namespace Atc.Rest.Api.Generator.Cli.Commands;
 [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "CLI needs graceful error handling.")]
 public sealed class MigrateValidateCommand : Command<MigrateValidateCommandSettings>
 {
-    protected override int Execute(
+    /// <summary>
+    /// Analyzes the old-generated solution, prints the migration readiness report and optionally saves it as JSON.
+    /// </summary>
+    /// <param name="context">The Spectre.Console command context.</param>
+    /// <param name="settings">The parsed command-line settings.</param>
+    /// <param name="cancellationToken">Cancels the command.</param>
+    /// <returns>0 when the solution can be migrated; otherwise 1.</returns>
+    public override int Execute(
         CommandContext context,
         MigrateValidateCommandSettings settings,
         CancellationToken cancellationToken)
@@ -20,11 +27,11 @@ public sealed class MigrateValidateCommand : Command<MigrateValidateCommandSetti
         var solutionPath = Path.GetFullPath(settings.SolutionPath);
         var specPath = Path.GetFullPath(settings.SpecificationPath);
 
-        AnsiConsole.MarkupLine($"[blue]Solution:[/]      {Markup.Escape(solutionPath)}");
-        AnsiConsole.MarkupLine($"[blue]Specification:[/] {Markup.Escape(specPath)}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Solution:[/]      {solutionPath}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Specification:[/] {specPath}");
         foreach (var note in settings.PathNotes)
         {
-            AnsiConsole.MarkupLine($"[yellow]Note:[/]          {Markup.Escape(note)}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]Note:[/]          {note}");
         }
 
         AnsiConsole.WriteLine();
@@ -37,7 +44,7 @@ public sealed class MigrateValidateCommand : Command<MigrateValidateCommandSetti
             {
                 try
                 {
-                    var report = RunValidation(settings, ctx);
+                    var report = MigrationValidator.Validate(settings, status => ctx.Status(status));
                     DisplayResults(report, settings.Verbose);
 
                     // Save report if requested
@@ -50,131 +57,10 @@ public sealed class MigrateValidateCommand : Command<MigrateValidateCommandSetti
                 }
                 catch (Exception ex)
                 {
-                    AnsiConsole.MarkupLine($"[red]✗[/] Error: {Markup.Escape(ex.Message)}");
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Error: {ex.Message}");
                     return 1;
                 }
             });
-    }
-
-    private static MigrationValidationReport RunValidation(
-        MigrateValidateCommandSettings settings,
-        StatusContext ctx)
-    {
-        var report = new MigrationValidationReport
-        {
-            SolutionPath = settings.SolutionPath,
-            SpecificationPath = settings.SpecificationPath,
-        };
-
-        var rootDirectory = settings.GetSolutionDirectory();
-
-        // 1. Validate project structure
-        ctx.Status("Analyzing project structure...");
-        report.ProjectStructure = ProjectStructureValidator.Validate(settings.SolutionPath);
-
-        if (!report.ProjectStructure.HasSolutionFile)
-        {
-            report.BlockingIssues.Add("No solution file (.sln/.slnx) found in path");
-        }
-
-        if (!report.ProjectStructure.HasApiGeneratedProject)
-        {
-            report.BlockingIssues.Add("No Api.Generated project found. Is this an ATC-generated API?");
-        }
-
-        if (!report.ProjectStructure.HasDomainProject)
-        {
-            report.Warnings.Add("No Domain project found. Handler preservation not possible.");
-        }
-
-        report.DetectedProjectName = report.ProjectStructure.DetectedProjectName;
-        report.DetectedNamespace = report.ProjectStructure.DetectedProjectName;
-
-        // 2. Validate OpenAPI specification
-        ctx.Status("Validating OpenAPI specification...");
-        report.Specification = SpecificationValidator.Validate(settings.SpecificationPath);
-
-        if (!report.Specification.FileExists)
-        {
-            report.BlockingIssues.Add($"Specification file not found: {settings.SpecificationPath}");
-        }
-        else if (!report.Specification.IsValid)
-        {
-            foreach (var error in report.Specification.ValidationErrors)
-            {
-                report.BlockingIssues.Add($"OpenAPI validation error: {error}");
-            }
-        }
-
-        // 3. Analyze generator options
-        ctx.Status("Analyzing generator options...");
-        report.GeneratorOptions = GeneratorOptionsAnalyzer.Analyze(rootDirectory);
-
-        if (report.GeneratorOptions.IsControllerBased)
-        {
-            report.Warnings.Add("Controller-based APIs require manual migration steps");
-        }
-
-        // 4. Analyze package references
-        ctx.Status("Analyzing package references...");
-        report.PackageReferences = PackageReferenceAnalyzer.Analyze(report.ProjectStructure.AllProjects);
-
-        if (!report.PackageReferences.IsAtcGeneratedProject)
-        {
-            report.Warnings.Add("No Atc.Rest packages found. This may not be an ATC-generated project.");
-        }
-
-        // 5. Analyze generated code
-        ctx.Status("Analyzing generated code...");
-        report.GeneratedCode = GeneratedCodeAnalyzer.Analyze(
-            report.ProjectStructure.ApiGeneratedProject,
-            report.ProjectStructure.ApiClientGeneratedProject);
-
-        // 6. Analyze handlers
-        ctx.Status("Analyzing handler implementations...");
-        report.Handlers = HandlerAnalyzer.Analyze(
-            report.ProjectStructure.DomainProject,
-            report.GeneratedCode.HandlerInterfaces);
-
-        // 7. Validate target framework
-        ctx.Status("Validating target framework...");
-        report.TargetFramework = TargetFrameworkValidator.Validate(
-            rootDirectory,
-            report.ProjectStructure.AllProjects);
-
-        if (report.TargetFramework.IsBlocked)
-        {
-            var tfm = report.TargetFramework.CurrentTargetFramework ?? "unknown";
-            var lang = report.TargetFramework.CurrentLangVersion ?? "unknown";
-
-            if (!report.TargetFramework.IsTargetFrameworkCompatible)
-            {
-                report.BlockingIssues.Add($"Target framework {tfm} not supported. Minimum: net8.0");
-            }
-
-            if (!report.TargetFramework.IsLangVersionCompatible)
-            {
-                report.BlockingIssues.Add($"Language version C# {lang} not supported. Minimum: C# 12");
-            }
-        }
-
-        report.RequiresUpgrade = report.TargetFramework.RequiresAnyUpgrade;
-
-        // Determine overall status
-        if (report.BlockingIssues.Count > 0)
-        {
-            report.Status = MigrationValidationStatus.Blocked;
-        }
-        else if (report.RequiresUpgrade)
-        {
-            report.Status = MigrationValidationStatus.RequiresUpgrade;
-        }
-        else
-        {
-            report.Status = MigrationValidationStatus.Ready;
-        }
-
-        return report;
     }
 
     private static void DisplayResults(
@@ -198,11 +84,11 @@ public sealed class MigrateValidateCommand : Command<MigrateValidateCommandSetti
         DisplayCheck(report.Specification.IsValid, $"Valid OpenAPI {report.Specification.OpenApiVersion ?? "3.x"} document");
         if (report.Specification.IsValid)
         {
-            AnsiConsole.MarkupLine($"  [dim]•[/] Title: {Markup.Escape(report.Specification.ApiTitle ?? "N/A")}");
-            AnsiConsole.MarkupLine($"  [dim]•[/] Endpoints: {report.Specification.OperationCount} operations");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [dim]•[/] Title: {report.Specification.ApiTitle ?? "N/A"}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [dim]•[/] Endpoints: {report.Specification.OperationCount} operations");
             if (report.Specification.HasMultiPartFiles)
             {
-                AnsiConsole.MarkupLine($"  [dim]•[/] Multi-part files detected: {report.Specification.MultiPartFiles.Count}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [dim]•[/] Multi-part files detected: {report.Specification.MultiPartFiles.Count}");
             }
             else
             {
@@ -217,9 +103,9 @@ public sealed class MigrateValidateCommand : Command<MigrateValidateCommandSetti
         if (report.GeneratorOptions.Found)
         {
             DisplayCheck(true, $"Options file found: {Path.GetFileName(report.GeneratorOptions.FilePath)}");
-            AnsiConsole.MarkupLine($"  [dim]•[/] Output type: {report.GeneratorOptions.AspNetOutputType ?? "MinimalApi"}");
-            AnsiConsole.MarkupLine($"  [dim]•[/] Problem details: {(report.GeneratorOptions.UseProblemDetails == true ? "Enabled" : "Disabled")}");
-            AnsiConsole.MarkupLine($"  [dim]•[/] Strict mode: {(report.GeneratorOptions.StrictMode == true ? "Enabled" : "Disabled")}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [dim]•[/] Output type: {report.GeneratorOptions.AspNetOutputType ?? "MinimalApi"}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [dim]•[/] Problem details: {(report.GeneratorOptions.UseProblemDetails == true ? "Enabled" : "Disabled")}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [dim]•[/] Strict mode: {(report.GeneratorOptions.StrictMode == true ? "Enabled" : "Disabled")}");
         }
         else
         {
@@ -264,7 +150,7 @@ public sealed class MigrateValidateCommand : Command<MigrateValidateCommandSetti
                 markers.Add("IDomainAssemblyMarker");
             }
 
-            AnsiConsole.MarkupLine($"  [dim]•[/] Assembly markers: {string.Join(", ", markers)}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [dim]•[/] Assembly markers: {string.Join(", ", markers)}");
         }
 
         AnsiConsole.WriteLine();
@@ -276,7 +162,7 @@ public sealed class MigrateValidateCommand : Command<MigrateValidateCommandSetti
         {
             foreach (var handler in report.Handlers.Handlers)
             {
-                AnsiConsole.MarkupLine($"    [dim]•[/] {handler.ClassName} ({handler.ResourceGroup ?? "unknown"})");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"    [dim]•[/] {handler.ClassName} ({handler.ResourceGroup ?? "unknown"})");
             }
         }
 
@@ -300,7 +186,7 @@ public sealed class MigrateValidateCommand : Command<MigrateValidateCommandSetti
 
         if (report.TargetFramework.RequiresAnyUpgrade)
         {
-            AnsiConsole.MarkupLine($"  [yellow]![/] Upgrade to .NET 10 / C# 14 will be required");
+            AnsiConsole.MarkupLine("  [yellow]![/] Upgrade to .NET 10 / C# 14 will be required");
         }
 
         AnsiConsole.WriteLine();
@@ -323,11 +209,11 @@ public sealed class MigrateValidateCommand : Command<MigrateValidateCommandSetti
 
         AnsiConsole.WriteLine();
         AnsiConsole.MarkupLine("[dim]Detected configuration:[/]");
-        AnsiConsole.MarkupLine($"  [dim]•[/] Project name: {report.DetectedProjectName ?? "unknown"}");
-        AnsiConsole.MarkupLine($"  [dim]•[/] Namespace root: {report.DetectedNamespace ?? "unknown"}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [dim]•[/] Project name: {report.DetectedProjectName ?? "unknown"}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [dim]•[/] Namespace root: {report.DetectedNamespace ?? "unknown"}");
         var problemDetailsText = report.GeneratorOptions.UseProblemDetails == true ? " with ProblemDetails" : string.Empty;
-        AnsiConsole.MarkupLine($"  [dim]•[/] Generation style: {report.GeneratorOptions.AspNetOutputType ?? "MinimalApi"}{problemDetailsText}");
-        AnsiConsole.MarkupLine($"  [dim]•[/] Handler count: {report.Handlers.HandlerCount}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [dim]•[/] Generation style: {report.GeneratorOptions.AspNetOutputType ?? "MinimalApi"}{problemDetailsText}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [dim]•[/] Handler count: {report.Handlers.HandlerCount}");
 
         // Display blocking issues
         if (report.BlockingIssues.Count > 0)
@@ -336,7 +222,7 @@ public sealed class MigrateValidateCommand : Command<MigrateValidateCommandSetti
             AnsiConsole.MarkupLine("[red]Blocking issues:[/]");
             foreach (var issue in report.BlockingIssues)
             {
-                AnsiConsole.MarkupLine($"  [red]✗[/] {Markup.Escape(issue)}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [red]✗[/] {issue}");
             }
         }
 
@@ -347,14 +233,14 @@ public sealed class MigrateValidateCommand : Command<MigrateValidateCommandSetti
             AnsiConsole.MarkupLine("[yellow]Warnings:[/]");
             foreach (var warning in report.Warnings)
             {
-                AnsiConsole.MarkupLine($"  [yellow]![/] {Markup.Escape(warning)}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [yellow]![/] {warning}");
             }
         }
 
         if (report.CanMigrate)
         {
             AnsiConsole.WriteLine();
-            AnsiConsole.MarkupLine($"[dim]Run 'atc-rest-api-gen migrate execute -s <solution-path> -p <spec-path>' to perform migration.[/]");
+            AnsiConsole.MarkupLine("[dim]Run 'atc-rest-api-gen migrate execute -s <spec-path> --solution <solution-path>' to perform migration.[/]");
         }
 
         AnsiConsole.Write(new Rule().RuleStyle(Style.Parse("dim")));
@@ -367,15 +253,15 @@ public sealed class MigrateValidateCommand : Command<MigrateValidateCommandSetti
     {
         if (success)
         {
-            AnsiConsole.MarkupLine($"  [green]✓[/] {Markup.Escape(message)}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [green]✓[/] {message}");
         }
         else if (optional)
         {
-            AnsiConsole.MarkupLine($"  [dim]•[/] {Markup.Escape(message)}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [dim]•[/] {message}");
         }
         else
         {
-            AnsiConsole.MarkupLine($"  [red]✗[/] {Markup.Escape(message)}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [red]✗[/] {message}");
         }
     }
 
@@ -412,11 +298,11 @@ public sealed class MigrateValidateCommand : Command<MigrateValidateCommandSetti
 
             File.WriteAllText(fullPath, json);
             AnsiConsole.WriteLine();
-            AnsiConsole.MarkupLine($"[green]✓[/] Report saved to: {Markup.Escape(fullPath)}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Report saved to: {fullPath}");
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[yellow]![/] Failed to save report: {Markup.Escape(ex.Message)}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]![/] Failed to save report: {ex.Message}");
         }
     }
 

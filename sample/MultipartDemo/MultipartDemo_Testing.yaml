@@ -1,0 +1,49 @@
+openapi: "3.1.0"
+paths:
+  /testing/exception/{code}:
+    # Disable retry for testing - we want to see actual error responses, not retries
+    x-retry-enabled: false
+    get:
+      summary: Test exception handling
+      description: |
+        Throws different exceptions based on the code parameter to test GlobalErrorHandlingMiddleware.
+
+        Supported codes:
+        - 0: Success (no exception)
+        - 1: General Exception → 500 Internal Server Error
+        - 2: ArgumentException → 400 Bad Request
+        - 3: ArgumentNullException → 400 Bad Request
+        - 4: InvalidOperationException → 409 Conflict
+        - 5: UnauthorizedAccessException → 401 Unauthorized
+        - 6: NotImplementedException → 501 Not Implemented
+        - 7: TimeoutException → 504 Gateway Timeout
+        - 8: ValidationException (DataAnnotations) → 400 Bad Request
+        - 9: KeyNotFoundException → 500 Internal Server Error (default)
+        - 10: NullReferenceException → 500 Internal Server Error
+        - 11: TaskCanceledException → 504 Gateway Timeout
+      operationId: getExceptionTest
+      tags:
+        - testing
+      # Public endpoint - no auth required for testing
+      security: []
+      parameters:
+        - name: code
+          in: path
+          required: true
+          description: |
+            The exception code to throw (0-11).
+            Code 0 returns success, other codes throw specific exceptions.
+          schema:
+            type: integer
+            format: int32
+            minimum: 0
+            maximum: 11
+      responses:
+        '200':
+          description: Success response (when code is 0)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExceptionTestResponse"
+        '404':
+          description: Not Found (invalid code)

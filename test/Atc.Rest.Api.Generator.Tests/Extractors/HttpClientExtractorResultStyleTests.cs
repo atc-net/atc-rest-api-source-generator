@@ -159,9 +159,9 @@ public class HttpClientExtractorResultStyleTests
         Assert.Contains("BuildJsonResponseAsync<Device>", method.Content, StringComparison.Ordinal);
 
         // The GetFromJsonAsync shortcut never materializes an HttpResponseMessage, so Result style
-        // must fall back to GetAsync - otherwise there is nothing to build the envelope from.
+        // must send the (stamped) request - otherwise there is nothing to build the envelope from.
         Assert.DoesNotContain("GetFromJsonAsync", method.Content, StringComparison.Ordinal);
-        Assert.Contains("httpClient.GetAsync(url, cancellationToken)", method.Content, StringComparison.Ordinal);
+        Assert.Contains("httpClient.SendAsync(requestMessage, cancellationToken)", method.Content, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -171,9 +171,12 @@ public class HttpClientExtractorResultStyleTests
 
         var method = clientClass.Methods!.First(m => m.Name == "GetDeviceByIdAsync");
 
-        // A plain GET with a return type uses the GetFromJsonAsync shortcut, which throws on a
-        // non-success status internally - so it needs no explicit EnsureSuccessAsync call.
-        Assert.Contains("GetFromJsonAsync<Device>", method.Content, StringComparison.Ordinal);
+        // A plain GET with a return type goes through EnsureSuccessAsync like every other operation, so
+        // the thrown HttpRequestException carries the error body. (GetFromJsonAsync, used before 3.0,
+        // throws without it.)
+        Assert.Contains("EnsureSuccessAsync", method.Content, StringComparison.Ordinal);
+        Assert.Contains("JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<Device>())", method.Content, StringComparison.Ordinal);
+        Assert.DoesNotContain("GetFromJsonAsync", method.Content, StringComparison.Ordinal);
         Assert.DoesNotContain("BuildJsonResponseAsync", method.Content, StringComparison.Ordinal);
     }
 

@@ -1,0 +1,5 @@
+# Fixture files are compared byte for byte: never convert their line endings
+*.pdf binary
+*.xlsx binary
+*.png binary
+*.jpg binary

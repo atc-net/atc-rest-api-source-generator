@@ -126,7 +126,7 @@ public static class HttpRequestMessageExtensions
     }
 
     /// <summary>
-    /// Reads the request body as a string.
+    /// Reads the request body as a string - as it was sent, also after the client disposed the request.
     /// </summary>
     /// <param name="request">The recorded request.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
@@ -136,6 +136,11 @@ public static class HttpRequestMessageExtensions
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
+
+        if (RecordedBodies.TryGet(request, out var recorded))
+        {
+            return Decode(request, recorded);
+        }
 
         if (request.Content is null)
         {
@@ -148,7 +153,7 @@ public static class HttpRequestMessageExtensions
     }
 
     /// <summary>
-    /// Reads and deserializes the request body.
+    /// Reads and deserializes the request body - as it was sent, also after the client disposed the request.
     /// </summary>
     /// <typeparam name="T">The type to deserialize into.</typeparam>
     /// <param name="request">The recorded request.</param>
@@ -162,17 +167,30 @@ public static class HttpRequestMessageExtensions
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        if (request.Content is null)
+        if (request.Content is null &&
+            !RecordedBodies.TryGet(request, out _))
         {
             return default;
         }
 
-        var json = await request.Content
-            .ReadAsStringAsync(cancellationToken)
+        var json = await request
+            .ReadBodyAsync(cancellationToken)
             .ConfigureAwait(false);
 
         return string.IsNullOrWhiteSpace(json)
             ? default
             : JsonSerializer.Deserialize<T>(json, jsonSerializerOptions);
+    }
+
+    private static string Decode(
+        HttpRequestMessage request,
+        byte[] body)
+    {
+        // The charset the content declared; disposed content still answers its headers
+        var charset = request.Content?.Headers.ContentType?.CharSet;
+        var encoding = string.IsNullOrWhiteSpace(charset)
+            ? Encoding.UTF8
+            : Encoding.GetEncoding(charset.Trim('"'));
+        return encoding.GetString(body);
     }
 }

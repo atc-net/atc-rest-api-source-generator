@@ -14,6 +14,10 @@ namespace Atc.Rest.Api.Generator.Tests.Validators;
 /// <c>UnrecognizedKeywords</c>.
 /// </para>
 /// </remarks>
+[RuleTest("ATC_API_VER001")]
+[RuleTest("ATC_API_VER002")]
+[RuleTest("ATC_API_VER003")]
+[RuleTest("ATC_API_VER004")]
 public class SpecVersionMigrationValidationTests
 {
     private const string TestFilePath = "test.yaml";

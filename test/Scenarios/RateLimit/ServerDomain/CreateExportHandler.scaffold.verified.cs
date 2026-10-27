@@ -5,6 +5,9 @@ namespace RateLimit.ApiHandlers;
 /// </summary>
 public sealed class CreateExportHandler : ICreateExportHandler
 {
+    /// <summary>
+    /// Executes the CreateExport operation.
+    /// </summary>
     public Task<CreateExportResult> ExecuteAsync(
         CreateExportParameters parameters,
         CancellationToken cancellationToken = default)

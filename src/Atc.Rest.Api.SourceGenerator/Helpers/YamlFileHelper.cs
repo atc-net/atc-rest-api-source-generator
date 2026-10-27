@@ -47,6 +47,23 @@ internal static class YamlFileHelper
     }
 
     /// <summary>
+    /// The specification files that are neither the base file nor a part of it: a second base specification, which
+    /// the generator cannot read next to the first (<c>ATC_API_GEN021</c>).
+    /// </summary>
+    /// <param name="yamlFiles">The specification files of the project.</param>
+    /// <param name="baseFile">The base file <see cref="IdentifyBaseFile"/> found.</param>
+    /// <returns>The other base files, in the project's order.</returns>
+    public static List<YamlFileInfo> OtherBaseFiles(
+        ImmutableArray<YamlFileInfo> yamlFiles,
+        YamlFileInfo baseFile)
+    {
+        var baseName = Path.GetFileNameWithoutExtension(baseFile.Path);
+        return yamlFiles
+            .Where(f => !f.Path.Equals(baseFile.Path, StringComparison.OrdinalIgnoreCase) && !IsPartFile(f.Path, baseName))
+            .ToList();
+    }
+
+    /// <summary>
     /// Checks if a file is a part file for the given base name.
     /// Part files follow the naming convention: {BaseName}_{PartName}.yaml
     /// </summary>

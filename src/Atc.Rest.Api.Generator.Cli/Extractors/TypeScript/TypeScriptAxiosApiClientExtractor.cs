@@ -9,33 +9,58 @@ public static class TypeScriptAxiosApiClientExtractor
     /// Generates the content for ApiClient.ts using Axios.
     /// </summary>
     /// <param name="headerContent">Optional auto-generated file header.</param>
-    /// <param name="convertDates">When true, emits dateReviver/dateReplacer for automatic Date conversion.</param>
+    /// <param name="hasRetry">When true, the spec declares retry (x-retry-*): the client retries through helpers/retryInterceptor.ts.</param>
+    /// <param name="zodRuntimeValidate">When true, responses are validated against their Zod schema.</param>
+    /// <param name="hasWireNames">
+    /// When true, the TypeScript models' property names differ from the API's for some keys: bodies, responses,
+    /// error bodies and stream items are renamed through <c>helpers/wireNames.ts</c>.
+    /// </param>
+    /// <param name="convertDates">When true (<c>--convert-dates</c>), the file exports <c>dateOnly</c>, which the segment clients write a <c>format: date</c> parameter with.</param>
+    /// <param name="hasXml">
+    /// When true, the specification has XML bodies: the <c>xml</c> request option (Accept, an XML request body), an XML
+    /// success body read by the operation's mapping in <c>helpers/xml.ts</c> (no JSON handling), a declared XML error
+    /// model, and an <c>application/problem+xml</c> error read into a ProblemDetails object.
+    /// </param>
+    /// <param name="hasModelOrFile">When true, an operation answers a model or a file: the <c>modelOrFile</c> request option, asked for as bytes, a model answer read back as text.</param>
+    /// <param name="hasResponseHeaders">When true, an operation's result arms have typed headers: the <c>responseHeaders</c> request option and their readers.</param>
     /// <returns>The TypeScript file content.</returns>
     public static string Generate(
         string? headerContent,
-        bool convertDates = false,
         bool hasRetry = false,
-        bool zodRuntimeValidate = false)
+        bool zodRuntimeValidate = false,
+        bool hasWireNames = false,
+        bool convertDates = false,
+        bool hasXml = false,
+        bool hasModelOrFile = false,
+        bool hasResponseHeaders = false,
+        bool hasSequenceBodies = false)
     {
         var sb = new StringBuilder();
 
-        if (headerContent is not null)
-        {
-            sb.Append(headerContent);
-        }
+        sb.Append(headerContent);
 
-        AppendImports(sb, hasRetry, zodRuntimeValidate);
-
+        AppendImports(sb, hasRetry, zodRuntimeValidate, hasWireNames, hasXml);
         if (convertDates)
         {
-            AppendDateReviverReplacer(sb);
+            TypeScriptOperationHelper.AppendDateOnlyHelper(sb);
         }
 
         AppendUnparseableBodyClass(sb);
         AppendApiClientOptionsInterface(sb, hasRetry);
-        AppendRequestOptionsInterface(sb, zodRuntimeValidate);
+        TypeScriptApiClientRuntime.AppendRequestOptionsInterface(sb, hasRetry, zodRuntimeValidate, hasWireNames, hasXml, hasModelOrFile, hasResponseHeaders, hasSequenceBodies);
         TypeScriptOperationHelper.AppendParseEventStreamHelper(sb);
-        AppendApiClientClass(sb, convertDates, hasRetry, zodRuntimeValidate);
+        if (hasResponseHeaders)
+        {
+            TypeScriptResponseHeaders.AppendRuntime(sb, axios: true);
+        }
+
+        if (hasSequenceBodies)
+        {
+            // Axios sends a body of records in one piece
+            TypeScriptRequestRecords.AppendRuntime(sb, streams: false);
+        }
+
+        AppendApiClientClass(sb, hasRetry, zodRuntimeValidate, hasWireNames, hasXml, hasModelOrFile, hasResponseHeaders, hasSequenceBodies);
 
         return sb.ToString();
     }
@@ -43,19 +68,31 @@ public static class TypeScriptAxiosApiClientExtractor
     private static void AppendImports(
         StringBuilder sb,
         bool hasRetry,
-        bool zodRuntimeValidate)
+        bool zodRuntimeValidate,
+        bool hasWireNames,
+        bool hasXml)
     {
         sb.AppendLine("import axios from 'axios';");
-        sb.AppendLine("import type { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios';");
-        sb.AppendLine("import { ApiError } from '../errors/ApiError';");
+        sb.AppendLine("import type { AxiosInstance, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios';");
+        sb.AppendLine("import { ApiError, decodeText, errorMessage } from '../errors/ApiError';");
         sb.AppendLine("import { ValidationError } from '../errors/ValidationError';");
+        if (hasXml)
+        {
+            sb.AppendLine("import { isXmlMediaType, parseXml, readProblemXml, xmlSuccessArm, type XmlOptions } from '../helpers/xmlRuntime';");
+        }
+
+        if (hasWireNames)
+        {
+            sb.AppendLine("import { fromWire, toWire, type WireShapes } from '../helpers/wireNames';");
+        }
+
         sb.AppendLine("import type { ApiResult } from '../types/ApiResult';");
 
         if (hasRetry)
         {
-            sb.AppendLine("import { retryWithBackoff } from '../helpers/retryInterceptor';");
+            sb.AppendLine("import { resolveRetryPolicy, retryWithBackoff } from '../helpers/retryInterceptor';");
             sb.AppendLine("import { defaultRetryPolicy } from '../helpers/retryConfig';");
-            sb.AppendLine("import type { RetryPolicy } from '../helpers/retryConfig';");
+            sb.AppendLine("import type { RequestRetry, RetryPolicy } from '../helpers/retryRuntime';");
         }
 
         if (zodRuntimeValidate)
@@ -85,11 +122,21 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("export type AxiosRequestInterceptor = (config: InternalAxiosRequestConfig) => InternalAxiosRequestConfig | Promise<InternalAxiosRequestConfig>;");
         sb.AppendLine("export type AxiosResponseInterceptor = (response: AxiosResponse) => AxiosResponse | Promise<AxiosResponse>;");
         sb.AppendLine();
+        TypeScriptSecurity.AppendSecuritySchemeType(sb);
         sb.AppendLine("export interface ApiClientOptions {");
+        sb.AppendLine("  /** The access token, sent as a bearer token with the operations that require one (http bearer, OAuth2, OpenID Connect). */");
         sb.AppendLine("  getAccessToken?: () => string | Promise<string>;");
+        TypeScriptSecurity.AppendApiKeysOption(sb);
         sb.AppendLine("  defaultHeaders?: Record<string, string>;");
         sb.AppendLine("  requestInterceptors?: AxiosRequestInterceptor[];");
         sb.AppendLine("  responseInterceptors?: AxiosResponseInterceptor[];");
+        sb.AppendLine("  /**");
+        sb.AppendLine("   * The axios instance every request is sent with - your own interceptors, adapter, agent or defaults; defaults to a");
+        sb.AppendLine("   * new instance. The client's own settings (base URL, status handling, body parsing, query format) go with each");
+        sb.AppendLine("   * request, so the instance's defaults for those do not apply; defaultHeaders go with each request too, and");
+        sb.AppendLine("   * requestInterceptors / responseInterceptors are added to the instance.");
+        sb.AppendLine("   */");
+        sb.AppendLine("  axiosInstance?: AxiosInstance;");
 
         if (hasRetry)
         {
@@ -101,63 +148,33 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine();
     }
 
-    private static void AppendRequestOptionsInterface(
-        StringBuilder sb,
-        bool zodRuntimeValidate)
-    {
-        sb.AppendLine("export interface RequestOptions {");
-        sb.AppendLine("  body?: unknown;");
-        sb.AppendLine("  query?: Record<string, string | number | boolean | (string | number | boolean)[] | undefined>;");
-        sb.AppendLine("  headers?: Record<string, string | number | boolean | undefined>;");
-        sb.AppendLine("  signal?: AbortSignal;");
-        sb.AppendLine("  responseType?: 'json' | 'blob' | 'text';");
-        if (zodRuntimeValidate)
-        {
-            sb.AppendLine("  parseSchema?: ZodTypeAny;");
-        }
-
-        sb.AppendLine("}");
-        sb.AppendLine();
-
-        // Wire framing discriminator for streamed responses. Drives how requestStream parses the
-        // body: 'json-array' | 'json-lines' | 'json-seq' use the brace-scan path; 'sse' and
-        // 'multipart' each have a dedicated parse branch (Server-Sent Events `data: <json>\n\n`,
-        // and boundary-delimited multipart/mixed parts respectively).
-        sb.AppendLine("export type StreamFraming = 'json-array' | 'sse' | 'json-lines' | 'json-seq' | 'multipart';");
-        sb.AppendLine();
-    }
-
-    private static void AppendDateReviverReplacer(StringBuilder sb)
-    {
-        sb.AppendLine("const ISO_DATE_RE = /^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}(:\\d{2})?(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})?$/;");
-        sb.AppendLine();
-        sb.AppendLine("function dateReviver(_key: string, value: unknown): unknown {");
-        sb.AppendLine("  if (typeof value === 'string' && ISO_DATE_RE.test(value)) {");
-        sb.AppendLine("    const parsed = new Date(value);");
-        sb.AppendLine("    return Number.isNaN(parsed.getTime()) ? value : parsed;");
-        sb.AppendLine("  }");
-        sb.AppendLine("  return value;");
-        sb.AppendLine("}");
-        sb.AppendLine();
-        sb.AppendLine("function dateReplacer(_key: string, value: unknown): unknown {");
-        sb.AppendLine("  if (value instanceof Date) {");
-        sb.AppendLine("    return value.toISOString();");
-        sb.AppendLine("  }");
-        sb.AppendLine("  return value;");
-        sb.AppendLine("}");
-        sb.AppendLine();
-    }
-
     private static void AppendApiClientClass(
         StringBuilder sb,
-        bool convertDates,
         bool hasRetry,
-        bool zodRuntimeValidate)
+        bool zodRuntimeValidate,
+        bool hasWireNames,
+        bool hasXml,
+        bool hasModelOrFile,
+        bool hasResponseHeaders,
+        bool hasSequenceBodies)
     {
+        TypeScriptResultArms.AppendFitToArms(sb);
+        sb.AppendLine("/** A request's config with what the operation reads: every body is asked for as bytes (responseType), and bodyType says what to make of them. */");
+        sb.AppendLine("type BodyRequestConfig = AxiosRequestConfig & { bodyType?: 'json' | 'text' | 'arraybuffer' | 'auto' };");
+        sb.AppendLine();
+        sb.AppendLine("/** What the operation reads: its bodyType ('auto': whatever the Content-Type says), or - for a request made without one - its responseType. */");
+        sb.AppendLine("function bodyTypeOf(config: unknown): string | undefined {");
+        sb.AppendLine("  const request = config as BodyRequestConfig | undefined;");
+        sb.AppendLine("  return request?.bodyType ?? request?.responseType;");
+        sb.AppendLine("}");
+        sb.AppendLine();
         sb.AppendLine("export class ApiClient {");
         sb.AppendLine("  private readonly baseUrl: string;");
         sb.AppendLine("  private readonly client: AxiosInstance;");
         sb.AppendLine("  private readonly options: ApiClientOptions;");
+        sb.AppendLine("  // What every request carries: the client's settings, and the default headers when the instance is the caller's");
+        sb.AppendLine("  private readonly transport: AxiosRequestConfig;");
+        sb.AppendLine("  private readonly requestHeaders: Record<string, string>;");
 
         if (hasRetry)
         {
@@ -171,38 +188,28 @@ public static class TypeScriptAxiosApiClientExtractor
 
         sb.AppendLine();
 
-        AppendConstructor(sb, convertDates, hasRetry);
+        AppendConstructor(sb, hasRetry);
 
         if (zodRuntimeValidate)
         {
-            AppendSetStrictModeMethod(sb);
+            TypeScriptApiClientRuntime.AppendSetStrictModeMethod(sb);
         }
 
-        AppendRequestMethod(sb, convertDates, hasRetry, zodRuntimeValidate);
-        AppendRequestStreamMethod(sb, convertDates);
-        AppendBuildUrlMethod(sb);
-        AppendHandleResponseMethod(sb, zodRuntimeValidate);
+        AppendRequestMethod(sb, hasRetry, zodRuntimeValidate, hasWireNames, hasXml, hasModelOrFile, hasResponseHeaders, hasSequenceBodies);
+        if (hasWireNames)
+        {
+            TypeScriptOperationHelper.AppendRenamingRequestStream(sb);
+        }
+
+        AppendRequestStreamMethod(sb, hasWireNames, hasSequenceBodies);
+        TypeScriptSecurity.AppendCredentialsMethod(sb);
+        AppendHandleResponseMethod(sb, zodRuntimeValidate, hasWireNames, hasXml);
 
         sb.AppendLine("}");
     }
 
-    private static void AppendSetStrictModeMethod(StringBuilder sb)
-    {
-        sb.AppendLine("  /**");
-        sb.AppendLine("   * Toggle strict runtime validation. When enabled, schema-mismatch");
-        sb.AppendLine("   * failures throw an Error with the Zod issues instead of returning a");
-        sb.AppendLine("   * 'schemaMismatch' ApiResult arm. Useful in dev/staging to surface");
-        sb.AppendLine("   * spec drift loudly; leave off in prod to keep errors as values.");
-        sb.AppendLine("   */");
-        sb.AppendLine("  setStrictMode(enabled: boolean): void {");
-        sb.AppendLine("    this.strictMode = enabled;");
-        sb.AppendLine("  }");
-        sb.AppendLine();
-    }
-
     private static void AppendConstructor(
         StringBuilder sb,
-        bool convertDates,
         bool hasRetry)
     {
         sb.AppendLine("  constructor(baseUrl: string, options?: ApiClientOptions) {");
@@ -214,7 +221,7 @@ public static class TypeScriptAxiosApiClientExtractor
             sb.AppendLine("    this.retryPolicy = this.options.retryPolicy !== undefined ? this.options.retryPolicy : defaultRetryPolicy;");
         }
 
-        sb.AppendLine("    this.client = axios.create({");
+        sb.AppendLine("    this.transport = {");
         sb.AppendLine("      baseURL: this.baseUrl,");
         sb.AppendLine("      validateStatus: () => true,");
 
@@ -222,50 +229,46 @@ public static class TypeScriptAxiosApiClientExtractor
         // so ASP.NET Core's default model binder can bind array query params correctly.
         sb.AppendLine("      paramsSerializer: { indexes: null },");
 
-        // transformResponse is always emitted (both convertDates modes): it is the single place
+        // transformResponse is always emitted: it is the single place
         // where a JSON parse failure is observable, so it must own the parse. It is a function (not
-        // an arrow) so `this` is the request config and responseType: 'text' can be honoured — that
-        // opt-out returns the body verbatim even for a JSON content-type. Otherwise parsing is gated
-        // on the content-type: only JSON bodies (application/json and +json suffixes such as
+        // an arrow) so `this` is the request config: responseType 'json' (a JSON operation) parses the
+        // body of a success whatever the content-type says, and responseType 'text' returns it verbatim
+        // even for a JSON content-type. An error body, and every body otherwise, is gated on the
+        // content-type: only JSON bodies (application/json and +json suffixes such as
         // application/problem+json) are parsed, and only they can yield the UnparseableBody sentinel.
-        // Text bodies (text/plain, application/xml, ...) are returned verbatim so they never regress
-        // into a parse error.
-        var jsonParse = convertDates
-            ? "JSON.parse(data, dateReviver)"
-            : "JSON.parse(data)";
+        // Text bodies (text/plain, application/xml, a proxy's text/html page) are returned verbatim so
+        // they never regress into a parse error and a foreign error body is not lost.
+        const string jsonParse = "JSON.parse(data)";
 
-        sb.AppendLine("      transformResponse: [function (this: InternalAxiosRequestConfig, data: unknown, headers?: Record<string, string>) {");
+        sb.AppendLine("      transformResponse: [function (this: InternalAxiosRequestConfig, data: unknown, headers?: Record<string, string>, status?: number) {");
+        sb.AppendLine("        const bodyType = bodyTypeOf(this);");
+        sb.AppendLine("        const rawContentType = String(headers?.['content-type'] ?? headers?.['Content-Type'] ?? '');");
+        sb.AppendLine("        // Every body arrives as bytes: its text is decoded by the charset the Content-Type names, which the");
+        sb.AppendLine("        // adapters do not agree on (Node's http adapter and the fetch adapter read every text as UTF-8)");
+        sb.AppendLine("        if ((this as BodyRequestConfig).bodyType !== 'arraybuffer' && (Object.prototype.toString.call(data) === '[object ArrayBuffer]' || ArrayBuffer.isView(data))) {");
+        sb.AppendLine("          data = decodeText(data as ArrayBuffer, rawContentType);");
+        sb.AppendLine("        }");
+        sb.AppendLine();
         sb.AppendLine("        if (typeof data !== 'string' || data.length === 0) return data;");
-        sb.AppendLine("        if (this.responseType === 'text') return data;");
-        sb.AppendLine("        const contentType = String(headers?.['content-type'] ?? headers?.['Content-Type'] ?? '');");
-        sb.AppendLine("        if (!contentType.includes('application/json') && !contentType.includes('+json')) return data;");
-        sb.Append("        try { return ").Append(jsonParse).AppendLine("; } catch { return new UnparseableBody(data); }");
+        sb.AppendLine("        if (bodyType === 'text') return data;");
+        sb.AppendLine("        const contentType = rawContentType.toLowerCase();");
+        sb.AppendLine("        const successReadAsJson = bodyType === 'json' && (status ?? 200) < 400;");
+        sb.AppendLine("        if (!successReadAsJson && !contentType.includes('application/json') && !contentType.includes('+json')) return data;");
+        sb.AppendLine("        try {");
+        sb.Append("          return ").Append(jsonParse).AppendLine(";");
+        sb.AppendLine("        } catch {");
+        sb.AppendLine("          return new UnparseableBody(data);");
+        sb.AppendLine("        }");
         sb.AppendLine("      }],");
 
-        if (convertDates)
-        {
-            sb.AppendLine("      transformRequest: [(data: unknown, headers: Record<string, string>) => {");
-            sb.AppendLine("        if (data instanceof FormData || data instanceof Blob) return data;");
-            sb.AppendLine("        if (data !== undefined) headers['Content-Type'] = 'application/json';");
-            sb.AppendLine("        return data !== undefined ? JSON.stringify(data, dateReplacer) : data;");
-            sb.AppendLine("      }],");
-        }
-
-        sb.AppendLine("    });");
+        sb.AppendLine("    };");
+        sb.AppendLine("    this.client = this.options.axiosInstance ?? axios.create(this.transport);");
+        sb.AppendLine("    this.requestHeaders = this.options.axiosInstance ? { ...this.options.defaultHeaders } : {};");
         sb.AppendLine();
-        sb.AppendLine("    if (this.options.defaultHeaders) {");
+        sb.AppendLine("    if (this.options.defaultHeaders && !this.options.axiosInstance) {");
         sb.AppendLine("      for (const [key, value] of Object.entries(this.options.defaultHeaders)) {");
         sb.AppendLine("        this.client.defaults.headers.common[key] = value;");
         sb.AppendLine("      }");
-        sb.AppendLine("    }");
-        sb.AppendLine();
-        sb.AppendLine("    if (this.options.getAccessToken) {");
-        sb.AppendLine("      const getToken = this.options.getAccessToken;");
-        sb.AppendLine("      this.client.interceptors.request.use(async (config) => {");
-        sb.AppendLine("        const token = await getToken();");
-        sb.AppendLine("        config.headers.Authorization = `Bearer ${token}`;");
-        sb.AppendLine("        return config;");
-        sb.AppendLine("      });");
         sb.AppendLine("    }");
         sb.AppendLine();
         sb.AppendLine("    for (const interceptor of this.options.requestInterceptors ?? []) {");
@@ -281,37 +284,63 @@ public static class TypeScriptAxiosApiClientExtractor
 
     private static void AppendRequestMethod(
         StringBuilder sb,
-        bool convertDates,
         bool hasRetry,
-        bool zodRuntimeValidate)
+        bool zodRuntimeValidate,
+        bool hasWireNames,
+        bool hasXml,
+        bool hasModelOrFile,
+        bool hasResponseHeaders,
+        bool hasSequenceBodies)
     {
+        var jsonBody = hasWireNames ? "toWire(options.body, options.wire?.body)" : "options.body";
         sb.AppendLine("  async request<T>(method: string, path: string, options?: RequestOptions): Promise<ApiResult<T>> {");
         sb.AppendLine("    let data: unknown;");
-        sb.AppendLine("    const headers: Record<string, string> = {};");
+        sb.AppendLine("    const headers: Record<string, string> = { ...this.requestHeaders };");
         sb.AppendLine();
         sb.AppendLine("    if (options?.body !== undefined) {");
-        sb.AppendLine("      if (options.body instanceof FormData) {");
-        sb.AppendLine("        data = options.body;");
-        sb.AppendLine("      } else if (options.body instanceof Blob) {");
-        sb.AppendLine("        headers['Content-Type'] = 'application/octet-stream';");
-        sb.AppendLine("        data = options.body;");
-
-        if (convertDates)
+        if (hasSequenceBodies)
         {
-            // transformRequest handles Content-Type and JSON.stringify with dateReplacer
-            sb.AppendLine("      } else {");
-            sb.AppendLine("        data = options.body;");
+            // A body of records, sent in one piece
+            sb.AppendLine("      if (options.sequence) {");
+            TypeScriptRequestRecords.AppendAxiosRecordsBody(sb, hasWireNames, "        ");
+            sb.AppendLine("      } else if (options.body instanceof FormData) {");
         }
         else
         {
-            sb.AppendLine("      } else {");
-            sb.AppendLine("        headers['Content-Type'] = 'application/json';");
-            sb.AppendLine("        data = options.body;");
+            sb.AppendLine("      if (options.body instanceof FormData) {");
         }
+
+        sb.AppendLine("        // Named, not left to the adapter: axios's fetch adapter in Node labels a FormData form-urlencoded.");
+        sb.AppendLine("        // Axios adds the boundary; in a browser it drops the header and the browser sets it.");
+        sb.AppendLine("        headers['Content-Type'] = 'multipart/form-data';");
+        sb.AppendLine("        data = options.body;");
+        sb.AppendLine("      } else if (options.body instanceof URLSearchParams) {");
+        sb.AppendLine("        headers['Content-Type'] = 'application/x-www-form-urlencoded';");
+        sb.AppendLine("        data = options.body;");
+        if (hasXml)
+        {
+            sb.AppendLine("      } else if (options.xml?.write) {");
+            sb.AppendLine("        headers['Content-Type'] = options.xml.contentType ?? 'application/xml; charset=utf-8';");
+            sb.AppendLine("        data = options.xml.write(options.body as never);");
+        }
+
+        sb.AppendLine("      } else if (options.body instanceof Blob) {");
+        sb.AppendLine("        const fileType = options.contentType ?? (options.body.type || 'application/octet-stream');");
+        sb.AppendLine("        headers['Content-Type'] = fileType;");
+        sb.AppendLine("        // Re-typed: an adapter may send the Blob's own type (Node's http adapter does)");
+        sb.AppendLine("        data = options.body.type === fileType ? options.body : new Blob([options.body], { type: fileType });");
+
+        sb.AppendLine("      } else {");
+        sb.AppendLine("        headers['Content-Type'] = options.contentType ?? 'application/json';");
+        sb.Append("        data = ").Append(jsonBody).AppendLine(";");
 
         sb.AppendLine("      }");
         sb.AppendLine("    }");
         sb.AppendLine();
+
+        // The credentials the operation's security schemes require - set on the request, not by an interceptor, so the
+        // request interceptors see them - then the operation's headers.
+        AppendCredentials(sb);
 
         // Skip undefined values — the generated client method passes optional header
         // params verbatim, and axios should not see literal undefined in the headers map.
@@ -322,6 +351,14 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("        }");
         sb.AppendLine("      }");
         sb.AppendLine("    }");
+        if (hasXml)
+        {
+            sb.AppendLine();
+            sb.AppendLine("    if (options?.xml?.accept) {");
+            sb.AppendLine("      headers['Accept'] = options.xml.accept;");
+            sb.AppendLine("    }");
+        }
+
         sb.AppendLine();
 
         if (hasRetry)
@@ -329,24 +366,31 @@ public static class TypeScriptAxiosApiClientExtractor
             sb.AppendLine("    // doRequest accepts an optional override signal so the retry path can hand each");
             sb.AppendLine("    // attempt a fresh AbortSignal — that way policy.timeoutMs actually cancels axios.");
             sb.AppendLine("    const doRequest = (attemptSignal?: AbortSignal) => this.client.request<T>({");
+            sb.AppendLine("      ...this.transport,");
             sb.AppendLine("      method,");
             sb.AppendLine("      url: path,");
             sb.AppendLine("      data,");
-            sb.AppendLine("      params: options?.query,");
+            sb.AppendLine("      params,");
             sb.AppendLine("      headers,");
             sb.AppendLine("      signal: attemptSignal ?? options?.signal,");
-            sb.AppendLine("      responseType: options?.responseType === 'blob' ? 'blob' : options?.responseType === 'text' ? 'text' : 'json',");
-            sb.AppendLine("    });");
+            sb.AppendLine(TypeScriptModelOrFileExtractor.AxiosResponseType(hasModelOrFile));
+            sb.AppendLine("    } as BodyRequestConfig);");
             sb.AppendLine();
             sb.AppendLine("    let response: AxiosResponse<T> | undefined;");
-            sb.AppendLine("    if (this.retryPolicy) {");
+            sb.AppendLine("    const retryPolicy = resolveRetryPolicy(method, this.retryPolicy, options?.retry);");
+            sb.AppendLine("    if (retryPolicy) {");
             sb.AppendLine("      // Use retryWithBackoff with a fetch-compatible wrapper.");
-            sb.AppendLine("      // The wrapper captures the AxiosResponse so it can be handed to handleResponse below.");
+            sb.AppendLine("      // The wrapper captures the AxiosResponse so it can be handed to handleResponse below,");
+            sb.AppendLine("      // and passes Retry-After on so a 429 back-off (and its cap) can see it.");
             sb.AppendLine("      const fetchWrapper = async (attemptSignal: AbortSignal): Promise<Response> => {");
             sb.AppendLine("        response = await doRequest(attemptSignal);");
-            sb.AppendLine("        return new Response(null, { status: response.status });");
+            sb.AppendLine("        const retryAfter = response.headers?.['retry-after'];");
+            sb.AppendLine("        return new Response(null, {");
+            sb.AppendLine("          status: response.status,");
+            sb.AppendLine("          headers: retryAfter !== undefined && retryAfter !== null ? { 'Retry-After': String(retryAfter) } : undefined,");
+            sb.AppendLine("        });");
             sb.AppendLine("      };");
-            sb.AppendLine("      await retryWithBackoff(fetchWrapper, this.retryPolicy, options?.signal);");
+            sb.AppendLine("      await retryWithBackoff(fetchWrapper, retryPolicy, options?.signal);");
             sb.AppendLine("    } else {");
             sb.AppendLine("      response = await doRequest();");
             sb.AppendLine("    }");
@@ -358,197 +402,195 @@ public static class TypeScriptAxiosApiClientExtractor
         else
         {
             sb.AppendLine("    const response = await this.client.request<T>({");
+            sb.AppendLine("      ...this.transport,");
             sb.AppendLine("      method,");
             sb.AppendLine("      url: path,");
             sb.AppendLine("      data,");
-            sb.AppendLine("      params: options?.query,");
+            sb.AppendLine("      params,");
             sb.AppendLine("      headers,");
             sb.AppendLine("      signal: options?.signal,");
-            sb.AppendLine("      responseType: options?.responseType === 'blob' ? 'blob' : options?.responseType === 'text' ? 'text' : 'json',");
-            sb.AppendLine("    });");
+            sb.AppendLine(TypeScriptModelOrFileExtractor.AxiosResponseType(hasModelOrFile));
+            sb.AppendLine("    } as BodyRequestConfig);");
         }
 
         sb.AppendLine();
 
-        if (zodRuntimeValidate)
-        {
-            sb.AppendLine("    return this.handleResponse<T>(response, options?.parseSchema);");
-        }
-        else
-        {
-            sb.AppendLine("    return this.handleResponse<T>(response);");
-        }
+        // A file is asked for as bytes - every adapter keeps them (XHR, fetch, and Node's http adapter, which decodes a
+        // 'blob' as text) - and handed on as a Blob of the response's media type; an error's bytes as text, read like
+        // any error body.
+        sb.AppendLine("    if (Object.prototype.toString.call(response.data) === '[object ArrayBuffer]' || ArrayBuffer.isView(response.data)) {");
+        sb.AppendLine("      const bytes = response.data as unknown as ArrayBuffer;");
+        sb.AppendLine("      const fileType = String(response.headers?.['content-type'] ?? response.headers?.['Content-Type'] ?? '');");
+        sb.AppendLine("      (response as { data: unknown }).data = response.status >= 200 && response.status < 300 && typeof Blob !== 'undefined'");
+        sb.AppendLine("        ? new Blob([bytes], fileType ? { type: fileType } : undefined)");
+        sb.AppendLine("        : decodeText(bytes, fileType);");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+
+        TypeScriptModelOrFileExtractor.AppendAxiosModelBodyRead(sb, hasModelOrFile);
+        var wireArgument = hasWireNames ? ", options?.wire" : string.Empty;
+        var xmlArgument = hasXml ? ", options?.xml" : string.Empty;
+        var schemaArgument = zodRuntimeValidate ? ", options?.parseSchema" : string.Empty;
+        sb.Append("    return ")
+            .Append(TypeScriptResponseHeaders.Returned($"fitToArms(await this.handleResponse<T>(response{schemaArgument}{wireArgument}{xmlArgument}), options?.arms)", hasResponseHeaders))
+            .AppendLine(";");
 
         sb.AppendLine("  }");
+        sb.AppendLine();
+    }
+
+    /// <summary>
+    /// Emits the credentials of the operation's security schemes into the <c>headers</c> record and the <c>params</c>
+    /// (the query, with an API key that goes in the query).
+    /// </summary>
+    private static void AppendCredentials(StringBuilder sb)
+    {
+        sb.AppendLine("    for (const [key, value] of Object.entries(await this.credentials(options?.security, 'headers'))) {");
+        sb.AppendLine("      headers[key] = value;");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+        sb.AppendLine("    const params = { ...options?.query, ...(await this.credentials(options?.security, 'query')) };");
+        sb.AppendLine();
+    }
+
+    /// <summary>
+    /// A declared XML error model is read into the model; an XML success body is read by the operation's mapping, with
+    /// no JSON handling (transformResponse leaves a non-JSON body as its text). First in <c>handleResponse</c>, so it
+    /// reads the body as the request left it (a model-or-file answer's model already back as text).
+    /// </summary>
+    private static void AppendReadXmlResponse(StringBuilder sb)
+    {
+        sb.AppendLine("    // An XML body: read by the operation's mapping (no JSON handling)");
+        sb.AppendLine("    const responseContentType = String(response.headers?.['content-type'] ?? response.headers?.['Content-Type'] ?? '');");
+        sb.AppendLine("    const readXmlError = xml?.errors?.[String(response.status)] ?? xml?.errors?.['default'];");
+        sb.AppendLine("    if (readXmlError && (response.status < 200 || response.status >= 300) && isXmlMediaType(responseContentType) && typeof response.data === 'string') {");
+        sb.AppendLine("      try {");
+        sb.AppendLine("        (response as { data: unknown }).data = readXmlError(parseXml(response.data));");
+        sb.AppendLine("      } catch {");
+        sb.AppendLine("        // Not the declared model: the error arm gets the text");
+        sb.AppendLine("      }");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+        sb.AppendLine("    if (xml?.read && response.status >= 200 && response.status < 300 && response.status !== 204 && response.status !== 205 && isXmlMediaType(responseContentType) && typeof response.data === 'string') {");
+        sb.AppendLine("      try {");
+        sb.AppendLine("        return { status: xmlSuccessArm(response.status), data: xml.read(parseXml(response.data)) as T, response } as ApiResult<T>;");
+        sb.AppendLine("      } catch (parseError) {");
+        sb.AppendLine("        return { status: 'parseError', error: parseError as Error, response };");
+        sb.AppendLine("      }");
+        sb.AppendLine("    }");
         sb.AppendLine();
     }
 
     private static void AppendRequestStreamMethod(
         StringBuilder sb,
-        bool convertDates)
+        bool hasWireNames,
+        bool hasSequenceBodies)
     {
-        var jsonParse = convertDates
-            ? "JSON.parse(buffer.substring(objStart, objEnd + 1), dateReviver)"
-            : "JSON.parse(buffer.substring(objStart, objEnd + 1))";
+        const string multipartParse = "JSON.parse(bodyText)";
 
-        // multipart/mixed parses each part body with the same date-revival posture as the
-        // brace-scan path (parity — must not be strictly weaker than the sibling framings).
-        var multipartParse = convertDates
-            ? "JSON.parse(bodyText, dateReviver)"
-            : "JSON.parse(bodyText)";
+        sb.AppendLine("  // A stream goes through the axios instance like every request - the default headers, the access token and the");
+        sb.AppendLine("  // request and response interceptors apply - with axios' fetch adapter, whose 'stream' response is the body's");
+        sb.AppendLine("  // ReadableStream (axios 1.7 or later).");
 
-        sb.AppendLine("  // Streaming uses native fetch — Axios doesn't natively support ReadableStream iteration.");
-        sb.AppendLine("  // Auth and default headers are applied manually; Axios interceptors do not apply to streaming requests.");
-        sb.AppendLine("  async *requestStream<T>(method: string, path: string, options?: RequestOptions, framing: StreamFraming = 'json-array'): AsyncGenerator<T> {");
-        sb.AppendLine("    const url = this.buildUrl(path, options?.query);");
-        sb.AppendLine("    const headers = new Headers(this.options.defaultHeaders);");
-        sb.AppendLine();
-        sb.AppendLine("    if (this.options.getAccessToken) {");
-        sb.AppendLine("      const token = await this.options.getAccessToken();");
-        sb.AppendLine("      headers.set('Authorization', `Bearer ${token}`);");
-        sb.AppendLine("    }");
-        sb.AppendLine();
+        // With renaming, requestStream renames each item this reader yields.
+        sb.AppendLine(hasWireNames
+            ? "  private async *readStream<T>(method: string, path: string, options?: RequestOptions, framing: StreamFraming = 'json-array', sseItemEvents?: readonly string[]): AsyncGenerator<T> {"
+            : "  async *requestStream<T>(method: string, path: string, options?: RequestOptions, framing: StreamFraming = 'json-array', sseItemEvents?: readonly string[]): AsyncGenerator<T> {");
+        sb.AppendLine("    const headers: Record<string, string> = { ...this.requestHeaders };");
+        AppendCredentials(sb);
         sb.AppendLine("    if (options?.headers) {");
         sb.AppendLine("      for (const [key, value] of Object.entries(options.headers)) {");
         sb.AppendLine("        if (value !== undefined) {");
-        sb.AppendLine("          headers.set(key, String(value));");
+        sb.AppendLine("          headers[key] = String(value);");
         sb.AppendLine("        }");
         sb.AppendLine("      }");
         sb.AppendLine("    }");
         sb.AppendLine();
-        sb.AppendLine("    const response = await fetch(url, {");
-        sb.AppendLine("      method,");
-        sb.AppendLine("      headers,");
-        sb.AppendLine("      signal: options?.signal,");
-        sb.AppendLine("    });");
-        sb.AppendLine();
-        sb.AppendLine("    if (!response.ok) {");
-        sb.AppendLine("      throw new ApiError(response.status, response.statusText, 'Stream request failed');");
+
+        // A streamed search (POST or QUERY) sends its criteria as JSON, renamed to the API's property names
+        sb.AppendLine("    let data: unknown;");
+        if (hasSequenceBodies)
+        {
+            // A body of records streamed in while the answer streams out: sent in one piece
+            sb.AppendLine("    if (options?.body !== undefined && options.sequence) {");
+            TypeScriptRequestRecords.AppendAxiosRecordsBody(sb, hasWireNames, "      ");
+            sb.AppendLine("    } else if (options?.body !== undefined) {");
+        }
+        else
+        {
+            sb.AppendLine("    if (options?.body !== undefined) {");
+        }
+
+        sb.AppendLine("      headers['Content-Type'] = 'application/json';");
+        sb.Append("      data = ").Append(hasWireNames ? "toWire(options.body, options.wire?.body)" : "options.body").AppendLine(";");
         sb.AppendLine("    }");
         sb.AppendLine();
-        sb.AppendLine("    const reader = response.body?.getReader();");
+        sb.AppendLine("    const response = await this.client.request<ReadableStream<Uint8Array> | undefined>({");
+        sb.AppendLine("      ...this.transport,");
+        sb.AppendLine("      method,");
+        sb.AppendLine("      url: path,");
+        sb.AppendLine("      data,");
+        sb.AppendLine("      params,");
+        sb.AppendLine("      headers,");
+        sb.AppendLine("      signal: options?.signal,");
+        sb.AppendLine("      adapter: 'fetch',");
+        sb.AppendLine("      responseType: 'stream',");
+        sb.AppendLine("    });");
+        sb.AppendLine();
+        sb.AppendLine("    if (response.status < 200 || response.status >= 300) {");
+        sb.AppendLine("      // The error body is read like any error body: as text, then a ProblemDetails / model / JSON string, or text");
+        sb.AppendLine("      const text = response.data ? decodeText(await new Response(response.data).arrayBuffer(), String(response.headers?.['content-type'] ?? response.headers?.['Content-Type'] ?? '')) : '';");
+        sb.AppendLine("      const result = await this.handleResponse<T>({ ...response, data: text, config: { ...response.config, responseType: 'text' } } as unknown as AxiosResponse<T>);");
+        sb.AppendLine("      if ('error' in result) {");
+        sb.AppendLine("        throw result.error;");
+        sb.AppendLine("      }");
+        sb.AppendLine();
+        sb.AppendLine("      throw new ApiError(response.status, response.statusText, 'Stream request failed', response);");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+        sb.AppendLine("    const reader = response.data?.getReader();");
         sb.AppendLine("    if (!reader) {");
-        sb.AppendLine("      throw new ApiError(0, 'NoBody', 'Response body is empty');");
+        sb.AppendLine("      throw new ApiError(0, 'NoBody', 'Response body is empty', response);");
         sb.AppendLine("    }");
         sb.AppendLine();
         sb.AppendLine("    const decoder = new TextDecoder();");
-        sb.AppendLine("    let buffer = '';");
         sb.AppendLine();
         sb.AppendLine("    if (framing === 'sse') {");
-        sb.AppendLine("      yield* parseEventStream<T>(reader, decoder);");
+        sb.AppendLine("      yield* parseEventStream<T>(reader, decoder, undefined, sseItemEvents, options?.onEvent);");
         sb.AppendLine("      return;");
         sb.AppendLine("    }");
         sb.AppendLine();
         sb.AppendLine("    if (framing === 'multipart') {");
-        sb.AppendLine("      const contentType = response.headers.get('content-type') ?? '';");
-        sb.AppendLine("      const m = /boundary=(\"?)([^\";]+)\\1/i.exec(contentType);");
-        sb.AppendLine("      const delimiter = '--' + (m ? m[2] : '');");
-        sb.AppendLine("      let buf = '';");
-        sb.AppendLine("      try {");
-        sb.AppendLine("        while (true) {");
-        sb.AppendLine("          const { done, value } = await reader.read();");
-        sb.AppendLine("          if (done) break;");
-        sb.AppendLine("          buf += decoder.decode(value, { stream: true });");
-        sb.AppendLine("          // Discard preamble (everything before the first delimiter boundary).");
-        sb.AppendLine("          const first = buf.indexOf(delimiter);");
-        sb.AppendLine("          if (first === -1) { buf = ''; continue; }");
-        sb.AppendLine("          if (first > 0) buf = buf.substring(first);");
-        sb.AppendLine("          // Yield each complete part; buf always starts at a delimiter after this loop.");
-        sb.AppendLine("          while (buf.startsWith(delimiter)) {");
-        sb.AppendLine("            const partStart = delimiter.length;");
-        sb.AppendLine("            const next = buf.indexOf(delimiter, partStart);");
-        sb.AppendLine("            if (next === -1) break;");
-        sb.AppendLine("            const part = buf.substring(partStart, next);");
-        sb.AppendLine("            buf = buf.substring(next);");
-        sb.AppendLine("            const trimmed = part.replace(/^\\r\\n/, '');");
-        sb.AppendLine("            if (trimmed.length === 0 || trimmed.startsWith('--')) continue;");
-        sb.AppendLine("            const sep = trimmed.indexOf('\\r\\n\\r\\n');");
-        sb.AppendLine("            if (sep === -1) continue;");
-        sb.AppendLine("            const bodyText = trimmed.substring(sep + 4).trim();");
-        sb.Append("            if (bodyText.length > 0) yield ").Append(multipartParse).AppendLine(" as T;");
-        sb.AppendLine("          }");
-        sb.AppendLine("        }");
-        sb.AppendLine("      } finally {");
-        sb.AppendLine("        reader.releaseLock();");
-        sb.AppendLine("      }");
-        sb.AppendLine("      return;");
-        sb.AppendLine("    }");
-        sb.AppendLine();
-        sb.AppendLine("    try {");
-        sb.AppendLine("      while (true) {");
-        sb.AppendLine("        const { done, value } = await reader.read();");
-        sb.AppendLine("        if (done) break;");
-        sb.AppendLine();
-        sb.AppendLine("        buffer += decoder.decode(value, { stream: true });");
-        sb.AppendLine();
-        sb.AppendLine("        // Extract complete JSON objects from buffer.");
-        sb.AppendLine("        // Handles JSON array ([{...},{...}]) and NDJSON ({...}\\n{...}).");
-        sb.AppendLine("        while (true) {");
-        sb.AppendLine("          const objStart = buffer.indexOf('{');");
-        sb.AppendLine("          if (objStart === -1) { buffer = ''; break; }");
-        sb.AppendLine();
-        sb.AppendLine("          let depth = 0, inStr = false, esc = false, objEnd = -1;");
-        sb.AppendLine("          for (let i = objStart; i < buffer.length; i++) {");
-        sb.AppendLine("            const ch = buffer[i];");
-        sb.AppendLine("            if (esc) { esc = false; continue; }");
-        sb.AppendLine("            if (ch === '\\\\' && inStr) { esc = true; continue; }");
-        sb.AppendLine("            if (ch === '\"') { inStr = !inStr; continue; }");
-        sb.AppendLine("            if (inStr) continue;");
-        sb.AppendLine("            if (ch === '{') depth++;");
-        sb.AppendLine("            if (ch === '}') { depth--; if (depth === 0) { objEnd = i; break; } }");
-        sb.AppendLine("          }");
-        sb.AppendLine();
-        sb.AppendLine("          if (objEnd === -1) {");
-        sb.AppendLine("            buffer = buffer.substring(objStart);");
-        sb.AppendLine("            break;");
-        sb.AppendLine("          }");
-        sb.AppendLine();
-        sb.Append("          yield ").Append(jsonParse).AppendLine(" as T;");
-        sb.AppendLine("          buffer = buffer.substring(objEnd + 1);");
-        sb.AppendLine("        }");
-        sb.AppendLine("      }");
-        sb.AppendLine("    } finally {");
-        sb.AppendLine("      reader.releaseLock();");
-        sb.AppendLine("    }");
-        sb.AppendLine("  }");
-        sb.AppendLine();
-    }
-
-    private static void AppendBuildUrlMethod(StringBuilder sb)
-    {
-        sb.AppendLine("  private buildUrl(path: string, query?: Record<string, string | number | boolean | (string | number | boolean)[] | undefined>): string {");
-        sb.AppendLine("    const url = new URL(`${this.baseUrl}${path}`);");
-        sb.AppendLine("    if (query) {");
-        sb.AppendLine("      for (const [key, value] of Object.entries(query)) {");
-        sb.AppendLine("        if (value === undefined) {");
-        sb.AppendLine("          continue;");
-        sb.AppendLine("        }");
-        sb.AppendLine("        if (Array.isArray(value)) {");
-        sb.AppendLine("          for (const item of value) {");
-        sb.AppendLine("            url.searchParams.append(key, String(item));");
-        sb.AppendLine("          }");
-        sb.AppendLine("        } else {");
-        sb.AppendLine("          url.searchParams.set(key, String(value));");
-        sb.AppendLine("        }");
-        sb.AppendLine("      }");
-        sb.AppendLine("    }");
-        sb.AppendLine("    // Note: URL.searchParams always percent-encodes values.");
-        sb.AppendLine("    // OpenAPI allowReserved cannot be honoured via this path.");
-        sb.AppendLine("    return url.toString();");
+        sb.AppendLine("      const contentType = String(response.headers?.['content-type'] ?? response.headers?.['Content-Type'] ?? '');");
+        TypeScriptApiClientRuntime.AppendMultipartFraming(sb, multipartParse);
         sb.AppendLine("  }");
         sb.AppendLine();
     }
 
     private static void AppendHandleResponseMethod(
         StringBuilder sb,
-        bool zodRuntimeValidate)
+        bool zodRuntimeValidate,
+        bool hasWireNames,
+        bool hasXml)
     {
+        var wireParameter = hasWireNames ? ", wire?: WireShapes" : string.Empty;
+        var xmlParameter = hasXml ? ", xml?: XmlOptions" : string.Empty;
         var signature = zodRuntimeValidate
-            ? "  private handleResponse<T>(response: AxiosResponse<T>, parseSchema?: ZodTypeAny): ApiResult<T> {"
-            : "  private handleResponse<T>(response: AxiosResponse<T>): ApiResult<T> {";
+            ? "  private async handleResponse<T>(response: AxiosResponse<T>, parseSchema?: ZodTypeAny" + wireParameter + xmlParameter + "): Promise<ApiResult<T>> {"
+            : "  private async handleResponse<T>(response: AxiosResponse<T>" + wireParameter + xmlParameter + "): Promise<ApiResult<T>> {";
         sb.AppendLine(signature);
-        sb.AppendLine("    if (response.status === 204) {");
+        if (hasXml)
+        {
+            AppendReadXmlResponse(sb);
+        }
+
+        sb.AppendLine("    // 204 and 205 never carry a body; 304 neither (RFC 9110).");
+        sb.AppendLine("    if (response.status === 204 || response.status === 205) {");
         sb.AppendLine("      return { status: 'noContent', response };");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+        sb.AppendLine("    if (response.status === 304) {");
+        sb.AppendLine("      return { status: 'notModified', response };");
         sb.AppendLine("    }");
         sb.AppendLine();
         sb.AppendLine("    if (response.status >= 200 && response.status < 300) {");
@@ -563,6 +605,21 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("          response,");
         sb.AppendLine("        };");
         sb.AppendLine("      }");
+        sb.AppendLine();
+        sb.AppendLine("      // An empty body is no data (a text operation keeps its empty string).");
+        sb.AppendLine("      if ((response.data as unknown) === '' && bodyTypeOf(response.config) !== 'text') {");
+        sb.AppendLine("        (response as { data: unknown }).data = undefined;");
+        sb.AppendLine("      }");
+
+        if (hasWireNames)
+        {
+            // The API's property names -> the models' (before a schema check, which speaks the models' names).
+            // Text and blob bodies are no plain objects, so they pass through.
+            sb.AppendLine();
+            sb.AppendLine("      if (wire?.response) {");
+            sb.AppendLine("        response = { ...response, data: fromWire<T>(response.data, wire.response) };");
+            sb.AppendLine("      }");
+        }
 
         if (zodRuntimeValidate)
         {
@@ -571,7 +628,7 @@ public static class TypeScriptAxiosApiClientExtractor
             sb.AppendLine();
             sb.AppendLine("      const contentType = String(response.headers?.['content-type'] ?? response.headers?.['Content-Type'] ?? '');");
             sb.AppendLine("      const expectsJson = contentType.includes('application/json') || contentType.includes('+json');");
-            sb.AppendLine("      if (parseSchema && expectsJson) {");
+            sb.AppendLine("      if (parseSchema && expectsJson && response.data !== undefined) {");
             sb.AppendLine("        const parsed = parseSchema.safeParse(response.data);");
             sb.AppendLine("        if (!parsed.success) {");
             sb.AppendLine("          if (this.strictMode) {");
@@ -595,43 +652,60 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("      return { status, data: response.data, response };");
         sb.AppendLine("    }");
         sb.AppendLine();
+        sb.AppendLine("    // A 3xx axios did not follow (300, 305, 306, or maxRedirects: 0): no error - its body, if any.");
+        sb.AppendLine("    if (response.status >= 300 && response.status < 400) {");
+        sb.AppendLine("      const data = response.data instanceof UnparseableBody || response.data === '' ? undefined : response.data;");
+        sb.AppendLine("      return { status: 'redirection', data, response };");
+        sb.AppendLine("    }");
+        sb.AppendLine();
 
-        // For a non-2xx JSON error body that failed to parse, response.data is the sentinel.
-        // Unwrapping to its raw text keeps title/message probing falling through to statusText
-        // instead of reading fields off the sentinel. Non-JSON error bodies remain raw strings.
-        sb.AppendLine("    const errorData: unknown = response.data instanceof UnparseableBody ? response.data.raw : response.data;");
-        sb.AppendLine("    const errorBody = errorData as Record<string, unknown> | null;");
-        sb.AppendLine("    const message = (errorBody?.title ?? errorBody?.message ?? response.statusText) as string;");
-        sb.AppendLine();
-        sb.AppendLine("    if (response.status === 400 && errorBody?.errors) {");
-        sb.AppendLine("      return {");
-        sb.AppendLine("        status: 'badRequest',");
-        sb.AppendLine("        error: new ValidationError(");
-        sb.AppendLine("          response.status, response.statusText, message,");
-        sb.AppendLine("          errorBody.errors as Record<string, string[]>, response,");
-        sb.AppendLine("        ),");
-        sb.AppendLine("        response,");
-        sb.AppendLine("      };");
+        // The error body: a ProblemDetails / declared model / JSON string (already parsed by
+        // transformResponse), or text. A JSON body left as a string - the operation asked for
+        // responseType 'text', or a download's error arrived as a Blob - is parsed here; a malformed one
+        // (the UnparseableBody sentinel) or an empty one yields no body, so the message falls back to the status text.
+        sb.AppendLine("    let errorBody: unknown = response.data instanceof UnparseableBody ? undefined : response.data;");
+        sb.AppendLine("    let errorBodyIsRawText = bodyTypeOf(response.config) === 'text' || bodyTypeOf(response.config) === 'arraybuffer';");
+        sb.AppendLine("    if (typeof Blob !== 'undefined' && errorBody instanceof Blob) {");
+        sb.AppendLine("      // A download's error arrives as a Blob (responseType 'blob'): read it like any other error body.");
+        sb.AppendLine("      errorBody = decodeText(await errorBody.arrayBuffer(), String(response.headers?.['content-type'] ?? response.headers?.['Content-Type'] ?? ''));");
+        sb.AppendLine("      errorBodyIsRawText = true;");
         sb.AppendLine("    }");
         sb.AppendLine();
-        sb.AppendLine("    const apiError = new ApiError(response.status, response.statusText, message, response);");
-        sb.AppendLine();
-        sb.AppendLine("    switch (response.status) {");
-        sb.AppendLine("      case 401:");
-        sb.AppendLine("        return { status: 'unauthorized', error: apiError, response };");
-        sb.AppendLine("      case 403:");
-        sb.AppendLine("        return { status: 'forbidden', error: apiError, response };");
-        sb.AppendLine("      case 404:");
-        sb.AppendLine("        return { status: 'notFound', error: apiError, response };");
-        sb.AppendLine("      case 409:");
-        sb.AppendLine("        return { status: 'conflict', error: apiError, response };");
-        sb.AppendLine("      case 422:");
-        sb.AppendLine("        return { status: 'unprocessableEntity', error: apiError, response };");
-        sb.AppendLine("      case 429:");
-        sb.AppendLine("        return { status: 'tooManyRequests', error: apiError, response };");
-        sb.AppendLine("      default:");
-        sb.AppendLine("        return { status: 'serverError', error: apiError, response };");
+        sb.AppendLine("    if (typeof errorBody === 'string') {");
+        sb.AppendLine("      const errorContentType = String(response.headers?.['content-type'] ?? response.headers?.['Content-Type'] ?? '').toLowerCase();");
+        sb.AppendLine("      if (errorBody.length === 0) {");
+        sb.AppendLine("        errorBody = undefined;");
+        if (hasXml)
+        {
+            // An application/problem+xml error (RFC 9457 Appendix B), read into a ProblemDetails object
+            sb.AppendLine("      } else if (errorContentType.includes('application/problem+xml')) {");
+            sb.AppendLine("        try {");
+            sb.AppendLine("          errorBody = readProblemXml(parseXml(errorBody));");
+            sb.AppendLine("        } catch {");
+            sb.AppendLine("          errorBody = undefined;");
+            sb.AppendLine("        }");
+        }
+
+        sb.AppendLine("      } else if (errorContentType.includes('application/json') || errorContentType.includes('+json')) {");
+        sb.AppendLine("        // Only a responseType 'text' request or a Blob left a JSON body unparsed; otherwise a string here is the");
+        sb.AppendLine("        // parsed value of a JSON-string body (\"42\" stays the string '42').");
+        sb.AppendLine("        if (errorBodyIsRawText) {");
+        sb.AppendLine("          try {");
+        sb.AppendLine("            errorBody = JSON.parse(errorBody);");
+        sb.AppendLine("          } catch {");
+        sb.AppendLine("            errorBody = undefined;");
+        sb.AppendLine("          }");
+        sb.AppendLine("        }");
+        sb.AppendLine("      } else if (!(errorContentType.startsWith('text/') || errorContentType.includes('application/xml') || errorContentType.includes('+xml'))) {");
+        sb.AppendLine("        // Neither JSON nor text (e.g. application/octet-stream, or no Content-Type): no body, as in the Fetch client.");
+        sb.AppendLine("        errorBody = undefined;");
+        sb.AppendLine("      }");
         sb.AppendLine("    }");
+        sb.AppendLine();
+        sb.AppendLine("    const message = errorMessage(response.status, response.statusText, errorBody, String(response.headers?.['content-type'] ?? response.headers?.['Content-Type'] ?? ''));");
+        sb.AppendLine();
+
+        TypeScriptApiClientRuntime.AppendErrorArms(sb, hasWireNames);
         sb.AppendLine("  }");
     }
 }

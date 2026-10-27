@@ -17,32 +17,13 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import ClearAllIcon from '@mui/icons-material/ClearAll';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
-import { useTesting } from '../hooks/useTesting';
-
-interface TestDefinition {
-  code: number;
-  description: string;
-  expectedStatus: number;
-}
-
-const testDefinitions: TestDefinition[] = [
-  { code: 0, description: 'No Exception', expectedStatus: 200 },
-  { code: 1, description: 'Validation Error', expectedStatus: 400 },
-  { code: 2, description: 'Unauthorized', expectedStatus: 401 },
-  { code: 3, description: 'Forbidden', expectedStatus: 403 },
-  { code: 4, description: 'Not Found', expectedStatus: 404 },
-  { code: 5, description: 'Conflict', expectedStatus: 409 },
-  { code: 6, description: 'Internal Server Error', expectedStatus: 500 },
-  { code: 7, description: 'Not Implemented', expectedStatus: 500 },
-  { code: 8, description: 'Application Exception', expectedStatus: 500 },
-  { code: 9, description: 'Bad Gateway', expectedStatus: 502 },
-  { code: 10, description: 'Service Unavailable', expectedStatus: 503 },
-];
+import { useTesting, exceptionTests, errorStatuses } from '../hooks/useTesting';
 
 export default function ExceptionTestingPage() {
-  const { results, isRunning, runTest, runAll, clear } = useTesting();
+  const { results, errorResults, isRunning, runTest, runAll, runErrorResponseTest, clear } =
+    useTesting();
 
-  const getResultForCode = (code: number) => results.find((r) => r.code === code);
+  const getResultForCode = (code: number) => results.filter((r) => r.code === code).pop();
 
   return (
     <Box>
@@ -51,7 +32,8 @@ export default function ExceptionTestingPage() {
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
         Test the API's error handling by triggering different exception types. Each test sends a
-        request with a specific code and verifies the expected HTTP status response.
+        request with a specific code and verifies the expected HTTP status response. Every error is
+        an RFC 9457 ProblemDetails, and the message shown is its <code>detail</code>.
       </Typography>
 
       <Stack direction="row" spacing={2} sx={{ mb: 3 }}>
@@ -67,7 +49,7 @@ export default function ExceptionTestingPage() {
           variant="outlined"
           startIcon={<ClearAllIcon />}
           onClick={clear}
-          disabled={isRunning || results.length === 0}
+          disabled={isRunning || (results.length === 0 && errorResults.length === 0)}
         >
           Clear Results
         </Button>
@@ -84,7 +66,7 @@ export default function ExceptionTestingPage() {
           <TableHead>
             <TableRow>
               <TableCell>Code</TableCell>
-              <TableCell>Description</TableCell>
+              <TableCell>Exception</TableCell>
               <TableCell>Expected</TableCell>
               <TableCell>Actual</TableCell>
               <TableCell>Match</TableCell>
@@ -94,12 +76,12 @@ export default function ExceptionTestingPage() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {testDefinitions.map((test) => {
+            {exceptionTests.map((test) => {
               const result = getResultForCode(test.code);
               return (
                 <TableRow key={test.code}>
                   <TableCell>{test.code}</TableCell>
-                  <TableCell>{test.description}</TableCell>
+                  <TableCell>{test.exceptionType}</TableCell>
                   <TableCell>
                     <Chip label={test.expectedStatus} size="small" variant="outlined" />
                   </TableCell>
@@ -146,6 +128,69 @@ export default function ExceptionTestingPage() {
                 </TableRow>
               );
             })}
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      <Typography variant="h5" sx={{ mt: 5 }} gutterBottom>
+        Error Responses
+      </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        The handler returns the requested status through the generated result factories. The
+        generated client maps it to a typed arm (<code>badRequest</code>, <code>notFound</code>, …)
+        whose <code>ApiError</code> exposes the ProblemDetails <code>title</code> and{' '}
+        <code>detail</code>; a 400 is a <code>ValidationError</code> with its <code>errors</code>.
+      </Typography>
+
+      <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
+        {errorStatuses.map((status) => (
+          <Button
+            key={status}
+            size="small"
+            variant="outlined"
+            onClick={() => runErrorResponseTest(status)}
+            disabled={isRunning}
+          >
+            {status}
+          </Button>
+        ))}
+      </Stack>
+
+      <TableContainer component={Paper}>
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell>Status</TableCell>
+              <TableCell>Arm</TableCell>
+              <TableCell>Title</TableCell>
+              <TableCell>Detail</TableCell>
+              <TableCell>Errors</TableCell>
+              <TableCell>Retry-After</TableCell>
+              <TableCell>Timestamp</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {errorResults.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7}>No error responses requested yet.</TableCell>
+              </TableRow>
+            ) : (
+              errorResults.map((result) => (
+                <TableRow key={result.timestamp}>
+                  <TableCell>
+                    <Chip label={result.status} size="small" color="warning" />
+                  </TableCell>
+                  <TableCell>
+                    <code>{result.arm}</code>
+                  </TableCell>
+                  <TableCell>{result.title ?? '—'}</TableCell>
+                  <TableCell>{result.detail ?? '—'}</TableCell>
+                  <TableCell>{result.errors ?? '—'}</TableCell>
+                  <TableCell>{result.retryAfter ?? '—'}</TableCell>
+                  <TableCell>{new Date(result.timestamp).toLocaleTimeString()}</TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </TableContainer>

@@ -19,6 +19,40 @@ public static class OpenApiParameterExtensions
     /// <param name="ReferenceId">The reference ID if this was a parameter reference, null otherwise.</param>
     public sealed record ResolvedParameter(OpenApiParameter? Parameter, string? ReferenceId);
 
+    /// <summary>
+    /// An object in the query, as OpenAPI serializes it: each property by its own key - <c>filter[name]</c>
+    /// (<c>style: deepObject</c>) or <c>name</c> (<c>style: form</c>, <c>explode: true</c>, the default).
+    /// </summary>
+    /// <param name="ParameterName">The parameter's name.</param>
+    /// <param name="DeepObject">Whether a property's key is <c>{parameter}[{property}]</c> (otherwise the property's name).</param>
+    /// <param name="SchemaName">The component schema of the model.</param>
+    /// <param name="Properties">The model's properties: wire name, schema, whether the model requires it.</param>
+    public sealed record QueryObject(
+        string ParameterName,
+        bool DeepObject,
+        string SchemaName,
+        IReadOnlyList<QueryObjectProperty> Properties)
+    {
+        /// <summary>
+        /// The query key a property is sent with.
+        /// </summary>
+        /// <param name="property">The property.</param>
+        /// <returns><c>filter[name]</c> or <c>name</c>.</returns>
+        public string KeyOf(QueryObjectProperty property)
+            => DeepObject ? $"{ParameterName}[{property?.WireName}]" : property?.WireName ?? string.Empty;
+    }
+
+    /// <summary>
+    /// A property of a <see cref="QueryObject"/>.
+    /// </summary>
+    /// <param name="WireName">The property's name in the specification.</param>
+    /// <param name="Schema">Its schema.</param>
+    /// <param name="Required">Whether the model requires it.</param>
+    public sealed record QueryObjectProperty(
+        string WireName,
+        IOpenApiSchema Schema,
+        bool Required);
+
     /// <param name="parameterInterface">The OpenAPI parameter interface (can be a reference or direct parameter).</param>
     extension(IOpenApiParameter parameterInterface)
     {
@@ -61,6 +95,19 @@ public static class OpenApiParameterExtensions
 
             return null;
         }
+
+        /// <summary>
+        /// Where the parameter is sent (a reference by its target). A parameter is identified by its name and its
+        /// location together: <c>id</c> in the path and <c>id</c> in the query are two parameters.
+        /// </summary>
+        /// <returns>The location, or <see langword="null"/> when the parameter cannot be resolved.</returns>
+        public ParameterLocation? GetLocation()
+            => parameterInterface switch
+            {
+                OpenApiParameter param => param.In,
+                OpenApiParameterReference { Target: OpenApiParameter target } => target.In,
+                _ => null,
+            };
     }
 
     /// <param name="parameter">The OpenAPI parameter.</param>
@@ -146,6 +193,10 @@ public static class OpenApiParameterExtensions
         {
             var valueKind = GetValueKind(parameter.Schema);
             var style = parameter.Style ?? DefaultStyleFor(parameter.In);
+            if (valueKind == ParameterValueKind.Object && parameter.GetQueryObject() is not null)
+            {
+                return new ParameterSerialization(style, parameter.Explode, parameter.AllowReserved, valueKind, IsSupported: true);
+            }
 
             // OpenApiParameter.Explode is a computed getter that derives the OpenAPI style-based default
             // (true for Form, false otherwise), applied at parse time too. No null-coalescing fallback
@@ -156,9 +207,16 @@ public static class OpenApiParameterExtensions
 
             var isSupported = style switch
             {
-                ParameterStyle.Form => valueKind == ParameterValueKind.Primitive
-                    || (valueKind == ParameterValueKind.Array && explode),
-                ParameterStyle.Simple => valueKind == ParameterValueKind.Primitive,
+                ParameterStyle.Form => valueKind is ParameterValueKind.Primitive or ParameterValueKind.Array,
+
+                // A query array whose items are one value with a pipe or a space between them (or repeated keys
+                // with explode: true)
+                ParameterStyle.PipeDelimited or ParameterStyle.SpaceDelimited => valueKind == ParameterValueKind.Array &&
+                                                                                   parameter.In == ParameterLocation.Query,
+
+                // A primitive, or a path or header array as its items joined by commas
+                ParameterStyle.Simple => valueKind == ParameterValueKind.Primitive ||
+                                         (valueKind == ParameterValueKind.Array && parameter.In is ParameterLocation.Path or ParameterLocation.Header),
 
                 // OAS 3.2: style:cookie (RFC 6265) applies to in:cookie params; no percent-encoding,
                 // semicolon-separated pairs. Supported for primitive and array values.
@@ -171,100 +229,159 @@ public static class OpenApiParameterExtensions
         }
 
         /// <summary>
-        /// Gets the default value for a parameter based on its type, required status, and schema default.
+        /// The parameter as an object in the query the generated code binds and sends - a model (a component schema)
+        /// whose properties are each one value (a string, a number, a boolean, an enum), serialized as
+        /// <c>style: deepObject</c> or as <c>style: form</c> with <c>explode: true</c> - or null. Nested objects and
+        /// arrays have no serialization the specification defines there, and <c>form</c> without explode loses the
+        /// property names to a reader that does not know them.
         /// </summary>
-        /// <returns>The default value string or null.</returns>
-        public string? GetDefaultValue()
+        /// <returns>The object, or null.</returns>
+        public QueryObject? GetQueryObject()
         {
-            if (parameter is null)
-            {
-                throw new ArgumentNullException(nameof(parameter));
-            }
-
-            var csharpType = parameter.ToCSharpType();
-
-            // Nullable types don't need defaults
-            if (csharpType.EndsWith("?", StringComparison.Ordinal))
+            if (parameter.In != ParameterLocation.Query ||
+                string.IsNullOrEmpty(parameter.Name) ||
+                parameter.Schema is not OpenApiSchemaReference { Target: OpenApiSchema model } reference ||
+                reference.ComponentName is not { Length: > 0 } schemaName ||
+                model.Properties is not { Count: > 0 } properties ||
+                model.AllOf is { Count: > 0 } ||
+                model.OneOf is { Count: > 0 } ||
+                model.AnyOf is { Count: > 0 } ||
+                (model.Type is { } type && !type.HasFlag(JsonSchemaType.Object)))
             {
                 return null;
             }
 
-            // Check if schema has a default value
-            var schemaDefault = ExtractSchemaDefault(parameter.Schema, csharpType);
-            if (schemaDefault is not null)
+            var style = parameter.Style ?? ParameterStyle.Form;
+            var deepObject = style == ParameterStyle.DeepObject;
+            if (!deepObject && !(style == ParameterStyle.Form && parameter.Explode))
             {
-                return schemaDefault;
+                return null;
             }
 
-            // String handling - use string.Empty as fallback
-            if (csharpType == "string")
+            var list = new List<QueryObjectProperty>();
+            foreach (var property in properties)
             {
-                return parameter.Required ? "string.Empty" : null;
+                if (!IsSingleValue(property.Value))
+                {
+                    return null;
+                }
+
+                list.Add(new QueryObjectProperty(property.Key, property.Value, model.Required?.Contains(property.Key) == true));
             }
 
-            // Value types that aren't nullable need default!
-            if (parameter.IsValueType() && parameter.Required)
-            {
-                return "default!";
-            }
-
-            return null;
+            return new QueryObject(parameter.Name!, deepObject, schemaName, list);
         }
 
         /// <summary>
-        /// Extracts the default value from an OpenAPI schema and formats it as a C# literal.
+        /// Whether the generated code cannot bind or send the parameter's value: an object that is no flat model in the
+        /// query sent as <c>deepObject</c> or <c>form</c> with <c>explode</c> (<see cref="GetQueryObject"/>), or a
+        /// <c>oneOf</c>/<c>anyOf</c>/<c>allOf</c> without a type - or an array of either. A reference wrapped in an
+        /// <c>allOf</c> is the reference. A parameter with a <c>content</c> map (no schema) is not judged here.
         /// </summary>
-        private static string? ExtractSchemaDefault(
-            IOpenApiSchema? schemaInterface,
-            string paramType)
+        /// <returns>True when the value cannot be bound or sent.</returns>
+        public bool IsUnbindable()
         {
-            if (schemaInterface is not OpenApiSchema schema)
+            if (parameter.In == ParameterLocation.QueryString ||
+                parameter.Schema is null ||
+                parameter.GetQueryObject() is not null)
             {
-                return null;
+                return false;
             }
 
-            var defaultValue = schema.Default;
-            if (defaultValue is null)
+            // A label (.5) or matrix (;id=5) value: the generated code neither binds nor sends the prefix
+            if (parameter.Style is ParameterStyle.Label or ParameterStyle.Matrix)
             {
-                return null;
+                return true;
             }
 
-            // Format the default value based on the C# type
-            var rawValue = defaultValue.ToString();
-            if (string.IsNullOrEmpty(rawValue))
+            var schema = (IOpenApiSchema?)parameter.Schema.SingleWrappedReference() ?? parameter.Schema;
+            if (schema is OpenApiSchemaReference && parameter.In == ParameterLocation.Query)
             {
-                return null;
-            }
-
-            // String types - the code generation library will add quotes, so return unquoted value
-            if (paramType == "string")
-            {
-                // The raw value from JSON may already be quoted - strip existing quotes
-                if (rawValue.StartsWith("\"", StringComparison.Ordinal) &&
-                    rawValue.EndsWith("\"", StringComparison.Ordinal) &&
-                    rawValue.Length >= 2)
+                // A wrapped model in the query: judged as the model
+                var unwrapped = new OpenApiParameter
                 {
-                    return rawValue.Substring(1, rawValue.Length - 2);
+                    Name = parameter.Name,
+                    In = parameter.In,
+                    Style = parameter.Style,
+                    Explode = parameter.Explode,
+                    Schema = schema,
+                };
+                if (unwrapped.GetQueryObject() is not null)
+                {
+                    return false;
                 }
-
-                return rawValue;
             }
 
-            // Boolean values need lowercase in C#
-            if (paramType == "bool")
+            return IsUnbindableValue(schema);
+        }
+
+        /// <summary>
+        /// The character between the items of an array that is one value: <c>,</c> for a query array in <c>form</c>
+        /// with <c>explode: false</c> and for a path or header array (<c>style: simple</c>, explode or not), <c>|</c>
+        /// for <c>pipeDelimited</c> and a space for <c>spaceDelimited</c> (both without explode).
+        /// <see langword="null"/> for a query array sent as repeated keys (<c>explode: true</c>) and for anything that
+        /// is no array.
+        /// </summary>
+        /// <returns>The delimiter, or null.</returns>
+        public char? GetArrayDelimiter()
+        {
+            if (GetValueKind(parameter.Schema) != ParameterValueKind.Array)
             {
-                return rawValue.ToLowerInvariant();
+                return null;
             }
 
-            // Numeric types can use the raw value directly
-            if (CSharpTypeHelper.IsNumericType(paramType))
+            if (parameter.In is ParameterLocation.Path or ParameterLocation.Header)
             {
-                return rawValue;
+                return (parameter.Style ?? ParameterStyle.Simple) == ParameterStyle.Simple ? ',' : null;
             }
 
-            return null;
+            if (parameter.In != ParameterLocation.Query ||
+                parameter.Explode)
+            {
+                return null;
+            }
+
+            return (parameter.Style ?? ParameterStyle.Form) switch
+            {
+                ParameterStyle.Form => ',',
+                ParameterStyle.PipeDelimited => '|',
+                ParameterStyle.SpaceDelimited => ' ',
+                _ => null,
+            };
         }
     }
+
+    // One value in a query: a primitive, an enum, a reference to either, or an enum wrapped in allOf - no object,
+    // no array, no composition
+    private static bool IsSingleValue(IOpenApiSchema? schema)
+    {
+        if (schema is null)
+        {
+            return false;
+        }
+
+        if (schema.WrappedEnum() is not null)
+        {
+            return true;
+        }
+
+        if (schema.Type is { } type &&
+            (type.HasFlag(JsonSchemaType.Object) || type.HasFlag(JsonSchemaType.Array)))
+        {
+            return false;
+        }
+
+        return schema.Format is not ("byte" or "binary") &&
+               schema.Properties is null or { Count: 0 } &&
+               schema.Items is null &&
+               schema.AllOf is null or { Count: 0 } &&
+               schema.OneOf is null or { Count: 0 } &&
+               schema.AnyOf is null or { Count: 0 };
+    }
+
+    // An object, or a composition without a type, or an array of either
+    private static bool IsUnbindableValue(IOpenApiSchema? schema)
+        => schema?.HasNoTextForm() == true;
 
     private static ParameterStyle DefaultStyleFor(ParameterLocation? location)
         => location is ParameterLocation.Query or ParameterLocation.Cookie

@@ -58,12 +58,26 @@ public class GenerateContentForRecords : IContentGenerator
             if (recordParameters.Parameters is null ||
                 !recordParameters.Parameters.Any())
             {
-                sb.Append("();");
+                // No parameters, so no base constructor arguments either: the base list alone ("record X() : IY;")
+                sb.Append("()");
+                if (!string.IsNullOrEmpty(recordParameters.BaseTypeName))
+                {
+                    sb.Append(" : ");
+                    sb.Append(recordParameters.BaseTypeName);
+                }
+
+                sb.Append(';');
             }
             else
             {
                 sb.AppendLine("(");
                 const int indentSpaces = 4;
+
+                // A parameter that is only forwarded to the base declares no property of its own - the base
+                // has it, with its attributes - and "[property: ...]" on it is ignored with warning CS0657.
+                var forwardedToBase = string.IsNullOrEmpty(recordParameters.BaseTypeName)
+                    ? null
+                    : recordParameters.BaseConstructorArguments;
 
                 for (var j = 0; j < recordParameters.Parameters.Count; j++)
                 {
@@ -72,7 +86,7 @@ public class GenerateContentForRecords : IContentGenerator
                     sb.AppendInputParameter(
                         indentSpaces,
                         usePropertyPrefix: true,
-                        item.Attributes,
+                        forwardedToBase?.Contains(item.Name) == true ? null : item.Attributes,
                         item.GenericTypeName,
                         item.TypeName,
                         item.IsNullableType,

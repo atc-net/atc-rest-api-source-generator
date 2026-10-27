@@ -22,4 +22,10 @@ public sealed class GeneralOptions
     /// Default: false (blank lines are preserved between groups).
     /// </summary>
     public bool RemoveNamespaceGroupSeparatorInGlobalUsings { get; set; }
+
+    /// <summary>
+    /// OpenAPI Overlay files (1.0 to 1.2) applied to the specification first, in the order listed and before the --overlay files of the command line. Paths are relative to the options file.
+    /// Default: none.
+    /// </summary>
+    public IList<string> Overlays { get; set; } = [];
 }

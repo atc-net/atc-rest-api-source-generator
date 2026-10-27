@@ -19,13 +19,17 @@ public static class OperationFeaturesHelper
         OpenApiDocument document,
         string httpMethod)
     {
-        // Check for parameters (query, path, header, cookie) or request body
-        var hasParameters = operation.HasParameters() || operation.HasRequestBody();
+        // Parameters declared on the path item apply to every operation of that path.
+        var pathLevelParameters = pathItem.Parameters ?? [];
 
-        // Check for path parameters specifically
-        var hasPathParameters = operation
-            .GetPathParameters()
-            .Any();
+        // Check for parameters (query, path, header, cookie) or request body
+        var hasParameters = operation.HasParameters() ||
+                            operation.HasRequestBody() ||
+                            pathLevelParameters.Count > 0;
+
+        // Check for path parameters specifically (inline or $ref, operation or path level)
+        var hasPathParameters = operation.GetPathParameters().Any() ||
+                                pathLevelParameters.Any(p => p.In == ParameterLocation.Path);
 
         // Check for security requirements
         var securityConfig = operation.ExtractUnifiedSecurityConfiguration(pathItem, document);

@@ -33,7 +33,7 @@ public static class PolymorphicTypeExtractor
             }
 
             // Check if this is a polymorphic schema
-            if (!schemaValue.HasPolymorphicComposition())
+            if (!schemaValue.HasPolymorphicComposition)
             {
                 continue;
             }
@@ -90,12 +90,16 @@ public static class PolymorphicTypeExtractor
                 : "discriminator was auto-detected";
             sb.AppendLine($"/// Note: Uses a custom JsonConverter because {reason} (fallback: {config.DefaultVariantTypeName}).");
         }
+        else if (config.DiscriminatorDeclaredByVariants)
+        {
+            sb.AppendLine($"/// Note: Uses a custom JsonConverter because a variant declares '{config.DiscriminatorPropertyName}' as a property of its own; an unknown value is a JsonException.");
+        }
 
         sb.AppendLine("/// </summary>");
 
         sb.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
 
-        if (config.DefaultVariantTypeName is not null)
+        if (config.UsesDiscriminatorConverter)
         {
             sb.AppendLine($"[JsonConverter(typeof({config.BaseTypeName}JsonConverter))]");
         }
@@ -145,8 +149,16 @@ public static class PolymorphicTypeExtractor
 
         sb.AppendLine("/// <summary>");
         sb.AppendLine($"/// Discriminator-based JSON converter for <see cref=\"{config.BaseTypeName}\"/>.");
-        sb.AppendLine($"/// Dispatches on property '{config.DiscriminatorPropertyName}' and falls back to");
-        sb.AppendLine($"/// <see cref=\"{config.DefaultVariantTypeName}\"/> for unrecognized discriminator values.");
+        if (config.DefaultVariantTypeName is not null)
+        {
+            sb.AppendLine($"/// Dispatches on property '{config.DiscriminatorPropertyName}' and falls back to");
+            sb.AppendLine($"/// <see cref=\"{config.DefaultVariantTypeName}\"/> for unrecognized discriminator values.");
+        }
+        else
+        {
+            sb.AppendLine($"/// Dispatches on property '{config.DiscriminatorPropertyName}'; an unrecognized value is a <see cref=\"JsonException\"/>.");
+        }
+
         sb.AppendLine("/// </summary>");
 
         sb.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
@@ -156,10 +168,16 @@ public static class PolymorphicTypeExtractor
         sb.AppendLine($"    public override {config.BaseTypeName}? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)");
         sb.AppendLine("    {");
         sb.AppendLine("        using var document = JsonDocument.ParseValue(ref reader);");
+        sb.AppendLine("        if (document.RootElement.ValueKind != JsonValueKind.Object)");
+        sb.AppendLine("        {");
+        sb.AppendLine($"            throw new JsonException($\"Unable to deserialize {{nameof({config.BaseTypeName})}}: expected an object, got {{document.RootElement.ValueKind}}.\");");
+        sb.AppendLine("        }");
+        sb.AppendLine();
         sb.AppendLine("        var rawText = document.RootElement.GetRawText();");
         sb.AppendLine();
+        sb.AppendLine("        // A discriminator that is no string is no known value");
         sb.AppendLine("        string? discriminatorValue = null;");
-        sb.AppendLine($"        if (document.RootElement.TryGetProperty(\"{config.DiscriminatorPropertyName}\", out var discriminatorElement))");
+        sb.AppendLine($"        if (document.RootElement.TryGetProperty(\"{config.DiscriminatorPropertyName}\", out var discriminatorElement) && discriminatorElement.ValueKind == JsonValueKind.String)");
         sb.AppendLine("        {");
         sb.AppendLine("            discriminatorValue = discriminatorElement.GetString();");
         sb.AppendLine("        }");
@@ -169,18 +187,29 @@ public static class PolymorphicTypeExtractor
 
         foreach (var variant in config.Variants)
         {
-            sb.AppendLine($"            \"{variant.DiscriminatorValue}\" => JsonSerializer.Deserialize<{variant.TypeName}>(rawText, options),");
+            sb.AppendLine($"            \"{variant.DiscriminatorValue}\" => JsonSerializer.Deserialize(rawText, Info<{variant.TypeName}>(options)),");
         }
 
-        sb.AppendLine($"            _ => JsonSerializer.Deserialize<{config.DefaultVariantTypeName}>(rawText, options),");
+        if (config.DefaultVariantTypeName is not null)
+        {
+            sb.AppendLine($"            _ => JsonSerializer.Deserialize(rawText, Info<{config.DefaultVariantTypeName}>(options)),");
+        }
+        else
+        {
+            sb.AppendLine($"            _ => throw new JsonException($\"Unknown '{config.DiscriminatorPropertyName}' value '{{discriminatorValue}}' for {config.BaseTypeName}.\"),");
+        }
+
         sb.AppendLine("        };");
         sb.AppendLine("    }");
 
         sb.AppendLine();
         sb.AppendLine($"    public override void Write(Utf8JsonWriter writer, {config.BaseTypeName} value, JsonSerializerOptions options)");
         sb.AppendLine("    {");
-        sb.AppendLine("        JsonSerializer.Serialize(writer, value, value.GetType(), options);");
+        sb.AppendLine("        JsonSerializer.Serialize(writer, value, options.GetTypeInfo(value.GetType()));");
         sb.AppendLine("    }");
+        sb.AppendLine();
+        sb.AppendLine("    // The metadata the options resolve: no reflection-based overload, so the converter works in a Native AOT app");
+        sb.AppendLine("    private static global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> Info<T>(JsonSerializerOptions options) => (global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<T>)options.GetTypeInfo(typeof(T));");
 
         sb.AppendLine("}");
 
@@ -199,7 +228,7 @@ public static class PolymorphicTypeExtractor
         IOpenApiSchema schema,
         OpenApiDocument document)
     {
-        if (!schema.HasPolymorphicComposition())
+        if (!schema.HasPolymorphicComposition)
         {
             return null;
         }
@@ -213,7 +242,7 @@ public static class PolymorphicTypeExtractor
         }
 
         // Get discriminator - explicit or auto-detect
-        var discriminatorPropertyName = schema.GetDiscriminatorPropertyName();
+        var discriminatorPropertyName = schema.DiscriminatorPropertyName;
         var isExplicit = !string.IsNullOrEmpty(discriminatorPropertyName);
 
         if (!isExplicit)
@@ -246,15 +275,9 @@ public static class PolymorphicTypeExtractor
 
         var defaultVariantTypeName = schema.GetDiscriminatorDefaultMappingSchemaName();
 
-        // When the discriminator was auto-detected the detected property is a real CLR property
-        // on every variant. STJ [JsonPolymorphic] throws InvalidOperationException when
-        // TypeDiscriminatorPropertyName matches an actual property on a derived type (.NET 10+).
-        // Route through the custom converter instead, using the first variant as fallback.
-        if (!isExplicit && defaultVariantTypeName is null)
-        {
-            defaultVariantTypeName = variantNames[0];
-        }
-
+        // An auto-detected property is a property of every variant, so the type is read by the discriminator
+        // converter (DiscriminatorDeclaredByVariants); without a defaultMapping an unknown value is a JsonException,
+        // as with a declared discriminator - never silently the first variant
         var config = new PolymorphicConfig
         {
             BaseTypeName = schemaName,
@@ -262,6 +285,7 @@ public static class PolymorphicTypeExtractor
             IsOneOf = isOneOf,
             IsDiscriminatorExplicit = isExplicit,
             DefaultVariantTypeName = defaultVariantTypeName,
+            DiscriminatorDeclaredByVariants = variantNames.Any(v => VariantDeclaresProperty(document, v, discriminatorPropertyName!)),
         };
 
         // Get discriminator mapping (explicit or generate from schema names)
@@ -269,7 +293,12 @@ public static class PolymorphicTypeExtractor
 
         foreach (var variantName in variantNames)
         {
-            var discriminatorValue = GetDiscriminatorValueForVariant(variantName, explicitMapping);
+            // A variant that pins the property to a value of its own (const, one-value enum) is read by that value
+            var pinnedValue = !isExplicit && explicitMapping?.Values.Contains(variantName, StringComparer.Ordinal) != true &&
+                              document.Components?.Schemas?.TryGetValue(variantName, out var variantSchema) == true
+                ? variantSchema.GetPinnedStringValue(discriminatorPropertyName!)
+                : null;
+            var discriminatorValue = pinnedValue ?? GetDiscriminatorValueForVariant(variantName, explicitMapping);
 
             config.Variants.Add(new PolymorphicVariant
             {
@@ -420,53 +449,121 @@ public static class PolymorphicTypeExtractor
         sb.AppendLine();
 
         sb.AppendLine("/// <summary>");
-        sb.AppendLine($"/// Try-parse JSON converter for the <see cref=\"{config.BaseTypeName}\"/> union type.");
-        sb.AppendLine("/// Attempts deserialization of each variant in order until one succeeds.");
+        sb.AppendLine($"/// JSON converter for the <see cref=\"{config.BaseTypeName}\"/> union type: the variant the body fits - every required");
+        sb.AppendLine("/// member present, no member the variant does not have. A body that fits no variant, or more than one, is a");
+        sb.AppendLine("/// <see cref=\"JsonException\"/> (a 400 on the server).");
         sb.AppendLine("/// </summary>");
 
         sb.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
         sb.AppendLine($"public sealed class {config.BaseTypeName}JsonConverter : JsonConverter<{config.BaseTypeName}>");
         sb.AppendLine("{");
+        sb.AppendLine("    // The host's options, made strict once per options instance: a missing required member or an unknown member");
+        sb.AppendLine("    // fails the variant instead of becoming a default value");
+        sb.AppendLine("    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<JsonSerializerOptions, JsonSerializerOptions> StrictOptions = new();");
+        sb.AppendLine();
 
         sb.AppendLine($"    public override {config.BaseTypeName}? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)");
         sb.AppendLine("    {");
         sb.AppendLine("        using var document = JsonDocument.ParseValue(ref reader);");
         sb.AppendLine("        var rawText = document.RootElement.GetRawText();");
+        sb.AppendLine("        var strict = Strict(options);");
         sb.AppendLine();
+        sb.AppendLine($"        {config.BaseTypeName}? match = null;");
+        sb.AppendLine("        string? matchedVariant = null;");
         sb.AppendLine("        JsonException? lastException = null;");
 
         foreach (var variant in config.Variants)
         {
+            var local = IdentifierCasingHelper.ToLower(variant.TypeName[0]) + variant.TypeName.Substring(1) + "Value";
             sb.AppendLine();
+            sb.AppendLine($"        {variant.TypeName}? {local} = null;");
             sb.AppendLine("        try");
             sb.AppendLine("        {");
-            sb.AppendLine($"            var result = JsonSerializer.Deserialize<{variant.TypeName}>(rawText, options);");
-            sb.AppendLine("            if (result is not null)");
-            sb.AppendLine("            {");
-            sb.AppendLine($"                return new {config.BaseTypeName}(result);");
-            sb.AppendLine("            }");
+            sb.AppendLine($"            {local} = JsonSerializer.Deserialize(rawText, Info<{variant.TypeName}>(strict));");
             sb.AppendLine("        }");
             sb.AppendLine("        catch (JsonException ex)");
             sb.AppendLine("        {");
             sb.AppendLine("            lastException = ex;");
             sb.AppendLine("        }");
+            sb.AppendLine();
+            sb.AppendLine($"        if ({local} is not null)");
+            sb.AppendLine("        {");
+            sb.AppendLine("            if (match is not null)");
+            sb.AppendLine("            {");
+            sb.AppendLine($"                throw new JsonException($\"Ambiguous {{nameof({config.BaseTypeName})}}: the body fits {{matchedVariant}} and {variant.TypeName}.\");");
+            sb.AppendLine("            }");
+            sb.AppendLine();
+            sb.AppendLine($"            match = new {config.BaseTypeName}({local});");
+            sb.AppendLine($"            matchedVariant = \"{variant.TypeName}\";");
+            sb.AppendLine("        }");
         }
 
         sb.AppendLine();
-        sb.AppendLine("        throw new JsonException(");
-        sb.AppendLine($"            $\"Unable to deserialize {{nameof({config.BaseTypeName})}}: no matching variant found.\",");
+        sb.AppendLine("        return match ?? throw new JsonException(");
+        sb.AppendLine($"            $\"Unable to deserialize {{nameof({config.BaseTypeName})}}: the body fits no variant.\",");
         sb.AppendLine("            lastException);");
         sb.AppendLine("    }");
+        sb.AppendLine();
+        sb.AppendLine("    private static JsonSerializerOptions Strict(JsonSerializerOptions options)");
+        sb.AppendLine("        => StrictOptions.GetValue(options, static o =>");
+        sb.AppendLine("        {");
+        sb.AppendLine("            var strict = new JsonSerializerOptions(o)");
+        sb.AppendLine("            {");
+        sb.AppendLine("                RespectRequiredConstructorParameters = true,");
+        sb.AppendLine("                UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,");
+        sb.AppendLine("            };");
+        sb.AppendLine();
+        sb.AppendLine("            // Locked, so the metadata it resolves is cached");
+        sb.AppendLine("            strict.MakeReadOnly();");
+        sb.AppendLine("            return strict;");
+        sb.AppendLine("        });");
 
         sb.AppendLine();
         sb.AppendLine($"    public override void Write(Utf8JsonWriter writer, {config.BaseTypeName} value, JsonSerializerOptions options)");
         sb.AppendLine("    {");
-        sb.AppendLine("        JsonSerializer.Serialize(writer, value.Value, value.Value.GetType(), options);");
+        sb.AppendLine("        JsonSerializer.Serialize(writer, value.Value, options.GetTypeInfo(value.Value.GetType()));");
         sb.AppendLine("    }");
+        sb.AppendLine();
+        sb.AppendLine("    // The metadata the options resolve: no reflection-based overload, so the converter works in a Native AOT app");
+        sb.AppendLine("    private static global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> Info<T>(JsonSerializerOptions options) => (global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<T>)options.GetTypeInfo(typeof(T));");
 
         sb.AppendLine("}");
 
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// Whether a variant schema (or a base it extends through <c>allOf</c>) declares the property itself.
+    /// </summary>
+    private static bool VariantDeclaresProperty(
+        OpenApiDocument document,
+        string variantName,
+        string propertyName)
+    {
+        if (document.Components?.Schemas is null ||
+            !document.Components.Schemas.TryGetValue(variantName, out var variant))
+        {
+            return false;
+        }
+
+        return Declares(variant, depth: 0);
+
+        bool Declares(
+            IOpenApiSchema schema,
+            int depth)
+        {
+            if (depth > 8)
+            {
+                return false;
+            }
+
+            if (schema.Properties?.ContainsKey(propertyName) == true)
+            {
+                return true;
+            }
+
+            return schema.AllOf?.Any(part => Declares(part, depth + 1)) == true;
+        }
     }
 
     /// <summary>

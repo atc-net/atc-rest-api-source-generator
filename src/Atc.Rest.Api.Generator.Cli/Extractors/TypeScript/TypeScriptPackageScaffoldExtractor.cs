@@ -12,12 +12,14 @@ public static class TypeScriptPackageScaffoldExtractor
     /// <param name="packageVersion">The npm package version.</param>
     /// <param name="description">Optional package description (from OpenAPI info.description).</param>
     /// <param name="config">TypeScript client generation configuration.</param>
+    /// <param name="hasSignalRHubs">Whether hubs were emitted (the document declares <c>x-signalr-hubs</c>): they import <c>@microsoft/signalr</c> (and <c>react</c> only through the React hooks a hooks style brings).</param>
     /// <returns>The formatted package.json content.</returns>
     public static string GeneratePackageJson(
         string packageName,
         string packageVersion,
         string? description,
-        TypeScriptClientConfig config)
+        TypeScriptClientConfig config,
+        bool hasSignalRHubs = false)
     {
         ArgumentNullException.ThrowIfNull(config);
 
@@ -64,7 +66,8 @@ public static class TypeScriptPackageScaffoldExtractor
             ["clean"] = "rm -rf dist",
         };
 
-        // Conditional runtime dependencies
+        // The dependencies are the packages the generated files import (tsconfig includes every .ts file, so a
+        // scaffold missing one does not build): the HTTP client, Zod schemas, the hub hooks' SignalR client.
         var dependencies = new JsonObject();
         if (config.HttpClient == TypeScriptHttpClient.Axios)
         {
@@ -73,7 +76,13 @@ public static class TypeScriptPackageScaffoldExtractor
 
         if (config.GenerateZodSchemas)
         {
-            dependencies["zod"] = "^3.0.0";
+            // .datetime({ local: true }) and .date() need 3.23
+            dependencies["zod"] = "^3.23.0";
+        }
+
+        if (hasSignalRHubs)
+        {
+            dependencies["@microsoft/signalr"] = "^8.0.0";
         }
 
         if (dependencies.Count > 0)
@@ -81,27 +90,45 @@ public static class TypeScriptPackageScaffoldExtractor
             root["dependencies"] = dependencies;
         }
 
-        // Conditional peer dependencies (React Query hooks)
+        // Peer dependencies: the hooks' framework (React Query or SWR) and React, which the hooks, the
+        // ApiProvider and the hub hooks import.
+        var needsReact = config.HooksStyle is TypeScriptHooksStyle.ReactQuery or TypeScriptHooksStyle.Swr;
+        var peerDependencies = new JsonObject();
         if (config.HooksStyle == TypeScriptHooksStyle.ReactQuery)
         {
-            root["peerDependencies"] = new JsonObject
-            {
-                // >= 5.81: mutation lifecycle callbacks gained a 4th parameter
-                // (onMutateResult); the generated composed onSuccess forwards all four.
-                ["@tanstack/react-query"] = "^5.81.0",
-                ["react"] = "^18.0.0",
-            };
+            // >= 5.81: mutation lifecycle callbacks gained a 4th parameter
+            // (onMutateResult); the generated composed onSuccess forwards all four.
+            peerDependencies["@tanstack/react-query"] = "^5.81.0";
+        }
+        else if (config.HooksStyle == TypeScriptHooksStyle.Swr)
+        {
+            peerDependencies["swr"] = "^2.2.0";
         }
 
-        // Dev dependencies
+        if (needsReact)
+        {
+            peerDependencies["react"] = "^18.0.0";
+        }
+
+        if (peerDependencies.Count > 0)
+        {
+            root["peerDependencies"] = peerDependencies;
+        }
+
+        // Dev dependencies: the compiler, React's types, and MSW for the mock handlers.
         var devDependencies = new JsonObject
         {
             ["typescript"] = "^5.0.0",
         };
 
-        if (config.HooksStyle == TypeScriptHooksStyle.ReactQuery)
+        if (needsReact)
         {
             devDependencies["@types/react"] = "^18.0.0";
+        }
+
+        if (config.GenerateMswHandlers)
+        {
+            devDependencies["msw"] = "^2.7.0";
         }
 
         root["devDependencies"] = devDependencies;
@@ -289,11 +316,11 @@ public static class TypeScriptPackageScaffoldExtractor
 
             sb.Append(" } from '").Append(packageName).AppendLine("';");
             sb.AppendLine();
-            sb.AppendLine("const api = new ApiClient({ baseUrl: 'https://api.example.com' });");
+            sb.AppendLine("const api = new ApiClient('https://api.example.com');");
             if (segmentNames.Count > 0)
             {
                 var firstSegment = segmentNames[0];
-                var camel = char.ToLowerInvariant(firstSegment[0]) + firstSegment[1..];
+                var camel = TypeScriptCasingHelper.ToLower(firstSegment[0]) + firstSegment[1..];
                 sb.Append("const ").Append(camel).Append(" = new ").Append(firstSegment).AppendLine("(api);");
             }
 
@@ -304,12 +331,17 @@ public static class TypeScriptPackageScaffoldExtractor
 
         sb.AppendLine("## Authentication");
         sb.AppendLine();
-        sb.AppendLine("Attach a bearer token (or other credential) by passing headers through `ApiClient`:");
+        sb.AppendLine("Each operation sends the credentials its security requirements name: a bearer token from `getAccessToken`");
+        sb.AppendLine("(http bearer, OAuth2, OpenID Connect; sent as `Authorization: Bearer ...`), an API key from `apiKeys` by the scheme's");
+        sb.AppendLine("name (in the header, query parameter or cookie the scheme declares). An anonymous operation (`security: []`) sends");
+        sb.AppendLine("none; a specification that declares no security sends the token with every request. Any other header goes in");
+        sb.AppendLine("`defaultHeaders`:");
         sb.AppendLine();
         sb.AppendLine("```ts");
-        sb.AppendLine("const api = new ApiClient({");
-        sb.AppendLine("  baseUrl: 'https://api.example.com',");
-        sb.AppendLine("  defaultHeaders: () => ({ Authorization: `Bearer ${getToken()}` }),");
+        sb.AppendLine("const api = new ApiClient('https://api.example.com', {");
+        sb.AppendLine("  getAccessToken: () => getToken(),");
+        sb.AppendLine("  apiKeys: { ApiKeyAuth: apiKey },");
+        sb.AppendLine("  defaultHeaders: { 'X-Correlation-Id': correlationId },");
         sb.AppendLine("});");
         sb.AppendLine("```");
         sb.AppendLine();

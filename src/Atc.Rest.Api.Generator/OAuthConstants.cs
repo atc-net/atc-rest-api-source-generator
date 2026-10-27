@@ -118,14 +118,6 @@ public static class OAuthConstants
         /// The root OAuth configuration section name.
         /// </summary>
         public const string OAuth = "OAuth";
-
-        /// <summary>
-        /// Returns the configuration section path for a specific project.
-        /// </summary>
-        /// <param name="projectName">The project name.</param>
-        /// <returns>Configuration section path in format "OAuth:{projectName}".</returns>
-        public static string ForProject(string projectName)
-            => $"{OAuth}:{projectName}";
     }
 
     /// <summary>

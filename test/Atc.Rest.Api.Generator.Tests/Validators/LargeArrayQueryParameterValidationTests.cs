@@ -16,6 +16,7 @@ namespace Atc.Rest.Api.Generator.Tests.Validators;
 /// is left alone rather than guessed at.
 /// </para>
 /// </remarks>
+[RuleTest("ATC_API_OPR027")]
 public class LargeArrayQueryParameterValidationTests
 {
     private const string TestFilePath = "test.yaml";

@@ -43,12 +43,10 @@ public static class StringExtensions
                 }
 
                 // Capitalize first letter, lowercase the rest
-                result.Append(char.ToUpperInvariant(word[0]));
+                result.Append(IdentifierCasingHelper.ToUpper(word[0]));
                 if (word.Length > 1)
                 {
-                    var lowerInvariant = word
-                        .Substring(1)
-                        .ToLowerInvariant();
+                    var lowerInvariant = IdentifierCasingHelper.ToLower(word.Substring(1));
                     result.Append(lowerInvariant);
                 }
             }
@@ -102,33 +100,21 @@ public static class StringExtensions
 
             if (separators.Length <= 0)
             {
-                return value
-                           .Substring(0, 1)
-                           .ToUpperInvariant() +
-                       value
-                           .Substring(1)
-                           .ToLowerInvariant();
+                return IdentifierCasingHelper.ToUpper(value.Substring(0, 1)) +
+                       IdentifierCasingHelper.ToLower(value.Substring(1));
             }
 
             if (separators.Length == 1 && value.IndexOfAny(separators) == -1)
             {
-                return value
-                           .Substring(0, 1)
-                           .ToUpperInvariant() +
-                       value
-                           .Substring(1)
-                           .ToLowerInvariant();
+                return IdentifierCasingHelper.ToUpper(value.Substring(0, 1)) +
+                       IdentifierCasingHelper.ToLower(value.Substring(1));
             }
 
             var strArray = value.Split(separators, StringSplitOptions.RemoveEmptyEntries);
             for (var i = 0; i < strArray.Length; i++)
             {
-                var tmp = strArray[i]
-                              .Substring(0, 1)
-                              .ToUpperInvariant() +
-                          strArray[i]
-                              .Substring(1)
-                              .ToLowerInvariant();
+                var tmp = IdentifierCasingHelper.ToUpper(strArray[i].Substring(0, 1)) +
+                          IdentifierCasingHelper.ToLower(strArray[i].Substring(1));
 
                 for (var j = 1; j < strArray[i].Length - 1; j++)
                 {
@@ -285,7 +271,7 @@ public static class StringExtensions
                 var c = input[i];
 
                 // Check if current char is a separator
-                if (c is '-' or '.' or '_' or ' ')
+                if (!char.IsLetterOrDigit(c))
                 {
                     AddWordIfNotEmpty(words, currentWord);
                     continue;

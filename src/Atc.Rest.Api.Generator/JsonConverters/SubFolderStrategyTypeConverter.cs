@@ -1,39 +1,19 @@
-// ReSharper disable StringLiteralTypo
 namespace Atc.Rest.Api.Generator.JsonConverters;
 
 /// <summary>
 /// JSON converter for SubFolderStrategyType that handles both PascalCase and kebab-case strings.
 /// </summary>
-public class SubFolderStrategyTypeConverter : JsonConverter<SubFolderStrategyType>
+public class SubFolderStrategyTypeConverter : MarkerValueConverter<SubFolderStrategyType>
 {
-    /// <inheritdoc />
-    public override SubFolderStrategyType Read(
-        ref Utf8JsonReader reader,
-        Type typeToConvert,
-        JsonSerializerOptions options)
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SubFolderStrategyTypeConverter"/> class.
+    /// </summary>
+    public SubFolderStrategyTypeConverter()
+        : base(
+            SubFolderStrategyType.None,
+            Value(SubFolderStrategyType.None, "None"),
+            Value(SubFolderStrategyType.FirstPathSegment, "FirstPathSegment", "first-path-segment", "firstpathsegment"),
+            Value(SubFolderStrategyType.OpenApiTag, "OpenApiTag", "openapi-tag", "openapitag"))
     {
-        var value = reader.GetString();
-        return value?.ToLowerInvariant() switch
-        {
-            "none" => SubFolderStrategyType.None,
-            "first-path-segment" or "firstpathsegment" => SubFolderStrategyType.FirstPathSegment,
-            "openapi-tag" or "openapitag" => SubFolderStrategyType.OpenApiTag,
-            _ => SubFolderStrategyType.None, // Default fallback
-        };
-    }
-
-    /// <inheritdoc />
-    public override void Write(
-        Utf8JsonWriter writer,
-        SubFolderStrategyType value,
-        JsonSerializerOptions options)
-    {
-        var stringValue = value switch
-        {
-            SubFolderStrategyType.FirstPathSegment => "FirstPathSegment",
-            SubFolderStrategyType.OpenApiTag => "OpenApiTag",
-            _ => "None",
-        };
-        writer.WriteStringValue(stringValue);
     }
 }

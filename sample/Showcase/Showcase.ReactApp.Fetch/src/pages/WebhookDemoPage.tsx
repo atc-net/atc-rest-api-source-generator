@@ -41,6 +41,7 @@ export default function WebhookDemoPage() {
   const {
     connectionState,
     isConnected,
+    isSubscribed,
     connect,
     disconnect,
     subscribe,
@@ -162,6 +163,7 @@ export default function WebhookDemoPage() {
             color={connectionColor()}
             variant="outlined"
           />
+          {isSubscribed && <Chip label="Listening" color="success" size="small" />}
         </Stack>
       </Paper>
 
@@ -188,7 +190,7 @@ export default function WebhookDemoPage() {
 
       <Stack spacing={2}>
         {events.map((event, idx) => (
-          <Card key={`${event.kind}-${idx}`} variant="outlined">
+          <Card key={`${event.kind}-${idx}`} variant="outlined" data-testid="webhook-event">
             <CardContent>
               <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
                 <Chip

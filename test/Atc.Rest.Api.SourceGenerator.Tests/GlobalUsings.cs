@@ -1,6 +1,8 @@
 global using System;
 global using System.Collections.Concurrent;
 global using System.Collections.Immutable;
+global using System.ComponentModel.DataAnnotations;
+global using System.Diagnostics;
 global using System.Diagnostics.CodeAnalysis;
 global using System.Globalization;
 global using System.IO;
@@ -9,35 +11,58 @@ global using System.Net;
 global using System.Net.Http.Json;
 global using System.Reflection;
 global using System.Runtime.CompilerServices;
+global using System.Runtime.ExceptionServices;
 global using System.Security.Claims;
+global using System.Security.Cryptography;
 global using System.Text;
 global using System.Text.Encodings.Web;
 global using System.Text.Json;
+global using System.Text.Json.Nodes;
 global using System.Text.Json.Serialization;
 global using System.Text.RegularExpressions;
 global using System.Threading;
+global using System.Xml;
+global using System.Xml.Linq;
 
+global using Atc.CodeGeneration.CSharp.Helpers;
+global using Atc.CodeGeneration.TypeScript.Helpers;
+global using Atc.OpenApi.Extensions;
 global using Atc.OpenApi.Helpers;
 global using Atc.Rest.Api.Generator;
+global using Atc.Rest.Api.Generator.Cli.Services;
 global using Atc.Rest.Api.Generator.Configurations;
 global using Atc.Rest.Api.Generator.Extractors;
 global using Atc.Rest.Api.Generator.Helpers;
+global using Atc.Rest.Api.Generator.Overlays;
 global using Atc.Rest.Api.Generator.Validators;
+global using Atc.Rest.Api.SourceGenerator.Extractors;
 global using Atc.Rest.Api.SourceGenerator.Helpers;
 global using Atc.Rest.Api.SourceGenerator.Tests.Helpers;
+global using Atc.Rest.Api.Tests.Node;
 
+global using CsCheck;
 global using Microsoft.AspNetCore.Authentication;
+global using Microsoft.AspNetCore.Authentication.JwtBearer;
 global using Microsoft.AspNetCore.Builder;
 global using Microsoft.AspNetCore.Http;
 global using Microsoft.AspNetCore.Mvc;
+global using Microsoft.AspNetCore.Mvc.ApiExplorer;
 global using Microsoft.CodeAnalysis;
 global using Microsoft.CodeAnalysis.CSharp;
+global using Microsoft.CodeAnalysis.CSharp.Syntax;
 global using Microsoft.CodeAnalysis.Text;
 global using Microsoft.Extensions.DependencyInjection;
+global using Microsoft.Extensions.Hosting;
 global using Microsoft.Extensions.Logging;
 global using Microsoft.Extensions.Options;
+global using Microsoft.IdentityModel.JsonWebTokens;
+global using Microsoft.IdentityModel.Tokens;
 global using Microsoft.OpenApi;
 
 global using VerifyXunit;
 
 global using Xunit;
+
+global using EndpointInfo = Atc.Rest.Api.Generator.Models.EndpointInfo;
+global using GeneratedEnumDeclaration = Atc.Rest.Api.Generator.Models.GeneratedEnumDeclaration;
+global using MultiPartConfiguration = Atc.Rest.Api.Generator.Models.MultiPartConfiguration;

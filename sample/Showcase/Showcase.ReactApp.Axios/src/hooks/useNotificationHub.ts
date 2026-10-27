@@ -1,108 +1,39 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
-import { HubConnectionBuilder, HubConnection, HubConnectionState } from '@microsoft/signalr';
-import { apiBaseUrl } from '../config/api';
-import type { SystemNotification } from '../api/models/SystemNotification';
-import type { UserActivityEvent } from '../api/models/UserActivityEvent';
-import type { DataChangeEvent } from '../api/models/DataChangeEvent';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useNotificationsHub, type NotificationsHubCallbacks } from '../api/hubs';
 
-export type ConnectionState = 'Disconnected' | 'Connecting' | 'Connected' | 'Reconnecting';
-
-interface NotificationHubCallbacks {
-  onSystemNotification?: (notification: SystemNotification) => void;
-  onUserActivity?: (event: UserActivityEvent) => void;
-  onDataChange?: (event: DataChangeEvent) => void;
-}
-
-export function useNotificationHub(callbacks: NotificationHubCallbacks) {
-  const [connectionState, setConnectionState] = useState<ConnectionState>('Disconnected');
+/**
+ * The notifications hub with its topic subscription: the connection, its events and the hub's methods are the
+ * generated useNotificationsHub (from Showcase.yaml's x-signalr-hubs); this adds which subscription is open.
+ */
+export function useNotificationHub(callbacks: NotificationsHubCallbacks) {
+  const { connectionState, isConnected, connect, disconnect, methods } = useNotificationsHub(callbacks);
   const [isSubscribed, setIsSubscribed] = useState(false);
-  const connectionRef = useRef<HubConnection | null>(null);
-  const callbacksRef = useRef(callbacks);
-  callbacksRef.current = callbacks;
+  // The id the hub gave the subscription - Unsubscribe names it
+  const subscriptionIdRef = useRef<string | null>(null);
 
-  const isConnected = connectionState === 'Connected';
-
-  const connect = useCallback(async () => {
-    if (connectionRef.current) return;
-
-    setConnectionState('Connecting');
-
-    const connection = new HubConnectionBuilder()
-      .withUrl(`${apiBaseUrl}/hubs/notifications`)
-      .withAutomaticReconnect()
-      .build();
-
-    connection.onreconnecting(() => setConnectionState('Reconnecting'));
-    connection.onreconnected(() => setConnectionState('Connected'));
-    connection.onclose(() => {
-      setConnectionState('Disconnected');
+  // A subscription lives on its connection: one that closed took it along
+  useEffect(() => {
+    if (connectionState === 'Disconnected') {
+      subscriptionIdRef.current = null;
       setIsSubscribed(false);
-    });
-
-    connection.on('SystemNotification', (notification: SystemNotification) => {
-      callbacksRef.current.onSystemNotification?.(notification);
-    });
-
-    connection.on('UserActivity', (event: UserActivityEvent) => {
-      callbacksRef.current.onUserActivity?.(event);
-    });
-
-    connection.on('DataChange', (event: DataChangeEvent) => {
-      callbacksRef.current.onDataChange?.(event);
-    });
-
-    connectionRef.current = connection;
-
-    try {
-      await connection.start();
-      // Only update state if this connection is still the current one
-      // (StrictMode cleanup may have replaced it while start() was in-flight)
-      if (connectionRef.current === connection) {
-        setConnectionState('Connected');
-      }
-    } catch {
-      if (connectionRef.current === connection) {
-        setConnectionState('Disconnected');
-        connectionRef.current = null;
-      }
     }
-  }, []);
-
-  const disconnect = useCallback(async () => {
-    const connection = connectionRef.current;
-    if (!connection) return;
-
-    connectionRef.current = null;
-    setIsSubscribed(false);
-    try {
-      await connection.stop();
-    } finally {
-      setConnectionState('Disconnected');
-    }
-  }, []);
+  }, [connectionState]);
 
   const subscribe = useCallback(async (topics: string[]) => {
-    const connection = connectionRef.current;
-    if (!connection || connection.state !== HubConnectionState.Connected) return;
+    if (!isConnected) return;
 
-    await connection.invoke<string>('Subscribe', topics);
+    subscriptionIdRef.current = await methods.subscribe(topics);
     setIsSubscribed(true);
-  }, []);
+  }, [isConnected, methods]);
 
   const unsubscribe = useCallback(async () => {
-    const connection = connectionRef.current;
-    if (!connection || connection.state !== HubConnectionState.Connected) return;
+    const subscriptionId = subscriptionIdRef.current;
+    if (!isConnected || !subscriptionId) return;
 
-    await connection.invoke('Unsubscribe');
+    await methods.unsubscribe(subscriptionId);
+    subscriptionIdRef.current = null;
     setIsSubscribed(false);
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      connectionRef.current?.stop();
-      connectionRef.current = null;
-    };
-  }, []);
+  }, [isConnected, methods]);
 
   return {
     connectionState,

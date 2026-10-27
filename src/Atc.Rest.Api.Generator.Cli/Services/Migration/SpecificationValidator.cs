@@ -45,7 +45,7 @@ internal static class SpecificationValidator
             result.IsValid = true;
 
             // Extract OpenAPI version from parsed metadata
-            result.OpenApiVersion = openApiDoc.GetOpenApiSpecVersion().ToDisplayString();
+            result.OpenApiVersion = openApiDoc.SpecVersion.ToDisplayString();
 
             // Extract API info
             result.ApiTitle = openApiDoc.Info?.Title;
@@ -96,21 +96,10 @@ internal static class SpecificationValidator
             return result;
         }
 
-        var baseName = Path.GetFileNameWithoutExtension(baseSpecPath);
-        var extension = Path.GetExtension(baseSpecPath);
-
-        // Look for files matching pattern: {BaseName}_{PartName}.yaml
-        var partPattern = $"{baseName}_*{extension}";
-
         try
         {
-            var partFiles = Directory
-                .GetFiles(directory, partPattern)
-                .Where(f => !f.Equals(baseSpecPath, StringComparison.OrdinalIgnoreCase))
-                .OrderBy(f => f, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-
-            result.AddRange(partFiles);
+            // The parts as the build finds them
+            result.AddRange(SpecificationService.DiscoverPartFilePaths(baseSpecPath));
         }
         catch
         {

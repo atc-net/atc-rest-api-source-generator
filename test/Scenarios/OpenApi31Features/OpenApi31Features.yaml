@@ -2,7 +2,7 @@ openapi: "3.1.0"
 info:
   version: 1.0.0
   title: OpenAPI 3.1 Features Test
-  description: Tests OpenAPI 3.1 specific features including prefixItems and contentEncoding
+  description: Tests OpenAPI 3.1 specific features including prefixItems, contentEncoding, const and not
 
 paths:
   /coordinates:
@@ -127,6 +127,15 @@ components:
           type: object
           additionalProperties:
             type: string
+        kind:
+          type: string
+          const: document
+          description: Always "document" (generated as a string; the value is not enforced)
+        title:
+          type: string
+          not:
+            maxLength: 0
+          description: Not empty (not is ignored)
 
     DocumentResponse:
       type: object

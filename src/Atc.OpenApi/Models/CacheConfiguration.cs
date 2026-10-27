@@ -47,6 +47,12 @@ public record CacheConfiguration
     /// </summary>
     public IReadOnlyList<string> VaryByRoute { get; init; } = [];
 
+    /// <summary>
+    /// Gets a value indicating whether the answer is the same for every caller (Output Caching only): it is then cached
+    /// also for an authenticated caller, which ASP.NET Core's default policy never caches.
+    /// </summary>
+    public bool Shared { get; init; }
+
     // HybridCache specific
 
     /// <summary>

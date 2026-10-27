@@ -48,6 +48,8 @@
     </MudStack>
 </MudPaper>
 
+<NotificationsStream />
+
 <MudText Typo="Typo.subtitle1" Class="mb-2">
     Notifications (@notifications.Count)
 </MudText>
@@ -74,7 +76,7 @@ else
     <MudStack Spacing="2">
         @foreach (var notification in notifications.TakeLast(50).Reverse())
         {
-            <MudCard Outlined="true">
+            <MudCard Outlined="true" data-testid="notification-item">
                 <MudCardContent>
                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                         <MudIcon Icon="@GetNotificationIcon(notification.Type)" Color="@GetSeverityColor(notification.Severity)" />
@@ -99,11 +101,11 @@ else
                         <MudStack Row="true" Spacing="4">
                             <MudStack>
                                 <MudText Typo="Typo.caption" Color="Color.Secondary">CPU</MudText>
-                                <MudText Typo="Typo.body2">@notification.Metrics.CpuUsage.ToString("F1")%</MudText>
+                                <MudText Typo="Typo.body2">@notification.Metrics.CpuUsage?.ToString("F1")%</MudText>
                             </MudStack>
                             <MudStack>
                                 <MudText Typo="Typo.caption" Color="Color.Secondary">Memory</MudText>
-                                <MudText Typo="Typo.body2">@notification.Metrics.MemoryUsage.ToString("F1")%</MudText>
+                                <MudText Typo="Typo.body2">@notification.Metrics.MemoryUsage?.ToString("F1")%</MudText>
                             </MudStack>
                             <MudStack>
                                 <MudText Typo="Typo.caption" Color="Color.Secondary">Connections</MudText>
@@ -111,7 +113,7 @@ else
                             </MudStack>
                             <MudStack>
                                 <MudText Typo="Typo.caption" Color="Color.Secondary">Req/s</MudText>
-                                <MudText Typo="Typo.body2">@notification.Metrics.RequestsPerSecond.ToString("F1")</MudText>
+                                <MudText Typo="Typo.body2">@notification.Metrics.RequestsPerSecond?.ToString("F1")</MudText>
                             </MudStack>
                             <MudStack>
                                 <MudText Typo="Typo.caption" Color="Color.Secondary">Uptime</MudText>
@@ -195,41 +197,41 @@ else
         _ => Color.Error
     };
 
-    private static string GetNotificationIcon(NotificationType type) => type switch
+    private static string GetNotificationIcon(NotificationType type) => type.Value switch
     {
-        NotificationType.System => Icons.Material.Filled.Computer,
-        NotificationType.User => Icons.Material.Filled.Person,
-        NotificationType.Data => Icons.Material.Filled.Storage,
-        NotificationType.Alert => Icons.Material.Filled.Warning,
-        NotificationType.Metric => Icons.Material.Filled.Analytics,
+        NotificationType.Names.System => Icons.Material.Filled.Computer,
+        NotificationType.Names.User => Icons.Material.Filled.Person,
+        NotificationType.Names.Data => Icons.Material.Filled.Storage,
+        NotificationType.Names.Alert => Icons.Material.Filled.Warning,
+        NotificationType.Names.Metric => Icons.Material.Filled.Analytics,
         _ => Icons.Material.Filled.Notifications
     };
 
-    private static Color GetSeverityColor(NotificationSeverity severity) => severity switch
+    private static Color GetSeverityColor(NotificationSeverity? severity) => severity?.Value switch
     {
-        NotificationSeverity.Info => Color.Info,
-        NotificationSeverity.Warning => Color.Warning,
-        NotificationSeverity.Error => Color.Error,
-        NotificationSeverity.Critical => Color.Error,
+        NotificationSeverity.Names.Info => Color.Info,
+        NotificationSeverity.Names.Warning => Color.Warning,
+        NotificationSeverity.Names.Error => Color.Error,
+        NotificationSeverity.Names.Critical => Color.Error,
         _ => Color.Default
     };
 
-    private static Color GetTypeChipColor(NotificationType type) => type switch
+    private static Color GetTypeChipColor(NotificationType type) => type.Value switch
     {
-        NotificationType.System => Color.Primary,
-        NotificationType.User => Color.Secondary,
-        NotificationType.Data => Color.Tertiary,
-        NotificationType.Alert => Color.Warning,
-        NotificationType.Metric => Color.Info,
+        NotificationType.Names.System => Color.Primary,
+        NotificationType.Names.User => Color.Secondary,
+        NotificationType.Names.Data => Color.Tertiary,
+        NotificationType.Names.Alert => Color.Warning,
+        NotificationType.Names.Metric => Color.Info,
         _ => Color.Default
     };
 
-    private static Color GetSeverityChipColor(NotificationSeverity severity) => severity switch
+    private static Color GetSeverityChipColor(NotificationSeverity? severity) => severity?.Value switch
     {
-        NotificationSeverity.Info => Color.Info,
-        NotificationSeverity.Warning => Color.Warning,
-        NotificationSeverity.Error => Color.Error,
-        NotificationSeverity.Critical => Color.Dark,
+        NotificationSeverity.Names.Info => Color.Info,
+        NotificationSeverity.Names.Warning => Color.Warning,
+        NotificationSeverity.Names.Error => Color.Error,
+        NotificationSeverity.Names.Critical => Color.Dark,
         _ => Color.Default
     };
 

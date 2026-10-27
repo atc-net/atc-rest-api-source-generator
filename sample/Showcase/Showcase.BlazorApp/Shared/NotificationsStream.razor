@@ -1,0 +1,73 @@
+@implements IDisposable
+
+@* The notifications as one HTTP response that never ends (listNotifications, an async enumerable on the server): the
+   generated streaming endpoint reads each event as it arrives - no SignalR. The server sends one every 5-10 seconds. *@
+<MudPaper Class="pa-4 mb-4">
+    <MudText Typo="Typo.h6" Class="mb-1">HTTP stream</MudText>
+    <MudText Typo="Typo.body2" Class="mb-3">
+        <code>GET /notifications/stream</code> - one response, read event by event while the server writes it.
+    </MudText>
+    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3" Class="mb-2">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Start" Disabled="streaming is not null">Start Stream</MudButton>
+        <MudButton Variant="Variant.Outlined" OnClick="Stop" Disabled="streaming is null">Stop Stream</MudButton>
+        <MudChip T="string" Size="Size.Small" data-testid="notifications-stream-status">
+            @(streaming is null ? "Stopped" : $"Streaming - {items.Count} received")
+        </MudChip>
+    </MudStack>
+    @if (error is not null)
+    {
+        <MudText Color="Color.Error" Typo="Typo.body2">@error</MudText>
+    }
+
+    @foreach (var item in items)
+    {
+        <MudText Typo="Typo.body2" data-testid="notifications-stream-item">@($"{item.Type}: {item.Message}")</MudText>
+    }
+</MudPaper>
+
+@code {
+    [Inject]
+    private GatewayService Gateway { get; set; } = null!;
+
+    private readonly List<NotificationEvent> items = [];
+    private CancellationTokenSource? streaming;
+    private string? error;
+
+    private void Start()
+    {
+        items.Clear();
+        error = null;
+        streaming = new CancellationTokenSource();
+        _ = ReadAsync(streaming.Token);
+    }
+
+    private void Stop()
+    {
+        streaming?.Cancel();
+        streaming?.Dispose();
+        streaming = null;
+    }
+
+    private async Task ReadAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await foreach (var item in Gateway.ListNotificationsAsync("system,user,data", cancellationToken))
+            {
+                items.Add(item);
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Stopped
+        }
+        catch (Exception ex)
+        {
+            error = $"The stream failed: {ex.Message}";
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    public void Dispose() => Stop();
+}

@@ -9,12 +9,29 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
     private readonly ProjectScaffoldingService scaffoldingService = new();
     private readonly INugetPackageVersionService nugetService;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="GenerateServerCommand"/> class.
+    /// </summary>
+    /// <param name="nugetService">Resolves the latest package versions written into the generated project files.</param>
     public GenerateServerCommand(INugetPackageVersionService nugetService)
     {
         this.nugetService = nugetService;
     }
 
-    protected override int Execute(
+    /// <summary>
+    /// Validates the specification, scaffolds the server projects and generates contracts, handlers and host code into them.
+    /// </summary>
+    /// <param name="context">The Spectre.Console command context.</param>
+    /// <param name="settings">The parsed command-line settings.</param>
+    /// <param name="cancellationToken">Cancels the command.</param>
+    /// <returns>0 when generation succeeded; otherwise 1.</returns>
+    public override int Execute(
+        CommandContext context,
+        GenerateServerCommandSettings settings,
+        CancellationToken cancellationToken)
+        => FileTransaction.Run(() => ExecuteCore(context, settings, cancellationToken));
+
+    private int ExecuteCore(
         CommandContext context,
         GenerateServerCommandSettings settings,
         CancellationToken cancellationToken)
@@ -31,93 +48,29 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         var outputPath = Path.GetFullPath(settings.OutputPath);
         var projectName = settings.ProjectName;
 
-        // Load options from file (auto-discovery or explicit path)
-        var options = ApiOptionsHelper.LoadOptions(settings.OptionsPath, specPath);
+        // Load options from file (auto-discovery or explicit path); a file that cannot be read stops the command
+        if (!ApiOptionsHelper.TryLoadOptions(settings.OptionsPath, specPath, out var options))
+        {
+            return 1;
+        }
 
         // Apply CLI argument overrides (scaffolding first, then use it for server/domain)
         var scaffoldingConfig = ApplyScaffoldingCliOverrides(options, settings);
         var serverConfig = ApplyServerCliOverrides(options, settings, scaffoldingConfig);
         var domainConfig = ApplyDomainCliOverrides(options, settings, scaffoldingConfig);
 
-        // Determine project structure modes
-        var isTwoProjects = scaffoldingConfig.ProjectStructure == ProjectStructureType.TwoProjects;
-        var isThreeProjects = scaffoldingConfig.ProjectStructure == ProjectStructureType.ThreeProjects;
-        var hasSeparateDomain = isTwoProjects || isThreeProjects;
+        // The projects, their names and folders by the project structure
+        var plan = ServerScaffoldPlan.Create(projectName, outputPath, settings.DomainOutputPath, scaffoldingConfig);
+        var isTwoProjects = plan.IsTwoProjects;
+        var isThreeProjects = plan.IsThreeProjects;
+        var srcPath = plan.SourcePath;
+        var contractsProjectName = plan.ContractsProjectName;
+        var hostProjectName = plan.HostProjectName;
+        var domainProjectName = plan.DomainProjectName;
+        var contractsOutputPath = plan.ContractsOutputPath;
+        var domainOutputPath = plan.DomainOutputPath;
 
-        // Always use repo structure
-        var srcPath = Path.Combine(outputPath, "src");
-
-        // Determine project names based on structure mode:
-        // - SingleProject: {Name}.Api (all-in-one)
-        // - TwoProjects: {Name}.Api (host+contracts), {Name}.Domain
-        // - ThreeProjects: {Name}.Api (host), {Name}.Api.Contracts, {Name}.Domain
-        var baseName = ProjectNameHelper.ExtractSolutionName(projectName);
-
-        string contractsProjectName;
-        string hostProjectName;
-        string domainProjectName;
-
-        if (isThreeProjects)
-        {
-            // 3 projects: Host, Contracts, Domain
-            contractsProjectName = scaffoldingConfig.ContractsProjectName ?? $"{baseName}.Api.Contracts";
-            hostProjectName = scaffoldingConfig.HostProjectName ?? $"{baseName}.Api";
-            domainProjectName = scaffoldingConfig.DomainProjectName ?? $"{baseName}.Domain";
-        }
-        else if (isTwoProjects)
-        {
-            // 2 projects: Host+Contracts combined, Domain separate
-            contractsProjectName = scaffoldingConfig.ContractsProjectName ?? $"{baseName}.Api";
-            hostProjectName = contractsProjectName; // Same as contracts (combined)
-            domainProjectName = scaffoldingConfig.DomainProjectName ?? $"{baseName}.Domain";
-        }
-        else
-        {
-            // SingleProject: All in one
-            contractsProjectName = scaffoldingConfig.ContractsProjectName ?? $"{baseName}.Api";
-            hostProjectName = contractsProjectName;
-            domainProjectName = contractsProjectName;
-        }
-
-        var contractsOutputPath = Path.Combine(srcPath, contractsProjectName);
-        var domainOutputPath = string.IsNullOrWhiteSpace(settings.DomainOutputPath)
-            ? Path.Combine(srcPath, domainProjectName)
-            : Path.GetFullPath(settings.DomainOutputPath);
-
-        AnsiConsole.MarkupLine($"[blue]Specification:[/] {specPath}");
-        AnsiConsole.MarkupLine($"[blue]Project structure:[/] {scaffoldingConfig.ProjectStructure}");
-        AnsiConsole.MarkupLine($"[blue]Repository root:[/] {outputPath}");
-
-        if (isThreeProjects)
-        {
-            AnsiConsole.MarkupLine($"[blue]Host project:[/] {hostProjectName}");
-            AnsiConsole.MarkupLine($"[blue]Contracts project:[/] {contractsProjectName}");
-            AnsiConsole.MarkupLine($"[blue]Domain project:[/] {domainProjectName}");
-        }
-        else if (isTwoProjects)
-        {
-            AnsiConsole.MarkupLine($"[blue]Host+Contracts project:[/] {contractsProjectName}");
-            AnsiConsole.MarkupLine($"[blue]Domain project:[/] {domainProjectName}");
-        }
-        else
-        {
-            AnsiConsole.MarkupLine($"[blue]Project:[/] {contractsProjectName}");
-        }
-
-        AnsiConsole.MarkupLine($"[blue]Validation mode:[/] {serverConfig.ValidateSpecificationStrategy}");
-        AnsiConsole.MarkupLine($"[blue]Versioning strategy:[/] {serverConfig.VersioningStrategy}");
-
-        if (!string.IsNullOrWhiteSpace(serverConfig.Namespace))
-        {
-            AnsiConsole.MarkupLine($"[blue]Namespace:[/] {serverConfig.Namespace}");
-        }
-
-        if (scaffoldingConfig.NoCodingRules)
-        {
-            AnsiConsole.MarkupLine("[blue]Coding rules:[/] disabled");
-        }
-
-        AnsiConsole.WriteLine();
+        WritePlan(plan, specPath, serverConfig, scaffoldingConfig);
 
         // Track created projects for statistics
         var projectsCreated = new List<string>();
@@ -139,7 +92,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
 
                 // Step 1: Validate the OpenAPI specification
                 ctx.Status("Validating OpenAPI specification...");
-                var validationResult = SpecificationValidationHelper.ValidateSpecificationWithStats(specPath, serverConfig.ValidateSpecificationStrategy);
+                var validationResult = SpecificationValidationHelper.ValidateSpecificationWithStats(specPath, serverConfig.ValidateSpecificationStrategy, OverlayCliHelper.All(options.General.Overlays, settings.Overlays), parametersMustBind: true);
                 if (!validationResult.Success)
                 {
                     return 1;
@@ -185,7 +138,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
                 }
 
                 // Step 4: Generate domain project (TwoProjects and ThreeProjects modes)
-                if (hasSeparateDomain)
+                if (plan.HasSeparateDomain)
                 {
                     ctx.Status("Setting up domain project...");
                     if (!GenerateDomainProject(ctx, specPath, domainOutputPath, domainProjectName, contractsProjectName, outputPath, domainConfig, sourceGeneratorVersion))
@@ -207,7 +160,8 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
                         domainProjectName,
                         scaffoldingConfig.TargetFramework,
                         scaffoldingConfig.HostUi,
-                        scaffoldingConfig.HostUiMode))
+                        scaffoldingConfig.HostUiMode,
+                        scaffoldingConfig.HostNamespace))
                     {
                         return 1;
                     }
@@ -216,16 +170,13 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
                 }
 
                 // Step 5b: Generate Aspire AppHost project (if --aspire is specified)
-                string? aspireProjectName = null;
-                if (scaffoldingConfig.Aspire)
+                if (plan.AspireProjectName is { } aspireProjectName)
                 {
                     ctx.Status("Setting up Aspire AppHost project...");
-                    aspireProjectName = $"{baseName}.Aspire";
-                    var apiProjectName = isThreeProjects || isTwoProjects ? hostProjectName : contractsProjectName;
                     if (!scaffoldingService.GenerateAspireProject(
                         srcPath,
                         aspireProjectName,
-                        apiProjectName,
+                        plan.ApiProjectName,
                         scaffoldingConfig.TargetFramework))
                     {
                         return 1;
@@ -244,40 +195,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
 
                 // Step 7: Generate solution file
                 ctx.Status("Creating solution file...");
-                var srcProjects = new List<string>();
-
-                if (isThreeProjects)
-                {
-                    // Order: Host, Contracts, Domain
-                    srcProjects.Add($"src/{hostProjectName}/{hostProjectName}.csproj");
-                    srcProjects.Add($"src/{contractsProjectName}/{contractsProjectName}.csproj");
-                    srcProjects.Add($"src/{domainProjectName}/{domainProjectName}.csproj");
-                }
-                else if (isTwoProjects)
-                {
-                    // Order: Host+Contracts, Domain
-                    srcProjects.Add($"src/{contractsProjectName}/{contractsProjectName}.csproj");
-                    srcProjects.Add($"src/{domainProjectName}/{domainProjectName}.csproj");
-                }
-                else
-                {
-                    srcProjects.Add($"src/{contractsProjectName}/{contractsProjectName}.csproj");
-                }
-
-                // Add Aspire project if it was generated
-                if (aspireProjectName is not null)
-                {
-                    srcProjects.Add($"src/{aspireProjectName}/{aspireProjectName}.csproj");
-                }
-
-                // Get test project name using same logic as ProjectScaffoldingService
-                var testProjectName = ProjectNameHelper.ExtractSolutionName(contractsProjectName) + ".Tests";
-                var testProjects = new List<string>
-                {
-                    $"test/{testProjectName}/{testProjectName}.csproj",
-                };
-
-                if (!scaffoldingService.GenerateSolutionFile(outputPath, contractsProjectName, srcProjects, testProjects))
+                if (!scaffoldingService.GenerateSolutionFile(outputPath, contractsProjectName, [.. plan.SourceProjects], [.. plan.TestProjects]))
                 {
                     return 1;
                 }
@@ -294,8 +212,8 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
                     ctx.Status("Running coding rules updater...");
                     scaffoldingService.RunCodingRulesUpdater(
                         outputPath,
-                        organizationName: baseName,
-                        repositoryName: baseName);
+                        organizationName: plan.BaseName,
+                        repositoryName: plan.BaseName);
                 }
 
                 return 0;
@@ -327,15 +245,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
                 ProjectStructure = scaffoldingConfig.ProjectStructure.ToString(),
             };
 
-            ReportService.WriteToConsole(finalStats);
-
-            // Write report file if --report flag is passed
-            if (settings.GenerateReport)
-            {
-                var reportPath = Path.Combine(outputPath, ".generation-report.md");
-                ReportService.WriteToFile(finalStats, reportPath);
-                AnsiConsole.MarkupLine($"[dim]Report written to: {reportPath}[/]");
-            }
+            ScaffoldCommandSupport.WriteGenerationReport(finalStats, settings.GenerateReport, outputPath);
         }
 
         AnsiConsole.MarkupLine(
@@ -344,6 +254,49 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
                 : $"[dim]Run 'dotnet build' in {contractsOutputPath} to generate the server code.[/]");
 
         return 0;
+    }
+
+    // What the command is about to do: the specification, the projects and the settings that shape them
+    private static void WritePlan(
+        ServerScaffoldPlan plan,
+        string specPath,
+        ServerConfig serverConfig,
+        ScaffoldingOptions scaffoldingConfig)
+    {
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Specification:[/] {specPath}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Project structure:[/] {plan.Structure}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Repository root:[/] {plan.RepositoryRoot}");
+
+        if (plan.IsThreeProjects)
+        {
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Host project:[/] {plan.HostProjectName}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Contracts project:[/] {plan.ContractsProjectName}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Domain project:[/] {plan.DomainProjectName}");
+        }
+        else if (plan.IsTwoProjects)
+        {
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Host+Contracts project:[/] {plan.ContractsProjectName}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Domain project:[/] {plan.DomainProjectName}");
+        }
+        else
+        {
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Project:[/] {plan.ContractsProjectName}");
+        }
+
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Validation mode:[/] {serverConfig.ValidateSpecificationStrategy}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Versioning strategy:[/] {serverConfig.VersioningStrategy}");
+
+        if (!string.IsNullOrWhiteSpace(serverConfig.Namespace))
+        {
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Namespace:[/] {serverConfig.Namespace}");
+        }
+
+        if (scaffoldingConfig.NoCodingRules)
+        {
+            AnsiConsole.MarkupLine("[blue]Coding rules:[/] disabled");
+        }
+
+        AnsiConsole.WriteLine();
     }
 
     private static ScaffoldingOptions ApplyScaffoldingCliOverrides(
@@ -355,11 +308,16 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         {
             ProjectStructure = options.Scaffolding.ProjectStructure,
             NoCodingRules = options.Scaffolding.NoCodingRules,
-            TestFramework = options.Scaffolding.TestFramework,
             TargetFramework = options.Scaffolding.TargetFramework,
+            HostProjectName = options.Scaffolding.HostProjectName,
+            ContractsProjectName = options.Scaffolding.ContractsProjectName,
+            DomainProjectName = options.Scaffolding.DomainProjectName,
+            HostNamespace = options.Scaffolding.HostNamespace,
+            ContractsNamespace = options.Scaffolding.ContractsNamespace,
+            DomainNamespace = options.Scaffolding.DomainNamespace,
             HostUi = options.Scaffolding.HostUi,
             HostUiMode = options.Scaffolding.HostUiMode,
-            RemoveNamespaceGroupSeparatorInGlobalUsings = options.Scaffolding.RemoveNamespaceGroupSeparatorInGlobalUsings,
+            Aspire = options.Scaffolding.Aspire,
         };
 
         // Override with CLI flags
@@ -369,7 +327,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         }
 
         if (!string.IsNullOrWhiteSpace(settings.ProjectStructure) &&
-            Enum.TryParse<ProjectStructureType>(settings.ProjectStructure, ignoreCase: true, out var projectStructure))
+            EnumOptionHelper.TryParse<ProjectStructureType>(settings.ProjectStructure, out var projectStructure))
         {
             config.ProjectStructure = projectStructure;
         }
@@ -408,13 +366,13 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
 
         // Apply host UI overrides
         if (!string.IsNullOrWhiteSpace(settings.HostUi) &&
-            Enum.TryParse<HostUiType>(settings.HostUi, ignoreCase: true, out var hostUi))
+            EnumOptionHelper.TryParse<HostUiType>(settings.HostUi, out var hostUi))
         {
             config.HostUi = hostUi;
         }
 
         if (!string.IsNullOrWhiteSpace(settings.HostUiMode) &&
-            Enum.TryParse<HostUiModeType>(settings.HostUiMode, ignoreCase: true, out var hostUiMode))
+            EnumOptionHelper.TryParse<HostUiModeType>(settings.HostUiMode, out var hostUiMode))
         {
             config.HostUiMode = hostUiMode;
         }
@@ -436,6 +394,9 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         // Start with config from options file
         var config = options.ToServerConfig();
 
+        // The --overlay files (placed next to the specification and listed relative to the marker later)
+        config.Overlays = OverlayCliHelper.All(options.General.Overlays, settings.Overlays) is { Length: > 0 } overlays ? [.. overlays] : null;
+
         // Override validation strategy if --no-strict is specified
         if (settings.DisableStrictMode)
         {
@@ -448,7 +409,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             config.IncludeDeprecated = true;
         }
 
-        // Override namespace: contracts-namespace takes precedence over --namespace
+        // Namespace: the contracts namespace, then --namespace, then server.namespace from the options file
         if (!string.IsNullOrWhiteSpace(scaffoldingConfig.ContractsNamespace))
         {
             config.Namespace = scaffoldingConfig.ContractsNamespace;
@@ -457,21 +418,21 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         {
             config.Namespace = settings.Namespace;
         }
-        else
+        else if (string.IsNullOrWhiteSpace(config.Namespace))
         {
             config.Namespace = ProjectNameHelper.ExtractSolutionName(settings.ProjectName);
         }
 
         // Override sub-folder strategy if specified
         if (!string.IsNullOrWhiteSpace(settings.SubFolderStrategy) &&
-            Enum.TryParse<SubFolderStrategyType>(settings.SubFolderStrategy, ignoreCase: true, out var subFolderStrategy))
+            EnumOptionHelper.TryParse<SubFolderStrategyType>(settings.SubFolderStrategy, out var subFolderStrategy))
         {
             config.SubFolderStrategy = subFolderStrategy;
         }
 
         // Override versioning strategy if specified
         if (!string.IsNullOrWhiteSpace(settings.VersioningStrategy) &&
-            Enum.TryParse<VersioningStrategyType>(settings.VersioningStrategy, ignoreCase: true, out var versioningStrategy))
+            EnumOptionHelper.TryParse<VersioningStrategyType>(settings.VersioningStrategy, out var versioningStrategy))
         {
             config.VersioningStrategy = versioningStrategy;
         }
@@ -493,6 +454,9 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         // Start with config from options file
         var config = options.ToServerDomainConfig();
 
+        // The --overlay files (placed next to the specification and listed relative to the marker later)
+        config.Overlays = OverlayCliHelper.All(options.General.Overlays, settings.Overlays) is { Length: > 0 } overlays ? [.. overlays] : null;
+
         // Override validation strategy if --no-strict is specified
         if (settings.DisableStrictMode)
         {
@@ -505,7 +469,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             config.IncludeDeprecated = true;
         }
 
-        // Override namespace: domain-namespace takes precedence
+        // Namespace: the domain namespace, then --namespace, then server.namespace from the options file
         if (!string.IsNullOrWhiteSpace(scaffoldingConfig.DomainNamespace))
         {
             config.Namespace = scaffoldingConfig.DomainNamespace;
@@ -513,6 +477,10 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         else if (!string.IsNullOrWhiteSpace(settings.Namespace))
         {
             config.Namespace = settings.Namespace;
+        }
+        else if (!string.IsNullOrWhiteSpace(options.Server.Namespace))
+        {
+            config.Namespace = options.Server.Namespace;
         }
         else
         {
@@ -551,7 +519,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         Version sourceGeneratorVersion)
     {
         // Validate output directory
-        if (!ValidateOutputDirectory(outputPath, projectName))
+        if (!ScaffoldCommandSupport.ValidateOutputDirectory(outputPath, projectName))
         {
             return false;
         }
@@ -562,13 +530,13 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         {
             if (!Directory.Exists(outputPath))
             {
-                Directory.CreateDirectory(outputPath);
-                AnsiConsole.MarkupLine($"[green]✓[/] Created output directory: {outputPath}");
+                TrackedFile.CreateDirectory(outputPath);
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created output directory: {outputPath}");
             }
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]✗[/] Error creating output directory: {ex.Message}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Error creating output directory: {ex.Message}");
             return false;
         }
 
@@ -588,13 +556,22 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         else
         {
             var specFileName = Path.GetFileName(specPath);
-            AnsiConsole.MarkupLine($"[dim]✓[/] Using existing specification: {specFileName}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[dim]✓[/] Using existing specification: {specFileName}");
         }
 
         // Build list of relative spec paths for the project file
         var relativeSpecPaths = specFiles
             .Select(f => GetRelativeSpecPath(specBasePath, outputPath, Path.GetFileName(f)))
             .ToList();
+
+        // The overlays go next to the specification and are listed in the marker, relative to it: the build applies them
+        if (PlaceOverlays(config.Overlays, specBasePath, outputPath) is not { } relativeOverlayPaths)
+        {
+            return false;
+        }
+
+        relativeSpecPaths.AddRange(relativeOverlayPaths);
+        config.Overlays = relativeOverlayPaths.Count > 0 ? relativeOverlayPaths : null;
 
         // Create or update marker file with server config
         ctx.Status("Creating contracts marker file...");
@@ -624,7 +601,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         Version sourceGeneratorVersion)
     {
         // Validate output directory
-        if (!ValidateOutputDirectory(outputPath, projectName))
+        if (!ScaffoldCommandSupport.ValidateOutputDirectory(outputPath, projectName))
         {
             return false;
         }
@@ -635,13 +612,13 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         {
             if (!Directory.Exists(outputPath))
             {
-                Directory.CreateDirectory(outputPath);
-                AnsiConsole.MarkupLine($"[green]✓[/] Created output directory: {outputPath}");
+                TrackedFile.CreateDirectory(outputPath);
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created output directory: {outputPath}");
             }
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]✗[/] Error creating output directory: {ex.Message}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Error creating output directory: {ex.Message}");
             return false;
         }
 
@@ -661,13 +638,22 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         else
         {
             var specFileName = Path.GetFileName(specPath);
-            AnsiConsole.MarkupLine($"[dim]✓[/] Using existing specification: {specFileName}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[dim]✓[/] Using existing specification: {specFileName}");
         }
 
         // Build list of relative spec paths for the project file
         var relativeSpecPaths = specFiles
             .Select(f => GetRelativeSpecPath(specBasePath, outputPath, Path.GetFileName(f)))
             .ToList();
+
+        // The overlays go next to the specification and are listed in the marker, relative to it: the build applies them
+        if (PlaceOverlays(config.Overlays, specBasePath, outputPath) is not { } relativeOverlayPaths)
+        {
+            return false;
+        }
+
+        relativeSpecPaths.AddRange(relativeOverlayPaths);
+        config.Overlays = relativeOverlayPaths.Count > 0 ? relativeOverlayPaths : null;
 
         // Create or update marker file with domain config
         ctx.Status("Creating domain marker file...");
@@ -700,7 +686,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         Version sourceGeneratorVersion)
     {
         // Validate output directory
-        if (!ValidateOutputDirectory(outputPath, projectName))
+        if (!ScaffoldCommandSupport.ValidateOutputDirectory(outputPath, projectName))
         {
             return false;
         }
@@ -711,13 +697,13 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         {
             if (!Directory.Exists(outputPath))
             {
-                Directory.CreateDirectory(outputPath);
-                AnsiConsole.MarkupLine($"[green]✓[/] Created output directory: {outputPath}");
+                TrackedFile.CreateDirectory(outputPath);
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created output directory: {outputPath}");
             }
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]✗[/] Error creating output directory: {ex.Message}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Error creating output directory: {ex.Message}");
             return false;
         }
 
@@ -737,13 +723,22 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         else
         {
             var specFileName = Path.GetFileName(specPath);
-            AnsiConsole.MarkupLine($"[dim]✓[/] Using existing specification: {specFileName}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[dim]✓[/] Using existing specification: {specFileName}");
         }
 
         // Build list of relative spec paths for the project file
         var relativeSpecPaths = specFiles
             .Select(f => GetRelativeSpecPath(specBasePath, outputPath, Path.GetFileName(f)))
             .ToList();
+
+        // The overlays go next to the specification and are listed in the marker, relative to it: the build applies them
+        if (PlaceOverlays(config.Overlays, specBasePath, outputPath) is not { } relativeOverlayPaths)
+        {
+            return false;
+        }
+
+        relativeSpecPaths.AddRange(relativeOverlayPaths);
+        config.Overlays = relativeOverlayPaths.Count > 0 ? relativeOverlayPaths : null;
 
         // Create or update marker file with server config
         ctx.Status("Creating contracts marker file...");
@@ -769,58 +764,11 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         return true;
     }
 
-    private static bool ValidateOutputDirectory(
-        string outputPath,
-        string projectName)
-    {
-        if (!Directory.Exists(outputPath))
-        {
-            return true;
-        }
-
-        var existingCsprojFiles = Directory.GetFiles(outputPath, "*.csproj");
-        var expectedCsprojName = $"{projectName}.csproj";
-
-        foreach (var csprojFile in existingCsprojFiles)
-        {
-            var fileName = Path.GetFileName(csprojFile);
-            if (!fileName.Equals(expectedCsprojName, StringComparison.OrdinalIgnoreCase))
-            {
-                AnsiConsole.MarkupLine($"[red]✗[/] Output directory contains a different project file: {fileName}");
-                AnsiConsole.MarkupLine($"  [red]Expected:[/] {expectedCsprojName}");
-                AnsiConsole.MarkupLine("  [yellow]Please use a different output directory or project name.[/]");
-                return false;
-            }
-        }
-
-        return true;
-    }
-
     /// <summary>
-    /// Gets all specification files including multi-part files.
-    /// Multi-part files follow the pattern: Base.yaml, Base_Part1.yaml, Base_Part2.yaml.
+    /// The specification files: the base file, then its parts as the build finds them (any specification extension).
     /// </summary>
     private static List<string> GetSpecificationFiles(string primarySpecPath)
-    {
-        var specDir = Path.GetDirectoryName(primarySpecPath);
-        if (string.IsNullOrEmpty(specDir))
-        {
-            return [primarySpecPath];
-        }
-
-        var baseName = Path.GetFileNameWithoutExtension(primarySpecPath);
-        var extension = Path.GetExtension(primarySpecPath);
-
-        var allSpecFiles = new List<string> { primarySpecPath };
-
-        // Find multi-part files (e.g., MyApi_Users.yaml, MyApi_Products.yaml)
-        var partPattern = $"{baseName}_*{extension}";
-        var partFiles = Directory.GetFiles(specDir, partPattern)
-            .OrderBy(f => f, StringComparer.OrdinalIgnoreCase);
-
-        allSpecFiles.AddRange(partFiles);
-        return allSpecFiles;
-    }
+        => [primarySpecPath, .. SpecificationService.DiscoverPartFilePaths(primarySpecPath)];
 
     /// <summary>
     /// Determines if spec is inside repository and returns the effective spec path for projects.
@@ -858,7 +806,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             // Create folder if needed
             if (!Directory.Exists(specsFolder))
             {
-                Directory.CreateDirectory(specsFolder);
+                TrackedFile.CreateDirectory(specsFolder);
                 AnsiConsole.MarkupLine("[green]✓[/] Created directory: ScriptsAndSpecifications/");
             }
 
@@ -870,12 +818,12 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
                 if (!File.Exists(destPath) ||
                     File.GetLastWriteTimeUtc(sourcePath) > File.GetLastWriteTimeUtc(destPath))
                 {
-                    File.Copy(sourcePath, destPath, overwrite: true);
-                    AnsiConsole.MarkupLine($"[green]✓[/] Copied specification file to ScriptsAndSpecifications/{fileName}");
+                    TrackedFile.Copy(sourcePath, destPath, overwrite: true);
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Copied specification file to ScriptsAndSpecifications/{fileName}");
                 }
                 else
                 {
-                    AnsiConsole.MarkupLine($"[dim]✓[/] Specification file up to date: ScriptsAndSpecifications/{fileName}");
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[dim]✓[/] Specification file up to date: ScriptsAndSpecifications/{fileName}");
                 }
             }
 
@@ -883,7 +831,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]✗[/] Error copying specification files: {ex.Message}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Error copying specification files: {ex.Message}");
             return false;
         }
     }
@@ -891,6 +839,42 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
     /// <summary>
     /// Gets the relative path from a project directory to the spec files base directory.
     /// </summary>
+    /// <summary>
+    /// Copies the <c>--overlay</c> files next to the specification (where they are not already) and returns their paths
+    /// relative to the project, for the marker and the AdditionalFiles.
+    /// </summary>
+    private static List<string>? PlaceOverlays(
+        IReadOnlyList<string>? overlays,
+        string specBasePath,
+        string projectDirectory)
+    {
+        var relativePaths = new List<string>();
+        foreach (var overlay in overlays ?? [])
+        {
+            var source = Path.GetFullPath(overlay);
+            var fileName = Path.GetFileName(source);
+            var destination = Path.Combine(specBasePath, fileName);
+            try
+            {
+                if (!string.Equals(source, Path.GetFullPath(destination), StringComparison.OrdinalIgnoreCase))
+                {
+                    TrackedFile.CreateDirectory(specBasePath);
+                    TrackedFile.Copy(source, destination, overwrite: true);
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Copied overlay next to the specification: {fileName}");
+                }
+            }
+            catch (Exception ex)
+            {
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Error copying overlay {fileName}: {ex.Message}");
+                return null;
+            }
+
+            relativePaths.Add(GetRelativeSpecPath(specBasePath, projectDirectory, fileName));
+        }
+
+        return relativePaths;
+    }
+
     private static string GetRelativeSpecPath(
         string specBasePath,
         string projectDirectory,
@@ -916,31 +900,31 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         {
             var jsonOptions = JsonSerializerOptionsFactory.Create();
 
-            var json = JsonSerializer.Serialize(config, jsonOptions);
+            var json = ConfigurationFileJsonHelper.Serialize(config, Constants.JsonSchema.Server, jsonOptions);
 
             if (File.Exists(markerFilePath))
             {
                 var existingContent = File.ReadAllText(markerFilePath);
                 if (existingContent.Trim() == json.Trim())
                 {
-                    AnsiConsole.MarkupLine($"[dim]✓[/] Marker file up to date: {Constants.MarkerFile.Server}");
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[dim]✓[/] Marker file up to date: {Constants.MarkerFile.Server}");
                     return true;
                 }
 
-                File.WriteAllText(markerFilePath, json);
-                AnsiConsole.MarkupLine($"[green]✓[/] Updated marker file: {Constants.MarkerFile.Server}");
+                // The marker file is the user's once it exists: an edit in it is not rewritten from the options
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]![/] Marker file kept as it is (it differs from the options given): {Constants.MarkerFile.Server}");
             }
             else
             {
-                File.WriteAllText(markerFilePath, json);
-                AnsiConsole.MarkupLine($"[green]✓[/] Created marker file: {Constants.MarkerFile.Server}");
+                TrackedFile.WriteAllText(markerFilePath, json);
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created marker file: {Constants.MarkerFile.Server}");
             }
 
             return true;
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]✗[/] Error creating marker file: {ex.Message}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Error creating marker file: {ex.Message}");
             return false;
         }
     }
@@ -955,31 +939,31 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         {
             var jsonOptions = JsonSerializerOptionsFactory.Create();
 
-            var json = JsonSerializer.Serialize(config, jsonOptions);
+            var json = ConfigurationFileJsonHelper.Serialize(config, Constants.JsonSchema.ServerHandlers, jsonOptions);
 
             if (File.Exists(markerFilePath))
             {
                 var existingContent = File.ReadAllText(markerFilePath);
                 if (existingContent.Trim() == json.Trim())
                 {
-                    AnsiConsole.MarkupLine($"[dim]✓[/] Marker file up to date: {Constants.MarkerFile.ServerHandlers}");
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[dim]✓[/] Marker file up to date: {Constants.MarkerFile.ServerHandlers}");
                     return true;
                 }
 
-                File.WriteAllText(markerFilePath, json);
-                AnsiConsole.MarkupLine($"[green]✓[/] Updated marker file: {Constants.MarkerFile.ServerHandlers}");
+                // The marker file is the user's once it exists: an edit in it is not rewritten from the options
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]![/] Marker file kept as it is (it differs from the options given): {Constants.MarkerFile.ServerHandlers}");
             }
             else
             {
-                File.WriteAllText(markerFilePath, json);
-                AnsiConsole.MarkupLine($"[green]✓[/] Created marker file: {Constants.MarkerFile.ServerHandlers}");
+                TrackedFile.WriteAllText(markerFilePath, json);
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created marker file: {Constants.MarkerFile.ServerHandlers}");
             }
 
             return true;
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]✗[/] Error creating marker file: {ex.Message}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Error creating marker file: {ex.Message}");
             return false;
         }
     }
@@ -997,19 +981,19 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             if (!File.Exists(csprojPath))
             {
                 var csprojContent = GenerateContractsProjectFileContent(specFilePaths, sourceGeneratorVersion);
-                File.WriteAllText(csprojPath, csprojContent);
-                AnsiConsole.MarkupLine($"[green]✓[/] Created project file: {projectName}.csproj");
+                TrackedFile.WriteAllText(csprojPath, csprojContent);
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created project file: {projectName}.csproj");
             }
             else
             {
                 var updated = UpdateProjectFileIfNeeded(csprojPath, specFilePaths, Constants.MarkerFile.Server);
                 if (updated)
                 {
-                    AnsiConsole.MarkupLine($"[green]✓[/] Updated project file: {projectName}.csproj");
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Updated project file: {projectName}.csproj");
                 }
                 else
                 {
-                    AnsiConsole.MarkupLine($"[dim]✓[/] Project file up to date: {projectName}.csproj");
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[dim]✓[/] Project file up to date: {projectName}.csproj");
                 }
             }
 
@@ -1017,7 +1001,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]✗[/] Error creating/updating project file: {ex.Message}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Error creating/updating project file: {ex.Message}");
             return false;
         }
     }
@@ -1036,19 +1020,19 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             if (!File.Exists(csprojPath))
             {
                 var csprojContent = GenerateDomainProjectFileContent(specFilePaths, contractsProjectName, sourceGeneratorVersion);
-                File.WriteAllText(csprojPath, csprojContent);
-                AnsiConsole.MarkupLine($"[green]✓[/] Created project file: {projectName}.csproj");
+                TrackedFile.WriteAllText(csprojPath, csprojContent);
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created project file: {projectName}.csproj");
             }
             else
             {
                 var updated = UpdateProjectFileIfNeeded(csprojPath, specFilePaths, Constants.MarkerFile.ServerHandlers);
                 if (updated)
                 {
-                    AnsiConsole.MarkupLine($"[green]✓[/] Updated project file: {projectName}.csproj");
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Updated project file: {projectName}.csproj");
                 }
                 else
                 {
-                    AnsiConsole.MarkupLine($"[dim]✓[/] Project file up to date: {projectName}.csproj");
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[dim]✓[/] Project file up to date: {projectName}.csproj");
                 }
             }
 
@@ -1056,7 +1040,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]✗[/] Error creating/updating project file: {ex.Message}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Error creating/updating project file: {ex.Message}");
             return false;
         }
     }
@@ -1151,19 +1135,19 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             if (!File.Exists(csprojPath))
             {
                 var csprojContent = GenerateCombinedHostContractsProjectFileContent(specFilePaths, domainProjectName, targetFramework, hostUi, sourceGeneratorVersion);
-                File.WriteAllText(csprojPath, csprojContent);
-                AnsiConsole.MarkupLine($"[green]✓[/] Created project file: {projectName}.csproj");
+                TrackedFile.WriteAllText(csprojPath, csprojContent);
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created project file: {projectName}.csproj");
             }
             else
             {
                 var updated = UpdateProjectFileIfNeeded(csprojPath, specFilePaths, Constants.MarkerFile.Server);
                 if (updated)
                 {
-                    AnsiConsole.MarkupLine($"[green]✓[/] Updated project file: {projectName}.csproj");
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Updated project file: {projectName}.csproj");
                 }
                 else
                 {
-                    AnsiConsole.MarkupLine($"[dim]✓[/] Project file up to date: {projectName}.csproj");
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[dim]✓[/] Project file up to date: {projectName}.csproj");
                 }
             }
 
@@ -1171,7 +1155,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]✗[/] Error creating/updating project file: {ex.Message}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Error creating/updating project file: {ex.Message}");
             return false;
         }
     }
@@ -1245,8 +1229,8 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
 
             if (!File.Exists(programPath))
             {
-                var programContent = GenerateProgramContent(baseName, hostUi, hostUiMode);
-                File.WriteAllText(programPath, programContent);
+                var programContent = HostProjectFiles.ProgramContent(baseName, hostUi, hostUiMode);
+                TrackedFile.WriteAllText(programPath, programContent);
                 AnsiConsole.MarkupLine("[green]✓[/] Created Program.cs");
             }
             else
@@ -1254,10 +1238,12 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
                 AnsiConsole.MarkupLine("[dim]✓[/] Program.cs already exists");
             }
 
+            HostProjectFiles.WriteLaunchSettings(outputPath, projectName, hostUi);
+
             if (!File.Exists(globalUsingsPath))
             {
-                var globalUsingsContent = GenerateHostGlobalUsingsContent(baseName, hostUi);
-                File.WriteAllText(globalUsingsPath, globalUsingsContent);
+                var globalUsingsContent = HostProjectFiles.GlobalUsingsContent(baseName, hostUi);
+                TrackedFile.WriteAllText(globalUsingsPath, globalUsingsContent);
                 AnsiConsole.MarkupLine("[green]✓[/] Created GlobalUsings.cs");
             }
             else
@@ -1269,118 +1255,9 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]✗[/] Error creating Program.cs: {ex.Message}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Error creating Program.cs: {ex.Message}");
             return false;
         }
-    }
-
-    private static string GenerateProgramContent(
-        string baseName,
-        HostUiType hostUi,
-        HostUiModeType hostUiMode)
-    {
-        var sb = new StringBuilder();
-        sb.AppendLine("var builder = WebApplication.CreateBuilder(args);");
-        sb.AppendLine();
-
-        // Add OpenAPI services if UI is enabled
-        if (hostUi != HostUiType.None)
-        {
-            sb.AppendLine("// Configure OpenAPI document generation");
-            sb.AppendLine("builder.Services.AddOpenApi();");
-            sb.AppendLine();
-        }
-
-        sb.AppendLine("// Register handler implementations from Domain project");
-        sb.AppendLine("builder.Services.AddApiHandlersFromDomain();");
-        sb.AppendLine();
-        sb.AppendLine("var app = builder.Build();");
-        sb.AppendLine();
-
-        // Generate UI mapping based on configuration
-        if (hostUi != HostUiType.None)
-        {
-            if (hostUiMode == HostUiModeType.DevelopmentOnly)
-            {
-                sb.AppendLine("if (app.Environment.IsDevelopment())");
-                sb.AppendLine("{");
-                sb.AppendLine(4, "app.MapOpenApi();");
-                AppendUiMapping(sb, hostUi, 4);
-                sb.AppendLine("}");
-            }
-            else
-            {
-                sb.AppendLine("app.MapOpenApi();");
-                AppendUiMapping(sb, hostUi, 0);
-            }
-
-            sb.AppendLine();
-
-            // Add root redirect to UI
-            var redirectPath = hostUi == HostUiType.Swagger
-                ? "/swagger"
-                : "/scalar/v1";
-            sb.AppendLine("// Redirect root to API documentation");
-            sb.AppendLine("app");
-            sb.Append(4, ".MapGet(\"/\", () => Results.Redirect(\"");
-            sb.Append(redirectPath);
-            sb.AppendLine("\"))");
-            sb.AppendLine(4, ".ExcludeFromDescription();");
-            sb.AppendLine();
-        }
-
-        sb.AppendLine("// Configure middleware and map all endpoints");
-        sb.AppendLine("app.MapEndpoints();");
-        sb.AppendLine();
-        sb.Append("await app.RunAsync();");
-
-        return sb.ToString();
-    }
-
-    private static void AppendUiMapping(
-        StringBuilder sb,
-        HostUiType hostUi,
-        int indent)
-    {
-        switch (hostUi)
-        {
-            case HostUiType.Scalar:
-                sb.AppendLine(indent, "app.MapScalarApiReference();");
-                break;
-            case HostUiType.Swagger:
-                sb.AppendLine(indent, "app.UseSwaggerUI(options =>");
-                sb.AppendLine(indent, "{");
-                sb.AppendLine(indent + 4, "options.SwaggerEndpoint(\"/openapi/v1.json\", \"v1\");");
-                sb.AppendLine(indent, "});");
-                break;
-        }
-    }
-
-    private static string GenerateHostGlobalUsingsContent(
-        string baseName,
-        HostUiType hostUi)
-    {
-        var sb = new StringBuilder();
-
-        // Root namespace for extension methods (from Domain project DI registration)
-        sb.Append("global using ");
-        sb.Append(baseName);
-        sb.AppendLine(";");
-
-        // Generated endpoints namespace
-        sb.Append("global using ");
-        sb.Append(baseName);
-        sb.AppendLine(".Generated.Endpoints;");
-
-        // UI-specific namespaces
-        if (hostUi == HostUiType.Scalar)
-        {
-            sb.AppendLine("global using Scalar.AspNetCore;");
-        }
-
-        return sb
-            .ToString()
-            .TrimEnd();
     }
 
     private static bool UpdateProjectFileIfNeeded(
@@ -1456,7 +1333,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
 
         if (content != originalContent)
         {
-            File.WriteAllText(csprojPath, content);
+            TrackedFile.WriteAllText(csprojPath, content);
             return true;
         }
 

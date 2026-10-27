@@ -150,56 +150,7 @@ public static class CasingHelper
     /// <param name="value">The value to check.</param>
     /// <returns><see langword="true"/> if the value is valid snake_case; otherwise, <see langword="false"/>.</returns>
     public static bool IsSnakeCase(string? value)
-    {
-        if (string.IsNullOrEmpty(value))
-        {
-            return false;
-        }
-
-        // First character must be lowercase letter
-        if (!char.IsLower(value![0]))
-        {
-            return false;
-        }
-
-        var previousWasUnderscore = false;
-
-        for (var i = 0; i < value.Length; i++)
-        {
-            var c = value[i];
-
-            if (c == '_')
-            {
-                // No consecutive underscores
-                if (previousWasUnderscore)
-                {
-                    return false;
-                }
-
-                // No trailing underscore
-                if (i == value.Length - 1)
-                {
-                    return false;
-                }
-
-                previousWasUnderscore = true;
-                continue;
-            }
-
-            previousWasUnderscore = false;
-
-            // Only lowercase letters and digits allowed (no uppercase)
-            if (char.IsLower(c) || char.IsDigit(c))
-            {
-                continue;
-            }
-
-            // Uppercase letters are not allowed in snake_case
-            return false;
-        }
-
-        return true;
-    }
+        => IsSnakeCaseWithLetters(value, char.IsLower);
 
     /// <summary>
     /// Determines whether the specified value is valid UPPER_SNAKE_CASE.
@@ -209,56 +160,7 @@ public static class CasingHelper
     /// <param name="value">The value to check.</param>
     /// <returns><see langword="true"/> if the value is valid UPPER_SNAKE_CASE; otherwise, <see langword="false"/>.</returns>
     public static bool IsUpperSnakeCase(string? value)
-    {
-        if (string.IsNullOrEmpty(value))
-        {
-            return false;
-        }
-
-        // First character must be uppercase letter
-        if (!char.IsUpper(value![0]))
-        {
-            return false;
-        }
-
-        var previousWasUnderscore = false;
-
-        for (var i = 0; i < value.Length; i++)
-        {
-            var c = value[i];
-
-            if (c == '_')
-            {
-                // No consecutive underscores
-                if (previousWasUnderscore)
-                {
-                    return false;
-                }
-
-                // No trailing underscore
-                if (i == value.Length - 1)
-                {
-                    return false;
-                }
-
-                previousWasUnderscore = true;
-                continue;
-            }
-
-            previousWasUnderscore = false;
-
-            // Only uppercase letters and digits allowed (no lowercase)
-            if (char.IsUpper(c) || char.IsDigit(c))
-            {
-                continue;
-            }
-
-            // Lowercase letters are not allowed in UPPER_SNAKE_CASE
-            return false;
-        }
-
-        return true;
-    }
+        => IsSnakeCaseWithLetters(value, char.IsUpper);
 
     /// <summary>
     /// Determines whether the specified operationId uses a valid casing style.
@@ -348,39 +250,21 @@ public static class CasingHelper
         // If it's PascalCase, just lowercase the first character
         if (IsPascalCase(operationId))
         {
-            return char.ToLowerInvariant(operationId[0]) + operationId.Substring(1);
+            return IdentifierCasingHelper.ToLower(operationId[0]) + operationId.Substring(1);
         }
 
-        // If it contains separators, convert to camelCase
-        // Lowercase all characters within each word segment, then capitalize first char of subsequent words
+        // Words split at a separator (-, _, a space, a dot): each keeps its own casing (gridOperatorID stays as it is,
+        // camelCase allows it) - a word in capitals only (LIST_PETS) is lowercased -, the first starts lowercase and the
+        // others uppercase
         var result = new StringBuilder();
-        var capitalizeNext = false;
-        var isFirstChar = true;
-
-        for (var i = 0; i < operationId.Length; i++)
+        var words = operationId.Split(['-', '_', ' ', '.'], StringSplitOptions.RemoveEmptyEntries);
+        foreach (var word in words)
         {
-            var c = operationId[i];
-
-            if (c is '-' or '_' or ' ')
-            {
-                capitalizeNext = true;
-                continue;
-            }
-
-            if (isFirstChar)
-            {
-                result.Append(char.ToLowerInvariant(c));
-                isFirstChar = false;
-            }
-            else if (capitalizeNext)
-            {
-                result.Append(char.ToUpperInvariant(c));
-                capitalizeNext = false;
-            }
-            else
-            {
-                result.Append(char.ToLowerInvariant(c));
-            }
+            var text = word.Any(char.IsLetter) && word.Where(char.IsLetter).All(char.IsUpper)
+                ? IdentifierCasingHelper.ToLower(word)
+                : word;
+            result.Append(result.Length == 0 ? IdentifierCasingHelper.ToLower(text[0]) : IdentifierCasingHelper.ToUpper(text[0]));
+            result.Append(text, 1, text.Length - 1);
         }
 
         return result.ToString();
@@ -401,7 +285,7 @@ public static class CasingHelper
         // If it's camelCase, just uppercase the first character
         if (IsCamelCase(value))
         {
-            return char.ToUpperInvariant(value[0]) + value.Substring(1);
+            return IdentifierCasingHelper.ToUpper(value[0]) + value.Substring(1);
         }
 
         // If it contains separators, convert to PascalCase
@@ -421,30 +305,17 @@ public static class CasingHelper
 
             if (capitalizeNext)
             {
-                result.Append(char.ToUpperInvariant(c));
+                result.Append(IdentifierCasingHelper.ToUpper(c));
                 capitalizeNext = false;
             }
             else
             {
-                result.Append(char.ToLowerInvariant(c));
+                result.Append(IdentifierCasingHelper.ToLower(c));
             }
         }
 
         return result.ToString();
     }
-
-    /// <summary>
-    /// Known acronyms that should be kept together when converting to kebab-case.
-    /// These are replaced with their lowercase equivalents before processing.
-    /// </summary>
-    private static readonly string[] KnownAcronyms =
-    [
-        "IoT",
-        "API",
-        "OAuth",
-        "OpenID",
-        "GraphQL",
-    ];
 
     /// <summary>
     /// Gets a suggestion for converting a value to kebab-case.
@@ -517,11 +388,24 @@ public static class CasingHelper
                 }
             }
 
-            result.Append(char.ToLowerInvariant(c));
+            result.Append(IdentifierCasingHelper.ToLower(c));
         }
 
         return result.ToString();
     }
+
+    /// <summary>
+    /// Known acronyms that should be kept together when converting to kebab-case.
+    /// These are replaced with their lowercase equivalents before processing.
+    /// </summary>
+    private static readonly string[] KnownAcronyms =
+    [
+        "IoT",
+        "API",
+        "OAuth",
+        "OpenID",
+        "GraphQL",
+    ];
 
     /// <summary>
     /// Converts a value to PascalCase format suitable for .NET identifiers.
@@ -574,40 +458,49 @@ public static class CasingHelper
     }
 
     /// <summary>
-    /// Gets the last segment of a dot-separated name with a trailing "Api" suffix stripped
-    /// (case-insensitive). Useful for generating method names that already append "Api"
-    /// (e.g. <c>Map{Segment}Api</c>) to avoid duplicated suffixes such as <c>MapApiApi</c>.
+    /// The name of the API in the server's generated host methods (<c>Add{Name}Api()</c>, <c>Map{Name}Api()</c>,
+    /// <c>Map{Name}Webhooks()</c>, ...): the server marker's <c>apiName</c> when it has one, else the namespace's
+    /// last segment that names the API - a trailing <c>Contracts</c>, <c>Api</c> or <c>Server</c> says nothing about
+    /// it and is skipped. A trailing "Api" is taken off the name, as the method appends its own.
     /// </summary>
-    /// <param name="name">The dot-separated name (e.g., "Company.Product.Api").</param>
+    /// <param name="name">The root namespace (e.g. "Contoso.IoT.Nexus.Api.Contracts").</param>
+    /// <param name="apiName">The server marker's <c>apiName</c>, or null.</param>
     /// <returns>
-    /// The last segment with any trailing "Api" removed
-    /// (e.g., <c>""</c> from <c>"Company.Product.Api"</c>, <c>"Web"</c> from <c>"Company.Product.WebApi"</c>),
-    /// or "Assembly" if the name is null or empty.
+    /// The API's name (e.g. "Nexus" from "Contoso.IoT.Nexus.Api.Contracts", "Web" from "Company.Product.WebApi"), or
+    /// "Assembly" when there is no name at all.
     /// </returns>
-    /// <remarks>
-    /// Examples:
-    /// - "MyCompany.Product.Api" → "" (segment "Api" stripped entirely)
-    /// - "MyCompany.Product.WebApi" → "Web"
-    /// - "MyCompany.PowerController.HostAgent" → "HostAgent"
-    /// - "MyProject" → "MyProject"
-    /// - "" → "Assembly"
-    /// </remarks>
-    public static string GetLastNameSegmentWithoutApiSuffix(string? name)
+    public static string GetApiName(
+        string? name,
+        string? apiName = null)
     {
+        if (!string.IsNullOrWhiteSpace(apiName))
+        {
+            return WithoutApiSuffix(apiName!.Trim().ToPascalCaseForDotNet());
+        }
+
         if (string.IsNullOrEmpty(name))
         {
             return "Assembly";
         }
 
-        var segment = GetLastNameSegment(name);
-
-        if (segment.Length >= 3 &&
-            segment.EndsWith("Api", StringComparison.OrdinalIgnoreCase))
+        var segments = name!.Split('.');
+        var last = segments.Length - 1;
+        while (last > 0 && IsNotTheApisName(segments[last]))
         {
-            return segment.Substring(0, segment.Length - 3);
+            last--;
         }
 
-        return segment;
+        return WithoutApiSuffix(segments[last]);
+
+        static bool IsNotTheApisName(string segment)
+            => segment.Equals("Contracts", StringComparison.OrdinalIgnoreCase) ||
+               segment.Equals("Api", StringComparison.OrdinalIgnoreCase) ||
+               segment.Equals("Server", StringComparison.OrdinalIgnoreCase);
+
+        static string WithoutApiSuffix(string segment)
+            => segment.Length > 3 && segment.EndsWith("Api", StringComparison.OrdinalIgnoreCase)
+                ? segment.Substring(0, segment.Length - 3)
+                : segment;
     }
 
     /// <summary>
@@ -667,5 +560,44 @@ public static class CasingHelper
         return segment.EndsWith(effectiveSuffix, StringComparison.OrdinalIgnoreCase)
             ? segment
             : segment + effectiveSuffix;
+    }
+
+    /// <summary>
+    /// snake_case and UPPER_SNAKE_CASE differ only in the letters they allow: the first character is a letter of that
+    /// case, every other character is one or a digit, and underscores separate words (never doubled, never last).
+    /// </summary>
+    private static bool IsSnakeCaseWithLetters(
+        string? value,
+        Func<char, bool> isLetterOfTheCase)
+    {
+        if (string.IsNullOrEmpty(value) || !isLetterOfTheCase(value![0]))
+        {
+            return false;
+        }
+
+        var previousWasUnderscore = false;
+        for (var i = 0; i < value.Length; i++)
+        {
+            var c = value[i];
+            if (c == '_')
+            {
+                // No consecutive underscores, no trailing underscore
+                if (previousWasUnderscore || i == value.Length - 1)
+                {
+                    return false;
+                }
+
+                previousWasUnderscore = true;
+                continue;
+            }
+
+            previousWasUnderscore = false;
+            if (!isLetterOfTheCase(c) && !char.IsDigit(c))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

@@ -72,4 +72,7 @@ public enum DeclarationModifiers
 
     [Description("internal async")]
     InternalAsync,
+
+    [Description("public sealed partial record")]
+    PublicSealedPartialRecord,
 }

@@ -10,6 +10,8 @@ namespace Atc.Rest.Api.Generator.Tests.Validators;
 /// that declares a <c>201</c> or <c>409</c> is describing a mutation under a method callers and
 /// caches are entitled to treat as read-only.
 /// </remarks>
+[RuleTest("ATC_API_OPR028")]
+[RuleTest("ATC_API_OPR029")]
 public class QueryOperationShapeValidationTests
 {
     private const string TestFilePath = "test.yaml";

@@ -5,6 +5,9 @@ namespace PetStoreFull.ApiHandlers;
 /// </summary>
 public sealed class PlaceOrderHandler : IPlaceOrderHandler
 {
+    /// <summary>
+    /// Executes the PlaceOrder operation.
+    /// </summary>
     public Task<PlaceOrderResult> ExecuteAsync(
         PlaceOrderParameters parameters,
         CancellationToken cancellationToken = default)

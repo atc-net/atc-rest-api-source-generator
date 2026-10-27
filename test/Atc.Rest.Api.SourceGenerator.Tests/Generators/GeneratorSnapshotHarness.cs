@@ -17,10 +17,6 @@ namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 /// </summary>
 internal static class GeneratorSnapshotHarness
 {
-    private const string GeneratedFileSuffix = ".g.cs";
-
-    private static readonly ConcurrentDictionary<string, IReadOnlyList<GeneratedSnapshot>> SnapshotCache = new(StringComparer.Ordinal);
-
     /// <summary>The master folder holding the <c>EndpointPerOperation</c> client marker.</summary>
     public const string ClientOperationMasterFolder = "Client-Operation";
 
@@ -35,6 +31,10 @@ internal static class GeneratorSnapshotHarness
 
     /// <summary>The client marker file name.</summary>
     public const string ClientMarkerFileName = ".atc-rest-api-client";
+
+    private const string GeneratedFileSuffix = ".g.cs";
+
+    private static readonly ConcurrentDictionary<string, IReadOnlyList<GeneratedSnapshot>> SnapshotCache = new(StringComparer.Ordinal);
 
     /// <summary>
     /// The master folders that map onto a Roslyn generator. <c>TS-Client-*</c> is deliberately
@@ -150,7 +150,46 @@ internal static class GeneratorSnapshotHarness
             markerFileName,
             masterFolder,
             useFullReferences: true,
-            assemblyName: scenarioName).GeneratedSources;
+            assemblyName: scenarioName,
+            defaultMarkerContent: DefaultMarkerContent(masterFolder)).GeneratedSources;
+    }
+
+    /// <summary>
+    /// The marker a scenario without a folder for <paramref name="masterFolder"/> is generated with: the
+    /// defaults, and for the two client folders the generation mode the folder stands for. Validation is off:
+    /// these specifications were not written to the Strict rules, and the gate is about what the generator
+    /// emits, not about style rules that would stop it.
+    /// </summary>
+    public static string DefaultMarkerContent(string masterFolder)
+        => masterFolder switch
+        {
+            ClientTypedMasterFolder => """{ "validateSpecificationStrategy": "None", "generationMode": "TypedClient" }""",
+            ClientOperationMasterFolder => """{ "validateSpecificationStrategy": "None", "generationMode": "EndpointPerOperation" }""",
+            _ => """{ "validateSpecificationStrategy": "None" }""",
+        };
+
+    /// <summary>
+    /// Enumerates every scenario and C# generator pair that has <b>no</b> marker folder - the pairs
+    /// <see cref="GetScenarioGeneratorData"/> leaves out. They have no snapshots, but the specification is still
+    /// one a consumer could give to that generator, so its output has to compile.
+    /// </summary>
+    public static IEnumerable<object[]> GetScenarioGeneratorDataWithoutMarker()
+    {
+        var scenarioNames = new DirectoryInfo(GetScenariosRoot())
+            .EnumerateDirectories()
+            .Where(d => d.EnumerateFiles("*.yaml").Any() || d.EnumerateFiles("*.yml").Any())
+            .Select(d => d.Name)
+            .OrderBy(n => n, StringComparer.Ordinal)
+            .ToList();
+
+        foreach (var masterFolder in ConvertedMasterFolders)
+        {
+            var withMarker = new HashSet<string>(GetScenarioNames(masterFolder), StringComparer.Ordinal);
+            foreach (var scenarioName in scenarioNames.Where(n => !withMarker.Contains(n)))
+            {
+                yield return [scenarioName, masterFolder];
+            }
+        }
     }
 
     /// <summary>
@@ -179,46 +218,6 @@ internal static class GeneratorSnapshotHarness
         return serverSources
             .Concat(sources)
             .ToList();
-    }
-
-    /// <summary>
-    /// Runs the server-domain generator against a throwaway project directory.
-    /// <para>
-    /// Handler scaffolds are written as physical, editable project files <i>and</i> emitted as
-    /// source so the current compilation can reference them - but the writer returns early when the
-    /// file already exists, before it emits. Pointed at a shared directory the generator therefore
-    /// stops emitting scaffolds as soon as a previous run has written them, and the snapshot set
-    /// silently shrinks to the dependency registration. A directory unique to each run keeps the
-    /// output deterministic; the scaffolds are then taken from the source output, which carries the
-    /// same content as the files on disk.
-    /// </para>
-    /// </summary>
-    private static List<(string HintName, string Source)> RunServerDomainWithScaffolds(
-        string scenarioName)
-    {
-        var projectDirectory = Path.Combine(
-            Path.GetTempPath(),
-            "atc-domain-scaffolds",
-            Guid.NewGuid().ToString("N"));
-
-        Directory.CreateDirectory(projectDirectory);
-
-        try
-        {
-            return CompilationVerificationHarness.RunGenerator(
-                new ApiServerDomainGenerator(),
-                scenarioName,
-                GetYamlFileName(scenarioName),
-                ".atc-rest-api-server-handlers",
-                ServerDomainMasterFolder,
-                useFullReferences: true,
-                assemblyName: scenarioName,
-                markerDirectoryOverride: projectDirectory).GeneratedSources;
-        }
-        finally
-        {
-            Directory.Delete(projectDirectory, recursive: true);
-        }
     }
 
     /// <summary>
@@ -299,7 +298,7 @@ internal static class GeneratorSnapshotHarness
             : fileName;
     }
 
-    private static string GetYamlFileName(string scenarioName)
+    public static string GetYamlFileName(string scenarioName)
     {
         var scenarioDirectory = Path.Combine(GetScenariosRoot(), scenarioName);
 
@@ -322,5 +321,45 @@ internal static class GeneratorSnapshotHarness
                          StringComparison.OrdinalIgnoreCase))
                  ?? yamlFiles[0],
         };
+    }
+
+    /// <summary>
+    /// Runs the server-domain generator against a throwaway project directory.
+    /// <para>
+    /// Handler scaffolds are written as physical, editable project files <i>and</i> emitted as
+    /// source so the current compilation can reference them - but the writer returns early when the
+    /// file already exists, before it emits. Pointed at a shared directory the generator therefore
+    /// stops emitting scaffolds as soon as a previous run has written them, and the snapshot set
+    /// silently shrinks to the dependency registration. A directory unique to each run keeps the
+    /// output deterministic; the scaffolds are then taken from the source output, which carries the
+    /// same content as the files on disk.
+    /// </para>
+    /// </summary>
+    private static List<(string HintName, string Source)> RunServerDomainWithScaffolds(
+        string scenarioName)
+    {
+        var projectDirectory = Path.Combine(
+            Path.GetTempPath(),
+            "atc-domain-scaffolds",
+            Guid.NewGuid().ToString("N"));
+
+        Directory.CreateDirectory(projectDirectory);
+
+        try
+        {
+            return CompilationVerificationHarness.RunGenerator(
+                new ApiServerDomainGenerator(),
+                scenarioName,
+                GetYamlFileName(scenarioName),
+                ".atc-rest-api-server-handlers",
+                ServerDomainMasterFolder,
+                useFullReferences: true,
+                assemblyName: scenarioName,
+                markerDirectoryOverride: projectDirectory).GeneratedSources;
+        }
+        finally
+        {
+            Directory.Delete(projectDirectory, recursive: true);
+        }
     }
 }

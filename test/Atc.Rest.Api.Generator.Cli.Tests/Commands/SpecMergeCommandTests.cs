@@ -48,7 +48,7 @@ public sealed class SpecMergeCommandTests : IDisposable
         Assert.True(isSuccessful);
         Assert.Contains("--specification", cleanOutput, StringComparison.Ordinal);
         Assert.Contains("--output", cleanOutput, StringComparison.Ordinal);
-        Assert.Contains("--preview", cleanOutput, StringComparison.Ordinal);
+        Assert.Contains("--dry-run", cleanOutput, StringComparison.Ordinal);
         Assert.Contains("--validate", cleanOutput, StringComparison.Ordinal);
     }
 
@@ -70,6 +70,36 @@ public sealed class SpecMergeCommandTests : IDisposable
         Assert.True(isSuccessful, $"Expected success but got failure. Output: {cleanOutput}");
         Assert.Contains("Preview", cleanOutput, StringComparison.Ordinal);
         Assert.Contains("Files to merge", cleanOutput, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A <c>.yml</c> part beside a <c>.yaml</c> base is merged, as the build merges it.
+    /// </summary>
+    [Fact]
+    public async Task SpecMerge_APartWithAnotherExtension_IsMerged()
+    {
+        // Arrange
+        Directory.CreateDirectory(tempOutputDir);
+        var basePath = Path.Combine(tempOutputDir, "Shop.yaml");
+        await File.WriteAllTextAsync(basePath, "openapi: 3.0.3\ninfo:\n  title: Shop\n  version: 1.0.0\npaths: {}\n", TestContext.Current.CancellationToken);
+        await File.WriteAllTextAsync(
+            Path.Combine(tempOutputDir, "Shop_Orders.yml"),
+            "openapi: 3.0.3\ninfo:\n  title: Shop\n  version: 1.0.0\npaths:\n  /orders:\n    get:\n      operationId: listOrders\n      responses:\n        '200':\n          description: OK\n",
+            TestContext.Current.CancellationToken);
+        var outputPath = Path.Combine(tempOutputDir, "merged.yaml");
+        var arguments = $"spec merge -s \"{basePath}\" -o \"{outputPath}\"";
+
+        // Act
+        var (isSuccessful, output) = await ProcessHelper.Execute(
+            CliExeFile,
+            arguments,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        var cleanOutput = CliTestHelper.StripAnsiCodes(output);
+        Assert.True(isSuccessful, $"Expected success but got failure. Output: {cleanOutput}");
+        var merged = await File.ReadAllTextAsync(outputPath, TestContext.Current.CancellationToken);
+        Assert.Contains("/orders", merged, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -163,10 +193,10 @@ public sealed class SpecMergeCommandTests : IDisposable
             arguments,
             cancellationToken: TestContext.Current.CancellationToken);
 
-        // Assert - The --validate flag causes validation to run after merge.
-        // The MultiParts scenario may have validation issues, so we just verify
-        // the validation step was attempted (not that it passes).
+        // Assert - The --validate flag validates the merged document and prints the outcome.
+        // (The "Validating merged specification..." spinner status is transient: it only
+        // reaches the output when a refresh happens while validation runs.)
         var cleanOutput = CliTestHelper.StripAnsiCodes(output);
-        Assert.Contains("Validating merged specification", cleanOutput, StringComparison.Ordinal);
+        Assert.Contains("Merged specification is valid", cleanOutput, StringComparison.Ordinal);
     }
 }

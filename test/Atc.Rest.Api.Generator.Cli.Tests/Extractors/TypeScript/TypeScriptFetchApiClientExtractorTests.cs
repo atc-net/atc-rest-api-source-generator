@@ -19,7 +19,9 @@ public class TypeScriptFetchApiClientExtractorTests
 
         // The handleResponse branch must call response.text() when the caller asked for
         // text. Otherwise the raw body silently degrades to a Blob.
-        Assert.Contains("await response.text()", result, StringComparison.Ordinal);
+        Assert.Contains("await readText(response)", result, StringComparison.Ordinal);
+        Assert.Contains("return decodeText(await response.arrayBuffer(), response.headers.get('Content-Type'));", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("response.text()", result, StringComparison.Ordinal);
         Assert.Contains("isText", result, StringComparison.Ordinal);
     }
 
@@ -40,57 +42,38 @@ public class TypeScriptFetchApiClientExtractorTests
         // Regression: the new text branch must NOT break the existing JSON / Blob paths.
         var result = TypeScriptFetchApiClientExtractor.Generate(headerContent: null);
 
-        Assert.Contains("await response.json()", result, StringComparison.Ordinal);
+        Assert.Contains("JSON.parse(await readText(response))", result, StringComparison.Ordinal);
         Assert.Contains("await response.blob()", result, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void Generate_ConvertDates_AnchorsIsoDateRegexToWholeString()
-    {
-        // The reviver must only convert strings that are ENTIRELY an ISO datetime.
-        // An end-anchored regex prevents free-text fields like
-        // "2026-06-01T12:30:45Z [INFO] hello" (which merely start with a date) from
-        // being silently turned into Date objects.
-        var result = TypeScriptFetchApiClientExtractor.Generate(headerContent: null, convertDates: true);
-
-        Assert.Contains(
-            "const ISO_DATE_RE = /^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}(:\\d{2})?(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})?$/;",
-            result,
-            StringComparison.Ordinal);
-
-        // Regression guard for the buggy prefix-only regex.
-        Assert.DoesNotContain("/^\\d{4}-\\d{2}-\\d{2}(T\\d{2}:\\d{2})/;", result, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void Generate_ConvertDates_GuardsAgainstInvalidDate()
-    {
-        // Even when the regex matches, new Date(value) can yield an Invalid Date.
-        // The reviver must return the original string in that case rather than a
-        // corrupt Date object.
-        var result = TypeScriptFetchApiClientExtractor.Generate(headerContent: null, convertDates: true);
-
-        Assert.Contains("const parsed = new Date(value);", result, StringComparison.Ordinal);
-        Assert.Contains(
-            "return Number.isNaN(parsed.getTime()) ? value : parsed;",
-            result,
-            StringComparison.Ordinal);
-
-        // Regression guard: the old reviver returned the Date unconditionally.
-        Assert.DoesNotContain("    return new Date(value);", result, StringComparison.Ordinal);
     }
 
     [Fact]
     public void Generate_SuccessPath_WrapsJsonParseInTryCatch()
     {
         // A 200 OK response with malformed JSON used to bubble a raw SyntaxError. Wrap
-        // the parse so the discriminated 'parseError' ApiResult arm fires instead.
+        // the parse so the discriminated 'parseError' ApiResult arm fires instead. Only a
+        // malformed body is a parseError: an aborted or cut-off body read rejects like the request.
         var result = TypeScriptFetchApiClientExtractor.Generate(headerContent: null);
 
         Assert.Contains(
-            "return { status: 'parseError', error: parseError as Error, response };",
+            "return { status: 'parseError', error: parseError, response };",
             result,
             StringComparison.Ordinal);
+        Assert.Contains(
+            "if (!(parseError instanceof SyntaxError)) {\n          throw parseError;",
+            result.Replace("\r\n", "\n", StringComparison.Ordinal),
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Generate_WithRetry_ReadsTheBodyInsideTheAttempt()
+    {
+        // The response interceptors and handleResponse run inside the attempt, so the per-attempt
+        // timeout and the caller's signal cover the body read, not only the request.
+        var result = TypeScriptFetchApiClientExtractor.Generate(headerContent: null, hasRetry: true);
+
+        Assert.Contains("(response) => this.readResponse<T>(response, options),", result, StringComparison.Ordinal);
+        Assert.Contains("return this.readResponse<T>(await this.send(url, init), options);", result, StringComparison.Ordinal);
+        Assert.Contains("private async readResponse<T>(response: Response, options?: RequestOptions): Promise<ApiResult<T>> {", result, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -99,10 +82,10 @@ public class TypeScriptFetchApiClientExtractorTests
         // Retry path must hand fetch the per-attempt signal so policy.timeoutMs can
         // actually cancel an in-flight request. Spreading init then overriding signal
         // keeps caller-supplied init fields intact.
-        var result = TypeScriptFetchApiClientExtractor.Generate(headerContent: null, convertDates: false, hasRetry: true);
+        var result = TypeScriptFetchApiClientExtractor.Generate(headerContent: null, hasRetry: true);
 
         Assert.Contains(
-            "(attemptSignal) => fetch(url, { ...init, signal: attemptSignal })",
+            "(attemptSignal) => this.send(url, { ...init, signal: attemptSignal })",
             result,
             StringComparison.Ordinal);
     }
@@ -112,7 +95,7 @@ public class TypeScriptFetchApiClientExtractorTests
     {
         // Regression guard: don't accidentally emit the retry path for clients that have
         // no retry policy declared.
-        var result = TypeScriptFetchApiClientExtractor.Generate(headerContent: null, convertDates: false, hasRetry: false);
+        var result = TypeScriptFetchApiClientExtractor.Generate(headerContent: null, hasRetry: false);
 
         Assert.DoesNotContain("retryWithBackoff", result, StringComparison.Ordinal);
     }
@@ -125,7 +108,6 @@ public class TypeScriptFetchApiClientExtractorTests
         // keeps the bundle clean for consumers that never narrow into schemaMismatch.
         var result = TypeScriptFetchApiClientExtractor.Generate(
             headerContent: null,
-            convertDates: false,
             hasRetry: false,
             zodRuntimeValidate: true);
 
@@ -142,11 +124,10 @@ public class TypeScriptFetchApiClientExtractorTests
         // diagnose spec drift without losing the payload.
         var result = TypeScriptFetchApiClientExtractor.Generate(
             headerContent: null,
-            convertDates: false,
             hasRetry: false,
             zodRuntimeValidate: true);
 
-        Assert.Contains("if (parseSchema && isJson) {", result, StringComparison.Ordinal);
+        Assert.Contains("if (parseSchema && isJson && data !== undefined) {", result, StringComparison.Ordinal);
         Assert.Contains("const parsed = parseSchema.safeParse(data);", result, StringComparison.Ordinal);
         Assert.Contains("return { status: 'schemaMismatch', issues: parsed.error.issues, data, response };", result, StringComparison.Ordinal);
     }
@@ -159,7 +140,6 @@ public class TypeScriptFetchApiClientExtractorTests
         // ApiResult contract of errors-as-values.
         var result = TypeScriptFetchApiClientExtractor.Generate(
             headerContent: null,
-            convertDates: false,
             hasRetry: false,
             zodRuntimeValidate: true);
 
@@ -175,7 +155,6 @@ public class TypeScriptFetchApiClientExtractorTests
         // existing 150+ client snapshots stay byte-identical.
         var result = TypeScriptFetchApiClientExtractor.Generate(
             headerContent: null,
-            convertDates: false,
             hasRetry: false,
             zodRuntimeValidate: false);
 
@@ -271,6 +250,35 @@ public class TypeScriptFetchApiClientExtractorTests
         var result = TypeScriptFetchApiClientExtractor.Generate(headerContent: null);
 
         Assert.Contains("async function* parseEventStream<T>(", result, StringComparison.Ordinal);
-        Assert.Contains("yield* parseEventStream<T>(reader, decoder);", result, StringComparison.Ordinal);
+        Assert.Contains("yield* parseEventStream<T>(reader, decoder, undefined, sseItemEvents, options?.onEvent);", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Generate_RequestStream_CancelsABodyTheConsumerStoppedReading()
+    {
+        // A consumer that breaks out of `for await` runs the generator's finally: the body must be cancelled
+        // (not only unlocked) so the server sees the disconnect instead of sending until the process ends.
+        var result = TypeScriptFetchApiClientExtractor.Generate(headerContent: null);
+
+        Assert.Contains("async function releaseReader(reader: ReadableStreamDefaultReader<Uint8Array>, finished: boolean): Promise<void> {", result, StringComparison.Ordinal);
+        Assert.Contains("await reader.cancel().catch(() => undefined);", result, StringComparison.Ordinal);
+
+        // One per reader: SSE, JSON array, JSON Lines, JSON Text Sequence, multipart
+        Assert.Equal(5, result.Split("await releaseReader(reader, finished);").Length - 1);
+        Assert.DoesNotContain("    reader.releaseLock();\n    }", result.Replace("\r\n", "\n", StringComparison.Ordinal), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Generate_SuccessBody_JsonOperationReadsJson_EmptyBodyIsNoData_NoContentTypeIsText()
+    {
+        // responseType 'json' (every generated JSON operation) parses the body whatever the Content-Type says and
+        // reads an empty body as undefined; without a responseType a body without a Content-Type is its text, not
+        // a Blob; a schema check only sees a body that is there.
+        var result = TypeScriptFetchApiClientExtractor.Generate(headerContent: null, zodRuntimeValidate: true);
+
+        Assert.Contains("data = text.length === 0 ? undefined : JSON.parse(text);", result, StringComparison.Ordinal);
+        Assert.Contains("} else if (responseType === 'blob' || contentType.length > 0) {", result, StringComparison.Ordinal);
+        Assert.Contains("data = text.length === 0 ? undefined : text;", result, StringComparison.Ordinal);
+        Assert.Contains("if (parseSchema && isJson && data !== undefined) {", result, StringComparison.Ordinal);
     }
 }

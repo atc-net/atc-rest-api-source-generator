@@ -10,7 +10,7 @@ public static class ResilienceDependencyInjectionExtractor
     /// </summary>
     /// <param name="openApiDoc">The OpenAPI document.</param>
     /// <param name="projectName">The project name for namespace.</param>
-    /// <param name="includeDeprecated">Whether to include deprecated operations.</param>
+    /// <param name="includeDeprecated">Not used: retry policies of deprecated operations are always included (see <c>CollectPolicies</c>).</param>
     /// <returns>Generated code content for the resilience DI extension class, or null if no policies needed.</returns>
     public static string? Extract(
         OpenApiDocument openApiDoc,
@@ -23,90 +23,156 @@ public static class ResilienceDependencyInjectionExtractor
         }
 
         // Collect all unique policies from retry extensions
-        var policies = ResiliencePoliciesExtractor.CollectPolicies(openApiDoc, includeDeprecated);
+        var policies = ResiliencePoliciesExtractor.CollectPolicies(openApiDoc);
 
         if (policies.Count == 0)
         {
             return null;
         }
 
+        // The document-level policy is the client default; a document without one names no default
+        var documentPolicy = openApiDoc.Extensions.ExtractRetryPolicy();
+        var defaultPolicyConstant = documentPolicy is not null && policies.ContainsKey(documentPolicy)
+            ? ResiliencePoliciesExtractor.GenerateConstantName(documentPolicy)
+            : null;
+
         // Generate the complete file content
-        return GenerateFileContent(projectName, policies);
+        return GenerateFileContent(projectName, policies, defaultPolicyConstant);
     }
 
     /// <summary>
-    /// Generates the complete file content.
+    /// Generates the complete file content: the <c>AddApiResilience</c> extension, which selects a
+    /// pipeline per request (the operation's policy, "no retry" for POST/PATCH unless the operation
+    /// opts in), and <c>ApiResilienceRequest</c>, which the generated clients use to tell it which.
     /// </summary>
     private static string GenerateFileContent(
         string projectName,
-        Dictionary<string, RetryConfiguration> policies)
+        Dictionary<string, RetryConfiguration> policies,
+        string? defaultPolicyConstant)
     {
-        // Generate content first to analyze for required usings
-        var contentBuilder = new StringBuilder();
-        contentBuilder.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
-        contentBuilder.AppendLine("public static class ResilienceServiceCollectionExtensions");
-        contentBuilder.AppendLine("{");
-        contentBuilder.AppendLine(4, "public static IHttpClientBuilder AddApiResilience(");
-        contentBuilder.AppendLine(8, "this IHttpClientBuilder builder,");
-        contentBuilder.AppendLine(8, "string policyName)");
-        contentBuilder.AppendLine(12, "pipeline.AddRetry(new HttpRetryStrategyOptions");
-        contentBuilder.AppendLine(16, "Delay = TimeSpan.FromSeconds(1.0),");
-        contentBuilder.AppendLine(16, "BackoffType = DelayBackoffType.Exponential,");
-        contentBuilder.AppendLine(16, "ShouldHandle = new PredicateBuilder<HttpResponseMessage>()");
-        contentBuilder.AppendLine(20, ".HandleResult(response => response.StatusCode >= HttpStatusCode.InternalServerError ||");
-        contentBuilder.AppendLine(46, "response.StatusCode == HttpStatusCode.RequestTimeout ||");
-        contentBuilder.AppendLine(46, "response.StatusCode == HttpStatusCode.TooManyRequests)");
-        contentBuilder.AppendLine(20, ".Handle<HttpRequestException>()");
-        contentBuilder.AppendLine(20, ".Handle<TimeoutRejectedException>(),");
-        contentBuilder.AppendLine(12, "pipeline.AddTimeout(TimeSpan.FromSeconds(30));");
-        contentBuilder.AppendLine(12, "pipeline.AddCircuitBreaker(new HttpCircuitBreakerStrategyOptions");
-        contentBuilder.AppendLine("}");
-        var content = contentBuilder.ToString();
-
-        // Build header with only required usings
-        var builder = new StringBuilder();
-        builder.Append(UsingStatementHelper.BuildHeader(content, NamespaceConstants.SystemCodeDomCompiler));
-        builder.AppendLine($"using {projectName}.Generated.Resilience;");
-        builder.AppendLine();
-        builder.AppendLine($"namespace {projectName}.Generated.Resilience;");
-        builder.AppendLine();
-        builder.AppendLine("/// <summary>");
-        builder.AppendLine("/// Extension methods for configuring API resilience policies.");
-        builder.AppendLine("/// </summary>");
-        builder.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
-        builder.AppendLine("public static class ResilienceServiceCollectionExtensions");
-        builder.AppendLine("{");
-        builder.AppendLine(4, "/// <summary>");
-        builder.AppendLine(4, "/// Adds a resilience handler to the HTTP client builder based on OpenAPI extensions.");
-        builder.AppendLine(4, "/// </summary>");
-        builder.AppendLine(4, "/// <param name=\"builder\">The HTTP client builder.</param>");
-        builder.AppendLine(4, "/// <param name=\"policyName\">The resilience policy name.</param>");
-        builder.AppendLine(4, "/// <returns>The HTTP client builder for method chaining.</returns>");
-        builder.AppendLine(4, "public static IHttpClientBuilder AddApiResilience(");
-        builder.AppendLine(8, "this IHttpClientBuilder builder,");
-        builder.AppendLine(8, "string policyName)");
-        builder.AppendLine(4, "{");
-        builder.AppendLine(8, "switch (policyName)");
-        builder.AppendLine(8, "{");
-
         var sortedPolicies = policies
             .OrderBy(p => p.Key, StringComparer.Ordinal)
             .ToList();
 
+        var builder = new StringBuilder();
+        builder.AppendLine("// <auto-generated />");
+        builder.AppendLine("#nullable enable");
+        builder.AppendLine();
+        builder.AppendLine("using System;");
+        builder.AppendLine("using System.CodeDom.Compiler;");
+        builder.AppendLine("using System.Globalization;");
+        builder.AppendLine("using System.Net;");
+        builder.AppendLine("using System.Net.Http;");
+        builder.AppendLine("using System.Threading;");
+        builder.AppendLine("using System.Threading.Tasks;");
+        builder.AppendLine("using Microsoft.Extensions.DependencyInjection;");
+        builder.AppendLine("using Microsoft.Extensions.Http.Resilience;");
+        builder.AppendLine("using Polly;");
+        builder.AppendLine("using Polly.Timeout;");
+        builder.AppendLine();
+        builder.AppendLine($"namespace {projectName}.Generated.Resilience;");
+        builder.AppendLine();
+
+        AppendServiceCollectionExtensions(builder, sortedPolicies, defaultPolicyConstant);
+        builder.AppendLine();
+        AppendRequestHelper(builder);
+        builder.AppendLine();
+        AppendBufferingHandler(builder);
+
+        return builder.ToString();
+    }
+
+    private static void AppendServiceCollectionExtensions(
+        StringBuilder builder,
+        List<KeyValuePair<string, RetryConfiguration>> sortedPolicies,
+        string? defaultPolicyConstant)
+    {
+        builder.AppendLine("/// <summary>");
+        builder.AppendLine("/// Extension methods for configuring API resilience policies.");
+        builder.AppendLine("/// </summary>");
+        builder.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
+        builder.AppendLine("public static class ApiResilienceHttpClientBuilderExtensions");
+        builder.AppendLine("{");
+        builder.AppendLine(4, "/// <summary>");
+        builder.AppendLine(4, "/// Adds the API resilience handler to the HTTP client builder. Each request runs the policy its");
+        builder.AppendLine(4, "/// operation declares in the OpenAPI specification (<c>x-retry-*</c>); requests that declare none use");
+        builder.AppendLine(4, "/// <paramref name=\"policyName\"/>. POST and PATCH are not retried unless their operation opts in,");
+        builder.AppendLine(4, "/// and a request that is not retried still gets its policy's timeout and circuit breaker. The generated");
+        builder.AppendLine(4, "/// clients' responses that are not streamed are read inside the pipeline (see");
+        builder.AppendLine(4, "/// <see cref=\"ApiResilienceRequest.BufferResponse\"/>), so the timeout and the retry cover the body too.");
+        builder.AppendLine(4, "/// </summary>");
+        builder.AppendLine(4, "/// <param name=\"builder\">The HTTP client builder.</param>");
+        builder.AppendLine(4, defaultPolicyConstant is null
+            ? "/// <param name=\"policyName\">The default resilience policy (see <see cref=\"ResiliencePolicies\"/>).</param>"
+            : $"/// <param name=\"policyName\">The default resilience policy (see <see cref=\"ResiliencePolicies\"/>): the document's, <see cref=\"ResiliencePolicies.{defaultPolicyConstant}\"/>, unless named.</param>");
+        builder.AppendLine(4, "/// <returns>The HTTP client builder for method chaining.</returns>");
+        builder.AppendLine(4, "public static IHttpClientBuilder AddApiResilience(");
+        builder.AppendLine(8, "this IHttpClientBuilder builder,");
+        builder.AppendLine(8, defaultPolicyConstant is null
+            ? "string policyName)"
+            : $"string policyName = ResiliencePolicies.{defaultPolicyConstant})");
+        builder.AppendLine(4, "{");
+        builder.AppendLine(8, "builder");
+        builder.AppendLine(12, ".AddResilienceHandler(\"ApiResilience\", static (pipeline, context) => ConfigurePipeline(pipeline, context.InstanceName))");
+        builder.AppendLine(12, ".SelectPipelineBy(_ => request => SelectPipelineKey(request, policyName));");
+        builder.AppendLine();
+        builder.AppendLine(8, "// Inside the resilience handler: it reads a body within the attempt, with the attempt's timeout");
+        builder.AppendLine(8, "builder.AddHttpMessageHandler(static () => new ApiResilienceBufferingHandler());");
+        builder.AppendLine();
+        builder.AppendLine(8, "return builder;");
+        builder.AppendLine(4, "}");
+        builder.AppendLine();
+
+        // Pipeline selection: the request's stamp, else the method rule
+        builder.AppendLine(4, "private static string SelectPipelineKey(");
+        builder.AppendLine(8, "HttpRequestMessage request,");
+        builder.AppendLine(8, "string defaultPolicyName)");
+        builder.AppendLine(4, "{");
+        builder.AppendLine(8, "if (request.Options.TryGetValue(ApiResilienceRequest.PipelineKey, out var stamp))");
+        builder.AppendLine(8, "{");
+        builder.AppendLine(12, "var (policyName, retry, timeoutSeconds) = ApiResilienceRequest.ParsePipelineKey(stamp);");
+        builder.AppendLine(12, "return ApiResilienceRequest.BuildPipelineKey(");
+        builder.AppendLine(16, "IsKnownPolicy(policyName) ? policyName : defaultPolicyName,");
+        builder.AppendLine(16, "retry,");
+        builder.AppendLine(16, "timeoutSeconds);");
+        builder.AppendLine(8, "}");
+        builder.AppendLine();
+        builder.AppendLine(8, "// POST and PATCH are not idempotent: resending one after a timeout or 5xx can apply it twice.");
+        builder.AppendLine(8, "var retryByDefault = request.Method != HttpMethod.Post && request.Method != HttpMethod.Patch;");
+        builder.AppendLine(8, "return ApiResilienceRequest.BuildPipelineKey(defaultPolicyName, retryByDefault, timeoutSeconds: null);");
+        builder.AppendLine(4, "}");
+        builder.AppendLine();
+
+        builder.AppendLine(4, "private static bool IsKnownPolicy(string policyName)");
+        builder.AppendLine(8, "=> policyName switch");
+        builder.AppendLine(8, "{");
+        foreach (var policyKvp in sortedPolicies)
+        {
+            builder.AppendLine(12, $"ResiliencePolicies.{ResiliencePoliciesExtractor.GenerateConstantName(policyKvp.Key)} => true,");
+        }
+
+        builder.AppendLine(12, "_ => false,");
+        builder.AppendLine(8, "};");
+        builder.AppendLine();
+
+        builder.AppendLine(4, "private static void ConfigurePipeline(");
+        builder.AppendLine(8, "ResiliencePipelineBuilder<HttpResponseMessage> pipeline,");
+        builder.AppendLine(8, "string pipelineKey)");
+        builder.AppendLine(4, "{");
+        builder.AppendLine(8, "var (policyName, retry, timeoutSeconds) = ApiResilienceRequest.ParsePipelineKey(pipelineKey);");
+        builder.AppendLine(8, "switch (policyName)");
+        builder.AppendLine(8, "{");
         foreach (var policyKvp in sortedPolicies)
         {
             var constantName = ResiliencePoliciesExtractor.GenerateConstantName(policyKvp.Key);
             builder.AppendLine(12, $"case ResiliencePolicies.{constantName}:");
-            builder.AppendLine(16, $"Configure{constantName}(builder);");
+            builder.AppendLine(16, $"Configure{constantName}(pipeline, retry, timeoutSeconds);");
             builder.AppendLine(16, "break;");
         }
 
         builder.AppendLine(8, "}");
-        builder.AppendLine();
-        builder.AppendLine(8, "return builder;");
         builder.AppendLine(4, "}");
 
-        // Generate individual configuration methods
         foreach (var policyKvp in sortedPolicies)
         {
             builder.AppendLine();
@@ -114,12 +180,11 @@ public static class ResilienceDependencyInjectionExtractor
         }
 
         builder.AppendLine("}");
-
-        return builder.ToString();
     }
 
     /// <summary>
-    /// Generates a configuration method for a specific policy.
+    /// Generates the configuration method for a specific policy. Without retry the pipeline keeps the
+    /// policy's timeout and circuit breaker.
     /// </summary>
     private static void GenerateConfigurationMethod(
         StringBuilder builder,
@@ -127,83 +192,263 @@ public static class ResilienceDependencyInjectionExtractor
         RetryConfiguration config)
     {
         var constantName = ResiliencePoliciesExtractor.GenerateConstantName(policyName);
+        var policyTimeout = config.TimeoutSeconds?.ToString(CultureInfo.InvariantCulture);
 
-        builder.AppendLine(4, $"private static void Configure{constantName}(IHttpClientBuilder builder)");
+        builder.AppendLine(4, $"private static void Configure{constantName}(");
+        builder.AppendLine(8, "ResiliencePipelineBuilder<HttpResponseMessage> pipeline,");
+        builder.AppendLine(8, "bool retry,");
+        builder.AppendLine(8, "double? timeoutSeconds)");
         builder.AppendLine(4, "{");
-        builder.AppendLine(8, $"builder.AddResilienceHandler(ResiliencePolicies.{constantName}, pipeline =>");
+
+        if (policyTimeout is not null)
+        {
+            builder.AppendLine(8, $"var timeout = TimeSpan.FromSeconds(timeoutSeconds ?? {policyTimeout});");
+            builder.AppendLine();
+        }
+
+        builder.AppendLine(8, "if (retry)");
         builder.AppendLine(8, "{");
 
-        // Add retry strategy
+        if (config.TotalTimeoutSeconds is { } totalTimeout)
+        {
+            // Added first, so it is outside the retry: one deadline over every attempt and the waits between them
+            builder.AppendLine(12, $"pipeline.AddTimeout(TimeSpan.FromSeconds({totalTimeout.ToString(CultureInfo.InvariantCulture)}));");
+            builder.AppendLine();
+        }
+
+        // A 429 or 503 asking for a longer wait than the per-attempt timeout (30 s without one) goes back to the caller.
+        var cap = policyTimeout is not null
+            ? "timeout"
+            : "TimeSpan.FromSeconds(timeoutSeconds ?? ApiResilienceRequest.MaxRetryAfterSeconds)";
+        builder.AppendLine(12, $"var maxRetryAfter = {cap};");
+        builder.AppendLine();
+
         builder.AppendLine(12, "pipeline.AddRetry(new HttpRetryStrategyOptions");
         builder.AppendLine(12, "{");
         builder.AppendLine(16, $"MaxRetryAttempts = {config.MaxAttempts},");
-        builder.AppendLine(16, $"Delay = TimeSpan.FromSeconds({config.DelaySeconds.ToString(System.Globalization.CultureInfo.InvariantCulture)}),");
+        builder.AppendLine(16, $"Delay = TimeSpan.FromSeconds({config.DelaySeconds.ToString(CultureInfo.InvariantCulture)}),");
         builder.AppendLine(16, $"BackoffType = DelayBackoffType.{config.BackoffType},");
         builder.AppendLine(16, $"UseJitter = {(config.UseJitter ? "true" : "false")},");
 
-        // Add DelayGenerator when Handle429 is enabled to respect Retry-After header
+        // The wait a 429 or 503 asks for (Retry-After) replaces the back-off; without one the back-off applies
+        builder.AppendLine(16, "DelayGenerator = static args => new ValueTask<TimeSpan?>(ApiResilienceRequest.GetRetryAfter(args.Outcome.Result)),");
+        builder.AppendLine(16, "ShouldHandle = new PredicateBuilder<HttpResponseMessage>()");
+        builder.AppendLine(20, ".HandleResult(response => (response.StatusCode >= HttpStatusCode.InternalServerError ||");
+        builder.AppendLine(47, config.Handle429 ? "response.StatusCode == HttpStatusCode.RequestTimeout ||" : "response.StatusCode == HttpStatusCode.RequestTimeout) &&");
         if (config.Handle429)
         {
-            builder.AppendLine(16, "DelayGenerator = static args =>");
-            builder.AppendLine(16, "{");
-            builder.AppendLine(20, "if (args.Outcome.Result?.StatusCode == HttpStatusCode.TooManyRequests)");
-            builder.AppendLine(20, "{");
-            builder.AppendLine(24, "var retryAfter = args.Outcome.Result.Headers.RetryAfter;");
-            builder.AppendLine(24, "if (retryAfter?.Delta is { } delta)");
-            builder.AppendLine(24, "{");
-            builder.AppendLine(28, "return new ValueTask<TimeSpan?>(delta);");
-            builder.AppendLine(24, "}");
-            builder.AppendLine();
-            builder.AppendLine(24, "if (retryAfter?.Date is { } date)");
-            builder.AppendLine(24, "{");
-            builder.AppendLine(28, "var delay = date - DateTimeOffset.UtcNow;");
-            builder.AppendLine(28, "return new ValueTask<TimeSpan?>(delay > TimeSpan.Zero ? delay : null);");
-            builder.AppendLine(24, "}");
-            builder.AppendLine(20, "}");
-            builder.AppendLine();
-            builder.AppendLine(20, "return new ValueTask<TimeSpan?>((TimeSpan?)null);");
-            builder.AppendLine(16, "},");
+            builder.AppendLine(47, "response.StatusCode == HttpStatusCode.TooManyRequests) &&");
         }
 
-        // Build ShouldHandle predicate - conditionally include TooManyRequests based on Handle429
-        builder.AppendLine(16, "ShouldHandle = new PredicateBuilder<HttpResponseMessage>()");
-        if (config.Handle429)
-        {
-            builder.AppendLine(20, ".HandleResult(response => response.StatusCode >= HttpStatusCode.InternalServerError ||");
-            builder.AppendLine(46, "response.StatusCode == HttpStatusCode.RequestTimeout ||");
-            builder.AppendLine(46, "response.StatusCode == HttpStatusCode.TooManyRequests)");
-        }
-        else
-        {
-            builder.AppendLine(20, ".HandleResult(response => response.StatusCode >= HttpStatusCode.InternalServerError ||");
-            builder.AppendLine(46, "response.StatusCode == HttpStatusCode.RequestTimeout)");
-        }
+        builder.AppendLine(46, "!(ApiResilienceRequest.GetRetryAfter(response) > maxRetryAfter))");
 
         builder.AppendLine(20, ".Handle<HttpRequestException>()");
         builder.AppendLine(20, ".Handle<TimeoutRejectedException>(),");
         builder.AppendLine(12, "});");
+        builder.AppendLine(8, "}");
+        builder.AppendLine();
 
-        // Add timeout if specified
-        if (config.TimeoutSeconds.HasValue)
+        if (policyTimeout is not null)
         {
-            builder.AppendLine();
-            builder.AppendLine(12, $"pipeline.AddTimeout(TimeSpan.FromSeconds({config.TimeoutSeconds.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)}));");
+            builder.AppendLine(8, "pipeline.AddTimeout(timeout);");
+        }
+        else
+        {
+            builder.AppendLine(8, "if (timeoutSeconds is { } seconds)");
+            builder.AppendLine(8, "{");
+            builder.AppendLine(12, "pipeline.AddTimeout(TimeSpan.FromSeconds(seconds));");
+            builder.AppendLine(8, "}");
         }
 
-        // Add circuit breaker if enabled
         if (config.CircuitBreakerEnabled)
         {
             builder.AppendLine();
-            builder.AppendLine(12, "pipeline.AddCircuitBreaker(new HttpCircuitBreakerStrategyOptions");
-            builder.AppendLine(12, "{");
-            builder.AppendLine(16, $"SamplingDuration = TimeSpan.FromSeconds({config.CircuitBreakerSamplingDurationSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture)}),");
-            builder.AppendLine(16, $"FailureRatio = {config.CircuitBreakerFailureRatio.ToString(System.Globalization.CultureInfo.InvariantCulture)},");
-            builder.AppendLine(16, $"MinimumThroughput = {config.CircuitBreakerMinimumThroughput},");
-            builder.AppendLine(16, $"BreakDuration = TimeSpan.FromSeconds({config.CircuitBreakerBreakDurationSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture)}),");
-            builder.AppendLine(12, "});");
+            builder.AppendLine(8, "pipeline.AddCircuitBreaker(new HttpCircuitBreakerStrategyOptions");
+            builder.AppendLine(8, "{");
+            builder.AppendLine(12, $"SamplingDuration = TimeSpan.FromSeconds({config.CircuitBreakerSamplingDurationSeconds.ToString(CultureInfo.InvariantCulture)}),");
+            builder.AppendLine(12, $"FailureRatio = {config.CircuitBreakerFailureRatio.ToString(CultureInfo.InvariantCulture)},");
+            builder.AppendLine(12, $"MinimumThroughput = {config.CircuitBreakerMinimumThroughput},");
+            builder.AppendLine(12, $"BreakDuration = TimeSpan.FromSeconds({config.CircuitBreakerBreakDurationSeconds.ToString(CultureInfo.InvariantCulture)}),");
+            builder.AppendLine(8, "});");
         }
 
-        builder.AppendLine(8, "});");
         builder.AppendLine(4, "}");
+    }
+
+    /// <summary>
+    /// Generates <c>ApiResilienceRequest</c>: the request option the generated clients set for operations
+    /// with their own retry settings, and the pipeline-key format shared with the handler.
+    /// </summary>
+    private static void AppendRequestHelper(StringBuilder builder)
+    {
+        builder.AppendLine("/// <summary>");
+        builder.AppendLine("/// Tells the API resilience handler (<see cref=\"ApiResilienceHttpClientBuilderExtensions.AddApiResilience\"/>)");
+        builder.AppendLine("/// how to run one request. The generated clients set it for operations with their own <c>x-retry-*</c>");
+        builder.AppendLine("/// settings; hand-written requests may use it too.");
+        builder.AppendLine("/// </summary>");
+        builder.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
+        builder.AppendLine("public static class ApiResilienceRequest");
+        builder.AppendLine("{");
+        builder.AppendLine(4, "/// <summary>");
+        builder.AppendLine(4, "/// The longest Retry-After a 429 or 503 may ask for when the policy has no timeout; longer goes back to the caller.");
+        builder.AppendLine(4, "/// </summary>");
+        builder.AppendLine(4, "public const double MaxRetryAfterSeconds = 30;");
+        builder.AppendLine();
+        builder.AppendLine(4, "private const string NoRetryMarker = \"no-retry\";");
+        builder.AppendLine(4, "private const string TimeoutPrefix = \"timeout=\";");
+        builder.AppendLine();
+        builder.AppendLine(4, "/// <summary>");
+        builder.AppendLine(4, "/// Gets the request option that carries the pipeline for a request.");
+        builder.AppendLine(4, "/// </summary>");
+        builder.AppendLine(4, "public static HttpRequestOptionsKey<string> PipelineKey { get; } = new(\"Atc.Rest.Api.ResiliencePipeline\");");
+        builder.AppendLine();
+        builder.AppendLine(4, "/// <summary>");
+        builder.AppendLine(4, "/// Gets the request option that has the response's body read inside the resilience pipeline.");
+        builder.AppendLine(4, "/// </summary>");
+        builder.AppendLine(4, "public static HttpRequestOptionsKey<bool> BufferResponseKey { get; } = new(\"Atc.Rest.Api.ResilienceBufferResponse\");");
+        builder.AppendLine();
+        builder.AppendLine(4, "/// <summary>");
+        builder.AppendLine(4, "/// Reads the response's body inside the resilience pipeline, within the attempt: the policy's timeout covers");
+        builder.AppendLine(4, "/// the body (a body that stalls after the headers times out like a request that gets no answer), and a body");
+        builder.AppendLine(4, "/// the connection breaks off fails the attempt, which is retried like any failed attempt. The generated");
+        builder.AppendLine(4, "/// clients set it for every response they do not stream; never set it for a response read as a stream.");
+        builder.AppendLine(4, "/// </summary>");
+        builder.AppendLine(4, "/// <param name=\"request\">The request.</param>");
+        builder.AppendLine(4, "public static void BufferResponse(HttpRequestMessage request)");
+        builder.AppendLine(8, "=> request?.Options.Set(BufferResponseKey, true);");
+        builder.AppendLine();
+        builder.AppendLine(4, "/// <summary>");
+        builder.AppendLine(4, "/// Runs the request with <paramref name=\"policyName\"/> (the client default when null) and retries it,");
+        builder.AppendLine(4, "/// also when it is a POST or PATCH.");
+        builder.AppendLine(4, "/// </summary>");
+        builder.AppendLine(4, "/// <param name=\"request\">The request.</param>");
+        builder.AppendLine(4, "/// <param name=\"policyName\">The policy (see <see cref=\"ResiliencePolicies\"/>), or null for the client default.</param>");
+        builder.AppendLine(4, "public static void UsePolicy(");
+        builder.AppendLine(8, "HttpRequestMessage request,");
+        builder.AppendLine(8, "string? policyName = null)");
+        builder.AppendLine(8, "=> request?.Options.Set(PipelineKey, BuildPipelineKey(policyName ?? string.Empty, retry: true, timeoutSeconds: null));");
+        builder.AppendLine();
+        builder.AppendLine(4, "/// <summary>");
+        builder.AppendLine(4, "/// Sends the request once. The policy's timeout and circuit breaker still apply.");
+        builder.AppendLine(4, "/// </summary>");
+        builder.AppendLine(4, "/// <param name=\"request\">The request.</param>");
+        builder.AppendLine(4, "/// <param name=\"policyName\">The policy (see <see cref=\"ResiliencePolicies\"/>), or null for the client default.</param>");
+        builder.AppendLine(4, "/// <param name=\"timeoutSeconds\">A per-attempt timeout replacing the policy's, or null to keep it.</param>");
+        builder.AppendLine(4, "public static void DisableRetry(");
+        builder.AppendLine(8, "HttpRequestMessage request,");
+        builder.AppendLine(8, "string? policyName = null,");
+        builder.AppendLine(8, "double? timeoutSeconds = null)");
+        builder.AppendLine(8, "=> request?.Options.Set(PipelineKey, BuildPipelineKey(policyName ?? string.Empty, retry: false, timeoutSeconds));");
+        builder.AppendLine();
+        builder.AppendLine(4, "/// <summary>");
+        builder.AppendLine(4, "/// Gets the delay a 429 or 503 response asks for in its Retry-After header (RFC 9110, 10.2.3), or null.");
+        builder.AppendLine(4, "/// </summary>");
+        builder.AppendLine(4, "/// <param name=\"response\">The response.</param>");
+        builder.AppendLine(4, "/// <returns>The requested delay, or null when the response is not a 429 or 503 or has no usable Retry-After.</returns>");
+        builder.AppendLine(4, "public static TimeSpan? GetRetryAfter(HttpResponseMessage? response)");
+        builder.AppendLine(4, "{");
+        builder.AppendLine(8, "if (response?.StatusCode is not (HttpStatusCode.TooManyRequests or HttpStatusCode.ServiceUnavailable))");
+        builder.AppendLine(8, "{");
+        builder.AppendLine(12, "return null;");
+        builder.AppendLine(8, "}");
+        builder.AppendLine();
+        builder.AppendLine(8, "var retryAfter = response.Headers.RetryAfter;");
+        builder.AppendLine(8, "if (retryAfter?.Delta is { } delta)");
+        builder.AppendLine(8, "{");
+        builder.AppendLine(12, "return delta;");
+        builder.AppendLine(8, "}");
+        builder.AppendLine();
+        builder.AppendLine(8, "if (retryAfter?.Date is { } date)");
+        builder.AppendLine(8, "{");
+        builder.AppendLine(12, "var delay = date - DateTimeOffset.UtcNow;");
+        builder.AppendLine(12, "return delay > TimeSpan.Zero ? delay : null;");
+        builder.AppendLine(8, "}");
+        builder.AppendLine();
+        builder.AppendLine(8, "return null;");
+        builder.AppendLine(4, "}");
+        builder.AppendLine();
+
+        // Key format: "{policy}", "{policy}|no-retry", "{policy}|no-retry|timeout=600" (empty policy = the default)
+        builder.AppendLine(4, "internal static string BuildPipelineKey(");
+        builder.AppendLine(8, "string policyName,");
+        builder.AppendLine(8, "bool retry,");
+        builder.AppendLine(8, "double? timeoutSeconds)");
+        builder.AppendLine(4, "{");
+        builder.AppendLine(8, "var key = retry ? policyName : policyName + \"|\" + NoRetryMarker;");
+        builder.AppendLine(8, "return timeoutSeconds is { } seconds");
+        builder.AppendLine(12, "? key + \"|\" + TimeoutPrefix + seconds.ToString(CultureInfo.InvariantCulture)");
+        builder.AppendLine(12, ": key;");
+        builder.AppendLine(4, "}");
+        builder.AppendLine();
+        builder.AppendLine(4, "internal static (string PolicyName, bool Retry, double? TimeoutSeconds) ParsePipelineKey(string key)");
+        builder.AppendLine(4, "{");
+        builder.AppendLine(8, "var parts = key.Split('|');");
+        builder.AppendLine(8, "var retry = true;");
+        builder.AppendLine(8, "double? timeoutSeconds = null;");
+        builder.AppendLine(8, "for (var i = 1; i < parts.Length; i++)");
+        builder.AppendLine(8, "{");
+        builder.AppendLine(12, "if (parts[i] == NoRetryMarker)");
+        builder.AppendLine(12, "{");
+        builder.AppendLine(16, "retry = false;");
+        builder.AppendLine(12, "}");
+        builder.AppendLine(12, "else if (parts[i].StartsWith(TimeoutPrefix, StringComparison.Ordinal) &&");
+        builder.AppendLine(17, "double.TryParse(parts[i].Substring(TimeoutPrefix.Length), NumberStyles.Float, CultureInfo.InvariantCulture, out var seconds))");
+        builder.AppendLine(12, "{");
+        builder.AppendLine(16, "timeoutSeconds = seconds;");
+        builder.AppendLine(12, "}");
+        builder.AppendLine(8, "}");
+        builder.AppendLine();
+        builder.AppendLine(8, "return (parts[0], retry, timeoutSeconds);");
+        builder.AppendLine(4, "}");
+        builder.AppendLine("}");
+    }
+
+    /// <summary>
+    /// Generates <c>ApiResilienceBufferingHandler</c>: the handler inside the resilience handler that reads the
+    /// body of a request marked with <c>ApiResilienceRequest.BufferResponse</c> with the attempt's token. Without
+    /// it <c>HttpClient</c> reads the body after the pipeline has returned, where only <c>HttpClient.Timeout</c>
+    /// covers it.
+    /// </summary>
+    private static void AppendBufferingHandler(StringBuilder builder)
+    {
+        builder.AppendLine("/// <summary>");
+        builder.AppendLine("/// Reads the body of a response marked with <see cref=\"ApiResilienceRequest.BufferResponse\"/> inside the");
+        builder.AppendLine("/// resilience pipeline, with the attempt's token: the policy's timeout covers the body, and a body that breaks");
+        builder.AppendLine("/// off fails the attempt.");
+        builder.AppendLine("/// </summary>");
+        builder.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
+        builder.AppendLine("internal sealed class ApiResilienceBufferingHandler : DelegatingHandler");
+        builder.AppendLine("{");
+        builder.AppendLine(4, "protected override async Task<HttpResponseMessage> SendAsync(");
+        builder.AppendLine(8, "HttpRequestMessage request,");
+        builder.AppendLine(8, "CancellationToken cancellationToken)");
+        builder.AppendLine(4, "{");
+        builder.AppendLine(8, "var response = await base.SendAsync(request, cancellationToken).ConfigureAwait(false);");
+        builder.AppendLine(8, "if (!request.Options.TryGetValue(ApiResilienceRequest.BufferResponseKey, out var buffer) || !buffer)");
+        builder.AppendLine(8, "{");
+        builder.AppendLine(12, "return response;");
+        builder.AppendLine(8, "}");
+        builder.AppendLine();
+        builder.AppendLine(8, "try");
+        builder.AppendLine(8, "{");
+        builder.AppendLine(12, "// Read with the token (LoadIntoBufferAsync takes none before .NET 9) and kept as the response's content");
+        builder.AppendLine(12, "var body = await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);");
+        builder.AppendLine(12, "var buffered = new ByteArrayContent(body);");
+        builder.AppendLine(12, "foreach (var header in response.Content.Headers)");
+        builder.AppendLine(12, "{");
+        builder.AppendLine(16, "buffered.Headers.TryAddWithoutValidation(header.Key, header.Value);");
+        builder.AppendLine(12, "}");
+        builder.AppendLine();
+        builder.AppendLine(12, "response.Content.Dispose();");
+        builder.AppendLine(12, "response.Content = buffered;");
+        builder.AppendLine(12, "return response;");
+        builder.AppendLine(8, "}");
+        builder.AppendLine(8, "catch");
+        builder.AppendLine(8, "{");
+        builder.AppendLine(12, "response.Dispose();");
+        builder.AppendLine(12, "throw;");
+        builder.AppendLine(8, "}");
+        builder.AppendLine(4, "}");
+        builder.AppendLine("}");
     }
 }

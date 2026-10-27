@@ -1,7 +1,16 @@
 namespace Atc.CodeGeneration.TypeScript.Helpers;
 
+/// <summary>
+/// Turns <see cref="TypeScriptModifiers"/> flags into keyword text.
+/// </summary>
 public static class TypeScriptModifiersHelper
 {
+    /// <summary>
+    /// Renders the set flags as space-separated keywords in the order <c>export [default]</c>, <c>abstract</c>,
+    /// <c>async</c>, <c>readonly</c>.
+    /// </summary>
+    /// <param name="modifiers">The flags to render.</param>
+    /// <returns>The keywords, or an empty string for <see cref="TypeScriptModifiers.None"/>.</returns>
     public static string Render(TypeScriptModifiers modifiers)
     {
         if (modifiers == TypeScriptModifiers.None)

@@ -7,9 +7,15 @@ public sealed class UpdateAccountByIdHandler : IUpdateAccountByIdHandler
 {
     private static readonly ActivitySource ActivitySource = new("Showcase.Handlers.Accounts.UpdateAccountById");
     private readonly AccountInMemoryRepository repository;
+    private readonly IOutputCacheStore outputCacheStore;
 
-    public UpdateAccountByIdHandler(AccountInMemoryRepository repository)
-        => this.repository = repository;
+    public UpdateAccountByIdHandler(
+        AccountInMemoryRepository repository,
+        IOutputCacheStore outputCacheStore)
+    {
+        this.repository = repository;
+        this.outputCacheStore = outputCacheStore;
+    }
 
     public async Task<UpdateAccountByIdResult> ExecuteAsync(
         UpdateAccountByIdParameters parameters,
@@ -23,8 +29,12 @@ public sealed class UpdateAccountByIdHandler : IUpdateAccountByIdHandler
             parameters.Request.Name,
             parameters.Request.Tag);
 
-        return account is null
-            ? UpdateAccountByIdResult.NotFound()
-            : UpdateAccountByIdResult.Ok(account);
+        if (account is null)
+        {
+            return UpdateAccountByIdResult.NotFound();
+        }
+
+        await outputCacheStore.EvictByTagAsync(OutputCacheTags.Accounts, cancellationToken);
+        return UpdateAccountByIdResult.Ok(account);
     }
 }

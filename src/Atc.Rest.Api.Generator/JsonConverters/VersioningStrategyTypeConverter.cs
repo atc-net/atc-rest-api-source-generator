@@ -3,38 +3,18 @@ namespace Atc.Rest.Api.Generator.JsonConverters;
 /// <summary>
 /// JSON converter for VersioningStrategyType that handles both PascalCase and kebab-case strings.
 /// </summary>
-public class VersioningStrategyTypeConverter : JsonConverter<VersioningStrategyType>
+public class VersioningStrategyTypeConverter : MarkerValueConverter<VersioningStrategyType>
 {
-    /// <inheritdoc />
-    public override VersioningStrategyType Read(
-        ref Utf8JsonReader reader,
-        Type typeToConvert,
-        JsonSerializerOptions options)
+    /// <summary>
+    /// Initializes a new instance of the <see cref="VersioningStrategyTypeConverter"/> class.
+    /// </summary>
+    public VersioningStrategyTypeConverter()
+        : base(
+            VersioningStrategyType.None,
+            Value(VersioningStrategyType.None, "None"),
+            Value(VersioningStrategyType.QueryString, "QueryString", "query-string"),
+            Value(VersioningStrategyType.UrlSegment, "UrlSegment", "url-segment"),
+            Value(VersioningStrategyType.Header, "Header"))
     {
-        var value = reader.GetString();
-        return value?.ToLowerInvariant() switch
-        {
-            "none" => VersioningStrategyType.None,
-            "query-string" or "querystring" => VersioningStrategyType.QueryString,
-            "url-segment" or "urlsegment" => VersioningStrategyType.UrlSegment,
-            "header" => VersioningStrategyType.Header,
-            _ => VersioningStrategyType.None, // Default fallback
-        };
-    }
-
-    /// <inheritdoc />
-    public override void Write(
-        Utf8JsonWriter writer,
-        VersioningStrategyType value,
-        JsonSerializerOptions options)
-    {
-        var stringValue = value switch
-        {
-            VersioningStrategyType.QueryString => "QueryString",
-            VersioningStrategyType.UrlSegment => "UrlSegment",
-            VersioningStrategyType.Header => "Header",
-            _ => "None",
-        };
-        writer.WriteStringValue(stringValue);
     }
 }

@@ -56,6 +56,7 @@ export default function FilesUploadPage() {
   const metaFileRef = useRef<HTMLInputElement>(null);
   const [metaFile, setMetaFile] = useState<File | null>(null);
   const [itemName, setItemName] = useState('');
+  const [author, setAuthor] = useState('');
   const [items, setItems] = useState('');
   const uploadWithMeta = useUploadWithMetadata();
   const [metaMsg, setMetaMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -109,10 +110,12 @@ export default function FilesUploadPage() {
         .split(',')
         .map((s) => s.trim())
         .filter(Boolean);
-      await uploadWithMeta.mutateAsync({ file: metaFile, itemName, items: itemList });
+      // The metadata goes as a URL-encoded part (author=Ada), as the form's encoding names
+      await uploadWithMeta.mutateAsync({ file: metaFile, itemName, items: itemList, metadata: author ? { author } : undefined });
       setMetaMsg({ type: 'success', text: 'File with metadata uploaded successfully.' });
       setMetaFile(null);
       setItemName('');
+      setAuthor('');
       setItems('');
       if (metaFileRef.current) metaFileRef.current.value = '';
     } catch (err) {
@@ -270,6 +273,14 @@ export default function FilesUploadPage() {
               onChange={(e) => setItems(e.target.value)}
               sx={{ maxWidth: 400 }}
               helperText="Enter item values separated by commas"
+            />
+            <TextField
+              label="Author"
+              size="small"
+              value={author}
+              onChange={(e) => setAuthor(e.target.value)}
+              sx={{ maxWidth: 400 }}
+              helperText="Sent as the metadata part, application/x-www-form-urlencoded"
             />
             <Box>
               <Button

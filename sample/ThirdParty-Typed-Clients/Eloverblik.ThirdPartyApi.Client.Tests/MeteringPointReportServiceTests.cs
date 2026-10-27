@@ -14,8 +14,8 @@ public sealed class MeteringPointReportServiceTests
         var client = Substitute.For<IElOverblikThirdPartyApiClient>();
 
         client
-            .GetThirdpartyapiApiAuthorizationAuthorizationMeteringpointsScopeIdentifierAsync(
-                Arg.Any<GetThirdpartyapiApiAuthorizationAuthorizationMeteringpointsScopeIdentifierParameters>(),
+            .GetAuthorizedMeteringPointsAsync(
+                Arg.Any<GetAuthorizedMeteringPointsParameters>(),
                 Arg.Any<CancellationToken>())
             .Returns(new MeteringPointThirdPartyDtoListApiResponse(
             [
@@ -41,8 +41,8 @@ public sealed class MeteringPointReportServiceTests
         var client = Substitute.For<IElOverblikThirdPartyApiClient>();
 
         client
-            .GetThirdpartyapiApiAuthorizationAuthorizationMeteringpointsScopeIdentifierAsync(
-                Arg.Any<GetThirdpartyapiApiAuthorizationAuthorizationMeteringpointsScopeIdentifierParameters>(),
+            .GetAuthorizedMeteringPointsAsync(
+                Arg.Any<GetAuthorizedMeteringPointsParameters>(),
                 Arg.Any<CancellationToken>())
             .Returns(new MeteringPointThirdPartyDtoListApiResponse([]));
 
@@ -54,8 +54,8 @@ public sealed class MeteringPointReportServiceTests
         // Assert
         await client
             .Received(1)
-            .GetThirdpartyapiApiAuthorizationAuthorizationMeteringpointsScopeIdentifierAsync(
-                Arg.Is<GetThirdpartyapiApiAuthorizationAuthorizationMeteringpointsScopeIdentifierParameters>(
+            .GetAuthorizedMeteringPointsAsync(
+                Arg.Is<GetAuthorizedMeteringPointsParameters>(
                     x => x.Scope == "CVR" && x.Identifier == "12345678"),
                 Arg.Any<CancellationToken>());
     }
@@ -67,8 +67,8 @@ public sealed class MeteringPointReportServiceTests
         var client = Substitute.For<IElOverblikThirdPartyApiClient>();
 
         client
-            .GetThirdpartyapiApiAuthorizationAuthorizationMeteringpointsScopeIdentifierAsync(
-                Arg.Any<GetThirdpartyapiApiAuthorizationAuthorizationMeteringpointsScopeIdentifierParameters>(),
+            .GetAuthorizedMeteringPointsAsync(
+                Arg.Any<GetAuthorizedMeteringPointsParameters>(),
                 Arg.Any<CancellationToken>())
             .Returns(new MeteringPointThirdPartyDtoListApiResponse(Result: null));
 

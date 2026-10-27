@@ -11,11 +11,51 @@ namespace Atc.OpenApi.Extensions;
 [SuppressMessage("", "S3928:The parameter name 'schema'", Justification = "OK - CLang14 - extension")]
 public static class OpenApiOperationExtensions
 {
+    /// <summary>
+    /// The names of a paginated response's continuation-token property, in order of preference.
+    /// </summary>
+    private static readonly string[] PaginationTokenPropertyNames =
+    [
+        "continuationToken",
+        "continuation",
+        "nextPageToken",
+        "nextCursor",
+        "cursor",
+    ];
+
     /// <param name="operation">The OpenAPI operation.</param>
     extension(OpenApiOperation operation)
     {
         /// <summary>
-        /// Gets the operation ID or generates a default one from path and HTTP method.
+        /// The parameters the operation is called with: its path item's, except one the operation redeclares with the
+        /// same name and location, then the operation's own - in that order.
+        /// </summary>
+        /// <param name="pathParameters">The path item's parameters, which the operation inherits.</param>
+        /// <returns>The effective parameters (still references where the specification has them).</returns>
+        public IReadOnlyList<IOpenApiParameter> EffectiveParameters(
+            IList<IOpenApiParameter>? pathParameters)
+        {
+            var result = new List<IOpenApiParameter>(pathParameters ?? []);
+            foreach (var parameter in operation.Parameters ?? [])
+            {
+                var name = parameter.GetName();
+                if (!string.IsNullOrEmpty(name))
+                {
+                    var location = parameter.GetLocation();
+                    result.RemoveAll(p => string.Equals(p.GetName(), name, StringComparison.Ordinal) && p.GetLocation() == location);
+                }
+
+                result.Add(parameter);
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Gets the operation ID, or generates one from the HTTP method and the path when it is missing or empty -
+        /// in both cases as an identifier: a character that is none becomes an underscore (<c>repos/get</c> is
+        /// <c>repos_get</c>) and an id that starts with a digit is prefixed (<c>1stThing</c> is <c>Op1stThing</c>),
+        /// so that no generator derives a name that breaks the consumer's build.
         /// </summary>
         /// <param name="path">The API path.</param>
         /// <param name="httpMethod">The HTTP method (GET, POST, etc.).</param>
@@ -34,17 +74,28 @@ public static class OpenApiOperationExtensions
                 throw new ArgumentNullException(nameof(path));
             }
 
-            if (!string.IsNullOrEmpty(operation.OperationId))
+            var operationId = operation.OperationId;
+            if (string.IsNullOrWhiteSpace(operationId))
             {
-                return operation.OperationId!;
+                // Generate default: HttpMethodPathWithoutSlashesAndBraces
+                operationId = httpMethod + path
+                    .Replace("/", "_")
+                    .Replace("{", string.Empty)
+                    .Replace("}", string.Empty);
             }
 
-            // Generate default: HttpMethodPathWithoutSlashesAndBraces
-            var sanitizedPath = path
-                .Replace("/", "_")
-                .Replace("{", string.Empty)
-                .Replace("}", string.Empty);
-            return $"{httpMethod}{sanitizedPath}";
+            var sb = new System.Text.StringBuilder(operationId!.Length + 2);
+            foreach (var c in operationId)
+            {
+                sb.Append(char.IsLetterOrDigit(c) || c == '_' ? c : '_');
+            }
+
+            if (sb.Length > 0 && char.IsDigit(sb[0]))
+            {
+                sb.Insert(0, "Op");
+            }
+
+            return sb.ToString();
         }
 
         /// <summary>
@@ -68,13 +119,119 @@ public static class OpenApiOperationExtensions
         /// <returns>The schema or null if not found.</returns>
         public IOpenApiSchema? GetRequestBodySchema(string contentType = "application/json")
         {
-            if (operation is { RequestBody.Content: not null } &&
-                operation.RequestBody.Content.TryGetValue(contentType, out var mediaType))
+            if (operation is not { RequestBody.Content: not null })
+            {
+                return null;
+            }
+
+            if (operation.RequestBody.Content.TryGetValue(contentType, out var mediaType))
             {
                 return mediaType.Schema;
             }
 
-            return null;
+            // A JSON body declared under another JSON media type (application/merge-patch+json, application/vnd.x+json)
+            return string.Equals(contentType, "application/json", StringComparison.OrdinalIgnoreCase) &&
+                   operation.GetJsonRequestBodyMediaType() is { } jsonMediaType
+                ? operation.RequestBody.Content[jsonMediaType].Schema
+                : null;
+        }
+
+        /// <summary>
+        /// The request body sent as a stream of records: a JSON Lines or JSON Text Sequence media type with a
+        /// <c>schema</c> (one record, or an array of them) or an <c>itemSchema</c>. Server-Sent Events and
+        /// <c>multipart/mixed</c> are no request bodies (the validator says so).
+        /// </summary>
+        /// <returns>The streamed body, or <see langword="null"/> when the body is not one.</returns>
+        public StreamedRequestBody? GetStreamedRequestBody()
+        {
+            if (operation.RequestBody?.Content is not { Count: > 0 } content)
+            {
+                return null;
+            }
+
+            var mediaTypes = new List<string>();
+            IOpenApiSchema? itemSchema = null;
+            IOpenApiSchema? collectionSchema = null;
+            foreach (var kvp in content)
+            {
+                if (StreamingMediaType.Classify(kvp.Key) is not (StreamingFraming.JsonLines or StreamingFraming.JsonSequence))
+                {
+                    continue;
+                }
+
+                var item = kvp.Value?.ItemSchema ?? StreamingMediaType.ItemSchemaOf(kvp.Key, kvp.Value?.Schema);
+                if (item is null)
+                {
+                    continue;
+                }
+
+                mediaTypes.Add(kvp.Key);
+                if (itemSchema is null)
+                {
+                    itemSchema = item;
+                    collectionSchema = kvp.Value?.ItemSchema is null && kvp.Value?.Schema is { } schema && !ReferenceEquals(schema, item)
+                        ? schema
+                        : null;
+                }
+            }
+
+            if (itemSchema is null)
+            {
+                return null;
+            }
+
+            // A JSON body beside it (application/json, a +json type) is the same records - a JSON array of them, or one
+            // record. A JSON body of another schema is no record: then the JSON body is the body and nothing streams
+            string? jsonMediaType = null;
+            var jsonIsArray = false;
+            if (operation.GetJsonRequestBodyMediaType() is { } json && content[json]?.Schema is { } jsonSchema)
+            {
+                if (IsSameSchema(jsonSchema, itemSchema))
+                {
+                    jsonMediaType = json;
+                }
+                else if (jsonSchema.Type?.HasFlag(JsonSchemaType.Array) == true && IsSameSchema(jsonSchema.Items, itemSchema))
+                {
+                    jsonMediaType = json;
+                    jsonIsArray = true;
+                }
+                else
+                {
+                    return null;
+                }
+            }
+
+            return new StreamedRequestBody(
+                mediaTypes,
+                itemSchema,
+                collectionSchema?.MinItems > 0 ? collectionSchema.MinItems : null,
+                collectionSchema?.MaxItems,
+                jsonMediaType,
+                jsonIsArray,
+                operation.RequestBody.Required);
+        }
+
+        /// <summary>
+        /// The media type of the operation's JSON request body: <c>application/json</c>, else the first media type
+        /// with a <c>+json</c> suffix (<c>application/merge-patch+json</c>, <c>application/vnd.x+json</c>), by name.
+        /// </summary>
+        /// <returns>The media type as declared, or <see langword="null"/> when the body is not JSON.</returns>
+        public string? GetJsonRequestBodyMediaType()
+        {
+            if (operation.RequestBody?.Content is not { } content)
+            {
+                return null;
+            }
+
+            if (content.ContainsKey("application/json"))
+            {
+                return "application/json";
+            }
+
+            return content.Keys
+                .Where(key => key.BaseType.EndsWith("+json", StringComparison.OrdinalIgnoreCase))
+                .OrderBy(key => key, StringComparer.OrdinalIgnoreCase)
+                .FirstOrDefault();
         }
 
         /// <summary>
@@ -83,19 +240,37 @@ public static class OpenApiOperationExtensions
         /// <param name="statusCode">The HTTP status code.</param>
         /// <param name="contentType">The content type (default: application/json).</param>
         /// <returns>The schema or null if not found.</returns>
+        /// <remarks>
+        /// With the default <c>application/json</c>, a response that only declares another JSON media type
+        /// (a <c>+json</c> suffix such as <c>application/problem+json</c> or <c>application/vnd.x+json</c>)
+        /// yields that media type's schema.
+        /// </remarks>
         public IOpenApiSchema? GetResponseSchema(
             string statusCode,
             string contentType = "application/json")
         {
-            if (operation is { Responses: not null } &&
-                operation.Responses.TryGetValue(statusCode, out var response) &&
-                response.Content is not null &&
-                response.Content.TryGetValue(contentType, out var mediaType))
+            if (operation is not { Responses: not null } ||
+                !operation.Responses.TryGetValue(statusCode, out var response) ||
+                response.Content is null)
+            {
+                return null;
+            }
+
+            if (response.Content.TryGetValue(contentType, out var mediaType))
             {
                 return mediaType.Schema;
             }
 
-            return null;
+            if (!string.Equals(contentType, "application/json", StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            return response.Content
+                .Where(kv => kv.Key.BaseType.EndsWith("+json", StringComparison.OrdinalIgnoreCase) && kv.Value?.Schema is not null)
+                .OrderBy(kv => kv.Key, StringComparer.OrdinalIgnoreCase)
+                .Select(kv => kv.Value!.Schema)
+                .FirstOrDefault();
         }
 
         /// <summary>
@@ -121,20 +296,6 @@ public static class OpenApiOperationExtensions
         /// <returns>Enumerable of path parameters.</returns>
         public IEnumerable<OpenApiParameter> GetPathParameters()
             => operation.GetParametersByLocation(ParameterLocation.Path);
-
-        /// <summary>
-        /// Gets all header parameters from the operation.
-        /// </summary>
-        /// <returns>Enumerable of header parameters.</returns>
-        public IEnumerable<OpenApiParameter> GetHeaderParameters()
-            => operation.GetParametersByLocation(ParameterLocation.Header);
-
-        /// <summary>
-        /// Gets all cookie parameters from the operation.
-        /// </summary>
-        /// <returns>Enumerable of cookie parameters.</returns>
-        public IEnumerable<OpenApiParameter> GetCookieParameters()
-            => operation.GetParametersByLocation(ParameterLocation.Cookie);
 
         /// <summary>
         /// Checks if the operation has a file upload request body.
@@ -176,10 +337,17 @@ public static class OpenApiOperationExtensions
                 return (null, string.Empty);
             }
 
-            // Priority 1: JSON
-            if (operation.RequestBody.Content.TryGetValue("application/json", out var jsonMedia))
+            // Priority 0: a stream of records (JSON Lines, JSON Text Sequences) - the record's schema. It wins over a
+            // JSON array offered beside it: the server streams that array as the same records
+            if (operation.GetStreamedRequestBody() is { } streamed)
             {
-                return (jsonMedia.Schema, "application/json");
+                return (streamed.ItemSchema, streamed.PrimaryMediaType);
+            }
+
+            // Priority 1: JSON (application/json, else a +json media type)
+            if (operation.GetJsonRequestBodyMediaType() is { } jsonMediaType)
+            {
+                return (operation.RequestBody.Content[jsonMediaType].Schema, jsonMediaType);
             }
 
             // Priority 2: File uploads
@@ -191,7 +359,86 @@ public static class OpenApiOperationExtensions
                 }
             }
 
+            // Priority 3: a URL-encoded form (a model sent as form fields)
+            foreach (var kvp in operation.RequestBody.Content)
+            {
+                if (IsFormContentType(kvp.Key))
+                {
+                    return (kvp.Value.Schema, kvp.Key);
+                }
+            }
+
+            // Priority 4: an XML model body (written by the model's generated XML mapping)
+            foreach (var kvp in operation.RequestBody.Content)
+            {
+                if (ResponseBodyClassifier.Classify(kvp.Key, kvp.Value.Schema) == ResponseBodyKind.Xml)
+                {
+                    return (kvp.Value.Schema, kvp.Key);
+                }
+            }
+
+            // Priority 5: text (text/plain first) - a string, whatever its schema says of the bytes
+            var text = operation.RequestBody.Content
+                .Where(kvp => IsTextRequestBodyContentType(kvp.Key, kvp.Value?.Schema))
+                .OrderBy(kvp => kvp.Key.BaseType.Equals("text/plain", StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+                .Select(kvp => (KeyValuePair<string, IOpenApiMediaType>?)kvp)
+                .FirstOrDefault();
+            if (text is { } textBody)
+            {
+                var schema = textBody.Value?.Schema;
+                return (schema is null || string.Equals(schema.Format, "binary", StringComparison.OrdinalIgnoreCase)
+                    ? new OpenApiSchema { Type = JsonSchemaType.String }
+                    : schema, textBody.Key);
+            }
+
             return (null, string.Empty);
+        }
+
+        /// <summary>
+        /// The media type of a request body that is text - a <c>text/*</c> media type that is not a stream, or XML
+        /// with a string schema (<c>text/plain</c> first when several are declared) - when the body offers nothing the
+        /// generated code sends before it: a stream of records, JSON, a file, a form or an XML model. The server reads
+        /// it by its charset into a string, the clients send a string as UTF-8.
+        /// </summary>
+        /// <returns>The declared media type, or null when the request body is not text.</returns>
+        public string? GetTextRequestBodyMediaType()
+        {
+            var (_, contentType) = operation.GetRequestBodySchemaWithContentType();
+            return contentType.Length > 0 &&
+                   IsTextRequestBodyContentType(contentType, operation.RequestBody!.Content![contentType].Schema)
+                ? contentType
+                : null;
+        }
+
+        /// <summary>
+        /// Reads <c>x-sse-item-events</c>: the names of the Server-Sent Events that carry an item of a streamed
+        /// response, besides the unnamed event (and <c>message</c>, the same by the standard), which always does.
+        /// One name or a list of names; without the extension the list is empty, and every other named event - a
+        /// heartbeat, a control frame - is read past.
+        /// </summary>
+        /// <returns>The event names, in the order given, without duplicates.</returns>
+        public IReadOnlyList<string> GetServerSentEventItemNames()
+        {
+            if (operation.Extensions is null ||
+                !operation.Extensions.TryGetValue("x-sse-item-events", out var extension) ||
+                extension is not JsonNodeExtension { Node: { } node })
+            {
+                return [];
+            }
+
+            var names = new List<string>();
+            foreach (var candidate in node is JsonArray array ? array : [node.DeepClone()])
+            {
+                if (candidate is JsonValue value &&
+                    value.TryGetValue<string>(out var name) &&
+                    name.Length > 0 &&
+                    !names.Contains(name, StringComparer.Ordinal))
+                {
+                    names.Add(name);
+                }
+            }
+
+            return names;
         }
 
         /// <summary>
@@ -225,8 +472,28 @@ public static class OpenApiOperationExtensions
         }
 
         /// <summary>
+        /// Checks if the operation is a file download with the x-return-stream: true extension.
+        /// When true, the C# clients hand the open response stream to the caller instead of the bytes (the EndpointPerOperation
+        /// client a StreamBinaryEndpointResponse, the TypedClient a generated StreamedFile).
+        /// </summary>
+        /// <returns>True if the operation's download should be streamed.</returns>
+        public bool IsStreamedDownloadOperation()
+        {
+            if (!operation.HasFileDownload() ||
+                operation.Extensions is null ||
+                !operation.Extensions.TryGetValue("x-return-stream", out var extension) ||
+                extension is not JsonNodeExtension jsonNodeExt)
+            {
+                return false;
+            }
+
+            return jsonNodeExt.Node is JsonValue jsonValue
+                && jsonValue.TryGetValue<bool>(out var boolValue)
+                && boolValue;
+        }
+
+        /// <summary>
         /// Checks if the operation has x-return-async-enumerable: true extension.
-        /// When true, the result class Ok method should accept IAsyncEnumerable&lt;T&gt; for streaming.
         /// </summary>
         /// <returns>True if the operation should return IAsyncEnumerable.</returns>
         public bool IsAsyncEnumerableOperation()
@@ -272,6 +539,42 @@ public static class OpenApiOperationExtensions
                 }
             }
 
+            return operation.GetAnnotatedStreamingResponse();
+        }
+
+        /// <summary>
+        /// The pre-3.2 way to declare a sequential stream: a <c>schema</c> under a streaming media type
+        /// (<c>text/event-stream</c>, <c>application/jsonl</c>, <c>application/json-seq</c>, ...). The schema describes
+        /// one element, or the array of them. The media type says it is a stream on its own;
+        /// <c>multipart/mixed</c> - as often a batch answer as a stream - streams only with
+        /// <c>x-return-async-enumerable</c>.
+        /// </summary>
+        private (string MediaType, IOpenApiSchema ItemSchema)? GetAnnotatedStreamingResponse()
+        {
+            if (operation.Responses is null)
+            {
+                return null;
+            }
+
+            var annotated = operation.IsAsyncEnumerableOperation();
+            foreach (var statusCode in new[] { "200", "201" })
+            {
+                if (!operation.Responses.TryGetValue(statusCode, out var response) ||
+                    response.Content is null)
+                {
+                    continue;
+                }
+
+                foreach (var kvp in response.Content)
+                {
+                    if ((annotated || StreamingMediaType.Classify(kvp.Key) != StreamingFraming.MultipartMixed) &&
+                        StreamingMediaType.ItemSchemaOf(kvp.Key, kvp.Value.Schema) is { } itemSchema)
+                    {
+                        return (kvp.Key, itemSchema);
+                    }
+                }
+            }
+
             return null;
         }
 
@@ -306,52 +609,57 @@ public static class OpenApiOperationExtensions
         /// Determines whether the operation produces a streamed/sequential response that
         /// should be generated as <c>IAsyncEnumerable&lt;T&gt;</c> (server) / async-iterator
         /// (clients). True when the operation carries the <c>x-return-async-enumerable</c>
-        /// annotation OR declares an OpenAPI 3.2 <c>itemSchema</c> on a 2xx response.
+        /// annotation, declares an OpenAPI 3.2 <c>itemSchema</c> on a 2xx response, or has a
+        /// <c>schema</c> under a sequential media type (JSON Lines, JSON Text Sequences, Server-Sent Events).
         /// </summary>
         /// <returns>True if the response should be streamed.</returns>
         public bool IsStreamingResponse()
             => operation.IsAsyncEnumerableOperation() || operation.GetStreamingItemSchema() is not null;
 
         /// <summary>
-        /// Checks if the operation is a paginated-streaming operation: it has
-        /// <c>x-return-async-enumerable: true</c> AND its 200/201 response is an
-        /// <c>allOf</c> referencing a schema whose name matches a pagination wrapper
-        /// (PaginationResult / PaginatedResult / PagedResult). When true, the TypeScript
-        /// emitter produces both a streaming async-generator method and a non-streaming
-        /// <c>&lt;methodName&gt;Page</c> companion that feeds <c>useInfiniteQuery</c>.
+        /// Gets the continuation-token property of a paginated response: a property of the 200 response
+        /// (directly, or in one of its <c>allOf</c> parts - typically a pagination wrapper such as
+        /// <c>PaginatedResult</c>) named <c>continuationToken</c>, <c>continuation</c>, <c>nextPageToken</c>,
+        /// <c>nextCursor</c> or <c>cursor</c>. The caller pages by sending that value back through the
+        /// operation's own continuation parameter.
         /// </summary>
-        public bool IsPaginatedStreamingOperation()
+        /// <returns>The property name as declared in the schema, or <see langword="null"/>.</returns>
+        public string? GetPaginationTokenProperty()
         {
-            if (!operation.IsAsyncEnumerableOperation())
+            if (operation.IsStreamingResponse())
             {
-                return false;
+                return null;
             }
 
-            var schema = operation.GetResponseSchema("200") ?? operation.GetResponseSchema("201");
-            if (schema is not OpenApiSchema actualSchema || actualSchema.AllOf is not { Count: > 0 })
+            var schema = operation.GetResponseSchema("200");
+            if (schema is null)
             {
-                return false;
+                return null;
             }
 
-            foreach (var part in actualSchema.AllOf)
+            var candidates = new List<IOpenApiSchema> { schema };
+            if (schema.AllOf is { Count: > 0 } allOf)
             {
-                if (part is OpenApiSchemaReference partRef)
+                candidates.AddRange(allOf);
+            }
+
+            foreach (var tokenName in PaginationTokenPropertyNames)
+            {
+                foreach (var candidate in candidates)
                 {
-                    var name = partRef.Reference.Id ?? partRef.Id;
-                    if (name is not null && IsPaginationWrapperName(name))
+                    // A continuation token is an opaque string.
+                    var match = candidate.Properties?.FirstOrDefault(p =>
+                        string.Equals(p.Key, tokenName, StringComparison.OrdinalIgnoreCase) &&
+                        p.Value.IsString);
+                    if (match?.Key is { } key)
                     {
-                        return true;
+                        return key;
                     }
                 }
             }
 
-            return false;
+            return null;
         }
-
-        private static bool IsPaginationWrapperName(string name)
-            => name.Equals("PaginationResult", StringComparison.Ordinal)
-                || name.Equals("PaginatedResult", StringComparison.Ordinal)
-                || name.Equals("PagedResult", StringComparison.Ordinal);
 
         /// <summary>
         /// Checks if the operation has a NotFound (404) response.
@@ -387,20 +695,8 @@ public static class OpenApiOperationExtensions
                 return false;
             }
 
-            if (response.Content is null)
-            {
-                return false;
-            }
-
-            foreach (var key in response.Content.Keys)
-            {
-                if (IsFileDownloadContentType(key))
-                {
-                    return true;
-                }
-            }
-
-            return false;
+            // The primary body decides (ResponseBodyClassifier): any media type that is neither JSON, XML nor text.
+            return ResponseBodyClassifier.PrimaryBody(response.Content)?.Kind == ResponseBodyKind.Binary;
         }
 
         /// <summary>
@@ -414,16 +710,15 @@ public static class OpenApiOperationExtensions
                response.TryGetTextResponseMediaType(out _, out _);
 
         /// <summary>
-        /// Gets the textual response media type for the 200 response if present
-        /// (e.g. <c>"text/plain"</c>, <c>"text/csv"</c>, <c>"application/xml"</c>).
+        /// The file media types of a 200 response that is a model <b>or</b> a file (<c>application/json</c> and
+        /// <c>application/pdf</c>), told apart by the answer's <c>Content-Type</c> (<see cref="ResponseBodyClassifier.FileAlternatives"/>).
         /// </summary>
-        /// <returns>The textual response media type or null when none matches.</returns>
-        public string? GetTextResponseMediaType()
+        /// <returns>The file media types; empty when the 200 response is not a model or a file.</returns>
+        public IReadOnlyList<string> GetModelOrFileMediaTypes()
             => operation.Responses is not null &&
-               operation.Responses.TryGetValue("200", out var response) &&
-               response.TryGetTextResponseMediaType(out var mediaType, out _)
-                ? mediaType
-                : null;
+               operation.Responses.TryGetValue("200", out var response)
+                ? ResponseBodyClassifier.FileAlternatives(response.Content)
+                : [];
 
         /// <summary>
         /// Gets the file download content type from the response if present.
@@ -441,36 +736,57 @@ public static class OpenApiOperationExtensions
                 return null;
             }
 
-            return response.Content?.Keys.FirstOrDefault(IsFileDownloadContentType);
+            return ResponseBodyClassifier.PrimaryBody(response.Content) is { Kind: ResponseBodyKind.Binary } body
+                ? body.MediaType
+                : null;
         }
 
         /// <summary>
-        /// Checks if the operation has a multipart/form-data request body with a complex schema
-        /// that requires flattening for proper parameter binding in Minimal APIs.
-        /// This is needed for any schema reference (complex type wrapper) because ASP.NET Core
-        /// Minimal APIs with [AsParameters] can't bind wrapped complex types from form data.
+        /// The media type of the operation's form body: <c>multipart/form-data</c> (first, it can carry files), else
+        /// <c>application/x-www-form-urlencoded</c>, as declared (with its parameters).
+        /// </summary>
+        /// <returns>The media type, or <see langword="null"/> when the body is not a form.</returns>
+        public string? GetFormBodyMediaType()
+        {
+            var mediaTypes = operation.GetFormBodyMediaTypes();
+            return mediaTypes.Count > 0 ? mediaTypes[0] : null;
+        }
+
+        /// <summary>
+        /// The form media types the operation declares, <c>multipart/form-data</c> before
+        /// <c>application/x-www-form-urlencoded</c>: a server bound by form binding reads both.
+        /// </summary>
+        /// <returns>The media types as declared; empty when the body is not a form.</returns>
+        public IReadOnlyList<string> GetFormBodyMediaTypes()
+        {
+            if (operation.RequestBody?.Content is not { } content)
+            {
+                return [];
+            }
+
+            var keys = content.Keys.Where(IsFormContentType).ToList();
+            return keys
+                .Where(k => k.StartsWith("multipart/form-data", StringComparison.OrdinalIgnoreCase))
+                .Concat(keys.Where(k => !k.StartsWith("multipart/form-data", StringComparison.OrdinalIgnoreCase)))
+                .ToList();
+        }
+
+        /// <summary>
+        /// Checks if the operation has a form request body (<c>multipart/form-data</c> or
+        /// <c>application/x-www-form-urlencoded</c>) with a model schema, which the Minimal API handler binds field by
+        /// field: ASP.NET Core Minimal APIs with [AsParameters] can't bind wrapped complex types from form data.
+        /// A body that is also JSON is bound as JSON (what the clients send; ATC_API_OPR031 reports the form).
         /// </summary>
         /// <returns>True if the request body requires form binding flattening.</returns>
         public bool RequiresFormBindingFlattening()
         {
-            if (operation.RequestBody?.Content is null)
+            if (operation.GetJsonRequestBodyMediaType() is not null ||
+                operation.GetFormBodyMediaType() is not { } formMediaType ||
+                operation.RequestBody!.Content![formMediaType].Schema is not { } schema)
             {
                 return false;
             }
 
-            // Only applies to multipart/form-data
-            if (!operation.RequestBody.Content.TryGetValue("multipart/form-data", out var mediaType))
-            {
-                return false;
-            }
-
-            var schema = mediaType.Schema;
-            if (schema is null)
-            {
-                return false;
-            }
-
-            // Check if it's a schema reference (complex type) with properties
             // Direct file upload schemas (binary type) don't need flattening
             var (isFile, _) = schema.GetFileUploadInfo();
             if (isFile)
@@ -478,38 +794,27 @@ public static class OpenApiOperationExtensions
                 return false;
             }
 
-            // Check if schema has properties - if it's a reference, resolve it
-            var properties = schema.Properties;
-            if (properties is null || properties.Count == 0)
-            {
-                return false;
-            }
-
-            // Any complex schema (object wrapper) with properties needs flattening
-            // because ASP.NET Core Minimal APIs can't bind wrapped types from form data
-            return true;
+            // Any model (object wrapper) with properties needs flattening
+            return schema.Properties is { Count: > 0 };
         }
 
         /// <summary>
-        /// Gets the multipart/form-data schema and its properties for flattening.
+        /// Gets the form body's schema name, its properties and its required property names, for binding the form
+        /// field by field (<see cref="RequiresFormBindingFlattening"/>).
         /// </summary>
-        /// <returns>The schema reference name and its properties, or null if not applicable.</returns>
-        public (string? SchemaName, IDictionary<string, IOpenApiSchema>? Properties) GetMultipartFormDataSchemaInfo()
+        /// <returns>The schema reference name, its properties and its required names; nulls when the body is not a form.</returns>
+        public (string? SchemaName, IDictionary<string, IOpenApiSchema>? Properties, ISet<string> Required) GetFormBodySchemaInfo()
         {
-            if (operation.RequestBody?.Content is null)
+            var required = new HashSet<string>(StringComparer.Ordinal);
+            if (operation.GetFormBodyMediaType() is not { } formMediaType ||
+                operation.RequestBody!.Content![formMediaType].Schema is not { } schema)
             {
-                return (null, null);
+                return (null, null, required);
             }
 
-            if (!operation.RequestBody.Content.TryGetValue("multipart/form-data", out var mediaType))
+            if (schema.Required is { } requiredNames)
             {
-                return (null, null);
-            }
-
-            var schema = mediaType.Schema;
-            if (schema is null)
-            {
-                return (null, null);
+                required.UnionWith(requiredNames);
             }
 
             // Get schema name from reference
@@ -519,7 +824,7 @@ public static class OpenApiOperationExtensions
                 schemaName = schemaRef.Reference?.Id ?? schemaRef.Id;
             }
 
-            return (schemaName, schema.Properties);
+            return (schemaName, schema.Properties, required);
         }
 
         private IEnumerable<OpenApiParameter> GetParametersByLocationIterator(
@@ -532,7 +837,15 @@ public static class OpenApiOperationExtensions
 
             foreach (var paramInterface in operation.Parameters)
             {
-                if (paramInterface is OpenApiParameter param && param.In == location)
+                // Resolve $ref parameters (components/parameters) as well as inline ones.
+                var param = paramInterface switch
+                {
+                    OpenApiParameter direct => direct,
+                    OpenApiParameterReference reference => reference.Target as OpenApiParameter,
+                    _ => null,
+                };
+
+                if (param is not null && param.In == location)
                 {
                     yield return param;
                 }
@@ -541,14 +854,68 @@ public static class OpenApiOperationExtensions
     }
 
     /// <summary>
+    /// Determines if a request body media type is text: a <c>text/*</c> media type that is not a stream (also with a
+    /// <c>format: binary</c> schema - a raw file upload is never <c>text/*</c>), or XML with a string schema (or none).
+    /// </summary>
+    /// <param name="contentType">The media type as declared.</param>
+    /// <param name="schema">The schema declared under it, if any.</param>
+    /// <returns>True if the body is text.</returns>
+    public static bool IsTextRequestBodyContentType(
+        string contentType,
+        IOpenApiSchema? schema)
+        => ResponseBodyClassifier.Classify(contentType, schema) switch
+        {
+            ResponseBodyKind.Text => true,
+            ResponseBodyKind.Binary => contentType.BaseType.StartsWith("text/", StringComparison.OrdinalIgnoreCase),
+            _ => false,
+        };
+
+    /// <summary>
     /// Determines if a content type represents a file upload.
     /// </summary>
     /// <param name="contentType">The content type to check.</param>
     /// <returns>True if the content type represents a file upload.</returns>
     public static bool IsFileUploadContentType(string contentType)
-        => contentType.Equals("application/octet-stream", StringComparison.OrdinalIgnoreCase) ||
-           contentType.StartsWith("multipart/form-data", StringComparison.OrdinalIgnoreCase) ||
-           contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase);
+        => contentType.StartsWith("multipart/form-data", StringComparison.OrdinalIgnoreCase) ||
+           IsRawFileUploadContentType(contentType);
+
+    /// <summary>
+    /// Determines if a content type is a form: <c>multipart/form-data</c> or <c>application/x-www-form-urlencoded</c>
+    /// (with or without parameters) - the two media types ASP.NET Core's form binding reads and a browser form posts.
+    /// </summary>
+    /// <param name="contentType">The content type to check.</param>
+    /// <returns>True if the content type is a form.</returns>
+    public static bool IsFormContentType(string? contentType)
+    {
+        if (contentType is null)
+        {
+            return false;
+        }
+
+        var type = contentType.BaseType;
+        return type.Equals("multipart/form-data", StringComparison.OrdinalIgnoreCase) ||
+               type.Equals("application/x-www-form-urlencoded", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Determines if a request body media type is a raw file upload: the body is the file itself, of any binary media
+    /// type (<c>application/octet-stream</c>, <c>application/pdf</c>, <c>image/png</c>, an Office document, ...) -
+    /// the rule every generator shares (<see cref="ResponseBodyClassifier"/>). Multipart and URL-encoded forms are not.
+    /// </summary>
+    /// <param name="contentType">The content type to check.</param>
+    /// <returns>True if the body is the raw file.</returns>
+    public static bool IsRawFileUploadContentType(string? contentType)
+    {
+        if (contentType is null)
+        {
+            return false;
+        }
+
+        var type = contentType.BaseType;
+        return !type.StartsWith("multipart/", StringComparison.OrdinalIgnoreCase) &&
+               !type.Equals("application/x-www-form-urlencoded", StringComparison.OrdinalIgnoreCase) &&
+               ResponseBodyClassifier.Classify(type, schema: null) == ResponseBodyKind.Binary;
+    }
 
     /// <summary>
     /// Determines if a content type represents a file download (binary response).
@@ -556,12 +923,7 @@ public static class OpenApiOperationExtensions
     /// <param name="contentType">The content type to check.</param>
     /// <returns>True if the content type represents a file download.</returns>
     public static bool IsFileDownloadContentType(string contentType)
-        => contentType.Equals("application/octet-stream", StringComparison.OrdinalIgnoreCase) ||
-           contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase) ||
-           contentType.StartsWith("audio/", StringComparison.OrdinalIgnoreCase) ||
-           contentType.StartsWith("video/", StringComparison.OrdinalIgnoreCase) ||
-           contentType.Equals("application/pdf", StringComparison.OrdinalIgnoreCase) ||
-           contentType.Equals("application/zip", StringComparison.OrdinalIgnoreCase);
+        => ResponseBodyClassifier.Classify(contentType, schema: null) == ResponseBodyKind.Binary;
 
     /// <summary>
     /// Determines if a content type represents a textual response body that the generator
@@ -627,5 +989,27 @@ public static class OpenApiOperationExtensions
 
             return false;
         }
+    }
+
+    /// <summary>
+    /// Whether two schemas are the same record: the same instance, or references to the same component.
+    /// </summary>
+    private static bool IsSameSchema(
+        IOpenApiSchema? first,
+        IOpenApiSchema? second)
+    {
+        if (first is null || second is null)
+        {
+            return false;
+        }
+
+        if (ReferenceEquals(first, second))
+        {
+            return true;
+        }
+
+        var firstId = first is OpenApiSchemaReference firstReference ? firstReference.ComponentName : null;
+        var secondId = second is OpenApiSchemaReference secondReference ? secondReference.ComponentName : null;
+        return firstId is not null && string.Equals(firstId, secondId, StringComparison.Ordinal);
     }
 }

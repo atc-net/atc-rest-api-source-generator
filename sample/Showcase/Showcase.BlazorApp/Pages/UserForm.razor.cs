@@ -15,16 +15,66 @@ public partial class UserForm
     private NavigationManager Navigation { get; set; } = null!;
 
     private UserFormModel model = new();
+    private EditContext editContext = null!;
+    private ValidationMessageStore serverErrors = null!;
     private bool isLoading;
 
     private bool IsEdit => !string.IsNullOrEmpty(UserId);
 
     protected override async Task OnInitializedAsync()
     {
+        UseModel(model);
         if (IsEdit)
         {
             await LoadUserAsync();
         }
+    }
+
+    /// <summary>
+    /// The form's edit context, with a message store for what the server says: the 400's field errors - the
+    /// specification's and the domain's - shown at their fields next to the client-side checks. A field's server error
+    /// goes when the field is edited.
+    /// </summary>
+    private void UseModel(UserFormModel formModel)
+    {
+        model = formModel;
+        editContext = new EditContext(model);
+        serverErrors = new ValidationMessageStore(editContext);
+        editContext.OnFieldChanged += (_, e) =>
+        {
+            serverErrors.Clear(e.FieldIdentifier);
+            serverErrors.Clear(new FieldIdentifier(model, string.Empty));
+            editContext.NotifyValidationStateChanged();
+        };
+    }
+
+    private void ShowServerErrors(
+        IReadOnlyDictionary<string, string[]>? fieldErrors)
+    {
+        if (fieldErrors is null)
+        {
+            return;
+        }
+
+        foreach (var (key, messages) in fieldErrors)
+        {
+            serverErrors.Add(ToFormField(key), messages);
+        }
+
+        editContext.NotifyValidationStateChanged();
+    }
+
+    /// <summary>
+    /// The form field of a wire key: <c>firstName</c> is FirstName, <c>address.city</c> is City (the form is flat). A key
+    /// with no field goes to the form itself, and shows in the validation summary.
+    /// </summary>
+    private FieldIdentifier ToFormField(string wireKey)
+    {
+        var name = wireKey[(wireKey.LastIndexOf('.') + 1)..];
+        var property = name.Length == 0
+            ? null
+            : typeof(UserFormModel).GetProperty(char.ToUpperInvariant(name[0]) + name[1..]);
+        return new FieldIdentifier(model, property?.Name ?? string.Empty);
     }
 
     private async Task LoadUserAsync()
@@ -40,14 +90,14 @@ public partial class UserForm
                 return;
             }
 
-            model = new UserFormModel
+            UseModel(new UserFormModel
             {
                 FirstName = user.FirstName,
                 LastName = user.LastName,
                 Email = user.Email,
                 Phone = user.Phone,
                 Website = user.Website?.ToString(),
-                DateOfBirth = user.DateOfBirth.DateTime,
+                DateOfBirth = user.DateOfBirth.ToDateTime(TimeOnly.MinValue),
                 Bio = user.Bio,
                 AvatarUrl = user.AvatarUrl?.ToString(),
                 IsActive = user.IsActive,
@@ -58,9 +108,9 @@ public partial class UserForm
                 PostalCode = user.Address?.PostalCode ?? string.Empty,
                 Country = user.Address?.Country ?? string.Empty,
                 CountryCode = user.Address?.CountryCode,
-                Latitude = user.Address?.Latitude ?? 0,
-                Longitude = user.Address?.Longitude ?? 0,
-            };
+                Latitude = user.Address?.Latitude,
+                Longitude = user.Address?.Longitude,
+            });
         }
         catch (Exception ex)
         {
@@ -74,6 +124,7 @@ public partial class UserForm
 
     private async Task OnValidSubmit()
     {
+        serverErrors.Clear();
         isLoading = true;
         try
         {
@@ -95,14 +146,14 @@ public partial class UserForm
                     Email: model.Email,
                     Phone: model.Phone,
                     Website: string.IsNullOrEmpty(model.Website) ? null : new Uri(model.Website),
-                    DateOfBirth: new DateTimeOffset(model.DateOfBirth ?? DateTime.Today),
+                    DateOfBirth: DateOnly.FromDateTime(model.DateOfBirth ?? DateTime.Today),
                     Bio: model.Bio,
                     AvatarUrl: string.IsNullOrEmpty(model.AvatarUrl) ? null : new Uri(model.AvatarUrl),
                     IsActive: model.IsActive,
                     Role: model.Role,
                     Address: address);
 
-                var (updated, error) = await Gateway.UpdateUserByIdAsync(UserId!, request);
+                var (updated, error, fieldErrors) = await Gateway.UpdateUserByIdAsync(UserId!, request);
                 if (updated is not null)
                 {
                     Snackbar.Add("User updated successfully", Severity.Success);
@@ -110,6 +161,7 @@ public partial class UserForm
                 }
                 else
                 {
+                    ShowServerErrors(fieldErrors);
                     Snackbar.Add($"Failed to update user: {error}", Severity.Error);
                 }
             }
@@ -121,14 +173,14 @@ public partial class UserForm
                     Email: model.Email,
                     Phone: model.Phone,
                     Website: string.IsNullOrEmpty(model.Website) ? null : new Uri(model.Website),
-                    DateOfBirth: new DateTimeOffset(model.DateOfBirth ?? DateTime.Today),
+                    DateOfBirth: DateOnly.FromDateTime(model.DateOfBirth ?? DateTime.Today),
                     Bio: model.Bio,
                     AvatarUrl: string.IsNullOrEmpty(model.AvatarUrl) ? null : new Uri(model.AvatarUrl),
                     IsActive: model.IsActive,
                     Role: model.Role,
                     Address: address);
 
-                var (created, error) = await Gateway.CreateUserAsync(request);
+                var (created, error, fieldErrors) = await Gateway.CreateUserAsync(request);
                 if (created is not null)
                 {
                     Snackbar.Add($"User created successfully (ID: {created.Id})", Severity.Success);
@@ -136,6 +188,7 @@ public partial class UserForm
                 }
                 else
                 {
+                    ShowServerErrors(fieldErrors);
                     Snackbar.Add($"Failed to create user: {error}", Severity.Error);
                 }
             }
@@ -151,12 +204,12 @@ public partial class UserForm
     }
 
     private static Color GetRoleColor(UserRole role)
-        => role switch
+        => role.Value switch
         {
-            UserRole.Admin => Color.Error,
-            UserRole.Manager => Color.Warning,
-            UserRole.Employee => Color.Info,
-            UserRole.Guest => Color.Default,
+            UserRole.Names.Admin => Color.Error,
+            UserRole.Names.Manager => Color.Warning,
+            UserRole.Names.Employee => Color.Info,
+            UserRole.Names.Guest => Color.Default,
             _ => Color.Default,
         };
 }

@@ -2,6 +2,80 @@ namespace Atc.Rest.Api.Generator.Cli.Tests.Extractors.TypeScript;
 
 public class TypeScriptClientExtractorTests
 {
+    [Theory]
+    [InlineData(true, "sortOrder?: 'ascending' | 'descending' | (string & {})")]
+    [InlineData(false, "sortOrder?: 'ascending' | 'descending' }")]
+    public void Extract_InlineEnumParameter_IsOpenLikeTheEnumTypes_UnlessExtensibleEnumsIsOff(
+        bool extensibleEnums,
+        string expected)
+    {
+        // A value read from a response (an open enum type) can be passed back as a filter
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /pets:
+                                get:
+                                  operationId: listPets
+                                  parameters:
+                                    - { name: sortOrder, in: query, schema: { type: string, enum: [ascending, descending] } }
+                                  responses:
+                                    '204': { description: OK }
+                            """;
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        using var scope = TypeScriptOperationHelper.EnumsScope(extensibleEnums);
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(document, headerContent: null));
+
+        Assert.Contains(expected, content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_EveryMethod_TakesAnAbortSignalLast_AndSendsItWithTheRequest()
+    {
+        // A caller (or React Query) cancels a request through its signal; a method without one leaves the
+        // request running after nobody wants the answer.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /pets/ping:
+                                get:
+                                  operationId: ping
+                                  responses:
+                                    '204': { description: Alive }
+                              /pets/{petId}:
+                                get:
+                                  operationId: showPet
+                                  parameters:
+                                    - { name: petId, in: path, required: true, schema: { type: string } }
+                                    - { name: fields, in: query, schema: { type: string } }
+                                  responses:
+                                    '200': { description: OK, content: { application/json: { schema: { type: string } } } }
+                              /pets:
+                                post:
+                                  operationId: createPet
+                                  requestBody:
+                                    required: true
+                                    content:
+                                      application/json:
+                                        schema: { type: string }
+                                  responses:
+                                    '201': { description: Created }
+                            """;
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(document, headerContent: null));
+        var normalized = content.Replace("\r\n", "\n", StringComparison.Ordinal);
+
+        Assert.Contains("async ping(signal?: AbortSignal): Promise<PingResult> {", normalized, StringComparison.Ordinal);
+        Assert.Contains("async showPet(petId: string, query?: { fields?: string }, signal?: AbortSignal): Promise<ShowPetResult> {", normalized, StringComparison.Ordinal);
+        Assert.Contains("async createPet(body: string, signal?: AbortSignal): Promise<CreatePetResult> {", normalized, StringComparison.Ordinal);
+        Assert.Equal(3, normalized.Split("\n      signal,\n").Length - 1);
+    }
+
     [Fact]
     public void Extract_TextPlainOperation_PassesResponseTypeText()
     {
@@ -101,6 +175,140 @@ public class TypeScriptClientExtractorTests
         var (_, content) = Assert.Single(clients);
 
         Assert.DoesNotContain("responseType: 'text'", content, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("application/pdf", "string", "binary", true)]
+    [InlineData("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "string", "binary", true)]
+    [InlineData("image/png", "string", "binary", true)]
+    [InlineData("application/x-vendor-report", "string", "none", true)]
+    [InlineData("application/json", "object", "none", false)]
+    public void Extract_EveryBinaryMediaType_IsABlobDownload(
+        string mediaType,
+        string type,
+        string format,
+        bool isBlob)
+    {
+        // One rule (ResponseBodyClassifier) with the server and the C# clients: any media type that is neither JSON,
+        // XML nor text is a file.
+        var yaml = $$"""
+                     openapi: 3.0.0
+                     info:
+                       title: Test API
+                       version: 1.0.0
+                     paths:
+                       /files/{id}:
+                         get:
+                           operationId: downloadFile
+                           parameters:
+                             - name: id
+                               in: path
+                               required: true
+                               schema:
+                                 type: string
+                           responses:
+                             '200':
+                               description: A file
+                               content:
+                                 {{mediaType}}:
+                                   schema:
+                                     type: {{type}}
+                                     format: {{format}}
+                     """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var clients = TypeScriptClientExtractor.Extract(document, headerContent: null);
+        var (_, content) = Assert.Single(clients);
+
+        Assert.Equal(isBlob, content.Contains("responseType: 'blob'", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("application/pdf")]
+    [InlineData("image/png")]
+    [InlineData("image/jpeg")]
+    [InlineData("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")]
+    public void Extract_RawFileUpload_SendsTheFileAsTheBody(string mediaType)
+    {
+        // A raw upload of any binary media type is the file itself (a Blob keeps its type), not a FormData.
+        var yaml = $$"""
+                     openapi: 3.0.0
+                     info:
+                       title: Test API
+                       version: 1.0.0
+                     paths:
+                       /uploads:
+                         post:
+                           operationId: uploadFile
+                           requestBody:
+                             required: true
+                             content:
+                               {{mediaType}}:
+                                 schema:
+                                   type: string
+                                   format: binary
+                           responses:
+                             '204':
+                               description: Stored
+                     """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(document, headerContent: null));
+
+        Assert.Contains("file: Blob | File", content, StringComparison.Ordinal);
+        Assert.Contains("body: file,", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("FormData", content, StringComparison.Ordinal);
+
+        // One concrete media type: the file is sent as it, whatever type the Blob carries
+        Assert.Contains($"contentType: '{mediaType}',", content, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A raw upload that declares a wildcard or several media types sends the file's own type when the declaration
+    /// covers it, else the first concrete type (else application/octet-stream) - never a literal wildcard.
+    /// </summary>
+    [Theory]
+    [InlineData("image/*", "contentType: file.type && ['image/*'].some((t) => t === '*/*' || t === file.type || (t.endsWith('/*') && file.type.startsWith(t.slice(0, -1)))) ? file.type : 'application/octet-stream',")]
+    [InlineData("*/*", "contentType: file.type && ['*/*'].some((t) => t === '*/*' || t === file.type || (t.endsWith('/*') && file.type.startsWith(t.slice(0, -1)))) ? file.type : 'application/octet-stream',")]
+    [InlineData("image/png|image/jpeg", "contentType: file.type && ['image/png', 'image/jpeg'].some((t) => t === '*/*' || t === file.type || (t.endsWith('/*') && file.type.startsWith(t.slice(0, -1)))) ? file.type : 'image/png',")]
+    public void Extract_RawFileUpload_AWildcardOrSeveralMediaTypes_SendsTheFilesOwnTypeWhenDeclared(
+        string mediaTypes,
+        string expected)
+    {
+        var content = string.Concat(mediaTypes.Split('|').Select(m => $$"""
+
+                               '{{m}}':
+                                 schema:
+                                   type: string
+                                   format: binary
+            """));
+        var yaml = $$"""
+                     openapi: 3.0.0
+                     info:
+                       title: Test API
+                       version: 1.0.0
+                     paths:
+                       /uploads:
+                         post:
+                           operationId: uploadFile
+                           requestBody:
+                             required: true
+                             content:{{content}}
+                           responses:
+                             '204':
+                               description: Stored
+                     """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var (_, client) = Assert.Single(TypeScriptClientExtractor.Extract(document, headerContent: null));
+
+        Assert.Contains(expected, client, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -295,7 +503,7 @@ public class TypeScriptClientExtractorTests
     public void Extract_HeaderParams_AppearInSignatureAndAreForwardedToApiRequest()
     {
         // Header params used to be silently dropped by the TS client writer. They now
-        // appear as an inline `headers?: { … }` arg after query, with non-identifier
+        // appear as an inline `headers: { … }` arg (required here: one header is) after query, with non-identifier
         // names (X-Correlation-Id) quoted, required headers without `?`, and the values
         // forwarded to the ApiClient via `headers: { … }` in the request options.
         const string yaml = """
@@ -336,7 +544,7 @@ public class TypeScriptClientExtractorTests
         // callers may omit the arg entirely (the generator doesn't enforce required-ness
         // at the TS type level, just as it doesn't for required query params).
         Assert.Contains(
-            "headers?: { 'X-Correlation-Id': string; 'X-Continuation'?: string }",
+            "headers: { 'X-Correlation-Id': string; 'X-Continuation'?: string }",
             content,
             StringComparison.Ordinal);
 
@@ -419,9 +627,9 @@ public class TypeScriptClientExtractorTests
     }
 
     [Fact]
-    public void Extract_OperationIdStartsWithDigit_PrefixesMethodWithUnderscore()
+    public void Extract_OperationIdStartsWithDigit_PrefixesTheMethodAsTheCSharpGeneratorsDo()
     {
-        // `1stPage` would camelCase to `1stPage` — invalid TS identifier (leading digit).
+        // `1stPage` would camelCase to `1stPage` - no identifier (leading digit): the shared GetOperationId prefixes `Op`, as the C# generators do.
         const string yaml = """
                             openapi: 3.0.0
                             info: { title: T, version: 1.0.0 }
@@ -437,7 +645,7 @@ public class TypeScriptClientExtractorTests
 
         var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(document, headerContent: null));
 
-        Assert.Contains("async _1stPage(", content, StringComparison.Ordinal);
+        Assert.Contains("async op1stPage(", content, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -507,7 +715,7 @@ public class TypeScriptClientExtractorTests
         Assert.Contains("{ status: 'parseError'; error: Error; response: Response }", content, StringComparison.Ordinal);
 
         // Method declares the per-op type and casts the request<T> call to it.
-        Assert.Contains("async getPet(petId: string): Promise<GetPetResult>", content, StringComparison.Ordinal);
+        Assert.Contains("async getPet(petId: string, signal?: AbortSignal): Promise<GetPetResult>", content, StringComparison.Ordinal);
         Assert.Contains("as Promise<GetPetResult>", content, StringComparison.Ordinal);
 
         // Errors barrel is imported because notFound arm needs ApiError.
@@ -515,11 +723,71 @@ public class TypeScriptClientExtractorTests
     }
 
     [Fact]
-    public void Extract_PerOperationResultType_OmitsArmsForStatusesTheOperationDoesNotDeclare()
+    public void Extract_PerOperationResultType_TypesErrorArmsFromTheDeclaredBody()
     {
-        // 401/403/409 etc. are mapped by handleResponse globally, but per-op types must
-        // stay narrow — only emit arms the spec actually documents. The cast at the call
-        // site is sound because handleResponse uses the same discriminator names.
+        // The same resolution as the server and the C# client: a declared model types the arm's
+        // error body, a JSON string or text body is a string, and an undeclared (ProblemDetails)
+        // error stays a plain ApiError / ValidationError. An unmapped 4xx is clientError.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: t, version: '1' }
+                            paths:
+                              /items/{id}:
+                                put:
+                                  operationId: updateItem
+                                  parameters:
+                                    - name: id
+                                      in: path
+                                      required: true
+                                      schema: { type: integer }
+                                  responses:
+                                    '204':
+                                      description: Updated
+                                    '404':
+                                      description: Not Found
+                                      content:
+                                        application/problem+json:
+                                          schema:
+                                            $ref: '#/components/schemas/ErrorResponse'
+                                    '409':
+                                      description: Conflict
+                                      content:
+                                        text/plain:
+                                          schema: { type: string }
+                                    '410':
+                                      description: Gone
+                                      content:
+                                        application/json:
+                                          schema:
+                                            $ref: '#/components/schemas/ErrorResponse'
+                                    '422':
+                                      description: Unprocessable Entity
+                            components:
+                              schemas:
+                                ErrorResponse:
+                                  type: object
+                                  properties:
+                                    code: { type: string }
+                            """;
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(document, headerContent: null));
+
+        Assert.Contains("status: 'notFound'; error: ApiError<ErrorResponse>;", content, StringComparison.Ordinal);
+        Assert.Contains("status: 'conflict'; error: ApiError<string>;", content, StringComparison.Ordinal);
+        Assert.Contains("status: 'clientError'; error: ApiError;", content, StringComparison.Ordinal);
+        Assert.Contains("status: 'unprocessableEntity'; error: ApiError;", content, StringComparison.Ordinal);
+        Assert.Contains("status: 'badRequest'; error: ValidationError;", content, StringComparison.Ordinal);
+        Assert.Contains("ErrorResponse", content.Split('\n').First(l => l.Contains("from '../models'", StringComparison.Ordinal)), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_PerOperationResultType_OmitsArmsTheServerCannotProduce()
+    {
+        // Per-op types stay narrow: the declared statuses, the ones the server adds for the operation
+        // (auth, path parameters, ...) and the universal clientError/serverError/parseError. A GET
+        // without parameters or security cannot answer 401 or 404, so those arms are omitted.
         const string yaml = """
                             openapi: 3.0.0
                             info: { title: t, version: '1' }
@@ -549,7 +817,8 @@ public class TypeScriptClientExtractorTests
         Assert.Contains("status: 'parseError'", content, StringComparison.Ordinal);
         Assert.DoesNotContain("status: 'unauthorized'", content, StringComparison.Ordinal);
         Assert.DoesNotContain("status: 'notFound'", content, StringComparison.Ordinal);
-        Assert.DoesNotContain("status: 'serverError'", content, StringComparison.Ordinal);
+        Assert.Contains("status: 'serverError'", content, StringComparison.Ordinal);
+        Assert.Contains("status: 'clientError'", content, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -870,11 +1139,11 @@ public class TypeScriptClientExtractorTests
         var contentByClass = results.ToDictionary(r => r.ClassName, r => r.Content, StringComparer.Ordinal);
 
         // PetsClient: param-name path → PetId.
-        Assert.Contains("getPet(petId: PetId)", contentByClass["PetsClient"], StringComparison.Ordinal);
+        Assert.Contains("getPet(petId: PetId, signal?: AbortSignal)", contentByClass["PetsClient"], StringComparison.Ordinal);
         Assert.Contains("import type { PetId } from '../types/BrandedIds';", contentByClass["PetsClient"], StringComparison.Ordinal);
 
         // UsersClient: bare `{id}` falls back to parent segment `users` → `UserId`.
-        Assert.Contains("getUser(id: UserId)", contentByClass["UsersClient"], StringComparison.Ordinal);
+        Assert.Contains("getUser(id: UserId, signal?: AbortSignal)", contentByClass["UsersClient"], StringComparison.Ordinal);
         Assert.Contains("import type { UserId } from '../types/BrandedIds';", contentByClass["UsersClient"], StringComparison.Ordinal);
     }
 
@@ -900,7 +1169,7 @@ public class TypeScriptClientExtractorTests
 
         var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(doc, headerContent: null, brandedIds: false));
 
-        Assert.Contains("getPet(petId: string)", content, StringComparison.Ordinal);
+        Assert.Contains("getPet(petId: string, signal?: AbortSignal)", content, StringComparison.Ordinal);
         Assert.DoesNotContain("BrandedIds", content, StringComparison.Ordinal);
     }
 
@@ -1028,10 +1297,10 @@ public class TypeScriptClientExtractorTests
     }
 
     [Fact]
-    public void Extract_PaginatedStreamingWithSpecDeclaredContinuation_DoesNotDuplicateHeader()
+    public void Extract_PaginatedStreamingWithSpecDeclaredContinuation_HasNoPageCompanion()
     {
-        // When the spec already declares an x-continuation header param the
-        // Page companion must not synthesize a second one (TS2300 / TS1117).
+        // A stream of pages gets no single-page companion; the declared x-continuation header stays a
+        // plain parameter of the streaming method.
         const string yaml = """
                             openapi: 3.0.0
                             info: { title: T, version: 1.0.0 }
@@ -1069,12 +1338,8 @@ public class TypeScriptClientExtractorTests
 
         var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(doc, headerContent: null));
 
-        Assert.DoesNotContain("'x-continuation'?: string; 'x-continuation'?: string", content, StringComparison.Ordinal);
-
-        // The request object literal must carry the continuation key exactly once per method.
-        var pageMethodBody = content[content.IndexOf("getInsightsDevicesPage", StringComparison.Ordinal)..];
-        var objectLiteralOccurrences = CountOccurrences(pageMethodBody, "'x-continuation': headers?.['x-continuation'],");
-        Assert.Equal(1, objectLiteralOccurrences);
+        Assert.Contains("async *getInsightsDevices(", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("getInsightsDevicesPage", content, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1256,21 +1521,6 @@ public class TypeScriptClientExtractorTests
         Assert.DoesNotContain("join(", content, StringComparison.Ordinal);
     }
 
-    private static int CountOccurrences(
-        string haystack,
-        string needle)
-    {
-        var count = 0;
-        var index = 0;
-        while ((index = haystack.IndexOf(needle, index, StringComparison.Ordinal)) >= 0)
-        {
-            count++;
-            index += needle.Length;
-        }
-
-        return count;
-    }
-
     [Fact]
     public void Extract_ItemSchemaStreamingOperation_EmitsAsyncGeneratorOfItem()
     {
@@ -1400,8 +1650,320 @@ public class TypeScriptClientExtractorTests
         Assert.Contains("session", content, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Extract_UrlEncodedFormBody_SendsTheModelAsURLSearchParams()
+    {
+        // The method took no body for a URL-encoded form. It takes the model, like a JSON body, and sends its fields
+        // as a URLSearchParams (the runtime sets application/x-www-form-urlencoded); a list is one field per item.
+        var document = ParseYaml(UrlEncodedFormYaml);
+        Assert.NotNull(document);
+
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(document, headerContent: null));
+
+        Assert.Contains("async login(body: Credentials, signal?: AbortSignal)", content, StringComparison.Ordinal);
+        Assert.Contains("const form = new URLSearchParams();", content, StringComparison.Ordinal);
+        Assert.Contains("if (body.user != null) form.append('user', String(body.user));", content, StringComparison.Ordinal);
+        Assert.Contains("if (body.remember != null) form.append('remember', String(body.remember));", content, StringComparison.Ordinal);
+        Assert.Contains("for (const item of body.scopes ?? []) form.append('scopes', String(item));", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("FormData", content, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("{ $ref: '#/components/schemas/Address' }")]
+    [InlineData("{ type: array, items: { $ref: '#/components/schemas/Address' } }")]
+    [InlineData("{ type: object, additionalProperties: { type: string } }")]
+    public void Extract_UrlEncodedFieldWithNoTextForm_IsLeftOut(
+        string fieldYaml)
+    {
+        // An object, a map or a list of objects has no URL-encoded form: String() would send '[object Object]'
+        // (ATC_API_OPR037 warns)
+        var document = ParseYaml(FormFieldYaml("application/x-www-form-urlencoded", fieldYaml));
+        Assert.NotNull(document);
+
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(document, headerContent: null));
+
+        Assert.Contains(".append('name', String(", content, StringComparison.Ordinal);
+        Assert.DoesNotContain(".append('field'", content, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("{ $ref: '#/components/schemas/Address' }", "        if (data.field != null) formData.append('field', new Blob([JSON.stringify(data.field)], { type: 'application/json' }));")]
+    [InlineData("{ type: array, items: { $ref: '#/components/schemas/Address' } }", "        for (const item of data.field ?? []) formData.append('field', new Blob([JSON.stringify(item)], { type: 'application/json' }));")]
+    [InlineData("{ type: object, additionalProperties: { type: string } }", "        if (data.field != null) formData.append('field', new Blob([JSON.stringify(data.field)], { type: 'application/json' }));")]
+    public void Extract_MultipartFieldWithNoTextForm_IsAJsonPart(
+        string fieldYaml,
+        string expected)
+    {
+        // An object, a map or a list of objects in a multipart form is an application/json part (one per item)
+        var document = ParseYaml(FormFieldYaml("multipart/form-data", fieldYaml));
+        Assert.NotNull(document);
+
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(document, headerContent: null));
+
+        Assert.Contains(expected, content, StringComparison.Ordinal);
+        Assert.DoesNotContain("toWire", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_MultipartModelField_IsImported_ByTheClientAndTheHooks()
+    {
+        // The method's form type names the field's model ({ ...; field?: Address }): the file imports it
+        var document = ParseYaml(FormFieldYaml("multipart/form-data", "{ $ref: '#/components/schemas/Address' }"));
+        Assert.NotNull(document);
+
+        var (_, client) = Assert.Single(TypeScriptClientExtractor.Extract(document, headerContent: null));
+        var reactQuery = Assert.Single(TypeScriptReactQueryHookExtractor.Extract(document, headerContent: null), f => f.Content.Contains("field?: Address", StringComparison.Ordinal)).Content;
+        var swr = Assert.Single(TypeScriptSwrHookExtractor.Extract(document, headerContent: null), f => f.Content.Contains("field?: Address", StringComparison.Ordinal)).Content;
+
+        foreach (var content in new[] { client, reactQuery, swr })
+        {
+            Assert.Contains("field?: Address", content, StringComparison.Ordinal);
+            Assert.Contains("import type { Address } from '../models';", content, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public void Extract_MultipartFieldWithNoTextForm_WithEncodingOtherThanJson_IsLeftOut()
+    {
+        var document = ParseYaml(FormFieldYaml("multipart/form-data", "{ $ref: '#/components/schemas/Address' }", "text/plain"));
+        Assert.NotNull(document);
+
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(document, headerContent: null));
+
+        Assert.DoesNotContain(".append('field'", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_MultipartJsonPart_WithRenamedProperties_IsSentWithTheApiNames()
+    {
+        // The model's camelCase names are renamed back to the API's (street_name), as a JSON body is
+        var document = ParseYaml(FormFieldYaml("multipart/form-data", "{ $ref: '#/components/schemas/Address' }").Replace("street: { type: string }", "street_name: { type: string }", StringComparison.Ordinal));
+        Assert.NotNull(document);
+
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(document, headerContent: null));
+
+        Assert.Contains("import { toWire } from '../helpers/wireNames';", content, StringComparison.Ordinal);
+        Assert.Contains("formData.append('field', new Blob([JSON.stringify(toWire(data.field, 'Address'))], { type: 'application/json' }));", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_UrlEncodedFormBodyWithConvertDates_WritesADateAsTheLocalCalendarDay()
+    {
+        var document = ParseYaml(UrlEncodedFormYaml.Replace("remember: { type: boolean }", "since: { type: string, format: date }", StringComparison.Ordinal));
+        Assert.NotNull(document);
+
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(document, headerContent: null, convertDates: true));
+
+        Assert.Contains("import { ApiClient, dateOnly } from './ApiClient';", content, StringComparison.Ordinal);
+        Assert.Contains("form.append('since', body.since instanceof Date ? dateOnly(body.since) : String(body.since));", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_JsonOperation_AsksForJson_AnOperationWithoutABodyDoesNot()
+    {
+        // A declared JSON model is read as JSON whatever the answer's Content-Type says (a 200 without a
+        // Content-Type is the model, not a Blob; an empty 201 is no data). An operation that declares no body,
+        // a file and a text download keep their own reading.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /pets:
+                                get:
+                                  operationId: listPets
+                                  responses:
+                                    '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Pet' } } } } }
+                                post:
+                                  operationId: createPet
+                                  responses:
+                                    '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Pet' } } } }
+                              /pets/ping:
+                                post:
+                                  operationId: ping
+                                  responses:
+                                    '201': { description: Created }
+                              /pets/export:
+                                get:
+                                  operationId: exportPets
+                                  responses:
+                                    '200': { description: OK, content: { text/csv: { schema: { type: string } } } }
+                              /pets/photo:
+                                get:
+                                  operationId: photo
+                                  responses:
+                                    '200': { description: OK, content: { image/png: { schema: { type: string, format: binary } } } }
+                            components:
+                              schemas:
+                                Pet:
+                                  type: object
+                                  properties:
+                                    name: { type: string }
+                            """;
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(document, headerContent: null));
+
+        // listPets and createPet ask for JSON; ping (no body), exportPets (text) and photo (blob) do not.
+        Assert.Equal(2, content.Split("responseType: 'json',").Length - 1);
+        Assert.Equal(1, content.Split("responseType: 'text',").Length - 1);
+        Assert.Equal(1, content.Split("responseType: 'blob',").Length - 1);
+    }
+
+    private const string UrlEncodedFormYaml = """
+        openapi: 3.0.0
+        info: { title: T, version: 1.0.0 }
+        paths:
+          /login:
+            post:
+              operationId: login
+              requestBody:
+                required: true
+                content:
+                  application/x-www-form-urlencoded:
+                    schema: { $ref: '#/components/schemas/Credentials' }
+              responses:
+                '204': { description: ok }
+        components:
+          schemas:
+            Role:
+              type: string
+              enum: [admin, read-only]
+            Credentials:
+              type: object
+              required: [user]
+              properties:
+                user: { type: string }
+                remember: { type: boolean }
+                role: { $ref: '#/components/schemas/Role' }
+                scopes: { type: array, items: { type: string } }
+        """;
+
+    /// <summary>
+    /// With <c>--convert-dates</c>, every operation whose body, response or declared error carries a declared date
+    /// passes its <c>wire</c> shape to the request - the runtime converts nothing it is not told about, so a missed
+    /// operation would silently leave its dates as strings while the types say <c>Date</c>.
+    /// </summary>
+    [Fact]
+    public void Extract_ConvertDates_EveryOperationWithADateGetsItsWireShape()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /events:
+                                get:
+                                  operationId: listEvents
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema: { type: array, items: { $ref: '#/components/schemas/Event' } }
+                                post:
+                                  operationId: createEvent
+                                  requestBody:
+                                    content:
+                                      application/json:
+                                        schema: { $ref: '#/components/schemas/Event' }
+                                  responses:
+                                    '204': { description: Created }
+                                    '409':
+                                      description: Conflict
+                                      content:
+                                        application/json:
+                                          schema: { $ref: '#/components/schemas/Clash' }
+                              /events/{id}:
+                                get:
+                                  operationId: getEvent
+                                  parameters:
+                                    - { name: id, in: path, required: true, schema: { type: string } }
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema: { $ref: '#/components/schemas/Event' }
+                              /ping:
+                                get:
+                                  operationId: ping
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema: { $ref: '#/components/schemas/Plain' }
+                            components:
+                              schemas:
+                                Event:
+                                  type: object
+                                  properties:
+                                    name: { type: string }
+                                    at: { type: string, format: date-time }
+                                Clash:
+                                  type: object
+                                  properties:
+                                    existingSince: { type: string, format: date }
+                                Plain:
+                                  type: object
+                                  properties:
+                                    text: { type: string }
+                            """;
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var clients = TypeScriptClientExtractor.Extract(document, headerContent: null, convertDates: true);
+
+        var events = clients.Single(c => c.ClassName == "EventsClient").Content;
+        Assert.Contains("wire: { response: { array: 'Event' } }", events, StringComparison.Ordinal);
+        Assert.Contains("wire: { response: 'Event' }", events, StringComparison.Ordinal);
+        Assert.Contains("wire: { body: 'Event', errors: {", events, StringComparison.Ordinal);
+        Assert.Equal(3, events.Split("wire: ").Length - 1);
+
+        // An operation without a declared date passes no shape: nothing to convert
+        var ping = clients.Single(c => c.ClassName == "PingClient").Content;
+        Assert.DoesNotContain("wire:", ping, StringComparison.Ordinal);
+    }
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document
             : null;
+
+    private static string FormFieldYaml(
+        string mediaType,
+        string fieldYaml,
+        string encodingContentType = "")
+        => $$"""
+            openapi: 3.0.3
+            info:
+              title: Test
+              version: 1.0.0
+            paths:
+              /upload:
+                post:
+                  operationId: upload
+                  requestBody:
+                    required: true
+                    content:
+                      {{mediaType}}:
+                        schema:
+                          $ref: '#/components/schemas/UploadForm'
+                        {{(encodingContentType.Length == 0 ? string.Empty : "encoding: { field: { contentType: '" + encodingContentType + "' } }")}}
+                  responses:
+                    '204':
+                      description: Stored
+            components:
+              schemas:
+                Address:
+                  type: object
+                  properties:
+                    street: { type: string }
+                UploadForm:
+                  type: object
+                  properties:
+                    name: { type: string }
+                    file: { type: string, format: binary }
+                    field: {{fieldYaml}}
+            """;
 }

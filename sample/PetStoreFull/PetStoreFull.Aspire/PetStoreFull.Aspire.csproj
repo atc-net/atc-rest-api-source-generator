@@ -12,4 +12,9 @@
     <ProjectReference Include="..\PetStoreFull.ClientApp\PetStoreFull.ClientApp.csproj" />
   </ItemGroup>
 
+  <!-- Aspire.Hosting (13.6.1 too) depends on MessagePack 2.5.302, which GHSA-qhrr-8q5h-9q3h fixes in 2.5.303 -->
+  <ItemGroup>
+    <PackageReference Include="MessagePack" Version="3.1.12" />
+  </ItemGroup>
+
 </Project>

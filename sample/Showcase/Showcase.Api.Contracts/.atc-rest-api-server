@@ -1,16 +1,17 @@
 {
+    "$schema": "https://raw.githubusercontent.com/atc-net/atc-rest-api-source-generator/main/schemas/atc-rest-api-server.schema.json",
     "validateSpecificationStrategy": "Strict",
     "includeDeprecated": false,
     "useMinimalApiPackage": "enabled",
     "useValidationFilter": "enabled",
     "useGlobalErrorHandler": "enabled",
     "generateWebhooks": true,
+    "readEnumMemberNames": true,
     "healthChecks": {
         "enabled": true,
         "includeLiveness": true,
         "includeReadiness": true,
         "security": "apiKey",
-        "apiKeyQueryParameterName": "api-key",
         "apiKeyHeaderName": "X-Health-Api-Key"
     }
 }

@@ -1,25 +1,48 @@
 // ReSharper disable InvertIf
 namespace Atc.Rest.Api.Generator.Cli.Extractors.TypeScript;
 
+using static Atc.Rest.Api.Generator.Cli.Extractors.TypeScript.TypeScriptHookModel;
+
 /// <summary>
-/// Generates per-segment SWR hook files from OpenAPI operations.
-/// GET operations become useSWR hooks; POST/PUT/PATCH/DELETE become useSWRMutation hooks.
-/// Streaming operations are skipped with a comment.
+/// Generates per-segment SWR hook files from OpenAPI operations. Built on the same operation model as
+/// the React Query hooks (<see cref="TypeScriptHookModel"/>), so both take the same parameters, share the
+/// query-key factory and unwrap results the same way:
+/// <list type="bullet">
+///   <item><description>GET / QUERY become <c>useSWR</c> hooks (every path, query, header and cookie parameter plus the body);</description></item>
+///   <item><description>other verbs become <c>useSWRMutation</c> hooks that revalidate the segment's queries on success;</description></item>
+///   <item><description>paginated streams get a <c>useSWRInfinite</c> hook, every stream a <c>useXxxStream</c> hook.</description></item>
+/// </list>
+/// A specification that declares retry (<c>x-retry-*</c>) has the ApiClient own it, so the hooks default to
+/// <c>shouldRetryOnError: false</c> there; one that declares none leaves retry to the app.
 /// </summary>
 [SuppressMessage("Design", "MA0051:Method is too long", Justification = "Code generation methods require sequential StringBuilder operations.")]
 public static class TypeScriptSwrHookExtractor
 {
+    /// <summary>
+    /// Extracts one SWR hook file per path segment from the OpenAPI document.
+    /// </summary>
+    /// <param name="openApiDoc">The parsed OpenAPI document.</param>
+    /// <param name="headerContent">Optional auto-generated file header.</param>
+    /// <param name="enumNames">Names of types that are enums (for correct import type).</param>
+    /// <param name="namingStrategy">How property and parameter names are cased in the models.</param>
+    /// <param name="brandedIds">Whether <c>uuid</c> id properties use branded types.</param>
+    /// <param name="convertDates">Whether date and date-time values are typed <c>Date</c>.</param>
+    /// <param name="writableSchemas">Schemas that have a separate writable variant for request bodies.</param>
+    /// <returns>List of (FileName, FileContent) tuples for each segment hook file.</returns>
     public static List<(string FileName, string Content)> Extract(
         OpenApiDocument openApiDoc,
         string? headerContent,
         HashSet<string>? enumNames = null,
         TypeScriptNamingStrategy namingStrategy = TypeScriptNamingStrategy.CamelCase,
-        bool brandedIds = false)
+        bool brandedIds = false,
+        bool convertDates = false,
+        HashSet<string>? writableSchemas = null)
     {
         ArgumentNullException.ThrowIfNull(openApiDoc);
 
         var results = new List<(string FileName, string Content)>();
         var segments = PathSegmentHelper.GetUniquePathSegments(openApiDoc);
+        writableSchemas ??= new HashSet<string>(StringComparer.Ordinal);
 
         foreach (var segment in segments)
         {
@@ -29,201 +52,185 @@ public static class TypeScriptSwrHookExtractor
                 continue;
             }
 
-            var hookInfos = CollectHookInfos(operations, openApiDoc);
-            if (hookInfos.Count == 0)
+            var content = GenerateSegmentHooks(segment, operations, openApiDoc, headerContent, enumNames, namingStrategy, convertDates, writableSchemas, brandedIds);
+            if (content is not null)
             {
-                continue;
+                results.Add(("use" + segment, content));
             }
-
-            var content = GenerateHookFile(
-                segment,
-                hookInfos,
-                headerContent,
-                namingStrategy,
-                brandedIds);
-
-            var fileName = $"use{segment}";
-            results.Add((fileName, content));
         }
 
         return results;
     }
 
-    private static List<SwrHookInfo> CollectHookInfos(
+    private static string? GenerateSegmentHooks(
+        string segment,
         List<(string Path, string Method, OpenApiOperation Operation)> operations,
-        OpenApiDocument openApiDoc)
+        OpenApiDocument openApiDoc,
+        string? headerContent,
+        HashSet<string>? enumNames,
+        TypeScriptNamingStrategy namingStrategy,
+        bool convertDates,
+        HashSet<string> writableSchemas,
+        bool brandedIds)
     {
-        var hookInfos = new List<SwrHookInfo>();
+        var importTypes = new HashSet<string>(StringComparer.Ordinal);
+        var brandImports = new SortedSet<string>(StringComparer.Ordinal);
+        var hookInfos = new List<HookInfo>();
 
         foreach (var (path, method, operation) in operations)
         {
-            var operationId = operation.OperationId;
-            if (string.IsNullOrEmpty(operationId))
+            // A hook for the safe metadata verbs has no meaning.
+            if (method.ToUpperInvariant() is "HEAD" or "OPTIONS" or "TRACE")
             {
                 continue;
             }
 
-            var isStreaming = operation.IsStreamingResponse();
-            var isFileDownload = operation.HasFileDownload();
-            var returnType = TypeScriptOperationHelper.GetReturnType(operation, isStreaming, isFileDownload);
-            var httpMethod = method.ToUpperInvariant();
+            var info = ClassifyOperation(path, method, operation, openApiDoc, namingStrategy, writableSchemas);
+            hookInfos.Add(info);
 
-            // The OpenAPI 3.2 QUERY method is a read — safe and idempotent — that carries its
-            // criteria in the request body because they are too large for a URL. It belongs
-            // with GET in useSWR, not in useSWRMutation.
-            var isQuery = httpMethod is "GET" or "QUERY" && !isFileDownload && !isStreaming;
-
-            // Everything else that changes state is a mutation. Listing only the four classic
-            // verbs meant OpenAPI 3.2 additionalOperations verbs (LINK, UNLINK, ...) matched
-            // neither set and were dropped without a hook and without a diagnostic. The safe
-            // metadata verbs are excluded because a hook for them has no meaning.
-            var isMutation = !isQuery &&
-                             !isStreaming &&
-                             httpMethod is not ("HEAD" or "OPTIONS" or "TRACE");
-
-            if (!isQuery && !isMutation && !isStreaming)
-            {
-                continue;
-            }
-
-            // Streaming hooks need the operation's path/query/header params at emission
-            // time so the generated useState/useEffect-backed hook can forward them to the
-            // async-generator client method. Non-streaming hooks ignore these, but it's
-            // cheaper to populate them unconditionally than to branch the record shape.
-            var pathParams = TypeScriptOperationHelper.GetMergedParameters(operation, openApiDoc, path, ParameterLocation.Path);
-            var queryParams = TypeScriptOperationHelper.GetMergedParameters(operation, openApiDoc, path, ParameterLocation.Query);
-            var headerParams = TypeScriptOperationHelper.GetMergedParameters(operation, openApiDoc, path, ParameterLocation.Header);
-            var methodName = operationId.ToCamelCase().ToTypeScriptIdentifier();
-
-            // A read with a body needs the body in the hook signature, the client call and the
-            // cache key; a mutation forwards its argument untyped, so only the read path uses
-            // the resolved type name.
-            var (bodySchema, _) = operation.GetRequestBodySchemaWithContentType();
-            var hasBody = bodySchema is not null;
-            var bodyType = hasBody && isQuery
-                ? bodySchema!.ToTypeScriptReturnType()
-                : string.Empty;
-
-            // The generated client method takes zero arguments when the operation has no path
-            // params, no body and nothing to send in the query string or headers. A mutation
-            // hook must then call it with no argument at all — forwarding `arg as never` to a
-            // zero-parameter method is a TypeScript compile error in the consumer's project.
-            var takesArgument = pathParams.Count > 0 ||
-                                queryParams.Count > 0 ||
-                                headerParams.Count > 0 ||
-                                hasBody;
-
-            hookInfos.Add(new SwrHookInfo(
-                operationId,
-                returnType,
-                isQuery,
-                isMutation,
-                isStreaming,
-                path,
-                methodName,
-                pathParams,
-                queryParams,
-                headerParams,
-                operation.Summary,
-                operation.Description,
-                operation.Deprecated,
-                hasBody,
-                bodyType,
-                takesArgument));
-        }
-
-        return hookInfos;
-    }
-
-    private static string GenerateHookFile(
-        string segment,
-        List<SwrHookInfo> hookInfos,
-        string? headerContent,
-        TypeScriptNamingStrategy namingStrategy,
-        bool brandedIds)
-    {
-        var sb = new StringBuilder();
-        var brandImports = new SortedSet<string>(StringComparer.Ordinal);
-
-        // Pre-scan path params so the BrandedIds import line is accurate.
-        if (brandedIds)
-        {
-            foreach (var info in hookInfos)
+            if (brandedIds)
             {
                 foreach (var param in info.PathParams)
                 {
-                    if (string.IsNullOrEmpty(param.Name))
-                    {
-                        continue;
-                    }
-
-                    var brand = TypeScriptBrandedIdExtractor.ResolveParamBrand(info.Path, param.Name, param.Schema);
-                    if (brand is not null)
+                    if (!string.IsNullOrEmpty(param.Name) &&
+                        TypeScriptBrandedIdExtractor.ResolveParamBrand(info.Path, param.Name, param.Schema) is { } brand)
                     {
                         brandImports.Add(brand);
                     }
                 }
             }
+
+            TypeScriptOperationHelper.CollectImportTypes(operation, importTypes, openApiDoc, path);
+
+            // A body that's a $ref to a schema with the readOnly/writeOnly split uses <Name>Writable.
+            var (bodySchema, _) = operation.GetRequestBodySchemaWithContentType();
+            if (bodySchema is OpenApiSchemaReference bodyRef &&
+                bodyRef.ComponentName is { } refName &&
+                writableSchemas.Contains(refName))
+            {
+                importTypes.Add(refName + TypeScriptModelExtractor.WritableSuffix);
+            }
         }
 
-        if (headerContent is not null)
+        if (hookInfos.Count == 0)
         {
-            sb.Append(headerContent);
+            return null;
         }
 
-        // Imports
-        var hasQueries = hookInfos.Any(h => h.IsQuery);
-        var hasMutations = hookInfos.Any(h => h.IsMutation);
-        var hasStreaming = hookInfos.Any(h => h.IsStreaming);
+        var segmentCamel = segment.ToCamelCase();
+        hookInfos = AssignKeyNames(hookInfos, segmentCamel);
+        var body = new StringBuilder();
+        AppendQueryKeyFactory(body, segmentCamel, hookInfos, namingStrategy, convertDates, brandedIds);
 
-        // Streaming hooks are framework-agnostic React + AbortController code — they
-        // don't go through useSWR at all. React primitive hooks come first so the
-        // import order matches what consumers expect.
-        if (hasStreaming)
+        foreach (var info in hookInfos)
+        {
+            body.AppendLine();
+            if (info.IsStreaming)
+            {
+                AppendStreamHook(body, info, segmentCamel, namingStrategy, convertDates, brandedIds);
+            }
+            else if (info.IsQuery)
+            {
+                AppendQueryHook(body, info, segmentCamel, namingStrategy, convertDates, brandedIds);
+                if (info.Pagination is not null)
+                {
+                    body.AppendLine();
+                    AppendInfiniteHook(body, info, segmentCamel, namingStrategy, convertDates, brandedIds);
+                }
+            }
+            else
+            {
+                AppendMutationHook(body, info, segmentCamel, namingStrategy, convertDates, brandedIds, revalidateInfinite: hookInfos.Any(h => h.Pagination is not null));
+            }
+        }
+
+        var bodyText = body.ToString();
+        var sb = new StringBuilder();
+        sb.Append(headerContent);
+
+        AppendImports(sb, hookInfos, importTypes, enumNames, brandImports, bodyText);
+        sb.Append(bodyText);
+        return sb.ToString();
+    }
+
+    private static void AppendImports(
+        StringBuilder sb,
+        List<HookInfo> hookInfos,
+        HashSet<string> importTypes,
+        HashSet<string>? enumNames,
+        SortedSet<string> brandImports,
+        string bodyText)
+    {
+        var hasQueries = hookInfos.Any(h => h.IsQuery && !h.IsStreaming);
+        var hasMutations = hookInfos.Any(h => !h.IsQuery && !h.IsStreaming);
+        var hasStreams = hookInfos.Any(h => h.IsStreaming);
+        var hasInfinite = hookInfos.Any(h => h.Pagination is not null);
+
+        if (hasStreams)
         {
             sb.AppendLine("import { useCallback, useEffect, useRef, useState } from 'react';");
         }
 
+        var swrImports = new List<string>();
+        if (hasMutations)
+        {
+            swrImports.Add("useSWRConfig");
+        }
+
         if (hasQueries)
         {
-            sb.AppendLine("import useSWR from 'swr';");
+            swrImports.Add("type SWRConfiguration");
+        }
+
+        if (hasQueries)
+        {
+            sb.Append("import useSWR, { ").Append(string.Join(", ", swrImports)).AppendLine(" } from 'swr';");
+        }
+        else if (swrImports.Count > 0)
+        {
+            sb.Append("import { ").Append(string.Join(", ", swrImports)).AppendLine(" } from 'swr';");
+        }
+
+        if (hasInfinite)
+        {
+            sb.AppendLine("import useSWRInfinite, { type SWRInfiniteConfiguration } from 'swr/infinite';");
         }
 
         if (hasMutations)
         {
-            sb.AppendLine("import useSWRMutation from 'swr/mutation';");
+            sb.AppendLine("import useSWRMutation, { type SWRMutationConfiguration } from 'swr/mutation';");
         }
 
         sb.AppendLine("import { useApiService } from './useApiService';");
 
-        // Return types are never named in an SWR hook — the body reads result.status and
-        // result.data with the type inferred — so nothing is imported for them. An earlier version
-        // collected them and, on finding any, imported ApiResult, which the emitted code does not
-        // reference either: an unused import that fails a consumer building with noUnusedLocals or
-        // an ESLint no-unused-vars rule.
-        //
-        // Body types are different: they appear in a read hook's own signature, so they have
-        // to be imported by name or the emitted TypeScript will not compile.
-        var bodyImports = new SortedSet<string>(StringComparer.Ordinal);
-        foreach (var info in hookInfos)
+        if (hasQueries || hasMutations || hasInfinite)
         {
-            if (!info.HasBody || string.IsNullOrEmpty(info.BodyType))
-            {
-                continue;
-            }
+            sb.AppendLine("import { ApiError } from '../errors/ApiError';");
+        }
 
-            var cleanType = info.BodyType
-                .Replace("[]", string.Empty, StringComparison.Ordinal)
-                .Replace("?", string.Empty, StringComparison.Ordinal);
-            if (char.IsUpper(cleanType[0]) && cleanType != "Blob")
+        // Only the types the hooks actually name, so noUnusedLocals stays quiet.
+        var modelImports = new SortedSet<string>(StringComparer.Ordinal);
+        var enumImports = new SortedSet<string>(StringComparer.Ordinal);
+        foreach (var typeName in importTypes.Where(t => TypeScriptOperationHelper.ReferencesIdentifier(bodyText, t)))
+        {
+            if (enumNames?.Contains(typeName) == true)
             {
-                bodyImports.Add(cleanType);
+                enumImports.Add(typeName);
+            }
+            else
+            {
+                modelImports.Add(typeName);
             }
         }
 
-        if (bodyImports.Count > 0)
+        if (modelImports.Count > 0)
         {
-            sb.Append("import type { ").Append(string.Join(", ", bodyImports)).AppendLine(" } from '../models';");
+            sb.Append("import type { ").Append(string.Join(", ", modelImports)).AppendLine(" } from '../models';");
+        }
+
+        if (enumImports.Count > 0)
+        {
+            sb.Append("import type { ").Append(string.Join(", ", enumImports)).AppendLine(" } from '../enums';");
         }
 
         if (brandImports.Count > 0)
@@ -232,327 +239,281 @@ public static class TypeScriptSwrHookExtractor
         }
 
         sb.AppendLine();
-
-        // Key factory
-        var segmentLower = segment.EnsureFirstCharacterToLower();
-        sb.Append("export const ").Append(segmentLower).AppendLine("Keys = {");
-        sb.Append("  all: ['").Append(segmentLower).AppendLine("'] as const,");
-        sb.Append("  detail: (id: string) => ['").Append(segmentLower).AppendLine("', id] as const,");
-        sb.AppendLine("};");
-        sb.AppendLine();
-
-        // Generate hooks
-        foreach (var info in hookInfos)
-        {
-            var hookName = $"use{info.OperationId.EnsureFirstCharacterToUpper()}";
-            var methodName = info.OperationId.EnsureFirstCharacterToLower();
-
-            if (info.IsStreaming)
-            {
-                // React Query Option A treatment for SWR consumers — the
-                // streaming hook is plain React + AbortController, no SWR machinery, so
-                // the body is essentially the same shape as the React Query sibling.
-                GenerateStreamHook(sb, info, segmentLower, namingStrategy, brandedIds);
-            }
-            else if (info.IsQuery)
-            {
-                GenerateQueryHook(sb, hookName, methodName, info, segmentLower);
-            }
-            else if (info.IsMutation)
-            {
-                GenerateMutationHook(sb, hookName, methodName, info, segmentLower);
-            }
-        }
-
-        return sb.ToString();
-    }
-
-    private static void GenerateQueryHook(
-        StringBuilder sb,
-        string hookName,
-        string methodName,
-        SwrHookInfo info,
-        string segmentLower)
-    {
-        var isDetail = info.OperationId.Contains("ById", StringComparison.OrdinalIgnoreCase) ||
-                       info.OperationId.Contains("ByName", StringComparison.OrdinalIgnoreCase);
-
-        AppendHookJsDoc(sb, info);
-        if (info.HasBody)
-        {
-            // OpenAPI 3.2 QUERY: the body is the query, so it identifies the cache entry.
-            // SWR hashes the key structurally, so the body object goes in directly.
-            sb.Append("export function ").Append(hookName).Append("(body: ").Append(info.BodyType).AppendLine(") {");
-            sb.AppendLine("  const api = useApiService();");
-            sb.AppendLine();
-            sb.AppendLine("  return useSWR(");
-            sb.Append("    [...").Append(segmentLower).Append("Keys.all, '").Append(methodName).AppendLine("', body] as const,");
-            sb.AppendLine("    async () => {");
-            sb.Append("      const result = await api.").Append(segmentLower).Append('.').Append(methodName).AppendLine("(body);");
-        }
-        else if (isDetail)
-        {
-            sb.Append("export function ").Append(hookName).AppendLine("(id: string) {");
-            sb.Append("  const api = useApiService();");
-            sb.AppendLine();
-            sb.AppendLine("  return useSWR(");
-            sb.Append("    ").Append(segmentLower).AppendLine("Keys.detail(id),");
-            sb.AppendLine("    async () => {");
-            sb.Append("      const result = await api.").Append(segmentLower).Append('.').Append(methodName).AppendLine("(id);");
-        }
-        else
-        {
-            sb.Append("export function ").Append(hookName).AppendLine("() {");
-            sb.AppendLine("  const api = useApiService();");
-            sb.AppendLine();
-            sb.AppendLine("  return useSWR(");
-            sb.Append("    ").Append(segmentLower).AppendLine("Keys.all,");
-            sb.AppendLine("    async () => {");
-            sb.Append("      const result = await api.").Append(segmentLower).Append('.').Append(methodName).AppendLine("();");
-        }
-
-        sb.AppendLine("      if (result.status === 'ok' || result.status === 'created') {");
-        sb.AppendLine("        return result.data;");
-        sb.AppendLine("      }");
-        sb.AppendLine("      throw result.error;");
-        sb.AppendLine("    },");
-        sb.AppendLine("  );");
-        sb.AppendLine("}");
-        sb.AppendLine();
-    }
-
-    private static void GenerateMutationHook(
-        StringBuilder sb,
-        string hookName,
-        string methodName,
-        SwrHookInfo info,
-        string segmentLower)
-    {
-        AppendHookJsDoc(sb, info);
-        sb.Append("export function ").Append(hookName).AppendLine("() {");
-        sb.AppendLine("  const api = useApiService();");
-        sb.AppendLine();
-        sb.AppendLine("  return useSWRMutation(");
-        sb.Append("    ").Append(segmentLower).AppendLine("Keys.all,");
-
-        if (info.TakesArgument)
-        {
-            sb.AppendLine("    async (_key: string, { arg }: { arg: unknown }) => {");
-            sb.Append("      return api.").Append(segmentLower).Append('.').Append(methodName).AppendLine("(arg as never);");
-        }
-        else
-        {
-            // The client method takes nothing, so the SWR mutation argument has nowhere to go.
-            sb.AppendLine("    async () => {");
-            sb.Append("      return api.").Append(segmentLower).Append('.').Append(methodName).AppendLine("();");
-        }
-
-        sb.AppendLine("    },");
-        sb.AppendLine("  );");
-        sb.AppendLine("}");
-        sb.AppendLine();
     }
 
     /// <summary>
-    /// Emits the Option A streaming hook (useState + useEffect + AbortController) for an
-    /// async-enumerable operation. The body is framework-agnostic — same shape as the
-    /// React Query sibling — so SWR consumers get the same `{ items, status, error,
-    /// cancel, reset }` contract without an Option C-style opt-in flag.
+    /// useSWR over the operation's client method. The key is the shared query key - or null (no request)
+    /// while a path parameter or the body of a QUERY read is still missing, like React Query's enabled.
     /// </summary>
-    private static void GenerateStreamHook(
+    private static void AppendQueryHook(
         StringBuilder sb,
-        SwrHookInfo info,
-        string segmentLower,
+        HookInfo info,
+        string segmentCamel,
         TypeScriptNamingStrategy namingStrategy,
+        bool convertDates,
         bool brandedIds)
     {
-        var hookName = "use" + info.MethodName.ToPascalCaseForDotNet() + "Stream";
-        var itemType = string.IsNullOrEmpty(info.ReturnType) ? "unknown" : info.ReturnType;
+        var hookName = "use" + info.MethodName.ToPascalCaseForDotNet();
+        var keyName = KeyNameOf(info, segmentCamel);
+        var dataType = info.ReturnType == "void" ? "void" : info.ReturnType;
 
         var hookParams = new List<string>();
-        foreach (var p in info.PathParams)
+        var keyArgs = new List<string>();
+        foreach (var param in info.PathParams)
         {
-            var n = (p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
-            var t = TypeScriptOperationHelper.GetParameterType(p, convertDates: false, brandedIds: brandedIds, path: info.Path);
-            hookParams.Add(n + ": " + t);
+            var name = TypeScriptOperationHelper.ParameterIdentifier(param, namingStrategy);
+            hookParams.Add(name + ": " + TypeScriptOperationHelper.GetParameterType(param, convertDates, brandedIds, info.Path));
+            keyArgs.Add(name);
+        }
+
+        if (info.HasBody)
+        {
+            hookParams.Add("body: " + info.BodyType);
+            keyArgs.Add("body");
+        }
+
+        foreach (var param in info.QuerystringParams)
+        {
+            var name = TypeScriptOperationHelper.ParameterIdentifier(param, namingStrategy);
+            hookParams.Add(name + "?: string");
+            keyArgs.Add(name);
         }
 
         if (info.QueryParams.Count > 0)
         {
-            var queryType = TypeScriptOperationHelper.BuildQueryTypeInline(info.QueryParams, namingStrategy);
-            hookParams.Add("query?: " + queryType);
+            hookParams.Add(TypeScriptOperationHelper.BuildQueryParameter(info.QueryParams, namingStrategy, convertDates));
+            keyArgs.Add("query");
+        }
+
+        if (KeyHeaders(info, info.HeaderParams).Count > 0)
+        {
+            keyArgs.Add("headers");
         }
 
         if (info.HeaderParams.Count > 0)
         {
-            var headerType = TypeScriptOperationHelper.BuildHeaderTypeInline(info.HeaderParams);
-            hookParams.Add("headers?: " + headerType);
+            hookParams.Add(TypeScriptOperationHelper.BuildHeaderParameter(info.HeaderParams, convertDates));
         }
 
-        hookParams.Add("options?: { enabled?: boolean }");
-        var hookParamStr = string.Join(", ", hookParams);
-
-        // Client call args mirror the streaming client method: pathParams..., query?,
-        // headers?, controller.signal.
-        var callParts = new List<string>();
-        foreach (var p in info.PathParams)
+        if (info.CookieParams.Count > 0)
         {
-            callParts.Add((p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
+            hookParams.Add("cookies?: " + BuildCookieTypeInline(info.CookieParams, namingStrategy));
         }
 
-        if (info.QueryParams.Count > 0)
+        hookParams.Add("config?: SWRConfiguration<" + dataType + ", ApiError>");
+
+        // Every path parameter, by presence (an id of 0 is an id)
+        var guards = info.PathParams
+            .Select(p => TypeScriptOperationHelper.ParameterIdentifier(p, namingStrategy) + " != null")
+            .ToList();
+        if (info.HasBody)
         {
-            callParts.Add("query");
+            guards.Add("body != null");
         }
 
-        if (info.HeaderParams.Count > 0)
+        var key = segmentCamel + "Keys." + keyName + "(" + string.Join(", ", keyArgs) + ")";
+        if (guards.Count > 0)
         {
-            callParts.Add("headers");
+            key = string.Join(" && ", guards) + " ? " + key + " : null";
         }
 
-        callParts.Add("controller.signal");
-        var clientCallArgs = string.Join(", ", callParts);
-
-        // useEffect deps: enabled flag + path params + (optional) JSON-serialized
-        // query/header bags so reference-equal-but-value-different re-renders restart
-        // the stream cleanly.
-        var depParts = new List<string> { "enabled" };
-        foreach (var p in info.PathParams)
-        {
-            depParts.Add((p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
-        }
-
-        var needsKeyDep = info.QueryParams.Count > 0 || info.HeaderParams.Count > 0;
-        if (needsKeyDep)
-        {
-            depParts.Add("keyDep");
-        }
-
-        var depList = string.Join(", ", depParts);
+        var clientCallArgs = BuildClientCallArgs(info.PathParams, info.QueryParams, info.HeaderParams, info.CookieParams, info.QuerystringParams, hasBody: info.HasBody, namingStrategy: namingStrategy);
 
         AppendHookJsDoc(sb, info);
-        sb.Append("export function ").Append(hookName).Append('(').Append(hookParamStr).AppendLine(") {");
+        sb.Append("export function ").Append(hookName).Append('(').Append(TypeScriptOperationHelper.JoinParameters(hookParams)).AppendLine(") {");
         sb.AppendLine("  const api = useApiService();");
-        sb.Append("  const [items, setItems] = useState<readonly ").Append(itemType).AppendLine("[]>([]);");
-        sb.AppendLine("  const [status, setStatus] = useState<'idle' | 'streaming' | 'success' | 'error'>('idle');");
-        sb.AppendLine("  const [error, setError] = useState<Error | null>(null);");
-        sb.AppendLine("  const controllerRef = useRef<AbortController | null>(null);");
-        sb.AppendLine();
-        sb.AppendLine("  const cancel = useCallback(() => {");
-        sb.AppendLine("    controllerRef.current?.abort();");
-        sb.AppendLine("    controllerRef.current = null;");
-        sb.AppendLine("    setStatus('idle');");
-        sb.AppendLine("  }, []);");
-        sb.AppendLine();
-        sb.AppendLine("  const reset = useCallback(() => {");
-        sb.AppendLine("    cancel();");
-        sb.AppendLine("    setItems([]);");
-        sb.AppendLine("    setError(null);");
-        sb.AppendLine("  }, [cancel]);");
-        sb.AppendLine();
-        sb.AppendLine("  const enabled = options?.enabled !== false;");
-
-        if (needsKeyDep)
-        {
-            sb.Append("  const keyDep = JSON.stringify({");
-            if (info.QueryParams.Count > 0)
-            {
-                sb.Append(" query");
-            }
-
-            if (info.HeaderParams.Count > 0)
-            {
-                sb.Append(info.QueryParams.Count > 0 ? ", headers" : " headers");
-            }
-
-            sb.AppendLine(" });");
-        }
-
-        sb.AppendLine();
-        sb.AppendLine("  useEffect(() => {");
-        sb.AppendLine("    if (!enabled) return;");
-        sb.AppendLine();
-        sb.AppendLine("    const controller = new AbortController();");
-        sb.AppendLine("    controllerRef.current = controller;");
-        sb.AppendLine("    setStatus('streaming');");
-        sb.AppendLine("    setItems([]);");
-        sb.AppendLine("    setError(null);");
-        sb.AppendLine();
-        sb.Append("    let buffer: ").Append(itemType).AppendLine("[] = [];");
-        sb.AppendLine("    let flushTimer: ReturnType<typeof setTimeout> | null = null;");
-        sb.AppendLine("    const flush = () => { flushTimer = null; if (!controller.signal.aborted) setItems(buffer.slice()); };");
-        sb.AppendLine("    (async () => {");
-        sb.AppendLine("      try {");
-        sb.Append("        for await (const item of api.").Append(segmentLower).Append('.').Append(info.MethodName).Append('(').Append(clientCallArgs).AppendLine(")) {");
-        sb.AppendLine("          if (controller.signal.aborted) return;");
-        sb.AppendLine("          buffer.push(item);");
-        sb.AppendLine("          if (flushTimer === null) flushTimer = setTimeout(flush, 200);");
-        sb.AppendLine("        }");
-        sb.AppendLine("        if (!controller.signal.aborted) {");
-        sb.AppendLine("          if (flushTimer !== null) clearTimeout(flushTimer);");
-        sb.AppendLine("          setItems(buffer.slice());");
-        sb.AppendLine("          setStatus('success');");
-        sb.AppendLine("        }");
-        sb.AppendLine("      } catch (err) {");
-        sb.AppendLine("        if (controller.signal.aborted) return;");
-        sb.AppendLine("        if (err instanceof DOMException && err.name === 'AbortError') return;");
-        sb.AppendLine("        if (flushTimer !== null) clearTimeout(flushTimer);");
-        sb.AppendLine("        setItems(buffer.slice());");
-        sb.AppendLine("        setError(err as Error);");
-        sb.AppendLine("        setStatus('error');");
-        sb.AppendLine("      }");
-        sb.AppendLine("    })();");
-        sb.AppendLine();
-        sb.AppendLine("    return () => { controller.abort(); if (flushTimer !== null) clearTimeout(flushTimer); };");
-        sb.AppendLine("    // eslint-disable-next-line react-hooks/exhaustive-deps");
-        sb.Append("  }, [").Append(depList).AppendLine("]);");
-        sb.AppendLine();
-        sb.AppendLine("  return { items, status, error, cancel, reset };");
+        sb.Append("  return useSWR<").Append(dataType).AppendLine(", ApiError>(");
+        sb.Append("    ").Append(key).AppendLine(",");
+        sb.AppendLine("    async () => {");
+        sb.Append("      const result = await api.").Append(segmentCamel).Append('.').Append(info.MethodName).Append('(').Append(clientCallArgs).AppendLine(");");
+        AppendResultUnwrap(sb, info.ReturnType, info.HttpMethod, info.Success2xxDiscriminators);
+        sb.AppendLine("    },");
+        AppendNoRetryConfig(sb, info);
+        sb.AppendLine("  );");
         sb.AppendLine("}");
-        sb.AppendLine();
     }
 
-    private sealed record SwrHookInfo(
-        string OperationId,
-        string ReturnType,
-        bool IsQuery,
-        bool IsMutation,
-        bool IsStreaming,
-        string Path,
-        string MethodName,
-        List<OpenApiParameter> PathParams,
-        List<OpenApiParameter> QueryParams,
-        List<OpenApiParameter> HeaderParams,
-        string? Summary,
-        string? Description,
-        bool Deprecated,
-        bool HasBody,
-        string BodyType,
-        bool TakesArgument);
-
-    private static void AppendHookJsDoc(
+    /// <summary>
+    /// useSWRMutation over the operation's client method; the trigger argument is the same variables
+    /// object a React Query mutation takes. On success every query of the segment is revalidated.
+    /// </summary>
+    private static void AppendMutationHook(
         StringBuilder sb,
-        SwrHookInfo info)
+        HookInfo info,
+        string segmentCamel,
+        TypeScriptNamingStrategy namingStrategy,
+        bool convertDates,
+        bool brandedIds,
+        bool revalidateInfinite)
     {
-        var description = !string.IsNullOrWhiteSpace(info.Summary)
-            ? info.Summary
-            : info.Description;
-        if (string.IsNullOrWhiteSpace(description) && !info.Deprecated)
+        var hookName = "use" + info.MethodName.ToPascalCaseForDotNet();
+        var isVoidReturn = info.ReturnType == "void";
+        var isDelete = info.HttpMethod.Equals("DELETE", StringComparison.OrdinalIgnoreCase);
+        var dataType = isVoidReturn || isDelete ? "void" : info.ReturnType;
+
+        var signature = BuildMutationSignature(info, namingStrategy, convertDates, brandedIds);
+        var argPattern = MutationArgPattern(signature.MutationArg);
+
+        // No argument: `never` makes trigger() callable without one.
+        var variablesType = argPattern is null ? "never" : signature.VariablesType;
+        var keyType = "typeof " + segmentCamel + "Keys.all";
+
+        var hookParams = new List<string>(signature.HookParams)
         {
-            return;
+            "config?: SWRMutationConfiguration<" + dataType + ", ApiError, " + keyType + ", " + variablesType + ">",
+        };
+
+        AppendHookJsDoc(sb, info);
+        sb.Append("export function ").Append(hookName).Append('(').Append(TypeScriptOperationHelper.JoinParameters(hookParams)).AppendLine(") {");
+        sb.AppendLine("  const api = useApiService();");
+        sb.AppendLine(revalidateInfinite ? "  const { mutate, cache } = useSWRConfig();" : "  const { mutate } = useSWRConfig();");
+        sb.Append("  return useSWRMutation<").Append(dataType).Append(", ApiError, ").Append(keyType).Append(", ").Append(variablesType).AppendLine(">(");
+        sb.Append("    ").Append(segmentCamel).AppendLine("Keys.all,");
+        if (argPattern is null)
+        {
+            sb.AppendLine("    async () => {");
+        }
+        else
+        {
+            sb.AppendLine("    async (_key, { arg }) => {");
+            sb.Append("      const ").Append(argPattern).AppendLine(" = arg;");
         }
 
-        var jsDoc = new JsDocComment(
-            description,
-            parameters: null,
-            returns: null,
-            isDeprecated: info.Deprecated,
-            deprecatedMessage: null,
-            example: null);
-        var rendered = new JsDocCommentGenerator().GenerateTags(indentSpaces: 0, jsDoc);
-        if (!string.IsNullOrEmpty(rendered))
+        sb.Append("      const result = await api.").Append(segmentCamel).Append('.').Append(info.MethodName).Append('(').Append(signature.ClientCallArgs).AppendLine(");");
+        AppendResultUnwrap(sb, info.ReturnType, info.HttpMethod, info.Success2xxDiscriminators);
+        sb.AppendLine("    },");
+        sb.AppendLine("    {");
+        sb.AppendLine("      ...config,");
+        sb.AppendLine("      onSuccess: (data, key, currentConfig) => {");
+        sb.Append("        void mutate((cacheKey) => Array.isArray(cacheKey) && cacheKey[0] === '").Append(segmentCamel).AppendLine("');");
+        if (revalidateInfinite)
         {
-            sb.Append(rendered);
+            // The filter above skips infinite lists (SWR keeps them under $inf$ keys): revalidate the segment's ones by key.
+            sb.AppendLine("        for (const cacheKey of cache.keys()) {");
+            sb.Append("          if (cacheKey.startsWith('$inf$@\"").Append(segmentCamel).AppendLine("\",')) {");
+            sb.AppendLine("            void mutate(cacheKey);");
+            sb.AppendLine("          }");
+            sb.AppendLine("        }");
         }
+
+        sb.AppendLine("        config?.onSuccess?.(data, key, currentConfig);");
+        sb.AppendLine("      },");
+        sb.AppendLine("    },");
+        sb.AppendLine("  );");
+        sb.AppendLine("}");
     }
+
+    /// <summary>
+    /// useSWRInfinite over a paginated read: the query hook's inputs without the continuation parameter;
+    /// each page sends the previous page's token through that parameter, and the pages end at the first
+    /// page without a token.
+    /// </summary>
+    private static void AppendInfiniteHook(
+        StringBuilder sb,
+        HookInfo info,
+        string segmentCamel,
+        TypeScriptNamingStrategy namingStrategy,
+        bool convertDates,
+        bool brandedIds)
+    {
+        var pagination = info.Pagination!;
+        var hookName = "use" + info.MethodName.ToPascalCaseForDotNet() + "Infinite";
+        var keyName = KeyNameOf(info, segmentCamel) + "Infinite";
+        var dataType = info.ReturnType;
+        var (queryParams, headerParams) = InfiniteHookParameters(info);
+
+        var hookParams = new List<string>();
+        var keyArgs = new List<string>();
+        foreach (var param in info.PathParams)
+        {
+            var name = TypeScriptOperationHelper.ParameterIdentifier(param, namingStrategy);
+            hookParams.Add(name + ": " + TypeScriptOperationHelper.GetParameterType(param, convertDates, brandedIds, info.Path));
+            keyArgs.Add(name);
+        }
+
+        if (info.HasBody)
+        {
+            hookParams.Add("body: " + info.BodyType);
+            keyArgs.Add("body");
+        }
+
+        foreach (var param in info.QuerystringParams)
+        {
+            var name = TypeScriptOperationHelper.ParameterIdentifier(param, namingStrategy);
+            hookParams.Add(name + "?: string");
+            keyArgs.Add(name);
+        }
+
+        if (queryParams.Count > 0)
+        {
+            hookParams.Add(TypeScriptOperationHelper.BuildQueryParameter(queryParams, namingStrategy, convertDates));
+            keyArgs.Add("query");
+        }
+
+        if (KeyHeaders(info, headerParams).Count > 0)
+        {
+            keyArgs.Add("headers");
+        }
+
+        if (headerParams.Count > 0)
+        {
+            hookParams.Add(TypeScriptOperationHelper.BuildHeaderParameter(headerParams, convertDates));
+        }
+
+        if (info.CookieParams.Count > 0)
+        {
+            hookParams.Add("cookies?: " + BuildCookieTypeInline(info.CookieParams, namingStrategy));
+        }
+
+        hookParams.Add("config?: SWRInfiniteConfiguration<" + dataType + ", ApiError>");
+
+        // No request while a path parameter or the body of a QUERY read is missing (as the query hook).
+        var guards = info.PathParams
+            .Select(p => TypeScriptOperationHelper.ParameterIdentifier(p, namingStrategy) + " == null")
+            .ToList();
+        if (info.HasBody)
+        {
+            guards.Add("body == null");
+        }
+
+        var previousToken = TokenAccess("previousPage", pagination, namingStrategy);
+
+        AppendHookJsDoc(sb, info);
+        sb.Append("export function ").Append(hookName).Append('(').Append(TypeScriptOperationHelper.JoinParameters(hookParams)).AppendLine(") {");
+        sb.AppendLine("  const api = useApiService();");
+        sb.Append("  return useSWRInfinite<").Append(dataType).AppendLine(", ApiError>(");
+        sb.AppendLine("    (_pageIndex, previousPage) => {");
+        if (guards.Count > 0)
+        {
+            sb.Append("      if (").Append(string.Join(" || ", guards)).AppendLine(") {");
+            sb.AppendLine("        return null;");
+            sb.AppendLine("      }");
+            sb.AppendLine();
+        }
+
+        sb.Append("      if (previousPage && !").Append(previousToken).AppendLine(") {");
+        sb.AppendLine("        return null;");
+        sb.AppendLine("      }");
+        sb.AppendLine();
+        sb.Append("      return [...").Append(segmentCamel).Append("Keys.").Append(keyName).Append('(').Append(string.Join(", ", keyArgs)).Append("), previousPage ? (").Append(previousToken).AppendLine(" ?? null) : null] as const;");
+        sb.AppendLine("    },");
+        sb.AppendLine("    async (key: readonly unknown[]) => {");
+        sb.AppendLine("      const token = key[key.length - 1] as string | null;");
+        sb.Append("      const result = await api.").Append(segmentCamel).Append('.').Append(info.MethodName).Append('(').Append(BuildInfiniteClientCallArgs(info, "token", namingStrategy)).AppendLine(");");
+        AppendResultUnwrap(sb, info.ReturnType, info.HttpMethod, info.Success2xxDiscriminators);
+        sb.AppendLine("    },");
+        AppendNoRetryConfig(sb, info);
+        sb.AppendLine("  );");
+        sb.AppendLine("}");
+    }
+
+    /// <summary>
+    /// A specification that declares retry (x-retry-*) has the ApiClient retry per operation: SWR's own error retry
+    /// would multiply the attempts and re-send operations marked x-retry-enabled: false. One that declares none leaves
+    /// retry to the app (its SWRConfig), as SWR does. The caller's config comes last and wins.
+    /// </summary>
+    private static void AppendNoRetryConfig(
+        StringBuilder sb,
+        HookInfo info)
+        => sb.AppendLine(info.RetryOwnedByClient ? "    { shouldRetryOnError: false, ...config }," : "    config,");
 }

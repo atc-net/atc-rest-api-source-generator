@@ -8,10 +8,10 @@ public sealed class ServiceRegistrationTests
 {
     public static TheoryData<Type> EndpointInterfaces
         => new(
-            typeof(IGetThirdpartyapiApiIsaliveEndpoint),
-            typeof(IGetThirdpartyapiApiTokenEndpoint),
-            typeof(IGetThirdpartyapiApiAuthorizationAuthorizationMeteringpointsScopeIdentifierEndpoint),
-            typeof(IPostThirdpartyapiApiMeteringpointGetdetailsEndpoint));
+            typeof(IIsAliveEndpoint),
+            typeof(IGetTokenEndpoint),
+            typeof(IGetAuthorizedMeteringPointsEndpoint),
+            typeof(IGetMeteringPointDetailsEndpoint));
 
     [Theory]
     [MemberData(nameof(EndpointInterfaces))]

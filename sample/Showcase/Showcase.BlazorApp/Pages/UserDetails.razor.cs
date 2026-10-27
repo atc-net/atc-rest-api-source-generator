@@ -17,7 +17,12 @@ public partial class UserDetails
     [Inject]
     private IDialogService DialogService { get; set; } = null!;
 
+    [Inject]
+    private IGetUserByIdEndpoint GetUserById { get; set; } = null!;
+
     private User? user;
+    private string? userXml;
+    private User? userFromXml;
     private bool isLoading = true;
     private bool isUploading;
 
@@ -32,6 +37,19 @@ public partial class UserDetails
         ];
 
         await LoadUserAsync();
+    }
+
+    /// <summary>
+    /// The user through the generated endpoint, which asks for XML (this client prefers XML where an operation offers
+    /// it; the generated server negotiates by Accept) and reads it with the generated mapping.
+    /// </summary>
+    private async Task ViewAsXmlAsync()
+    {
+        var result = await GetUserById.ExecuteAsync(new GetUserByIdParameters(Guid.Parse(UserId)));
+        userFromXml = result.IsOk ? result.OkContent : null;
+        userXml = string.IsNullOrEmpty(result.Content) && userFromXml is not null
+            ? UserXml.ToXml(userFromXml)
+            : result.Content;
     }
 
     private async Task LoadUserAsync()
@@ -147,7 +165,7 @@ public partial class UserDetails
                         Latitude: user.Address?.Latitude,
                         Longitude: user.Address?.Longitude));
 
-                var (updated, error) = await Gateway.UpdateUserByIdAsync(UserId, request);
+                var (updated, error, _) = await Gateway.UpdateUserByIdAsync(UserId, request);
                 if (updated is not null)
                 {
                     user = updated;
@@ -170,12 +188,12 @@ public partial class UserDetails
     }
 
     private static Color GetRoleColor(UserRole role)
-        => role switch
+        => role.Value switch
         {
-            UserRole.Admin => Color.Error,
-            UserRole.Manager => Color.Warning,
-            UserRole.Employee => Color.Info,
-            UserRole.Guest => Color.Default,
+            UserRole.Names.Admin => Color.Error,
+            UserRole.Names.Manager => Color.Warning,
+            UserRole.Names.Employee => Color.Info,
+            UserRole.Names.Guest => Color.Default,
             _ => Color.Default,
         };
 

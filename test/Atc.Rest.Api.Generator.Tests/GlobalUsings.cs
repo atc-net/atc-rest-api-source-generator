@@ -4,12 +4,15 @@ global using System.Diagnostics;
 global using System.Diagnostics.CodeAnalysis;
 global using System.IO;
 global using System.Linq;
+global using System.Reflection;
 global using System.Text;
 global using System.Text.Json;
 global using System.Text.Json.Nodes;
 global using System.Text.Json.Serialization;
 
+global using Atc.CodeGeneration.CSharp.CodeDocumentation.CodeComment;
 global using Atc.CodeGeneration.CSharp.Content;
+global using Atc.CodeGeneration.CSharp.Content.Generators;
 global using Atc.CodeGeneration.CSharp.Helpers;
 global using Atc.OpenApi;
 global using Atc.OpenApi.Extensions;
@@ -19,10 +22,13 @@ global using Atc.Rest.Api.Generator.Configurations;
 global using Atc.Rest.Api.Generator.Extensions;
 global using Atc.Rest.Api.Generator.Extractors;
 global using Atc.Rest.Api.Generator.Helpers;
+global using Atc.Rest.Api.Generator.JsonConverters;
 global using Atc.Rest.Api.Generator.Models;
+global using Atc.Rest.Api.Generator.Overlays;
 global using Atc.Rest.Api.Generator.Services;
 global using Atc.Rest.Api.Generator.Validators;
 
+global using Microsoft.CodeAnalysis.CSharp;
 global using Microsoft.OpenApi;
 
 global using Xunit;

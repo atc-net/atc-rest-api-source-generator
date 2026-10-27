@@ -7,6 +7,8 @@ info:
     - listItemPages: async-enumerable with PaginationResult<Item> wrapper
     - getItemLogs: GET with path + query params
     - searchItems: GET with date-time query param + convertDates=true
+    - streamItemEvents: Server-Sent Events declared with a schema (no itemSchema)
+    - x-signalr-hubs: an items hub - events and methods with models, arrays, primitives and nothing
   version: v1
 servers:
   - url: /api/v1
@@ -116,6 +118,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Items'
+  /items/events:
+    get:
+      summary: Item events as Server-Sent Events (a schema under text/event-stream, the way before OpenAPI 3.2)
+      operationId: streamItemEvents
+      x-return-async-enumerable: true
+      tags:
+        - items
+      responses:
+        '200':
+          description: OK
+          content:
+            text/event-stream:
+              schema:
+                $ref: '#/components/schemas/Item'
 components:
   schemas:
     Item:
@@ -154,3 +170,35 @@ components:
           nullable: true
         totalCount:
           type: integer
+x-signalr-hubs:
+  items:
+    url: /hubs/items
+    events:
+      - name: ItemChanged
+        payload: '#/components/schemas/Item'
+      - name: log-written
+        payload: '#/components/schemas/ItemLog'
+      - name: Heartbeat
+      - name: ItemMoved
+        arguments:
+          - name: itemId
+            payload: { type: string, format: uuid }
+          - name: to
+            payload: '#/components/schemas/Item'
+          - name: clients
+            payload: integer
+    methods:
+      - name: Watch
+        payload: string[]
+      - name: GetRecentLogs
+        payload: { type: integer, format: int32 }
+        returns: { type: array, items: { $ref: '#/components/schemas/ItemLog' } }
+      - name: Count
+        returns: { type: integer, format: int64 }
+      - name: MoveItem
+        arguments:
+          - name: itemId
+            payload: { type: string, format: uuid }
+          - name: cancellationToken
+            payload: boolean
+        returns: '#/components/schemas/Item'

@@ -75,8 +75,35 @@ public sealed class GenerateClientCommandTests : IDisposable
         var csprojContent = await File.ReadAllTextAsync(csprojPath, TestContext.Current.CancellationToken);
         Assert.Contains("<OutputType>Library</OutputType>", csprojContent, StringComparison.Ordinal);
         Assert.Contains("<TargetFramework>net10.0</TargetFramework>", csprojContent, StringComparison.Ordinal);
+        Assert.Contains("<ImplicitUsings>enable</ImplicitUsings>", csprojContent, StringComparison.Ordinal);
         Assert.Contains("<AdditionalFiles Include=\"Demo.yaml\"", csprojContent, StringComparison.Ordinal);
         Assert.Contains(".atc-rest-api-client", csprojContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task GenerateClient_MultiPartSpecification_CopiesAndReferencesThePartFiles()
+    {
+        // The build merges {Base}_{Part}.yaml files next to the base - without them in the project,
+        // the generated client would cover the base file only.
+        var yamlPath = CliTestHelper.GetScenarioYamlPath("MultiParts");
+        var outputPath = Path.Combine(tempOutputDir, "MultiParts", "Client");
+        var projectName = "MultiParts.Client";
+        var arguments = $"generate client -s \"{yamlPath}\" -o \"{outputPath}\" -n \"{projectName}\"";
+
+        var (isSuccessful, output) = await ProcessHelper.Execute(
+            CliExeFile,
+            arguments,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        var cleanOutput = CliTestHelper.StripAnsiCodes(output);
+        Assert.True(isSuccessful, $"Expected success but got failure. Output: {cleanOutput}");
+
+        var csprojContent = await File.ReadAllTextAsync(Path.Combine(outputPath, $"{projectName}.csproj"), TestContext.Current.CancellationToken);
+        foreach (var fileName in new[] { "MultiParts.yaml", "MultiParts_Products.yaml", "MultiParts_Users.yaml" })
+        {
+            Assert.True(File.Exists(Path.Combine(outputPath, fileName)), $"{fileName} should be copied");
+            Assert.Contains($"    <AdditionalFiles Include=\"{fileName}\" />", csprojContent, StringComparison.Ordinal);
+        }
     }
 
     [Fact]
@@ -401,6 +428,28 @@ public sealed class GenerateClientCommandTests : IDisposable
     }
 
     [Fact]
+    public async Task GenerateClient_WithNoExtensibleEnums_WritesItToTheMarkerFile()
+    {
+        // Arrange
+        var yamlPath = CliTestHelper.GetScenarioYamlPath("Demo");
+        var outputPath = Path.Combine(tempOutputDir, "ClosedEnumsClient");
+        var arguments = $"generate client -s \"{yamlPath}\" -o \"{outputPath}\" -n \"ClosedEnums\" --no-extensible-enums";
+
+        // Act
+        var (isSuccessful, output) = await ProcessHelper.Execute(
+            CliExeFile,
+            arguments,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        var cleanOutput = CliTestHelper.StripAnsiCodes(output);
+        Assert.True(isSuccessful, $"Expected success but got failure. Output: {cleanOutput}");
+
+        var markerContent = await File.ReadAllTextAsync(Path.Combine(outputPath, ".atc-rest-api-client"), TestContext.Current.CancellationToken);
+        Assert.Contains("\"extensibleEnums\": false", markerContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task GenerateClient_WithExplicitNamespace_WritesExplicitNamespaceToMarkerFile()
     {
         // Arrange - Explicit --namespace should take precedence over project name fallback
@@ -527,5 +576,68 @@ public sealed class GenerateClientCommandTests : IDisposable
 
         Assert.Contains("Atc.Rest.Client", csprojContent, StringComparison.Ordinal);
         Assert.DoesNotContain("Microsoft.Extensions.Http.Resilience", csprojContent, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A specification with SignalR hubs (<c>x-signalr-hubs</c>) gets the SignalR client its typed hub clients build on,
+    /// as one with retry settings gets the resilience package - so a scaffolded client has its hub clients from the
+    /// first build instead of ATC_API_DEP012.
+    /// </summary>
+    [Fact]
+    public async Task GenerateClient_WithSignalRHubs_CsprojContainsTheSignalRClient()
+    {
+        var yamlPath = CliTestHelper.GetScenarioYamlPath("AsyncEnumerableHooks");
+        var outputPath = Path.Combine(tempOutputDir, "HubsPkgTest", "Client");
+        var projectName = "Hubs.PkgTest";
+
+        var (isSuccessful, output) = await ProcessHelper.Execute(
+            CliExeFile,
+            $"generate client -s \"{yamlPath}\" -o \"{outputPath}\" -n \"{projectName}\"",
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.True(isSuccessful, $"Expected success but got failure. Output: {CliTestHelper.StripAnsiCodes(output)}");
+        var csprojContent = await File.ReadAllTextAsync(Path.Combine(outputPath, $"{projectName}.csproj"), TestContext.Current.CancellationToken);
+        Assert.Contains("<PackageReference Include=\"Microsoft.AspNetCore.SignalR.Client\" Version=\"", csprojContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task GenerateClient_WithoutSignalRHubs_CsprojDoesNotContainTheSignalRClient()
+    {
+        var yamlPath = CliTestHelper.GetScenarioYamlPath("Demo");
+        var outputPath = Path.Combine(tempOutputDir, "NoHubsPkgTest", "Client");
+        var projectName = "Demo.NoHubsPkg";
+
+        var (isSuccessful, output) = await ProcessHelper.Execute(
+            CliExeFile,
+            $"generate client -s \"{yamlPath}\" -o \"{outputPath}\" -n \"{projectName}\"",
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.True(isSuccessful, $"Expected success but got failure. Output: {CliTestHelper.StripAnsiCodes(output)}");
+        var csprojContent = await File.ReadAllTextAsync(Path.Combine(outputPath, $"{projectName}.csproj"), TestContext.Current.CancellationToken);
+        Assert.DoesNotContain("Microsoft.AspNetCore.SignalR.Client", csprojContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task GenerateClient_MarkerFile_ReferencesItsSchema_AndHasOnlyKnownSettings()
+    {
+        // Arrange
+        var yamlPath = CliTestHelper.GetScenarioYamlPath("Demo");
+        var outputPath = Path.Combine(tempOutputDir, "SchemaRef", "Client");
+        var arguments = $"generate client -s \"{yamlPath}\" -o \"{outputPath}\" -n \"Demo.ClientApp\"";
+
+        // Act
+        var (isSuccessful, output) = await ProcessHelper.Execute(
+            CliExeFile,
+            arguments,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.True(isSuccessful, CliTestHelper.StripAnsiCodes(output));
+        var content = await File.ReadAllTextAsync(Path.Combine(outputPath, ".atc-rest-api-client"), TestContext.Current.CancellationToken);
+        using var document = JsonDocument.Parse(content);
+
+        Assert.Equal("$schema", document.RootElement.EnumerateObject().First().Name);
+        Assert.Equal(Constants.JsonSchema.Client, document.RootElement.GetProperty("$schema").GetString());
+        Assert.Empty(MarkerConfigInspector.FindProblems(content, typeof(ClientConfig)));
     }
 }

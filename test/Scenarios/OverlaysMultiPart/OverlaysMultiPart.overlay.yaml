@@ -1,0 +1,15 @@
+overlay: 1.2.0
+info:
+  title: Contoso Orders - our fixes
+  version: 1.0.0
+actions:
+  # The part file's operations get names: the overlay applies to the merged document
+  - target: $.paths['/orders'].get
+    update:
+      operationId: listOrders
+  - target: $.paths['/orders/{orderId}'].get
+    update:
+      operationId: getOrder
+  # A path from the part file is removed
+  - target: $.paths['/orders/{orderId}/legacy-export']
+    remove: true

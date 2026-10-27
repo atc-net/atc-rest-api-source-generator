@@ -48,7 +48,7 @@ public sealed class QueryUsersHandler : IQueryUsersHandler
             Email: user.Email,
             Phone: user.Phone,
             Website: string.IsNullOrEmpty(user.Website) ? null : new Uri(user.Website),
-            DateOfBirth: new DateTimeOffset(user.DateOfBirth.ToDateTime(TimeOnly.MinValue)),
+            DateOfBirth: user.DateOfBirth,
             Age: user.Age,
             Bio: user.Bio,
             AvatarUrl: string.IsNullOrEmpty(user.AvatarUrl) ? null : new Uri(user.AvatarUrl),

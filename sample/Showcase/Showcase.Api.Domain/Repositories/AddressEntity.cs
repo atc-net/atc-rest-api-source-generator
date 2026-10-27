@@ -10,5 +10,5 @@ public sealed record AddressEntity(
     string PostalCode,
     string Country,
     string? CountryCode,
-    double Latitude,
-    double Longitude);
+    double? Latitude,
+    double? Longitude);

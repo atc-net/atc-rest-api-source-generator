@@ -25,8 +25,9 @@ public class UnifiedExtractorsNamingTests
 
     // ========== WebApplicationExtensionsExtractor.ExtractUnified ==========
     [Theory]
-    [InlineData("Contoso.Data.Provider.Cpms.Monta.Api", "MapApi")]
-    [InlineData("MyCompany.Product.Api", "MapApi")]
+    [InlineData("Contoso.Data.Provider.Cpms.Monta.Api", "MapMontaApi")]
+    [InlineData("MyCompany.Product.Api", "MapProductApi")]
+    [InlineData("Contoso.IoT.Nexus.Api.Contracts", "MapNexusApi")]
     [InlineData("Showcase", "MapShowcaseApi")]
     [InlineData("MyCompany.Product.WebApi", "MapWebApi")]
     [InlineData("PetStoreFull", "MapPetStoreFullApi")]
@@ -46,30 +47,11 @@ public class UnifiedExtractorsNamingTests
         Assert.DoesNotContain("MapApiApi", result, StringComparison.Ordinal);
     }
 
-    // ========== WebApplicationExtensionsExtractor.Extract (UseXApi) ==========
-    [Theory]
-    [InlineData("Contoso.Data.Provider.Cpms.Monta.Api", "UseApi")]
-    [InlineData("MyCompany.Product.Api", "UseApi")]
-    [InlineData("Showcase", "UseShowcaseApi")]
-    [InlineData("MyCompany.Product.WebApi", "UseWebApi")]
-    public void Extract_GeneratesExpectedUseMethodName(
-        string projectName,
-        string expectedMethodName)
-    {
-        // Act
-        var result = WebApplicationExtensionsExtractor.Extract(projectName, useGlobalErrorHandler: true);
-
-        // Assert
-        Assert.NotNull(result);
-        Assert.NotNull(result.Methods);
-        Assert.Contains(result.Methods, m => string.Equals(m.Name, expectedMethodName, StringComparison.Ordinal));
-        Assert.DoesNotContain(result.Methods, m => string.Equals(m.Name, "UseApiApi", StringComparison.Ordinal));
-    }
-
     // ========== VersioningDependencyInjectionExtractor.Extract ==========
     [Theory]
-    [InlineData("Contoso.Data.Provider.Cpms.Monta.Api", "AddApiVersioning")]
-    [InlineData("MyCompany.Product.Api", "AddApiVersioning")]
+    [InlineData("Contoso.Data.Provider.Cpms.Monta.Api", "AddMontaApiVersioning")]
+    [InlineData("MyCompany.Product.Api", "AddProductApiVersioning")]
+    [InlineData("Contoso.IoT.Nexus.Api.Contracts", "AddNexusApiVersioning")]
     [InlineData("Showcase", "AddShowcaseApiVersioning")]
     [InlineData("MyCompany.Product.WebApi", "AddWebApiVersioning")]
     public void Extract_GeneratesExpectedAddApiVersioningMethodName(
@@ -94,8 +76,9 @@ public class UnifiedExtractorsNamingTests
 
     // ========== UnifiedServiceCollectionExtractor.Extract ==========
     [Theory]
-    [InlineData("Contoso.Data.Provider.Cpms.Monta.Api", "AddApi")]
-    [InlineData("MyCompany.Product.Api", "AddApi")]
+    [InlineData("Contoso.Data.Provider.Cpms.Monta.Api", "AddMontaApi")]
+    [InlineData("MyCompany.Product.Api", "AddProductApi")]
+    [InlineData("Contoso.IoT.Nexus.Api.Contracts", "AddNexusApi")]
     [InlineData("Showcase", "AddShowcaseApi")]
     [InlineData("MyCompany.Product.WebApi", "AddWebApi")]
     public void Extract_GeneratesExpectedAddApiMethodName(
@@ -128,7 +111,7 @@ public class UnifiedExtractorsNamingTests
         var result = UnifiedServiceCollectionExtractor.Extract(document, "Contoso.Data.Provider.Cpms.Monta.Api", config);
 
         // Assert
-        Assert.Contains("services.AddApiVersioning();", result, StringComparison.Ordinal);
-        Assert.DoesNotContain("AddApiApiVersioning", result, StringComparison.Ordinal);
+        Assert.Contains("services.AddMontaApiVersioning();", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("ApiApiVersioning", result, StringComparison.Ordinal);
     }
 }

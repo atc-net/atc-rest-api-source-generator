@@ -24,4 +24,8 @@
     <ProjectReference Include="..\Atc.CodeGeneration.CSharp\Atc.CodeGeneration.CSharp.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Atc.OpenApi.Tests" />
+  </ItemGroup>
+
 </Project>

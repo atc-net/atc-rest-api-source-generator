@@ -2,6 +2,161 @@ namespace Atc.Rest.Api.Generator.Tests.Helpers;
 
 public class PathSegmentHelperTests
 {
+    // Address is used by three segments (shared); Pet and User by one each (segment-specific).
+    private const string TwoSegmentYaml = """
+        openapi: 3.1.1
+        info:
+          title: Test API
+          version: 1.0.0
+        paths:
+          /pets:
+            get:
+              operationId: listPets
+              responses:
+                '200':
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Pet'
+          /users:
+            get:
+              operationId: listUsers
+              responses:
+                '200':
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/User'
+          /addresses/{addressId}:
+            get:
+              operationId: getAddress
+              parameters:
+                - name: addressId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+              responses:
+                '200':
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Address'
+        components:
+          schemas:
+            Pet:
+              type: object
+              properties:
+                id:
+                  type: integer
+                address:
+                  $ref: '#/components/schemas/Address'
+            User:
+              type: object
+              properties:
+                name:
+                  type: string
+                address:
+                  $ref: '#/components/schemas/Address'
+            Address:
+              type: object
+              properties:
+                street:
+                  type: string
+        """;
+
+    private const string WebhookYaml = """
+        openapi: 3.1.1
+        info:
+          title: Test API
+          version: 1.0.0
+        paths:
+          /pets:
+            get:
+              operationId: listPets
+              responses:
+                '200':
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Pet'
+          /users:
+            get:
+              operationId: listUsers
+              responses:
+                '200':
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/User'
+        webhooks:
+          petShipped:
+            post:
+              operationId: onPetShipped
+              requestBody:
+                required: true
+                content:
+                  application/json:
+                    schema:
+                      type: object
+                      properties:
+                        pet:
+                          $ref: '#/components/schemas/Pet'
+                        event:
+                          $ref: '#/components/schemas/ShipmentEvent'
+              responses:
+                '200':
+                  description: Acknowledged
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Address'
+                '500':
+                  description: Error
+                  content:
+                    application/problem+json:
+                      schema:
+                        $ref: '#/components/schemas/ProblemDetails'
+        components:
+          schemas:
+            Pet:
+              type: object
+              properties:
+                id:
+                  type: integer
+                address:
+                  $ref: '#/components/schemas/Address'
+            User:
+              type: object
+              properties:
+                name:
+                  type: string
+                address:
+                  $ref: '#/components/schemas/Address'
+            Address:
+              type: object
+              properties:
+                street:
+                  type: string
+            ShipmentEvent:
+              type: object
+              properties:
+                trackingNumber:
+                  type: string
+            ProblemDetails:
+              type: object
+              properties:
+                detail:
+                  type: string
+        """;
+
     // ========== GetFirstPathSegment Tests ==========
     [Theory]
     [InlineData("/pets", "Pets")]
@@ -25,6 +180,13 @@ public class PathSegmentHelperTests
     [InlineData("/api", "Default")] // Only "api" prefix
     [InlineData("/api/v1", "Default")] // Only prefix and version
     [InlineData("/api/v1/{id}", "Default")] // Prefix, version, and path parameter only
+    [InlineData("/2010-04-01/accounts", "Accounts")] // A date-versioned path (Twilio): the date is no name
+    [InlineData("/3/movies/{id}", "Movies")] // A numeric version segment (TMDB)
+    [InlineData("/1/boards", "Boards")] // (Trello)
+    [InlineData("/2010-04-01", "Default")] // Only a date
+    [InlineData("/~", "Default")] // A segment without a letter or digit
+    [InlineData("/-/health", "Health")] // GitLab's reserved group
+    [InlineData("/3d-models", "_3dModels")] // A segment that starts with a digit but has letters is a name - made an identifier
     public void GetFirstPathSegment_ReturnsExpectedResult(
         string path,
         string expected)
@@ -832,36 +994,6 @@ paths:
         Assert.Null(PathSegmentHelper.ResolveEffectivePathSegment(doc, "MyProject", string.Empty));
     }
 
-    // ========== Helper Methods ==========
-    private static OpenApiDocument CreateOpenApiDocument(params string[] paths)
-    {
-        var doc = new OpenApiDocument
-        {
-            Info = new OpenApiInfo { Title = "Test API", Version = "1.0.0" },
-            Paths = new OpenApiPaths(),
-        };
-
-        foreach (var path in paths)
-        {
-            doc.Paths.Add(path, new OpenApiPathItem
-            {
-                Operations = new Dictionary<HttpMethod, OpenApiOperation>
-                {
-                    [HttpMethod.Get] = new OpenApiOperation
-                    {
-                        OperationId = "test",
-                        Responses = new OpenApiResponses
-                        {
-                            ["200"] = new OpenApiResponse { Description = "OK" },
-                        },
-                    },
-                },
-            });
-        }
-
-        return doc;
-    }
-
     // ========== Circular Schema Reference Tests ==========
     [Fact]
     public void GetSchemasUsedBySegment_CircularInlineSchema_DoesNotStackOverflow()
@@ -953,5 +1085,463 @@ components:
 
         // Assert — should find the $ref to Order
         Assert.Contains("Order", result);
+    }
+
+    // ========== GetSchemaSegmentMap / GetSharedSchemas / GetSegmentSpecificSchemas Tests ==========
+    [Fact]
+    public void GetSchemaSegmentMap_SchemaUsedByTwoSegments_MapsToBoth()
+    {
+        var doc = OpenApiDocumentHelper.ParseYaml(TwoSegmentYaml);
+
+        var result = PathSegmentHelper.GetSchemaSegmentMap(doc);
+
+        Assert.Equal(3, result.Count);
+        Assert.Equal(["Pets"], result["Pet"].OrderBy(s => s, StringComparer.Ordinal), StringComparer.Ordinal);
+        Assert.Equal(["Users"], result["User"].OrderBy(s => s, StringComparer.Ordinal), StringComparer.Ordinal);
+        Assert.Equal(["Addresses", "Pets", "Users"], result["Address"].OrderBy(s => s, StringComparer.Ordinal), StringComparer.Ordinal);
+    }
+
+    [Fact]
+    public void GetSharedSchemas_ReturnsOnlySchemasUsedByMoreThanOneSegment()
+    {
+        var doc = OpenApiDocumentHelper.ParseYaml(TwoSegmentYaml);
+
+        var result = PathSegmentHelper.GetSharedSchemas(doc);
+
+        Assert.Equal(["Address"], result);
+    }
+
+    [Fact]
+    public void GetSharedSchemas_WebhookOnlySchema_IsShared()
+    {
+        // A webhook has no path segment, so the model it carries lands in the shared namespace
+        var doc = OpenApiDocumentHelper.ParseYaml(WebhookYaml);
+
+        var result = PathSegmentHelper.GetSharedSchemas(doc);
+
+        Assert.Contains("ShipmentEvent", result);
+        Assert.DoesNotContain("Pet", result);
+    }
+
+    [Fact]
+    public void GetSharedSchemas_AHubsPayload_IsSharedAlsoWhenOneSegmentUsesIt()
+    {
+        // A hub is a user of its payload schemas: one operation in one area (the events stream) must not move the
+        // hub's types out of the shared namespace - nor what they reference
+        var doc = OpenApiDocumentHelper.ParseYaml("""
+            openapi: 3.1.1
+            info:
+              title: Test API
+              version: 1.0.0
+            x-signalr-hubs:
+              live:
+                events:
+                  - name: Moved
+                    payload: '#/components/schemas/MovedEvent'
+            paths:
+              /events:
+                get:
+                  operationId: listEvents
+                  responses:
+                    '200':
+                      description: OK
+                      content:
+                        application/json:
+                          schema:
+                            $ref: '#/components/schemas/MovedEvent'
+              /things:
+                get:
+                  operationId: listThings
+                  responses:
+                    '200':
+                      description: OK
+                      content:
+                        application/json:
+                          schema:
+                            $ref: '#/components/schemas/Thing'
+            components:
+              schemas:
+                MovedEvent:
+                  type: object
+                  properties:
+                    box:
+                      $ref: '#/components/schemas/Box'
+                Box:
+                  type: object
+                  properties:
+                    x:
+                      type: integer
+                Thing:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+            """);
+
+        var result = PathSegmentHelper.GetSharedSchemas(doc);
+
+        Assert.Contains("MovedEvent", result);
+        Assert.Contains("Box", result);
+        Assert.DoesNotContain("Thing", result);
+    }
+
+    [Fact]
+    public void GetSharedSchemas_ComponentNoOperationUses_IsShared()
+    {
+        // A component no operation or webhook uses still becomes a model (the old CLI generated it, and consumers
+        // use such types for events and messages); with no segment of its own it lands in the shared namespace
+        var doc = OpenApiDocumentHelper.ParseYaml("""
+            openapi: 3.1.1
+            info:
+              title: Test API
+              version: 1.0.0
+            paths:
+              /pets:
+                get:
+                  operationId: listPets
+                  responses:
+                    '200':
+                      description: OK
+                      content:
+                        application/json:
+                          schema:
+                            $ref: '#/components/schemas/Pet'
+            components:
+              schemas:
+                Pet:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                PetAdopted:
+                  type: object
+                  properties:
+                    pet:
+                      $ref: '#/components/schemas/Pet'
+                    adoptedBy:
+                      $ref: '#/components/schemas/Owner'
+                Owner:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+            """);
+
+        var result = PathSegmentHelper.GetSharedSchemas(doc);
+
+        Assert.Contains("PetAdopted", result);
+        Assert.Contains("Owner", result);
+
+        // Pet is used by the Pets segment and by the shared PetAdopted, so it is shared too (a shared model
+        // cannot refer to a segment's type)
+        Assert.Contains("Pet", result);
+    }
+
+    [Fact]
+    public void GetSharedSchemas_PaginationBaseComposedWithAllOf_IsNoModel()
+    {
+        // PaginationResult becomes the generic paginated type where it is composed with allOf - never a model
+        var doc = OpenApiDocumentHelper.ParseYaml("""
+            openapi: 3.1.1
+            info:
+              title: Test API
+              version: 1.0.0
+            paths:
+              /items:
+                get:
+                  operationId: listItems
+                  responses:
+                    '200':
+                      description: OK
+                      content:
+                        application/json:
+                          schema:
+                            allOf:
+                              - $ref: '#/components/schemas/PaginationResult'
+                              - type: object
+                                properties:
+                                  items:
+                                    type: array
+                                    items:
+                                      $ref: '#/components/schemas/Item'
+            components:
+              schemas:
+                Item:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                PaginationResult:
+                  type: object
+                  properties:
+                    continuationToken:
+                      type: string
+            """);
+
+        var result = PathSegmentHelper.GetSharedSchemas(doc);
+
+        Assert.DoesNotContain("PaginationResult", result);
+    }
+
+    [Fact]
+    public void GetSegmentSpecificSchemas_WithSharedSet_ExcludesSharedSchemas()
+    {
+        var doc = OpenApiDocumentHelper.ParseYaml(TwoSegmentYaml);
+        var shared = new HashSet<string>(StringComparer.Ordinal) { "Address" };
+
+        var result = PathSegmentHelper.GetSegmentSpecificSchemas(doc, "Pets", shared);
+
+        Assert.Equal(["Pet"], result);
+    }
+
+    [Fact]
+    public void GetSegmentSpecificSchemas_ArrayAliasComponent_IsNotAModel()
+    {
+        // "Pets: array of Pet" is replaced by List<Pet> wherever it is used - it is no generated type
+        var doc = OpenApiDocumentHelper.ParseYaml("""
+            openapi: 3.1.1
+            info:
+              title: Test API
+              version: 1.0.0
+            paths:
+              /pets:
+                get:
+                  operationId: listPets
+                  responses:
+                    '200':
+                      description: OK
+                      content:
+                        application/json:
+                          schema:
+                            $ref: '#/components/schemas/Pets'
+            components:
+              schemas:
+                Pets:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Pet'
+                Pet:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+            """);
+
+        var result = PathSegmentHelper.GetSegmentSpecificSchemas(doc, "Pets", new HashSet<string>(StringComparer.Ordinal));
+
+        Assert.Equal(["Pet"], result);
+    }
+
+    // ========== GetSchemasUsedByWebhooks Tests ==========
+    [Fact]
+    public void GetSchemasUsedByWebhooks_CollectsRequestAndResponseSchemas()
+    {
+        var doc = OpenApiDocumentHelper.ParseYaml(WebhookYaml);
+
+        var result = PathSegmentHelper.GetSchemasUsedByWebhooks(doc);
+
+        Assert.Equal(["Address", "Pet", "ProblemDetails", "ShipmentEvent"], result.OrderBy(s => s, StringComparer.Ordinal), StringComparer.Ordinal);
+    }
+
+    [Fact]
+    public void GetSchemasUsedByWebhooks_NoWebhooks_ReturnsEmpty()
+    {
+        var doc = OpenApiDocumentHelper.ParseYaml(TwoSegmentYaml);
+
+        var result = PathSegmentHelper.GetSchemasUsedByWebhooks(doc);
+
+        Assert.Empty(result);
+    }
+
+    // ========== GetWebhookModelUsings Tests ==========
+    [Fact]
+    public void GetWebhookModelUsings_MixesSharedAndSegmentNamespaces()
+    {
+        // Pet is only used by /pets (segment namespace); ShipmentEvent is webhook-only and Address is used by
+        // two segments (both shared). ProblemDetails binds to the framework type and gets no using.
+        var doc = OpenApiDocumentHelper.ParseYaml(WebhookYaml);
+        var webhook = doc.Webhooks!["petShipped"].Operations![HttpMethod.Post];
+
+        var result = PathSegmentHelper.GetWebhookModelUsings(doc, "TestApi", webhook);
+
+        Assert.Equal(
+            ["TestApi.Generated.Models", "TestApi.Generated.Pets.Models"],
+            result);
+    }
+
+    // ========== PathSegmentHasModels (pre-computed shared set) Tests ==========
+    [Fact]
+    public void PathSegmentHasModels_WithSharedSet_SegmentWithOwnSchema_ReturnsTrue()
+    {
+        var doc = OpenApiDocumentHelper.ParseYaml(TwoSegmentYaml);
+        var shared = PathSegmentHelper.GetSharedSchemas(doc);
+
+        Assert.True(PathSegmentHelper.PathSegmentHasModels(doc, "Pets", shared));
+    }
+
+    [Fact]
+    public void PathSegmentHasModels_WithSharedSet_SegmentUsingOnlySharedSchema_ReturnsFalse()
+    {
+        var doc = OpenApiDocumentHelper.ParseYaml(TwoSegmentYaml);
+        var shared = PathSegmentHelper.GetSharedSchemas(doc);
+
+        Assert.False(PathSegmentHelper.PathSegmentHasModels(doc, "Addresses", shared));
+    }
+
+    [Fact]
+    public void PathSegmentHasModels_WithSharedSet_OnlyBuiltInErrorContract_ReturnsFalse()
+    {
+        var doc = OpenApiDocumentHelper.ParseYaml("""
+            openapi: 3.1.1
+            info:
+              title: Test API
+              version: 1.0.0
+            paths:
+              /health:
+                get:
+                  operationId: getHealth
+                  responses:
+                    '500':
+                      description: Error
+                      content:
+                        application/problem+json:
+                          schema:
+                            $ref: '#/components/schemas/ProblemDetails'
+            components:
+              schemas:
+                ProblemDetails:
+                  type: object
+                  properties:
+                    detail:
+                      type: string
+            """);
+
+        Assert.False(PathSegmentHelper.PathSegmentHasModels(doc, "Health", new HashSet<string>(StringComparer.Ordinal)));
+    }
+
+    // ========== PathSegmentHasInlineModels Tests ==========
+    [Fact]
+    public void PathSegmentHasInlineModels_InlineObjectResponse_ReturnsTrue()
+    {
+        var doc = OpenApiDocumentHelper.ParseYaml("""
+            openapi: 3.1.1
+            info:
+              title: Test API
+              version: 1.0.0
+            paths:
+              /analytics/summary:
+                get:
+                  operationId: getAnalyticsSummary
+                  responses:
+                    '200':
+                      description: OK
+                      content:
+                        application/json:
+                          schema:
+                            type: object
+                            properties:
+                              total:
+                                type: integer
+            """);
+
+        Assert.True(PathSegmentHelper.PathSegmentHasInlineModels(doc, "Analytics"));
+    }
+
+    [Fact]
+    public void PathSegmentHasInlineModels_ArrayOfInlineObjectsInRequestBody_ReturnsTrue()
+    {
+        var doc = OpenApiDocumentHelper.ParseYaml("""
+            openapi: 3.1.1
+            info:
+              title: Test API
+              version: 1.0.0
+            paths:
+              /reports:
+                post:
+                  operationId: createReports
+                  requestBody:
+                    content:
+                      application/json:
+                        schema:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              name:
+                                type: string
+                  responses:
+                    '201':
+                      description: Created
+            """);
+
+        Assert.True(PathSegmentHelper.PathSegmentHasInlineModels(doc, "Reports"));
+    }
+
+    [Fact]
+    public void PathSegmentHasInlineModels_OnlyReferencedSchemas_ReturnsFalse()
+    {
+        var doc = OpenApiDocumentHelper.ParseYaml(TwoSegmentYaml);
+
+        Assert.False(PathSegmentHelper.PathSegmentHasInlineModels(doc, "Pets"));
+        Assert.False(PathSegmentHelper.PathSegmentHasInlineModels(doc, "Unknown"));
+    }
+
+    // ========== GetPathSegmentNamespaces (pre-computed shared set) Tests ==========
+    [Fact]
+    public void GetPathSegmentNamespaces_WithSharedSet_SegmentUsingOnlySharedSchema_HasNoModels()
+    {
+        var doc = OpenApiDocumentHelper.ParseYaml(TwoSegmentYaml);
+        var shared = PathSegmentHelper.GetSharedSchemas(doc);
+
+        var result = PathSegmentHelper.GetPathSegmentNamespaces(doc, "Addresses", shared);
+
+        Assert.True(result.HasHandlers);
+        Assert.True(result.HasResults);
+        Assert.True(result.HasParameters);
+        Assert.False(result.HasModels);
+    }
+
+    [Fact]
+    public void GetPathSegmentNamespaces_WithSharedSet_SegmentWithOwnSchema_HasModels()
+    {
+        var doc = OpenApiDocumentHelper.ParseYaml(TwoSegmentYaml);
+        var shared = PathSegmentHelper.GetSharedSchemas(doc);
+
+        var result = PathSegmentHelper.GetPathSegmentNamespaces(doc, "Users", shared);
+
+        Assert.True(result.HasHandlers);
+        Assert.True(result.HasResults);
+        Assert.False(result.HasParameters);
+        Assert.True(result.HasModels);
+    }
+
+    // ========== Helper Methods ==========
+    private static OpenApiDocument CreateOpenApiDocument(params string[] paths)
+    {
+        var doc = new OpenApiDocument
+        {
+            Info = new OpenApiInfo { Title = "Test API", Version = "1.0.0" },
+            Paths = new OpenApiPaths(),
+        };
+
+        foreach (var path in paths)
+        {
+            doc.Paths.Add(path, new OpenApiPathItem
+            {
+                Operations = new Dictionary<HttpMethod, OpenApiOperation>
+                {
+                    [HttpMethod.Get] = new OpenApiOperation
+                    {
+                        OperationId = "test",
+                        Responses = new OpenApiResponses
+                        {
+                            ["200"] = new OpenApiResponse { Description = "OK" },
+                        },
+                    },
+                },
+            });
+        }
+
+        return doc;
     }
 }

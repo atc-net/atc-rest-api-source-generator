@@ -173,10 +173,20 @@ try
     Console.WriteLine("All operations completed successfully!");
     Console.WriteLine("========================================");
 }
+catch (ApiException ex)
+{
+    // An error response: the generated exception carries its status, body and headers
+    Console.WriteLine($"API Error: {(int?)ex.StatusCode} {ex.StatusCode}");
+    Console.WriteLine($"  Body: {ex.Content}");
+    if (ex.RetryAfter is { } retryAfter)
+    {
+        Console.WriteLine($"  Retry after: {retryAfter.TotalSeconds:0} s");
+    }
+}
 catch (HttpRequestException ex)
 {
+    // No response: the connection failed
     Console.WriteLine($"HTTP Error: {ex.Message}");
-    Console.WriteLine($"  Status Code: {ex.StatusCode}");
     Console.WriteLine("  Make sure the API is running on " + apiBaseUrl);
 }
 catch (Exception ex)

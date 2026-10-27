@@ -54,13 +54,7 @@ public sealed class TypeScriptAxiosClientBehaviorGateTests
             File.WriteAllText(Path.Combine(workDir, "tsconfig.json"), TsConfig);
             File.WriteAllText(Path.Combine(workDir, "harness.mts"), Harness);
 
-            var install = NodeToolchain.RunNpm(
-                "install --no-audit --no-fund --loglevel=error",
-                workDir,
-                TimeSpan.FromMinutes(5));
-            Assert.True(
-                install.ExitCode == 0,
-                $"npm install failed (exit {install.ExitCode}):\n{install.Output}");
+            NodeWorkspace.Link(workDir);
 
             var run = NodeToolchain.RunNpx(
                 "tsx harness.mts",
@@ -222,7 +216,8 @@ public sealed class TypeScriptAxiosClientBehaviorGateTests
 
           if (failures.length > 0) {
             console.error('BEHAVIOUR FAILURES:\n' + failures.join('\n'));
-            process.exit(1);
+            process.exitCode = 1;
+            return;
           }
           console.log('ALL BEHAVIOUR CHECKS PASSED');
         }

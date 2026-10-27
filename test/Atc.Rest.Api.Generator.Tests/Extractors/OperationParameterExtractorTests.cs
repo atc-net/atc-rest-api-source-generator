@@ -586,7 +586,7 @@ public class OperationParameterExtractorTests
         Assert.Equal("Types", param.Name);
 
         // For server-side query arrays, TypeName is ParsableList (supports TryParse for [AsParameters])
-        Assert.Equal("ParsableList<DeviceType>", param.TypeName);
+        Assert.Equal("ParsableEnumList<DeviceType>", param.TypeName);
 
         // Not required (default), so should be nullable
         Assert.True(param.IsNullableType);
@@ -870,7 +870,7 @@ public class OperationParameterExtractorTests
     }
 
     [Theory]
-    [InlineData("date", "DateTimeOffset")]
+    [InlineData("date", "DateOnly")]
     [InlineData("date-time", "DateTimeOffset")]
     [InlineData("guid", "Guid")]
     [InlineData("int", "int")]
@@ -963,8 +963,7 @@ public class OperationParameterExtractorTests
             projectName: "Demo",
             pathSegment: "Pet",
             registry: null,
-            includeBindingAttributes: true,
-            namespaceSubFolder: "Parameters");
+            includeBindingAttributes: true);
 
         Assert.NotNull(recordsParams);
         var record = Assert.Single(recordsParams);
@@ -976,6 +975,53 @@ public class OperationParameterExtractorTests
         // The inline enum is reported back to the caller for separate file emission.
         var inlineEnum = Assert.Single(inlineEnums);
         Assert.Equal("FindPetsByStatusParametersStatus", inlineEnum.TypeName);
+    }
+
+    [Theory]
+    [InlineData(null, "Demo.Generated.Pet.Models")]
+    [InlineData("Pet", "Demo.Generated.Pet.Models")]
+    [InlineData("", "Demo.Generated.Models")]
+    public void ExtractIndividualWithInlineEnums_InlineEnumQueryParam_EnumIsInTheNamespaceSegmentsModels(
+        string? namespaceSegment,
+        string expectedNamespace)
+    {
+        // The path segment picks the operations; the namespace segment decides where the code goes. A client
+        // with one flat namespace (an empty namespace segment) imports "Generated.Models", not "Generated.Pet.Models".
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /pet/findByStatus:
+                                get:
+                                  operationId: findPetsByStatus
+                                  parameters:
+                                    - name: status
+                                      in: query
+                                      schema:
+                                        type: string
+                                        enum:
+                                          - available
+                                          - sold
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var (_, inlineEnums) = OperationParameterExtractor.ExtractIndividualWithInlineEnums(
+            document,
+            projectName: "Demo",
+            pathSegment: "Pet",
+            registry: null,
+            includeBindingAttributes: false,
+            namespaceSegment: namespaceSegment);
+
+        var inlineEnum = Assert.Single(inlineEnums);
+        Assert.Equal(expectedNamespace, inlineEnum.EnumParameters.Namespace);
     }
 
     [Fact]
@@ -1012,8 +1058,7 @@ public class OperationParameterExtractorTests
             projectName: "Demo",
             pathSegment: "Things",
             registry: null,
-            includeBindingAttributes: true,
-            namespaceSubFolder: "Parameters");
+            includeBindingAttributes: true);
 
         Assert.NotNull(recordsParams);
         var param = recordsParams.Single().Parameters[0];
@@ -1060,8 +1105,7 @@ public class OperationParameterExtractorTests
             projectName: "Demo",
             pathSegment: "Users",
             registry: null,
-            includeBindingAttributes: true,
-            namespaceSubFolder: "Parameters");
+            includeBindingAttributes: true);
 
         Assert.NotNull(recordsParams);
         var param = recordsParams.Single().Parameters[0];
@@ -1069,7 +1113,7 @@ public class OperationParameterExtractorTests
         // Server-side query arrays are wrapped with ParsableList<T> so [AsParameters]
         // binding gets a TryParse — that's pre-existing behavior; the new bit is that
         // the inner T is the generated enum, not `string`.
-        Assert.Equal("ParsableList<ListUsersParametersRoles>", param.TypeName);
+        Assert.Equal("ParsableEnumList<ListUsersParametersRoles>", param.TypeName);
         var inlineEnum = Assert.Single(inlineEnums);
         Assert.Equal("ListUsersParametersRoles", inlineEnum.TypeName);
     }
@@ -1182,7 +1226,11 @@ public class OperationParameterExtractorTests
         Assert.Equal("RawFilter", param.Name);
         Assert.Equal("string", param.TypeName);  // NOT "object"
         Assert.True(param.IsNullableType);
-        Assert.Null(param.Attributes?.FirstOrDefault(a => a.Name == "FromQuery"));
+
+        // Bound from the reserved key the wire-binding step fills with the raw query string (without it, the binder
+        // read the query key "RawFilter", so the value was always null)
+        var fromQuery = Assert.Single(param.Attributes!, a => a.Name == "FromQuery");
+        Assert.Equal($"Name = {CSharpLiteralHelper.ToStringLiteral(WireBindingHelper.QueryStringKey)}", fromQuery.Content);
     }
 
     [Fact]
@@ -1277,11 +1325,6 @@ public class OperationParameterExtractorTests
         // No [FromCookie] — that attribute does not exist in ASP.NET Core.
         Assert.Null(param.Attributes?.FirstOrDefault(a => a.Name == "FromCookie"));
     }
-
-    private static OpenApiDocument? ParseYaml(string yaml)
-        => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
-            ? document
-            : null;
 
     // ========== Missing operationId — synthetic name fallback ==========
     // Each test mirrors one real Eloverblik operation that has no operationId.
@@ -1755,4 +1798,202 @@ public class OperationParameterExtractorTests
 
         Assert.Null(result);
     }
+
+    [Fact]
+    public void ExtractIndividual_WithoutPathSegment_ReturnsServerRecordsForEveryPathWithBindingAttributes()
+    {
+        // The server-side shape: no segment filter, [FromQuery]/[FromRoute] on, deprecated operations off.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /pets/{petId}:
+                                get:
+                                  operationId: getPet
+                                  parameters:
+                                    - name: petId
+                                      in: path
+                                      required: true
+                                      schema:
+                                        type: string
+                                  responses:
+                                    '200':
+                                      description: OK
+                              /users:
+                                get:
+                                  operationId: listUsers
+                                  parameters:
+                                    - name: limit
+                                      in: query
+                                      schema:
+                                        type: integer
+                                  responses:
+                                    '200':
+                                      description: OK
+                              /legacy:
+                                get:
+                                  operationId: getLegacy
+                                  deprecated: true
+                                  parameters:
+                                    - name: id
+                                      in: query
+                                      schema:
+                                        type: string
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var records = OperationParameterExtractor.ExtractIndividual(
+            document,
+            "TestApi",
+            pathSegment: null,
+            registry: null,
+            includeBindingAttributes: true,
+            includeDeprecated: false);
+
+        Assert.NotNull(records);
+        Assert.Equal(2, records.Count);
+        Assert.DoesNotContain(records, r => r.Name == "GetLegacyParameters");
+
+        var getPet = records.Single(r => r.Name == "GetPetParameters");
+        var petId = Assert.Single(getPet.Parameters!);
+        Assert.Equal("PetId", petId.Name);
+        Assert.Equal("string", petId.TypeName);
+        Assert.False(petId.IsNullableType);
+        var fromRoute = Assert.Single(petId.Attributes!, a => a.Name == "FromRoute");
+        Assert.Equal("Name = \"petId\"", fromRoute.Content);
+
+        var listUsers = records.Single(r => r.Name == "ListUsersParameters");
+        var limit = Assert.Single(listUsers.Parameters!);
+        Assert.Equal("Limit", limit.Name);
+        Assert.Equal("int", limit.TypeName);
+        Assert.True(limit.IsNullableType);
+        Assert.Contains(limit.Attributes!, a => a.Name == "FromQuery");
+    }
+
+    [Fact]
+    public void ExtractIndividual_LongOverload_FiltersBySegmentSynthesizesOperationIdAndCollectsInlineEnums()
+    {
+        // Standard validation synthesizes "{METHOD}{path}" for a missing operationId; the client
+        // flavour (no binding attributes) with an accumulator types the inline enum parameter.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /pets/{petId}:
+                                get:
+                                  parameters:
+                                    - name: petId
+                                      in: path
+                                      required: true
+                                      schema:
+                                        type: string
+                                    - name: status
+                                      in: query
+                                      schema:
+                                        type: string
+                                        enum:
+                                          - available
+                                          - sold
+                                  responses:
+                                    '200':
+                                      description: OK
+                              /users:
+                                get:
+                                  operationId: listUsers
+                                  parameters:
+                                    - name: limit
+                                      in: query
+                                      schema:
+                                        type: integer
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var inlineEnums = new Dictionary<string, InlineEnumInfo>(StringComparer.Ordinal);
+        var records = OperationParameterExtractor.ExtractIndividual(
+            document,
+            "TestApi",
+            "Pets",
+            registry: null,
+            includeBindingAttributes: false,
+            includeDeprecated: false,
+            inlineEnumsByValuesKey: inlineEnums,
+            validateStrategy: ValidateSpecificationStrategy.Standard,
+            namespaceSegment: string.Empty);
+
+        Assert.NotNull(records);
+        var record = Assert.Single(records);
+        Assert.Equal("GetPetsPetIdParameters", record.Name);
+        Assert.NotNull(record.Parameters);
+        Assert.Equal(2, record.Parameters.Count);
+
+        // No binding attributes on the client side.
+        var petId = record.Parameters.Single(p => p.Name == "PetId");
+        Assert.True(petId.Attributes is null || petId.Attributes.All(a => a.Name != "FromRoute"));
+
+        // The inline enum is typed after the record and reported through the accumulator; an empty
+        // namespace segment puts it in the root Models namespace.
+        var status = record.Parameters.Single(p => p.Name == "Status");
+        Assert.Equal("GetPetsPetIdParametersStatus", status.TypeName);
+        Assert.True(status.IsNullableType);
+        var inlineEnum = Assert.Single(inlineEnums.Values);
+        Assert.Equal("GetPetsPetIdParametersStatus", inlineEnum.TypeName);
+        Assert.Equal("TestApi.Generated.Models", inlineEnum.EnumParameters.Namespace);
+    }
+
+    [Fact]
+    public void ExtractIndividual_LongOverloadStrictWithoutOperationId_SkipsTheOperation()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /pets:
+                                get:
+                                  parameters:
+                                    - name: limit
+                                      in: query
+                                      schema:
+                                        type: integer
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var records = OperationParameterExtractor.ExtractIndividual(
+            document,
+            "TestApi",
+            "Pets",
+            registry: null,
+            includeBindingAttributes: true,
+            includeDeprecated: false,
+            inlineEnumsByValuesKey: null,
+            validateStrategy: ValidateSpecificationStrategy.Strict,
+            namespaceSegment: null);
+
+        Assert.Null(records);
+    }
+
+    private static OpenApiDocument? ParseYaml(string yaml)
+        => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
+            ? document
+            : null;
 }

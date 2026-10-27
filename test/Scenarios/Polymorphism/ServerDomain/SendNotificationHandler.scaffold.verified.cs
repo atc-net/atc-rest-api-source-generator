@@ -5,6 +5,9 @@ namespace Polymorphism.ApiHandlers;
 /// </summary>
 public sealed class SendNotificationHandler : ISendNotificationHandler
 {
+    /// <summary>
+    /// Executes the SendNotification operation.
+    /// </summary>
     public Task<SendNotificationResult> ExecuteAsync(
         SendNotificationParameters parameters,
         CancellationToken cancellationToken = default)

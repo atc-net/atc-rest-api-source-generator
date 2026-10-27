@@ -7,8 +7,14 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Atc.Console.Spectre" Version="3.0.186" />
-    <PackageReference Include="Atc.DotNet" Version="3.0.186" />
+    <!-- The one npm workspace every TypeScript gate installs from (test/NodeWorkspace), shared with the SourceGenerator tests as source -->
+    <Compile Include="..\NodeWorkspace\NodeWorkspace.cs" Link="Gates\NodeWorkspace.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Atc.Console.Spectre" Version="4.0.0" />
+    <PackageReference Include="Atc.DotNet" Version="4.0.0" />
+    <PackageReference Include="JsonSchema.Net" Version="9.4.1" />
   </ItemGroup>
 
   <ItemGroup>

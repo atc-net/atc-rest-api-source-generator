@@ -10,6 +10,9 @@ public static class SpecificationService
 {
     private const string MultiPartExtensionKey = "x-multipart";
 
+    // The owner of a schema the base file keeps: a split group name is never empty.
+    private const string SplitBaseOwner = "";
+
     /// <summary>
     /// Reads and parses a single OpenAPI specification file.
     /// </summary>
@@ -38,6 +41,34 @@ public static class SpecificationService
         => SpecificationFile.FromContent(virtualPath, yamlContent);
 
     /// <summary>
+    /// Reads a specification and merges its part files (<c>{Base}_{Part}.yaml</c> or <c>x-multipart</c>) like
+    /// the build does. When parts were merged, every <c>$ref</c> of the merged document - also one written in a
+    /// part file - resolves against the merged document.
+    /// </summary>
+    /// <param name="baseFilePath">Path to the base YAML file.</param>
+    /// <returns>
+    /// The merge result, and the merged specification (the base file itself when it has no parts), or null
+    /// when the merge failed.
+    /// </returns>
+    public static (MergeResult Merge, SpecificationFile? Specification) ReadAndMergeResolved(
+        string baseFilePath)
+    {
+        var merge = ReadAndMerge(baseFilePath);
+        if (!merge.IsSuccess || merge.Document is null)
+        {
+            return (merge, null);
+        }
+
+        if (!merge.IsMultiPart)
+        {
+            return (merge, merge.BaseFile);
+        }
+
+        // The merge already points every reference at the merged document.
+        return (merge, SpecificationFile.FromDocument(baseFilePath, SerializeToYaml(merge.Document), merge.Document));
+    }
+
+    /// <summary>
     /// Reads and parses a single OpenAPI specification file.
     /// Alias for ReadSingle for convenience.
     /// </summary>
@@ -59,8 +90,7 @@ public static class SpecificationService
         }
 
         using var writer = new StringWriter();
-        var yamlWriter = new OpenApiYamlWriter(writer);
-        document.SerializeAsV3(yamlWriter);
+        Serialize(document, new OpenApiYamlWriter(writer));
         return writer.ToString();
     }
 
@@ -77,9 +107,93 @@ public static class SpecificationService
         }
 
         using var writer = new StringWriter();
-        var jsonWriter = new OpenApiJsonWriter(writer);
-        document.SerializeAsV3(jsonWriter);
+        Serialize(document, new OpenApiJsonWriter(writer));
         return writer.ToString();
+    }
+
+    /// <summary>
+    /// Writes the document in the OpenAPI version it was parsed as (3.0 when unknown): writing a 3.1 / 3.2
+    /// document as 3.0 would turn type arrays into `nullable`, and drop `query:` operations and webhooks.
+    /// </summary>
+    private static void Serialize(
+        OpenApiDocument document,
+        IOpenApiWriter writer)
+    {
+        var version = document.SpecVersion;
+        if (version is OpenApiSpecVersion.OpenApi3_1 or OpenApiSpecVersion.OpenApi3_2)
+        {
+            // The 3.0 `nullable: true` in a 3.1+ document is kept as an unrecognized keyword (and honored by the
+            // generator); written back it would become `unrecognizedKeywords: { nullable: true }`. Write it the
+            // 3.1 way, as a `null` type - the same meaning.
+            new OpenApiWalker(new NullableKeywordNormalizer()).Walk(document);
+        }
+
+        // The library writes a schema's unrecognized keywords (JSON Schema keywords it has no property for, such as
+        // `prefixItems`, or `summary` on a schema) nested under an `unrecognizedKeywords` key, which reads back as
+        // a different schema. Write them in place instead, and leave the document as it was.
+        var inliner = new UnrecognizedKeywordInliner();
+        new OpenApiWalker(inliner).Walk(document);
+        try
+        {
+            switch (version)
+            {
+                case OpenApiSpecVersion.OpenApi3_2:
+                    document.SerializeAsV32(writer);
+                    break;
+                case OpenApiSpecVersion.OpenApi3_1:
+                    document.SerializeAsV31(writer);
+                    break;
+                default:
+                    document.SerializeAsV3(writer);
+                    break;
+            }
+        }
+        finally
+        {
+            inliner.Restore();
+        }
+    }
+
+    /// <summary>
+    /// Moves each schema's unrecognized keywords into its extensions (written under their own name) until
+    /// <see cref="Restore"/>.
+    /// </summary>
+    private sealed class UnrecognizedKeywordInliner : OpenApiVisitorBase
+    {
+        private readonly List<(OpenApiSchema Schema, IDictionary<string, JsonNode> Keywords, IDictionary<string, IOpenApiExtension>? Extensions)> moved = [];
+
+        public override void Visit(IOpenApiSchema schema)
+        {
+            if (schema is not OpenApiSchema { UnrecognizedKeywords.Count: > 0 } actualSchema ||
+                moved.Exists(m => ReferenceEquals(m.Schema, actualSchema)))
+            {
+                return;
+            }
+
+            var extensions = actualSchema.Extensions is null
+                ? new Dictionary<string, IOpenApiExtension>(StringComparer.Ordinal)
+                : new Dictionary<string, IOpenApiExtension>(actualSchema.Extensions, StringComparer.Ordinal);
+            foreach (var keyword in actualSchema.UnrecognizedKeywords)
+            {
+                if (keyword.Value is not null && !extensions.ContainsKey(keyword.Key))
+                {
+                    extensions[keyword.Key] = new JsonNodeExtension(keyword.Value);
+                }
+            }
+
+            moved.Add((actualSchema, actualSchema.UnrecognizedKeywords, actualSchema.Extensions));
+            actualSchema.Extensions = extensions;
+            actualSchema.UnrecognizedKeywords = new Dictionary<string, JsonNode>(StringComparer.Ordinal);
+        }
+
+        public void Restore()
+        {
+            foreach (var (schema, keywords, extensions) in moved)
+            {
+                schema.UnrecognizedKeywords = keywords;
+                schema.Extensions = extensions;
+            }
+        }
     }
 
     /// <summary>
@@ -91,27 +205,33 @@ public static class SpecificationService
     public static IReadOnlyList<SpecificationFile> DiscoverPartFiles(
         string baseFilePath)
     {
+        var baseName = Path.GetFileNameWithoutExtension(baseFilePath);
+        return DiscoverPartFilePaths(baseFilePath)
+            .Select(partFilePath => SpecificationFile.FromFile(partFilePath, baseName))
+            .ToList();
+    }
+
+    /// <summary>
+    /// The part files of a multi-part specification, by the one convention the build and every CLI command use: the
+    /// files named <c>{BaseName}_{PartName}</c> next to the base file with a specification extension (<c>.yaml</c>,
+    /// <c>.yml</c> or <c>.json</c>, whatever the base file's own), sorted by name.
+    /// </summary>
+    /// <param name="baseFilePath">Path to the base file.</param>
+    /// <returns>The part files' paths, sorted.</returns>
+    public static IReadOnlyList<string> DiscoverPartFilePaths(
+        string baseFilePath)
+    {
         var directory = Path.GetDirectoryName(baseFilePath) ?? ".";
         var baseName = Path.GetFileNameWithoutExtension(baseFilePath);
-        var extension = Path.GetExtension(baseFilePath);
-
-        var partFiles = new List<SpecificationFile>();
-
-        // Look for files matching the pattern {BaseName}_{PartName}.yaml
-        var pattern = $"{baseName}_*{extension}";
-        var matchingFiles = Directory
-            .GetFiles(directory, pattern)
-            .Where(f => !f.Equals(baseFilePath, StringComparison.OrdinalIgnoreCase))
+        return Directory
+            .GetFiles(directory, $"{baseName}_*")
+            .Where(f => !f.Equals(baseFilePath, StringComparison.OrdinalIgnoreCase) &&
+                        Path.GetExtension(f) is { } extension &&
+                        (extension.Equals(".yaml", StringComparison.OrdinalIgnoreCase) ||
+                         extension.Equals(".yml", StringComparison.OrdinalIgnoreCase) ||
+                         extension.Equals(".json", StringComparison.OrdinalIgnoreCase)))
             .OrderBy(f => f, StringComparer.OrdinalIgnoreCase)
             .ToList();
-
-        foreach (var partFilePath in matchingFiles)
-        {
-            var partFile = SpecificationFile.FromFile(partFilePath, baseName);
-            partFiles.Add(partFile);
-        }
-
-        return partFiles;
     }
 
     /// <summary>
@@ -220,15 +340,16 @@ public static class SpecificationService
             // Check for prohibited sections in part files
             var partDiagnostics = ValidatePartFile(partFile);
             diagnostics.AddRange(partDiagnostics);
+            diagnostics.AddRange(ValidatePartAgainstBase(partFile, baseFile));
 
             // Merge paths
-            MergePaths(mergedDocument, partFile.Document, partFile.FilePath, config, diagnostics);
+            MergeEntries(partFile.Document.Paths, mergedDocument.Paths, config.PathsMergeStrategy, RuleIdentifiers.DuplicatePathInPart, "path", partFile.FilePath, diagnostics);
 
             // Merge schemas
-            MergeSchemas(mergedDocument, partFile.Document, partFile.FilePath, config, diagnostics);
+            MergeEntries(partFile.Document.Components?.Schemas, mergedDocument.Components!.Schemas!, config.SchemasMergeStrategy, RuleIdentifiers.DuplicateSchemaInPart, "schema", partFile.FilePath, diagnostics);
 
             // Merge parameters
-            MergeParameters(mergedDocument, partFile.Document, partFile.FilePath, config, diagnostics);
+            MergeEntries(partFile.Document.Components?.Parameters, mergedDocument.Components!.Parameters!, config.ParametersMergeStrategy, RuleIdentifiers.DuplicateParameterInPart, "parameter", partFile.FilePath, diagnostics);
 
             // Merge tags
             MergeTags(mergedDocument, partFile.Document);
@@ -252,90 +373,195 @@ public static class SpecificationService
         }
 
         var hasErrors = diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error);
-        return hasErrors
-            ? MergeResult.Failed(diagnostics)
-            : MergeResult.Success(mergedDocument, baseFile, partFiles, diagnostics);
+        if (hasErrors)
+        {
+            return MergeResult.Failed(diagnostics);
+        }
+
+        // A $ref written in a part file points at the part's own document: point every reference at the merged
+        // document, so it resolves there (array aliases, allOf bases and the like are followed by reference target).
+        // Done in memory - a YAML round trip would lose what the parser keeps as-is (e.g. `nullable` in 3.1).
+        var walker = new OpenApiWalker(new MergedDocumentReferenceSetter(mergedDocument));
+        walker.Walk(mergedDocument);
+        mergedDocument.RegisterComponents();
+
+        return MergeResult.Success(mergedDocument, baseFile, partFiles, diagnostics);
     }
 
     /// <summary>
-    /// Splits an OpenAPI specification into multiple files based on the specified strategy.
+    /// Turns a 3.0 <c>nullable: true</c> (an unrecognized keyword in a 3.1+ document) into a <c>null</c> type.
     /// </summary>
+    private sealed class NullableKeywordNormalizer : OpenApiVisitorBase
+    {
+        public override void Visit(IOpenApiSchema schema)
+        {
+            if (schema is OpenApiSchema { UnrecognizedKeywords: { } keywords } actualSchema &&
+                keywords.TryGetValue("nullable", out var value) &&
+                value is not null &&
+                string.Equals(value.ToString(), "true", StringComparison.OrdinalIgnoreCase))
+            {
+                keywords.Remove("nullable");
+                if (actualSchema.Type is { } type)
+                {
+                    actualSchema.Type = type | JsonSchemaType.Null;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Points every reference of a merged document at that document.
+    /// </summary>
+    private sealed class MergedDocumentReferenceSetter : OpenApiVisitorBase
+    {
+        // HostDocument is public but init-only: the parser sets it once, to the document it read.
+        private static readonly System.Reflection.PropertyInfo HostDocumentProperty =
+            typeof(BaseOpenApiReference).GetProperty(nameof(BaseOpenApiReference.HostDocument))!;
+
+        private readonly OpenApiDocument document;
+
+        public MergedDocumentReferenceSetter(OpenApiDocument document)
+            => this.document = document;
+
+        public override void Visit(IOpenApiReferenceHolder referenceHolder)
+        {
+            if (referenceHolder?.GetType().GetProperty("Reference")?.GetValue(referenceHolder) is BaseOpenApiReference reference)
+            {
+                HostDocumentProperty.SetValue(reference, document);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Splits an OpenAPI specification into a base file and part files (<c>{Base}_{Part}.yaml</c>) that the
+    /// build and <c>spec merge</c> merge back into the same document.
+    /// </summary>
+    /// <remarks>
+    /// Each path goes to one part, whole. A component schema that only one part's paths reach (also through
+    /// other schemas) moves to that part; a schema several parts share moves to <c>{Base}_Common.yaml</c> when
+    /// <paramref name="extractCommon"/> is set. Everything else - the other components, schemas the base file's
+    /// components or webhooks reach, unused schemas, webhooks, security, tags and extensions - stays in the base file.
+    /// </remarks>
     /// <param name="document">The OpenAPI document to split.</param>
     /// <param name="baseName">The base name for generated files.</param>
     /// <param name="strategy">The split strategy to use.</param>
     /// <param name="extractCommon">Whether to extract shared schemas to a common file.</param>
+    /// <param name="minOperations">
+    /// The fewest operations a part file may have; smaller groups are put together in an <c>Other</c> part.
+    /// </param>
     /// <returns>The split result with file contents.</returns>
     public static SplitResult Split(
         OpenApiDocument document,
         string baseName,
         SplitStrategy strategy,
-        bool extractCommon = true)
+        bool extractCommon = true,
+        int minOperations = 1)
     {
-        // Group operations by the selected strategy
-        var operationGroups = GroupOperationsByStrategy(document, strategy);
+        if (document is null)
+        {
+            throw new ArgumentNullException(nameof(document));
+        }
 
-        // Identify shared schemas (used by multiple groups)
-        var sharedSchemas = extractCommon
-            ? IdentifySharedSchemas(operationGroups)
-            : new HashSet<string>(StringComparer.Ordinal);
+        var diagnostics = new List<DiagnosticMessage>();
+        var pathGroups = MergeSmallGroups(
+            document,
+            GroupPathsByStrategy(document, strategy, diagnostics),
+            minOperations);
+        var schemaOwners = FindSchemaOwners(document, pathGroups);
+
+        var partSchemas = new Dictionary<string, Dictionary<string, IOpenApiSchema>>(StringComparer.OrdinalIgnoreCase);
+        var commonSchemas = new Dictionary<string, IOpenApiSchema>(StringComparer.Ordinal);
+        var baseSchemas = new Dictionary<string, IOpenApiSchema>(StringComparer.Ordinal);
+        foreach (var schema in document.Components?.Schemas ?? new Dictionary<string, IOpenApiSchema>(StringComparer.Ordinal))
+        {
+            var owners = schemaOwners.TryGetValue(schema.Key, out var found)
+                ? found
+                : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            if (owners.Contains(SplitBaseOwner) || owners.Count == 0)
+            {
+                baseSchemas[schema.Key] = schema.Value;
+            }
+            else if (owners.Count == 1)
+            {
+                var owner = owners.First();
+                if (!partSchemas.TryGetValue(owner, out var ownSchemas))
+                {
+                    ownSchemas = new Dictionary<string, IOpenApiSchema>(StringComparer.Ordinal);
+                    partSchemas[owner] = ownSchemas;
+                }
+
+                ownSchemas[schema.Key] = schema.Value;
+            }
+            else if (extractCommon)
+            {
+                commonSchemas[schema.Key] = schema.Value;
+            }
+            else
+            {
+                baseSchemas[schema.Key] = schema.Value;
+            }
+        }
 
         var partFiles = new List<SplitFileContent>();
-
-        // Generate part files for each group
-        foreach (var group in operationGroups.OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase))
+        foreach (var group in pathGroups.OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase))
         {
-            var partContent = GeneratePartFileContent(
-                document,
-                group.Key,
-                group.Value,
-                sharedSchemas);
+            var paths = new OpenApiPaths();
+            foreach (var path in group.Value)
+            {
+                paths[path] = document.Paths[path];
+            }
+
+            var schemas = partSchemas.TryGetValue(group.Key, out var ownSchemas)
+                ? ownSchemas
+                : new Dictionary<string, IOpenApiSchema>(StringComparer.Ordinal);
 
             partFiles.Add(new SplitFileContent(
                 fileName: $"{baseName}_{group.Key}.yaml",
-                content: partContent.Content,
+                content: SerializePartDocument(document, paths, schemas, $"{group.Key} - part of {baseName}.yaml, merged with it at build time"),
                 partName: group.Key,
                 isBaseFile: false,
                 isCommonFile: false,
-                pathCount: partContent.PathCount,
-                schemaCount: partContent.SchemaCount,
-                parameterCount: partContent.ParameterCount));
+                pathCount: paths.Count,
+                schemaCount: schemas.Count,
+                parameterCount: 0));
         }
 
-        // Generate common file for shared schemas
         SplitFileContent? commonFile = null;
-        if (extractCommon && sharedSchemas.Count > 0)
+        if (commonSchemas.Count > 0)
         {
-            var commonContent = GenerateCommonFileContent(document, sharedSchemas);
             commonFile = new SplitFileContent(
                 fileName: $"{baseName}_Common.yaml",
-                content: commonContent.Content,
+                content: SerializePartDocument(document, new OpenApiPaths(), commonSchemas, $"Schemas shared by the parts of {baseName}.yaml"),
                 partName: "Common",
                 isBaseFile: false,
                 isCommonFile: true,
                 pathCount: 0,
-                schemaCount: commonContent.SchemaCount,
-                parameterCount: commonContent.ParameterCount);
+                schemaCount: commonSchemas.Count,
+                parameterCount: 0);
         }
 
-        // Generate base file (info, servers, security, x-multipart config)
-        var baseContent = GenerateBaseFileContent(
-            document,
-            baseName,
-            [
-                .. partFiles.Select(p => p.PartName!)
-            ]);
+        // The base file: the document without its paths and the schemas that moved to a part. Parts are found by
+        // the {Base}_{Part}.yaml naming convention, which the build, `spec merge` and the CLI generators all use.
+        var baseDocument = CloneOpenApiDocument(document);
+        baseDocument.Paths = new OpenApiPaths();
+        baseDocument.Extensions?.Remove(MultiPartExtensionKey);
+        if (baseDocument.Components is not null)
+        {
+            baseDocument.Components.Schemas = baseSchemas.Count > 0 ? baseSchemas : null;
+        }
 
         var baseFile = new SplitFileContent(
             fileName: $"{baseName}.yaml",
-            content: baseContent,
+            content: SerializeToYaml(baseDocument),
             partName: null,
             isBaseFile: true,
             isCommonFile: false,
             pathCount: 0,
-            schemaCount: 0,
-            parameterCount: 0);
+            schemaCount: baseSchemas.Count,
+            parameterCount: baseDocument.Components?.Parameters?.Count ?? 0);
 
-        return new SplitResult(baseFile, partFiles, commonFile, new List<DiagnosticMessage>(), strategy);
+        return new SplitResult(baseFile, partFiles, commonFile, diagnostics, strategy);
     }
 
     /// <summary>
@@ -477,7 +703,7 @@ public static class SpecificationService
         if (partFile.Document.Info?.Version is not null)
         {
             diagnostics.Add(DiagnosticMessage.Warning(
-                RuleIdentifiers.PartFileMissingOpenApiVersion,
+                RuleIdentifiers.PartFileInfoIgnored,
                 $"Part file '{partFile.FileName}' has 'info' section - will be ignored during merge",
                 partFile.FilePath));
         }
@@ -504,14 +730,59 @@ public static class SpecificationService
     }
 
     /// <summary>
-    /// Generates a merged YAML content string from the merged document.
+    /// What a part is next to its base: another OpenAPI version (ATC_API_MPT012 - the part is read by its own), or
+    /// nothing to contribute (ATC_API_MPT013 - a <c>paths</c> that is no map, an empty file).
     /// </summary>
-    /// <param name="mergeResult">The merge result.</param>
-    /// <returns>The merged YAML content.</returns>
-    public static string GenerateMergedYaml(MergeResult mergeResult)
-        => mergeResult.Document is null
-            ? string.Empty
-            : SerializeToYaml(mergeResult.Document);
+    private static List<DiagnosticMessage> ValidatePartAgainstBase(
+        SpecificationFile partFile,
+        SpecificationFile baseFile)
+    {
+        var diagnostics = new List<DiagnosticMessage>();
+        if (partFile.Document is not { } part || baseFile.Document is not { } baseDocument)
+        {
+            return diagnostics;
+        }
+
+        var partVersion = part.SpecVersion;
+        var baseVersion = baseDocument.SpecVersion;
+        if (partVersion is { } declared && baseVersion is { } expected && declared != expected)
+        {
+            diagnostics.Add(DiagnosticMessage.Warning(
+                RuleIdentifiers.PartFileOpenApiVersionDiffers,
+                $"Part file '{partFile.FileName}' declares OpenAPI {VersionText(partVersion)} while the base file declares {VersionText(baseVersion)}; the part is read by its own version.",
+                partFile.FilePath));
+        }
+
+        var components = part.Components;
+        var contributes = part.Paths is { Count: > 0 } ||
+                          part.Webhooks is { Count: > 0 } ||
+                          part.Tags is { Count: > 0 } ||
+                          components?.Schemas is { Count: > 0 } ||
+                          components?.Parameters is { Count: > 0 } ||
+                          components?.Responses is { Count: > 0 } ||
+                          components?.RequestBodies is { Count: > 0 } ||
+                          components?.Headers is { Count: > 0 } ||
+                          components?.SecuritySchemes is { Count: > 0 };
+        if (!contributes)
+        {
+            diagnostics.Add(DiagnosticMessage.Warning(
+                RuleIdentifiers.PartFileContributesNothing,
+                $"Part file '{partFile.FileName}' contributes nothing to the merge: no paths, no components (a 'paths' that is no map is read as none).",
+                partFile.FilePath));
+        }
+
+        return diagnostics;
+
+        static string VersionText(OpenApiSpecVersion? version)
+            => version switch
+            {
+                OpenApiSpecVersion.OpenApi3_2 => "3.2",
+                OpenApiSpecVersion.OpenApi3_1 => "3.1",
+                OpenApiSpecVersion.OpenApi3_0 => "3.0",
+                null => "no version",
+                _ => version.ToString()!,
+            };
+    }
 
     private static IReadOnlyList<SpecificationFile> LoadExplicitPartFiles(
         string baseFilePath,
@@ -569,8 +840,12 @@ public static class SpecificationService
                     TermsOfService = source.Info.TermsOfService,
                     Contact = source.Info.Contact,
                     License = source.Info.License,
+                    Summary = source.Info.Summary,
+                    Extensions = source.Info.Extensions,
                 }
                 : null!,
+            ExternalDocs = source.ExternalDocs,
+            JsonSchemaDialect = source.JsonSchemaDialect,
         };
 
         // Copy servers
@@ -628,6 +903,47 @@ public static class SpecificationService
                     source.Components.Responses,
                     StringComparer.Ordinal);
             }
+
+            if (source.Components.Headers is not null)
+            {
+                clone.Components.Headers = new Dictionary<string, IOpenApiHeader>(source.Components.Headers, StringComparer.Ordinal);
+            }
+
+            if (source.Components.Examples is not null)
+            {
+                clone.Components.Examples = new Dictionary<string, IOpenApiExample>(source.Components.Examples, StringComparer.Ordinal);
+            }
+
+            if (source.Components.Links is not null)
+            {
+                clone.Components.Links = new Dictionary<string, IOpenApiLink>(source.Components.Links, StringComparer.Ordinal);
+            }
+
+            if (source.Components.Callbacks is not null)
+            {
+                clone.Components.Callbacks = new Dictionary<string, IOpenApiCallback>(source.Components.Callbacks, StringComparer.Ordinal);
+            }
+
+            if (source.Components.PathItems is not null)
+            {
+                clone.Components.PathItems = new Dictionary<string, IOpenApiPathItem>(source.Components.PathItems, StringComparer.Ordinal);
+            }
+
+            if (source.Components.MediaTypes is not null)
+            {
+                clone.Components.MediaTypes = new Dictionary<string, IOpenApiMediaType>(source.Components.MediaTypes, StringComparer.Ordinal);
+            }
+
+            if (source.Components.Extensions is not null)
+            {
+                clone.Components.Extensions = new Dictionary<string, IOpenApiExtension>(source.Components.Extensions, StringComparer.Ordinal);
+            }
+        }
+
+        // Copy webhooks (OpenAPI 3.1+)
+        if (source.Webhooks is not null)
+        {
+            clone.Webhooks = new Dictionary<string, IOpenApiPathItem>(source.Webhooks, StringComparer.Ordinal);
         }
 
         // Copy tags
@@ -662,164 +978,60 @@ public static class SpecificationService
         return clone;
     }
 
-    private static void MergePaths(
-        OpenApiDocument target,
-        OpenApiDocument source,
+    /// <summary>
+    /// Merges the entries of a part file into the merged document by the strategy configured for them (paths, schemas or
+    /// parameters): a key the merged document already has is an error, merged when identical, skipped, or replaced.
+    /// </summary>
+    private static void MergeEntries<T>(
+        IDictionary<string, T>? source,
+        IDictionary<string, T> target,
+        MergeStrategy strategy,
+        string duplicateRuleId,
+        string kind,
         string sourceFilePath,
-        MultiPartConfiguration config,
         List<DiagnosticMessage> diagnostics)
+        where T : IOpenApiSerializable
     {
-        if (source.Paths is null)
+        if (source is null)
         {
             return;
         }
 
-        foreach (var path in source.Paths)
+        foreach (var entry in source)
         {
-            if (target.Paths.ContainsKey(path.Key))
+            if (!target.ContainsKey(entry.Key))
             {
-                switch (config.PathsMergeStrategy)
-                {
-                    case MergeStrategy.ErrorOnDuplicate:
+                target[entry.Key] = entry.Value;
+                continue;
+            }
+
+            switch (strategy)
+            {
+                case MergeStrategy.ErrorOnDuplicate:
+                    diagnostics.Add(DiagnosticMessage.Error(
+                        duplicateRuleId,
+                        $"Duplicate {kind} '{entry.Key}' found in part file",
+                        sourceFilePath));
+                    break;
+
+                case MergeStrategy.MergeIfIdentical:
+                    if (!AreOpenApiElementsIdentical(target[entry.Key], entry.Value))
+                    {
                         diagnostics.Add(DiagnosticMessage.Error(
-                            RuleIdentifiers.DuplicatePathInPart,
-                            $"Duplicate path '{path.Key}' found in part file",
+                            RuleIdentifiers.NonIdenticalMergeConflict,
+                            $"{char.ToUpperInvariant(kind[0])}{kind.Substring(1)} '{entry.Key}' exists in both base and part file with different definitions",
                             sourceFilePath));
-                        break;
+                    }
 
-                    case MergeStrategy.MergeIfIdentical:
-                        if (!AreOpenApiElementsIdentical(
-                            target.Paths[path.Key],
-                            path.Value))
-                        {
-                            diagnostics.Add(DiagnosticMessage.Error(
-                                RuleIdentifiers.NonIdenticalMergeConflict,
-                                $"Path '{path.Key}' exists in both base and part file with different definitions",
-                                sourceFilePath));
-                        }
+                    break;
 
-                        break;
+                case MergeStrategy.FirstWins:
+                    // Skip - already exists
+                    break;
 
-                    case MergeStrategy.FirstWins:
-                        // Skip - already exists
-                        break;
-
-                    case MergeStrategy.LastWins:
-                        target.Paths[path.Key] = path.Value;
-                        break;
-                }
-            }
-            else
-            {
-                target.Paths[path.Key] = path.Value;
-            }
-        }
-    }
-
-    private static void MergeSchemas(
-        OpenApiDocument target,
-        OpenApiDocument source,
-        string sourceFilePath,
-        MultiPartConfiguration config,
-        List<DiagnosticMessage> diagnostics)
-    {
-        if (source.Components?.Schemas is null)
-        {
-            return;
-        }
-
-        foreach (var schema in source.Components.Schemas)
-        {
-            if (target.Components!.Schemas!.ContainsKey(schema.Key))
-            {
-                switch (config.SchemasMergeStrategy)
-                {
-                    case MergeStrategy.ErrorOnDuplicate:
-                        diagnostics.Add(DiagnosticMessage.Error(
-                            RuleIdentifiers.DuplicateSchemaInPart,
-                            $"Duplicate schema '{schema.Key}' found in part file",
-                            sourceFilePath));
-                        break;
-
-                    case MergeStrategy.MergeIfIdentical:
-                        if (!AreOpenApiElementsIdentical(
-                            target.Components.Schemas[schema.Key],
-                            schema.Value))
-                        {
-                            diagnostics.Add(DiagnosticMessage.Error(
-                                RuleIdentifiers.NonIdenticalMergeConflict,
-                                $"Schema '{schema.Key}' exists in both base and part file with different definitions",
-                                sourceFilePath));
-                        }
-
-                        break;
-
-                    case MergeStrategy.FirstWins:
-                        // Skip - already exists
-                        break;
-
-                    case MergeStrategy.LastWins:
-                        target.Components.Schemas[schema.Key] = schema.Value;
-                        break;
-                }
-            }
-            else
-            {
-                target.Components.Schemas[schema.Key] = schema.Value;
-            }
-        }
-    }
-
-    private static void MergeParameters(
-        OpenApiDocument target,
-        OpenApiDocument source,
-        string sourceFilePath,
-        MultiPartConfiguration config,
-        List<DiagnosticMessage> diagnostics)
-    {
-        if (source.Components?.Parameters is null)
-        {
-            return;
-        }
-
-        foreach (var parameter in source.Components.Parameters)
-        {
-            if (target.Components!.Parameters!.ContainsKey(parameter.Key))
-            {
-                switch (config.ParametersMergeStrategy)
-                {
-                    case MergeStrategy.ErrorOnDuplicate:
-                        diagnostics.Add(DiagnosticMessage.Error(
-                            RuleIdentifiers.DuplicateParameterInPart,
-                            $"Duplicate parameter '{parameter.Key}' found in part file",
-                            sourceFilePath));
-                        break;
-
-                    case MergeStrategy.MergeIfIdentical:
-                        if (!AreOpenApiElementsIdentical(
-                            target.Components.Parameters[parameter.Key],
-                            parameter.Value))
-                        {
-                            diagnostics.Add(DiagnosticMessage.Error(
-                                RuleIdentifiers.NonIdenticalMergeConflict,
-                                $"Parameter '{parameter.Key}' exists in both base and part file with different definitions",
-                                sourceFilePath));
-                        }
-
-                        break;
-
-                    case MergeStrategy.FirstWins:
-                        // Skip - already exists
-                        break;
-
-                    case MergeStrategy.LastWins:
-                        target.Components.Parameters[parameter.Key] = parameter.Value;
-                        break;
-                }
-            }
-            else
-            {
-                target.Components.Parameters[parameter.Key] = parameter.Value;
+                case MergeStrategy.LastWins:
+                    target[entry.Key] = entry.Value;
+                    break;
             }
         }
     }
@@ -953,12 +1165,16 @@ public static class SpecificationService
         }
     }
 
-    private static Dictionary<string, List<(string Path, OpenApiOperation Operation)>> GroupOperationsByStrategy(
+    /// <summary>
+    /// Groups the paths by the split strategy. A path is the unit the merge works with (the same path in two part
+    /// files is a conflict), so each path goes to one group: the one most of its operations belong to.
+    /// </summary>
+    private static Dictionary<string, List<string>> GroupPathsByStrategy(
         OpenApiDocument document,
-        SplitStrategy strategy)
+        SplitStrategy strategy,
+        List<DiagnosticMessage> diagnostics)
     {
-        var groups = new Dictionary<string, List<(string, OpenApiOperation)>>(StringComparer.OrdinalIgnoreCase);
-
+        var groups = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
         if (document.Paths is null)
         {
             return groups;
@@ -966,59 +1182,274 @@ public static class SpecificationService
 
         foreach (var path in document.Paths)
         {
-            if (path.Value?.Operations is null)
+            var operationGroups = (path.Value?.Operations?.Values ?? Enumerable.Empty<OpenApiOperation>())
+                .Select(operation => GetSplitGroupName(path.Key, operation, strategy))
+                .ToList();
+
+            // The most common group; on a tie the first operation's (GroupBy keeps the first-seen order).
+            var groupName = operationGroups.Count == 0
+                ? GetSplitGroupName(path.Key, operation: null, strategy)
+                : operationGroups
+                    .GroupBy(name => name, StringComparer.OrdinalIgnoreCase)
+                    .OrderByDescending(g => g.Count())
+                    .First()
+                    .Key;
+
+            var distinctGroups = operationGroups
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (distinctGroups.Count > 1)
             {
-                continue;
+                diagnostics.Add(DiagnosticMessage.Warning(
+                    RuleIdentifiers.SplitPathSpansGroups,
+                    $"Path '{path.Key}' has operations for {string.Join(", ", distinctGroups)}; a path cannot be split, so all of it goes to '{groupName}'"));
             }
 
-            foreach (var operation in path.Value.Operations.Values)
+            if (!groups.TryGetValue(groupName, out var paths))
             {
-                var groupName = strategy switch
-                {
-                    SplitStrategy.ByTag => operation.Tags?.FirstOrDefault()?.Name ?? "Untagged",
-                    SplitStrategy.ByPathSegment => GetFirstPathSegment(path.Key),
-                    SplitStrategy.ByDomain => GetDomainFromOperation(path.Key, operation),
-                    _ => "Default",
-                };
-
-                groupName = groupName.ToPascalCaseForDotNet();
-
-                if (!groups.TryGetValue(groupName, out var list))
-                {
-                    list = [];
-                    groups[groupName] = list;
-                }
-
-                list.Add((path.Key, operation));
+                paths = [];
+                groups[groupName] = paths;
             }
+
+            paths.Add(path.Key);
         }
 
         return groups;
     }
 
-    private static string GetFirstPathSegment(string path)
+    /// <summary>
+    /// Puts the groups with fewer than <paramref name="minOperations"/> operations together in an <c>Other</c> group.
+    /// </summary>
+    private static Dictionary<string, List<string>> MergeSmallGroups(
+        OpenApiDocument document,
+        Dictionary<string, List<string>> groups,
+        int minOperations)
     {
-        var segments = path.Split(['/'], StringSplitOptions.RemoveEmptyEntries);
-        foreach (var segment in segments)
+        const string otherGroup = "Other";
+        var small = groups
+            .Where(g => !string.Equals(g.Key, otherGroup, StringComparison.OrdinalIgnoreCase) &&
+                        g.Value.Sum(path => document.Paths[path]?.Operations?.Count ?? 0) < minOperations)
+            .Select(g => g.Key)
+            .ToList();
+
+        // One small group on its own is not worth renaming.
+        if (small.Count < 2 && !groups.ContainsKey(otherGroup))
         {
-            // Skip version segments
-            if (segment.StartsWith("v", StringComparison.OrdinalIgnoreCase) &&
-                segment.Length > 1 && char.IsDigit(segment[1]))
-            {
-                continue;
-            }
-
-            // Skip parameter segments
-            if (segment.StartsWith("{", StringComparison.Ordinal))
-            {
-                continue;
-            }
-
-            return segment;
+            return groups;
         }
 
-        return "Api";
+        if (!groups.TryGetValue(otherGroup, out var otherPaths))
+        {
+            otherPaths = [];
+            groups[otherGroup] = otherPaths;
+        }
+
+        foreach (var name in small)
+        {
+            otherPaths.AddRange(groups[name]);
+            groups.Remove(name);
+        }
+
+        return groups;
     }
+
+    private static string GetSplitGroupName(
+        string path,
+        OpenApiOperation? operation,
+        SplitStrategy strategy)
+    {
+        var groupName = strategy switch
+        {
+            SplitStrategy.ByTag => operation?.Tags?.FirstOrDefault()?.Name ?? "Untagged",
+            SplitStrategy.ByPathSegment => GetFirstPathSegment(path),
+            SplitStrategy.ByDomain => operation is null ? GetFirstPathSegment(path) : GetDomainFromOperation(path, operation),
+            _ => "Default",
+        };
+
+        // The group name becomes a file name ({Base}_{Group}.yaml): a tag may hold quotes, slashes
+        // or other characters a file name cannot, so only letters and digits are kept.
+        groupName = new string(groupName.ToPascalCaseForDotNet().Where(char.IsLetterOrDigit).ToArray());
+        return groupName.Length == 0 ? "Default" : groupName;
+    }
+
+    /// <summary>
+    /// Finds, for each component schema, the split groups whose paths reach it - directly or through other
+    /// schemas. A schema reached from anything that stays in the base file (the other components, webhooks) is
+    /// owned by the base (<see cref="SplitBaseOwner"/>).
+    /// </summary>
+    private static Dictionary<string, HashSet<string>> FindSchemaOwners(
+        OpenApiDocument document,
+        Dictionary<string, List<string>> pathGroups)
+    {
+        var owners = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+        var schemas = document.Components?.Schemas;
+        if (schemas is null || schemas.Count == 0)
+        {
+            return owners;
+        }
+
+        foreach (var group in pathGroups)
+        {
+            var groupPaths = new OpenApiPaths();
+            foreach (var path in group.Value)
+            {
+                groupPaths[path] = document.Paths[path];
+            }
+
+            MarkOwner(group.Key, CollectSchemaReferences(new OpenApiDocument { Info = new OpenApiInfo(), Paths = groupPaths }));
+        }
+
+        var baseRoots = new OpenApiDocument
+        {
+            Info = new OpenApiInfo(),
+            Paths = new OpenApiPaths(),
+            Webhooks = document.Webhooks,
+            Components = document.Components is null
+                ? null
+                : new OpenApiComponents
+                {
+                    Parameters = document.Components.Parameters,
+                    Responses = document.Components.Responses,
+                    RequestBodies = document.Components.RequestBodies,
+                    Headers = document.Components.Headers,
+                    Examples = document.Components.Examples,
+                    Links = document.Components.Links,
+                    Callbacks = document.Components.Callbacks,
+                    PathItems = document.Components.PathItems,
+                    SecuritySchemes = document.Components.SecuritySchemes,
+                    MediaTypes = document.Components.MediaTypes,
+                },
+        };
+        MarkOwner(SplitBaseOwner, CollectSchemaReferences(baseRoots));
+
+        return owners;
+
+        void MarkOwner(
+            string owner,
+            IEnumerable<string> roots)
+        {
+            var pending = new Stack<string>(roots);
+            while (pending.Count > 0)
+            {
+                var name = pending.Pop();
+                if (!schemas.TryGetValue(name, out var schema))
+                {
+                    continue;
+                }
+
+                if (!owners.TryGetValue(name, out var schemaOwners))
+                {
+                    schemaOwners = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    owners[name] = schemaOwners;
+                }
+
+                if (!schemaOwners.Add(owner))
+                {
+                    continue;
+                }
+
+                var single = new OpenApiDocument
+                {
+                    Info = new OpenApiInfo(),
+                    Paths = new OpenApiPaths(),
+                    Components = new OpenApiComponents
+                    {
+                        Schemas = new Dictionary<string, IOpenApiSchema>(StringComparer.Ordinal) { [name] = schema },
+                    },
+                };
+
+                foreach (var referenced in CollectSchemaReferences(single))
+                {
+                    pending.Push(referenced);
+                }
+            }
+        }
+    }
+
+    private static HashSet<string> CollectSchemaReferences(
+        OpenApiDocument document)
+    {
+        var collector = new SchemaReferenceCollector();
+        new OpenApiWalker(collector).Walk(document);
+        return collector.SchemaIds;
+    }
+
+    /// <summary>
+    /// Serializes a part (or common) file: the version line, <c>paths</c> and <c>components</c> - no <c>info</c>,
+    /// which the merge takes from the base file.
+    /// </summary>
+    private static string SerializePartDocument(
+        OpenApiDocument source,
+        OpenApiPaths paths,
+        Dictionary<string, IOpenApiSchema> schemas,
+        string header)
+    {
+        var part = new OpenApiDocument
+        {
+            Info = new OpenApiInfo(),
+            Paths = paths,
+        };
+
+        if (source.Metadata is not null)
+        {
+            part.Metadata = new Dictionary<string, object>(source.Metadata, StringComparer.Ordinal);
+        }
+
+        if (schemas.Count > 0)
+        {
+            part.Components = new OpenApiComponents { Schemas = schemas };
+        }
+
+        var yaml = SerializeToYaml(part);
+        var sb = new StringBuilder();
+        sb.Append("# ").AppendLine(header);
+        var skippingInfo = false;
+        foreach (var line in yaml.Split('\n'))
+        {
+            var trimmed = line.TrimEnd('\r');
+            if (trimmed.StartsWith("info:", StringComparison.Ordinal))
+            {
+                skippingInfo = true;
+                continue;
+            }
+
+            if (skippingInfo && trimmed.StartsWith(" ", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            skippingInfo = false;
+            sb.Append(trimmed).Append('\n');
+        }
+
+        return sb.ToString().TrimEnd('\n') + "\n";
+    }
+
+    /// <summary>
+    /// Collects the ids of the component schemas an element references.
+    /// </summary>
+    private sealed class SchemaReferenceCollector : OpenApiVisitorBase
+    {
+        public HashSet<string> SchemaIds { get; } = new(StringComparer.Ordinal);
+
+        public override void Visit(IOpenApiReferenceHolder referenceHolder)
+        {
+            if (referenceHolder?.GetType().GetProperty("Reference")?.GetValue(referenceHolder) is BaseOpenApiReference
+                {
+                    Type: ReferenceType.Schema,
+                    Id: { Length: > 0 } id,
+                    IsExternal: false,
+                })
+            {
+                SchemaIds.Add(id);
+            }
+        }
+    }
+
+    // The segment the generated namespaces are named after (an /api prefix, a version and a date skipped), so a
+    // split part or an analysis group is the namespace its operations generate into
+    private static string GetFirstPathSegment(string path)
+        => PathSegmentHelper.GetFirstPathSegment(path);
 
     private static string GetDomainFromOperation(
         string path,
@@ -1029,37 +1460,6 @@ public static class SpecificationService
         return string.IsNullOrEmpty(tagName)
             ? GetFirstPathSegment(path)
             : tagName!;
-    }
-
-    private static HashSet<string> IdentifySharedSchemas(
-        Dictionary<string, List<(string Path, OpenApiOperation Operation)>> operationGroups)
-    {
-        var schemaUsage = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
-
-        // Track which groups use each schema
-        foreach (var group in operationGroups)
-        {
-            foreach (var (_, operation) in group.Value)
-            {
-                var usedSchemas = GetUsedSchemas(operation);
-                foreach (var schema in usedSchemas)
-                {
-                    if (!schemaUsage.TryGetValue(schema, out var groups))
-                    {
-                        groups = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                        schemaUsage[schema] = groups;
-                    }
-
-                    groups.Add(group.Key);
-                }
-            }
-        }
-
-        // Return schemas used by more than one group
-        var sharedSchemaNames = schemaUsage
-            .Where(kvp => kvp.Value.Count > 1)
-            .Select(kvp => kvp.Key);
-        return new HashSet<string>(sharedSchemaNames, StringComparer.Ordinal);
     }
 
     private static IEnumerable<string> GetUsedSchemas(
@@ -1125,364 +1525,6 @@ public static class SpecificationService
                     AddSchemaReferences(item, schemas);
                 }
             }
-        }
-    }
-
-    private static (string Content, int PathCount, int SchemaCount, int ParameterCount) GeneratePartFileContent(
-        OpenApiDocument document,
-        string groupName,
-        List<(string Path, OpenApiOperation Operation)> operations,
-        HashSet<string> sharedSchemas)
-    {
-        var sb = new StringBuilder();
-
-        // Get unique paths for this group
-        var paths = operations
-            .Select(o => o.Path).Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        // Get schemas used by this group (excluding shared schemas)
-        var usedSchemas = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var (_, operation) in operations)
-        {
-            foreach (var schema in GetUsedSchemas(operation))
-            {
-                if (!sharedSchemas.Contains(schema))
-                {
-                    usedSchemas.Add(schema);
-                }
-            }
-        }
-
-        sb.AppendLine("# Part file for " + groupName);
-        sb.AppendLine("# This file is auto-merged with the base file");
-        sb.AppendLine();
-        sb.AppendLine("paths:");
-
-        int pathCount = 0;
-        foreach (var path in paths.OrderBy(p => p, StringComparer.OrdinalIgnoreCase))
-        {
-            if (document.Paths.TryGetValue(path, out var pathItem))
-            {
-                pathCount++;
-                sb.AppendLine($"  {path}:");
-
-                // Would serialize path item here - simplified for now
-                SerializePathItem(sb, pathItem, "    ");
-            }
-        }
-
-        var schemaCount = 0;
-        if (usedSchemas.Count <= 0 || document.Components?.Schemas is null)
-        {
-            return (sb.ToString(), pathCount, schemaCount, 0);
-        }
-
-        sb.AppendLine();
-        sb.AppendLine("components:");
-        sb.AppendLine("  schemas:");
-
-        foreach (var schemaName in usedSchemas.OrderBy(s => s, StringComparer.OrdinalIgnoreCase))
-        {
-            if (document.Components.Schemas.TryGetValue(schemaName, out var schema))
-            {
-                schemaCount++;
-                sb.AppendLine($"    {schemaName}:");
-                SerializeSchema(sb, schema, "      ");
-            }
-        }
-
-        return (sb.ToString(), pathCount, schemaCount, 0);
-    }
-
-    private static (string Content, int SchemaCount, int ParameterCount) GenerateCommonFileContent(
-        OpenApiDocument document,
-        HashSet<string> sharedSchemas)
-    {
-        var sb = new StringBuilder();
-
-        sb.AppendLine("# Common schemas shared across multiple domains");
-        sb.AppendLine("# This file is auto-merged with the base file");
-        sb.AppendLine();
-        sb.AppendLine("components:");
-        sb.AppendLine("  schemas:");
-
-        int schemaCount = 0;
-        foreach (var schemaName in sharedSchemas.OrderBy(s => s, StringComparer.OrdinalIgnoreCase))
-        {
-            if (document.Components?.Schemas?.TryGetValue(schemaName, out var schema) == true)
-            {
-                schemaCount++;
-                sb.AppendLine($"    {schemaName}:");
-                SerializeSchema(sb, schema, "      ");
-            }
-        }
-
-        return (sb.ToString(), schemaCount, 0);
-    }
-
-    private static string GenerateBaseFileContent(
-        OpenApiDocument document,
-        string baseName,
-        IReadOnlyList<string> partNames)
-    {
-        var sb = new StringBuilder();
-
-        sb.AppendLine("openapi: \"3.1.0\"");
-        sb.AppendLine("info:");
-        sb.AppendLine($"  title: {document.Info.Title ?? baseName}");
-        sb.AppendLine($"  version: {document.Info.Version ?? "1.0.0"}");
-
-        if (!string.IsNullOrEmpty(document.Info.Description))
-        {
-            sb.AppendLine($"  description: {document.Info.Description}");
-        }
-
-        if (document.Servers?.Count > 0)
-        {
-            sb.AppendLine();
-            sb.AppendLine("servers:");
-            foreach (var server in document.Servers)
-            {
-                sb.AppendLine($"  - url: {server.Url}");
-                if (!string.IsNullOrEmpty(server.Description))
-                {
-                    sb.AppendLine($"    description: {server.Description}");
-                }
-            }
-        }
-
-        // Add x-multipart configuration
-        sb.AppendLine();
-        sb.AppendLine("x-multipart:");
-        sb.AppendLine("  enabled: true");
-        sb.AppendLine("  discovery: explicit");
-        sb.AppendLine("  parts:");
-        foreach (var partName in partNames.OrderBy(p => p, StringComparer.OrdinalIgnoreCase))
-        {
-            sb.AppendLine($"    - {baseName}_{partName}.yaml");
-        }
-
-        if (document.Security?.Count > 0)
-        {
-            sb.AppendLine();
-            sb.AppendLine("security:");
-            foreach (var security in document.Security)
-            {
-                foreach (var scheme in security.Keys)
-                {
-                    sb.AppendLine($"  - {scheme}: []");
-                }
-            }
-        }
-
-        if (document.Components?.SecuritySchemes?.Count > 0)
-        {
-            sb.AppendLine();
-            sb.AppendLine("components:");
-            sb.AppendLine("  securitySchemes:");
-            foreach (var scheme in document.Components.SecuritySchemes)
-            {
-                sb.AppendLine($"    {scheme.Key}:");
-                SerializeSecurityScheme(sb, scheme.Value, "      ");
-            }
-        }
-
-        return sb.ToString();
-    }
-
-    private static void SerializePathItem(
-        StringBuilder sb,
-        IOpenApiPathItem pathItem,
-        string indent)
-    {
-        if (pathItem.Operations is null)
-        {
-            return;
-        }
-
-        foreach (var operation in pathItem.Operations)
-        {
-            var method = operation
-                .Key
-                .ToString()
-                .ToLowerInvariant();
-            sb.AppendLine($"{indent}{method}:");
-            SerializeOperation(sb, operation.Value, indent + "  ");
-        }
-    }
-
-    private static void SerializeOperation(
-        StringBuilder sb,
-        OpenApiOperation operation,
-        string indent)
-    {
-        if (!string.IsNullOrEmpty(operation.Summary))
-        {
-            sb.AppendLine($"{indent}summary: {operation.Summary}");
-        }
-
-        if (!string.IsNullOrEmpty(operation.OperationId))
-        {
-            sb.AppendLine($"{indent}operationId: {operation.OperationId}");
-        }
-
-        if (operation.Tags?.Count > 0)
-        {
-            sb.AppendLine($"{indent}tags:");
-            foreach (var tag in operation.Tags)
-            {
-                sb.AppendLine($"{indent}  - {tag.Name}");
-            }
-        }
-
-        if (operation.Parameters?.Count > 0)
-        {
-            sb.AppendLine($"{indent}parameters:");
-            foreach (var param in operation.Parameters)
-            {
-                sb.AppendLine($"{indent}  - name: {param.Name}");
-                sb.AppendLine($"{indent}    in: {param.In?.ToStringLowerCase()}");
-                if (param.Required)
-                {
-                    sb.AppendLine($"{indent}    required: true");
-                }
-
-                if (param.Schema is not null)
-                {
-                    sb.AppendLine($"{indent}    schema:");
-                    SerializeSchema(sb, param.Schema, indent + "      ");
-                }
-            }
-        }
-
-        if (operation.RequestBody is not null)
-        {
-            sb.AppendLine($"{indent}requestBody:");
-            if (operation.RequestBody.Required)
-            {
-                sb.AppendLine($"{indent}  required: true");
-            }
-
-            if (operation.RequestBody.Content?.Count > 0)
-            {
-                sb.AppendLine($"{indent}  content:");
-                foreach (var content in operation.RequestBody.Content)
-                {
-                    sb.AppendLine($"{indent}    {content.Key}:");
-                    sb.AppendLine($"{indent}      schema:");
-                    SerializeSchema(sb, content.Value.Schema, indent + "        ");
-                }
-            }
-        }
-
-        if (operation.Responses?.Count > 0)
-        {
-            sb.AppendLine($"{indent}responses:");
-            foreach (var response in operation.Responses)
-            {
-                sb.AppendLine($"{indent}  '{response.Key}':");
-                sb.AppendLine($"{indent}    description: {response.Value.Description ?? "Response"}");
-                if (response.Value.Content?.Count > 0)
-                {
-                    sb.AppendLine($"{indent}    content:");
-                    foreach (var content in response.Value.Content)
-                    {
-                        sb.AppendLine($"{indent}      {content.Key}:");
-                        sb.AppendLine($"{indent}        schema:");
-                        SerializeSchema(sb, content.Value.Schema, indent + "          ");
-                    }
-                }
-            }
-        }
-    }
-
-    private static void SerializeSchema(
-        StringBuilder sb,
-        IOpenApiSchema? schema,
-        string indent)
-    {
-        if (schema is null)
-        {
-            return;
-        }
-
-        if (schema is OpenApiSchemaReference schemaRef)
-        {
-            sb.AppendLine($"{indent}$ref: '#/components/schemas/{schemaRef.Reference?.Id}'");
-            return;
-        }
-
-        if (schema is not OpenApiSchema actualSchema)
-        {
-            return;
-        }
-
-        if (actualSchema.Type is not null)
-        {
-            sb.AppendLine($"{indent}type: {actualSchema.Type}");
-        }
-
-        if (!string.IsNullOrEmpty(actualSchema.Format))
-        {
-            sb.AppendLine($"{indent}format: {actualSchema.Format}");
-        }
-
-        if (!string.IsNullOrEmpty(actualSchema.Title))
-        {
-            sb.AppendLine($"{indent}title: {actualSchema.Title}");
-        }
-
-        if (actualSchema.Items is not null)
-        {
-            sb.AppendLine($"{indent}items:");
-            SerializeSchema(sb, actualSchema.Items, indent + "  ");
-        }
-
-        if (actualSchema.Properties?.Count > 0)
-        {
-            sb.AppendLine($"{indent}properties:");
-            foreach (var prop in actualSchema.Properties)
-            {
-                sb.AppendLine($"{indent}  {prop.Key}:");
-                SerializeSchema(sb, prop.Value, indent + "    ");
-            }
-        }
-
-        if (actualSchema.Required?.Count > 0)
-        {
-            sb.AppendLine($"{indent}required:");
-            foreach (var req in actualSchema.Required)
-            {
-                sb.AppendLine($"{indent}  - {req}");
-            }
-        }
-    }
-
-    private static void SerializeSecurityScheme(
-        StringBuilder sb,
-        IOpenApiSecurityScheme scheme,
-        string indent)
-    {
-        if (scheme is not OpenApiSecurityScheme actualScheme)
-        {
-            return;
-        }
-
-        var lowerType = actualScheme
-            .Type
-            .ToString()
-            .ToLowerInvariant();
-        sb.AppendLine($"{indent}type: {lowerType}");
-
-        if (!string.IsNullOrEmpty(actualScheme.Scheme))
-        {
-            sb.AppendLine($"{indent}scheme: {actualScheme.Scheme}");
-        }
-
-        if (!string.IsNullOrEmpty(actualScheme.BearerFormat))
-        {
-            sb.AppendLine($"{indent}bearerFormat: {actualScheme.BearerFormat}");
         }
     }
 

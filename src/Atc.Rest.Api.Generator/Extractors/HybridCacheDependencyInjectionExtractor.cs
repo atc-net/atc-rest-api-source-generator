@@ -86,6 +86,66 @@ public static class HybridCacheDependencyInjectionExtractor
         builder.AppendLine(4, "}");
         builder.AppendLine();
 
+        var sortedPolicies = policies
+            .OrderBy(p => p.Key, StringComparer.Ordinal)
+            .ToList();
+
+        AppendGetCacheEntryOptions(builder, sortedPolicies);
+
+        // Generate GetCacheTags method
+        var tagConstants = CacheTagConstants.Assign(policies.Values);
+        builder.AppendLine();
+        builder.AppendLine(4, "/// <summary>");
+        builder.AppendLine(4, "/// Gets the cache tags for a specific cache policy.");
+        builder.AppendLine(4, "/// </summary>");
+        builder.AppendLine(4, "/// <param name=\"policyName\">The cache policy name.</param>");
+        builder.AppendLine(4, "/// <returns>The cache tags for the policy, or an empty array if policy not found.</returns>");
+        AppendPolicySwitch(
+            builder,
+            "public static string[] GetCacheTags(string policyName)",
+            sortedPolicies,
+            config => $"[{string.Join(", ", config.Tags.Select(t => $"CacheTags.{tagConstants[t]}"))}]",
+            "[]");
+
+        AppendGenerateCacheKey(builder);
+
+        // Generate helper methods for vary-by configuration
+        builder.AppendLine();
+        AppendPolicySwitch(
+            builder,
+            "private static string[] GetVaryByQuery(string policyName)",
+            sortedPolicies,
+            config => $"[{string.Join(", ", config.VaryByQuery.Select(q => $"\"{q}\""))}]",
+            "[]");
+
+        builder.AppendLine();
+        AppendPolicySwitch(
+            builder,
+            "private static string[] GetVaryByHeader(string policyName)",
+            sortedPolicies,
+            config => $"[{string.Join(", ", config.VaryByHeader.Select(h => $"\"{h}\""))}]",
+            "[]");
+
+        builder.AppendLine();
+        AppendPolicySwitch(
+            builder,
+            "private static string? GetKeyPrefix(string policyName)",
+            sortedPolicies,
+            config => string.IsNullOrEmpty(config.KeyPrefix) ? "null" : $"\"{config.KeyPrefix}\"",
+            "null");
+
+        builder.AppendLine("}");
+
+        return builder.ToString();
+    }
+
+    /// <summary>
+    /// GetCacheEntryOptions: the entry options of each policy.
+    /// </summary>
+    private static void AppendGetCacheEntryOptions(
+        StringBuilder builder,
+        List<KeyValuePair<string, CacheConfiguration>> sortedPolicies)
+    {
         // Generate GetCacheEntryOptions method
         builder.AppendLine(4, "/// <summary>");
         builder.AppendLine(4, "/// Gets the HybridCacheEntryOptions for a specific cache policy.");
@@ -95,10 +155,6 @@ public static class HybridCacheDependencyInjectionExtractor
         builder.AppendLine(4, "public static HybridCacheEntryOptions GetCacheEntryOptions(string policyName)");
         builder.AppendLine(8, "=> policyName switch");
         builder.AppendLine(8, "{");
-
-        var sortedPolicies = policies
-            .OrderBy(p => p.Key, StringComparer.Ordinal)
-            .ToList();
 
         foreach (var policyKvp in sortedPolicies)
         {
@@ -136,39 +192,13 @@ public static class HybridCacheDependencyInjectionExtractor
         builder.AppendLine(16, "Expiration = TimeSpan.FromSeconds(300),");
         builder.AppendLine(12, "},");
         builder.AppendLine(8, "};");
+    }
 
-        // Generate GetCacheTags method
-        builder.AppendLine();
-        builder.AppendLine(4, "/// <summary>");
-        builder.AppendLine(4, "/// Gets the cache tags for a specific cache policy.");
-        builder.AppendLine(4, "/// </summary>");
-        builder.AppendLine(4, "/// <param name=\"policyName\">The cache policy name.</param>");
-        builder.AppendLine(4, "/// <returns>The cache tags for the policy, or an empty array if policy not found.</returns>");
-        builder.AppendLine(4, "public static string[] GetCacheTags(string policyName)");
-        builder.AppendLine(8, "=> policyName switch");
-        builder.AppendLine(8, "{");
-
-        foreach (var policyKvp in sortedPolicies)
-        {
-            var policyName = policyKvp.Key;
-            var config = policyKvp.Value;
-            var constantName = HybridCachePoliciesExtractor.GenerateConstantName(policyName);
-
-            if (config.Tags.Count > 0)
-            {
-                var tagsString = string.Join(", ", config.Tags.Select(t => $"\"{t}\""));
-                builder.AppendLine(12, $"CachePolicies.{constantName} => [{tagsString}],");
-            }
-            else
-            {
-                builder.AppendLine(12, $"CachePolicies.{constantName} => [],");
-            }
-        }
-
-        builder.AppendLine(12, "_ => [],");
-        builder.AppendLine(8, "};");
-
-        // Generate GenerateCacheKey method
+    /// <summary>
+    /// GenerateCacheKey: the prefix, the base key and the vary-by query and header values (fixed text).
+    /// </summary>
+    private static void AppendGenerateCacheKey(StringBuilder builder)
+    {
         builder.AppendLine();
         builder.AppendLine(4, "/// <summary>");
         builder.AppendLine(4, "/// Generates a cache key based on policy configuration and request parameters.");
@@ -230,85 +260,29 @@ public static class HybridCacheDependencyInjectionExtractor
         builder.AppendLine();
         builder.AppendLine(8, "return keyBuilder.ToString();");
         builder.AppendLine(4, "}");
+    }
 
-        // Generate helper methods for vary-by configuration
-        builder.AppendLine();
-        builder.AppendLine(4, "private static string[] GetVaryByQuery(string policyName)");
+    /// <summary>
+    /// A <c>policyName switch</c> method: one arm per policy with its value, then the fallback.
+    /// </summary>
+    private static void AppendPolicySwitch(
+        StringBuilder builder,
+        string signature,
+        List<KeyValuePair<string, CacheConfiguration>> sortedPolicies,
+        Func<CacheConfiguration, string> value,
+        string fallback)
+    {
+        builder.AppendLine(4, signature);
         builder.AppendLine(8, "=> policyName switch");
         builder.AppendLine(8, "{");
 
-        foreach (var policyKvp in sortedPolicies)
+        foreach (var policy in sortedPolicies)
         {
-            var policyName = policyKvp.Key;
-            var config = policyKvp.Value;
-            var constantName = HybridCachePoliciesExtractor.GenerateConstantName(policyName);
-
-            if (config.VaryByQuery.Count > 0)
-            {
-                var paramsString = string.Join(", ", config.VaryByQuery.Select(p => $"\"{p}\""));
-                builder.AppendLine(12, $"CachePolicies.{constantName} => [{paramsString}],");
-            }
-            else
-            {
-                builder.AppendLine(12, $"CachePolicies.{constantName} => [],");
-            }
+            builder.AppendLine(12, $"CachePolicies.{HybridCachePoliciesExtractor.GenerateConstantName(policy.Key)} => {value(policy.Value)},");
         }
 
-        builder.AppendLine(12, "_ => [],");
+        builder.AppendLine(12, $"_ => {fallback},");
         builder.AppendLine(8, "};");
-
-        builder.AppendLine();
-        builder.AppendLine(4, "private static string[] GetVaryByHeader(string policyName)");
-        builder.AppendLine(8, "=> policyName switch");
-        builder.AppendLine(8, "{");
-
-        foreach (var policyKvp in sortedPolicies)
-        {
-            var policyName = policyKvp.Key;
-            var config = policyKvp.Value;
-            var constantName = HybridCachePoliciesExtractor.GenerateConstantName(policyName);
-
-            if (config.VaryByHeader.Count > 0)
-            {
-                var headersString = string.Join(", ", config.VaryByHeader.Select(h => $"\"{h}\""));
-                builder.AppendLine(12, $"CachePolicies.{constantName} => [{headersString}],");
-            }
-            else
-            {
-                builder.AppendLine(12, $"CachePolicies.{constantName} => [],");
-            }
-        }
-
-        builder.AppendLine(12, "_ => [],");
-        builder.AppendLine(8, "};");
-
-        builder.AppendLine();
-        builder.AppendLine(4, "private static string? GetKeyPrefix(string policyName)");
-        builder.AppendLine(8, "=> policyName switch");
-        builder.AppendLine(8, "{");
-
-        foreach (var policyKvp in sortedPolicies)
-        {
-            var policyName = policyKvp.Key;
-            var config = policyKvp.Value;
-            var constantName = HybridCachePoliciesExtractor.GenerateConstantName(policyName);
-
-            if (!string.IsNullOrEmpty(config.KeyPrefix))
-            {
-                builder.AppendLine(12, $"CachePolicies.{constantName} => \"{config.KeyPrefix}\",");
-            }
-            else
-            {
-                builder.AppendLine(12, $"CachePolicies.{constantName} => null,");
-            }
-        }
-
-        builder.AppendLine(12, "_ => null,");
-        builder.AppendLine(8, "};");
-
-        builder.AppendLine("}");
-
-        return builder.ToString();
     }
 
     /// <summary>

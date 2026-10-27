@@ -1,9 +1,11 @@
 {
+    "$schema": "https://raw.githubusercontent.com/atc-net/atc-rest-api-source-generator/main/schemas/atc-rest-api-client.schema.json",
     "generate": true,
     "validateSpecificationStrategy": "Standard",
     "includeDeprecated": false,
     "generationMode": "EndpointPerOperation",
     "namespace": "Eloverblik.Api.ThirdPartyApi",
     "clientSuffix": "Client",
-    "httpClientName": "Eloverblik-ApiClient"
+    "httpClientName": "Eloverblik-ApiClient",
+    "overlays": ["api-1.overlay.yaml"]
 }

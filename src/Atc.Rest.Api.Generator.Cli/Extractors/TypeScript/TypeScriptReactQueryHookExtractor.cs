@@ -3,11 +3,13 @@
 // ReSharper disable InconsistentNaming
 namespace Atc.Rest.Api.Generator.Cli.Extractors.TypeScript;
 
+using static Atc.Rest.Api.Generator.Cli.Extractors.TypeScript.TypeScriptHookModel;
+
 /// <summary>
 /// Generates per-segment TanStack Query (React Query) hook files from OpenAPI operations.
 /// GET operations become useQuery hooks; POST/PUT/PATCH/DELETE become useMutation hooks.
 /// Streaming operations (x-return-async-enumerable) become useXxxStream hooks backed by
-/// useState + useEffect + AbortController. Hook contract: see issues/001-feedback.md.
+/// useState + useEffect + AbortController.
 /// </summary>
 [SuppressMessage("Design", "MA0051:Method is too long", Justification = "Code generation methods require sequential StringBuilder operations.")]
 public static class TypeScriptReactQueryHookExtractor
@@ -86,6 +88,12 @@ public static class TypeScriptReactQueryHookExtractor
         var hookInfos = new List<HookInfo>();
         foreach (var (path, method, operation) in operations)
         {
+            // A hook for the safe metadata verbs has no meaning - and as a mutation it would invalidate the queries.
+            if (method.ToUpperInvariant() is "HEAD" or "OPTIONS" or "TRACE")
+            {
+                continue;
+            }
+
             var info = ClassifyOperation(path, method, operation, openApiDoc, namingStrategy, writableSchemas);
             hookInfos.Add(info);
 
@@ -116,7 +124,7 @@ public static class TypeScriptReactQueryHookExtractor
             var (bodySchema, _) = operation.GetRequestBodySchemaWithContentType();
             if (bodySchema is OpenApiSchemaReference bodyRef)
             {
-                var refName = bodyRef.Reference.Id ?? bodyRef.Id;
+                var refName = bodyRef.ComponentName;
                 if (refName is not null && writableSchemas.Contains(refName))
                 {
                     importTypes.Add(refName + TypeScriptModelExtractor.WritableSuffix);
@@ -148,16 +156,8 @@ public static class TypeScriptReactQueryHookExtractor
         needsUseQuery = emitStandardQuery && hasAnyQuery;
         var needsUseSuspenseQuery = emitSuspenseQuery && hasAnyQuery;
 
-        // Paginated-streaming ops get a useInfiniteQuery sibling hook in addition to
-        // the streaming hook. Detection is per-op; if any present, import useInfiniteQuery.
-        var hasInfinite = hookInfos.Any(h => h.IsPaginatedStreaming);
-        var needsUseInfiniteQuery = hasInfinite;
-        if (hasInfinite)
-        {
-            // The infinite hook unwraps result.status === 'ok' the same way other hooks do,
-            // so it needs ApiError available even if the file otherwise had only streams.
-            needsApiError = true;
-        }
+        // Paginated reads get a useInfiniteQuery sibling of their query hook (in every hooks mode).
+        var needsUseInfiniteQuery = hookInfos.Any(h => h.Pagination is not null);
 
         // Build the body (query-key factory + hooks) BEFORE the imports so model/enum
         // import lines can be narrowed to identifiers the body actually references. The
@@ -168,7 +168,9 @@ public static class TypeScriptReactQueryHookExtractor
 
         // Write query key factory
         var segmentCamel = segment.ToCamelCase();
+        hookInfos = AssignKeyNames(hookInfos, segmentCamel);
         AppendQueryKeyFactory(bodySb, segmentCamel, hookInfos, namingStrategy, convertDates, brandedIds);
+        AppendQueryOptionsFactory(bodySb, segmentCamel, hookInfos, namingStrategy, convertDates, brandedIds);
 
         // Write hook functions
         foreach (var info in hookInfos)
@@ -177,14 +179,6 @@ public static class TypeScriptReactQueryHookExtractor
             {
                 bodySb.AppendLine();
                 AppendStreamHook(bodySb, info, segmentCamel, namingStrategy, convertDates, brandedIds);
-
-                // Paginated-streaming ops also get a useInfiniteQuery sibling that
-                // consumes the non-streaming Page companion emitted by the client extractor.
-                if (info.IsPaginatedStreaming)
-                {
-                    bodySb.AppendLine();
-                    AppendInfiniteHook(bodySb, info, segmentCamel, namingStrategy, convertDates, brandedIds);
-                }
             }
             else if (info.IsQuery)
             {
@@ -202,6 +196,12 @@ public static class TypeScriptReactQueryHookExtractor
                     bodySb.AppendLine();
                     AppendQueryHook(bodySb, info, segmentCamel, namingStrategy, convertDates, isSuspense: true, useSuspenseSuffix: hooksMode == TypeScriptHooksMode.Both, brandedIds: brandedIds);
                 }
+
+                if (info.Pagination is not null)
+                {
+                    bodySb.AppendLine();
+                    AppendInfiniteHook(bodySb, info, segmentCamel, namingStrategy, convertDates, brandedIds);
+                }
             }
             else
             {
@@ -213,25 +213,19 @@ public static class TypeScriptReactQueryHookExtractor
         var bodyText = bodySb.ToString();
 
         // Write header
-        if (headerContent is not null)
-        {
-            sb.Append(headerContent);
-        }
+        sb.Append(headerContent);
 
         // Write imports (narrowed to what the body references)
-        AppendImports(
-            sb,
-            importTypes,
-            enumNames,
-            needsUseQuery,
-            needsUseSuspenseQuery,
-            needsUseMutation,
-            needsUseQueryClient,
-            needsReactHooks,
-            needsApiError,
-            needsUseInfiniteQuery,
-            brandImports,
-            bodyText);
+        var hookImports = new HookImports(
+            UseQuery: needsUseQuery,
+            UseSuspenseQuery: needsUseSuspenseQuery,
+            UseMutation: needsUseMutation,
+            UseQueryClient: needsUseQueryClient,
+            ReactHooks: needsReactHooks,
+            ApiError: needsApiError,
+            UseInfiniteQuery: needsUseInfiniteQuery,
+            QueryOptions: hookInfos.Any(h => !h.IsStreaming && h.IsQuery));
+        AppendImports(sb, importTypes, enumNames, hookImports, brandImports, bodyText);
 
         sb.Append(bodyText);
 
@@ -242,24 +236,37 @@ public static class TypeScriptReactQueryHookExtractor
         StringBuilder sb,
         HashSet<string> importTypes,
         HashSet<string>? enumNames,
-        bool needsUseQuery,
-        bool needsUseSuspenseQuery,
-        bool needsUseMutation,
-        bool needsUseQueryClient,
-        bool needsReactHooks,
-        bool needsApiError,
-        bool needsUseInfiniteQuery,
+        HookImports hookImports,
         SortedSet<string> brandImports,
         string bodyText)
     {
+        var needsUseQuery = hookImports.UseQuery;
+        var needsUseSuspenseQuery = hookImports.UseSuspenseQuery;
+        var needsUseMutation = hookImports.UseMutation;
+        var needsUseQueryClient = hookImports.UseQueryClient;
+        var needsReactHooks = hookImports.ReactHooks;
+        var needsApiError = hookImports.ApiError;
+        var needsUseInfiniteQuery = hookImports.UseInfiniteQuery;
+        var needsQueryOptions = hookImports.QueryOptions;
+
         // React primitive hooks (only required by stream hooks)
         if (needsReactHooks)
         {
             sb.AppendLine("import { useCallback, useEffect, useRef, useState } from 'react';");
         }
 
-        // TanStack Query imports
+        // TanStack Query imports: the <segment>Queries factory first, then the hooks
         var queryImports = new List<string>();
+        if (needsQueryOptions)
+        {
+            queryImports.Add("queryOptions");
+        }
+
+        if (needsUseInfiniteQuery)
+        {
+            queryImports.Add("infiniteQueryOptions");
+        }
+
         if (needsUseQuery)
         {
             queryImports.Add("useQuery");
@@ -310,12 +317,23 @@ public static class TypeScriptReactQueryHookExtractor
             optionImports.Add("UseMutationOptions");
         }
 
+        if (needsUseInfiniteQuery)
+        {
+            optionImports.Add("InfiniteData");
+            optionImports.Add("UseInfiniteQueryOptions");
+        }
+
         if (optionImports.Count > 0)
         {
             sb.Append("import type { ").Append(string.Join(", ", optionImports)).AppendLine(" } from '@tanstack/react-query';");
         }
 
         sb.AppendLine("import { useApiService } from './useApiService';");
+        if (needsQueryOptions)
+        {
+            // The factory takes the service, so a loader or server code can use it without the provider
+            sb.AppendLine("import type { ApiService } from '../client/ApiService';");
+        }
 
         // ApiError is only used by the result-unwrap path of useQuery/useMutation hooks.
         // Stream hooks surface errors as plain Error instances, so omit the import when
@@ -366,7 +384,13 @@ public static class TypeScriptReactQueryHookExtractor
         sb.AppendLine();
     }
 
-    private static void AppendQueryKeyFactory(
+    /// <summary>
+    /// Emits the <c>&lt;segment&gt;Queries</c> factory: the TanStack <c>queryOptions</c> (and, for a paginated read,
+    /// <c>infiniteQueryOptions</c>) of every read, shared by the hooks and by <c>queryClient.prefetchQuery</c> /
+    /// <c>ensureQueryData</c> in a route loader or on the server. The queryFn hands React Query's signal to the
+    /// client, so a query React Query cancels (unused, superseded, <c>cancelQueries</c>) stops its request.
+    /// </summary>
+    private static void AppendQueryOptionsFactory(
         StringBuilder sb,
         string segmentCamel,
         List<HookInfo> hookInfos,
@@ -374,91 +398,157 @@ public static class TypeScriptReactQueryHookExtractor
         bool convertDates,
         bool brandedIds)
     {
-        sb.Append("const ").Append(segmentCamel).AppendLine("Keys = {");
-        sb.Append("  all: ['").Append(segmentCamel).AppendLine("'] as const,");
-
-        foreach (var info in hookInfos)
+        var queries = hookInfos.Where(h => !h.IsStreaming && h.IsQuery).ToList();
+        if (queries.Count == 0)
         {
-            // Paginated-streaming ops get an `<methodName>Infinite` key entry for
-            // the useInfiniteQuery hook. The streaming hook itself still skips a key.
-            if (info.IsPaginatedStreaming)
-            {
-                var infiniteKeyName = info.MethodName.ToCamelCase().ToTypeScriptIdentifier() + "Infinite";
-                if (info.QueryParams.Count > 0)
-                {
-                    var queryType = TypeScriptOperationHelper.BuildQueryTypeInline(info.QueryParams, namingStrategy, convertDates);
-                    sb.Append("  ").Append(infiniteKeyName).Append(": (query?: ").Append(queryType).Append(") => [...").Append(segmentCamel).Append("Keys.all, '").Append(infiniteKeyName).Append("', query").AppendLine("] as const,");
-                }
-                else
-                {
-                    sb.Append("  ").Append(infiniteKeyName).Append(": () => [...").Append(segmentCamel).Append("Keys.all, '").Append(infiniteKeyName).AppendLine("'] as const,");
-                }
-            }
+            return;
+        }
 
-            // Stream hooks manage their own state and don't go through useQuery — no key needed.
-            if (info.IsStreaming || !info.IsQuery)
-            {
-                continue;
-            }
+        sb.AppendLine();
+        sb.AppendLine("/**");
+        sb.AppendLine(" * The query options of each read: spread into useQuery or useSuspenseQuery, or pass to");
+        sb.AppendLine(" * queryClient.prefetchQuery / ensureQueryData (a route loader, server rendering). The query hands");
+        sb.AppendLine(" * React Query's signal to the client, so a cancelled or unused query stops its request.");
+        sb.AppendLine(" */");
+        sb.Append("const ").Append(segmentCamel).AppendLine("Queries = {");
 
-            var keyName = DeriveKeyName(info.MethodName, segmentCamel);
-
-            // Build key function param list and key spread values incrementally.
-            // Order: pathParams..., body, querystringParams (individual)..., query?
-            // Headers and cookies are intentionally excluded — they fragment the cache
-            // per-request rather than per-resource, which breaks cache sharing.
-            var keyFuncParts = new List<string>();
-            var keySpreadValues = new List<string>();
-
-            foreach (var p in info.PathParams)
+        foreach (var info in queries)
+        {
+            AppendQueryOptionsEntry(sb, info, segmentCamel, namingStrategy, convertDates, brandedIds);
+            if (info.Pagination is not null)
             {
-                var pName = (p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
-                keyFuncParts.Add(pName + ": " + TypeScriptOperationHelper.GetParameterType(p, convertDates, brandedIds, info.Path));
-                keySpreadValues.Add(pName);
-            }
-
-            // A read that carries a body (OpenAPI 3.2 QUERY) is identified by that body, so it
-            // has to participate in the cache key — otherwise every distinct criteria set would
-            // collide on one entry. React Query hashes the key structurally, so the body object
-            // is used directly rather than a digest: a digest would cost the same serialization
-            // and lose readability in the devtools.
-            if (info.HasBody)
-            {
-                keyFuncParts.Add("body: " + info.BodyType);
-                keySpreadValues.Add("body");
-            }
-
-            foreach (var p in info.QuerystringParams)
-            {
-                var pName = (p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
-                keyFuncParts.Add(pName + "?: string");
-                keySpreadValues.Add(pName);
-            }
-
-            if (info.QueryParams.Count > 0)
-            {
-                var queryType = TypeScriptOperationHelper.BuildQueryTypeInline(info.QueryParams, namingStrategy, convertDates);
-                keyFuncParts.Add("query?: " + queryType);
-                keySpreadValues.Add("query");
-            }
-
-            if (keyFuncParts.Count > 0)
-            {
-                var spreadSuffix = keySpreadValues.Count > 0
-                    ? ", " + string.Join(", ", keySpreadValues)
-                    : string.Empty;
-                sb.Append("  ").Append(keyName).Append(": (").Append(string.Join(", ", keyFuncParts)).Append(") => [...").Append(segmentCamel).Append("Keys.all, '").Append(keyName).Append('\'').Append(spreadSuffix).AppendLine("] as const,");
-            }
-            else
-            {
-                // Simple key with no params
-                sb.Append("  ").Append(keyName).Append(": () => [...").Append(segmentCamel).Append("Keys.all, '").Append(keyName).AppendLine("'] as const,");
+                AppendInfiniteQueryOptionsEntry(sb, info, segmentCamel, namingStrategy, convertDates, brandedIds);
             }
         }
 
         sb.AppendLine("};");
         sb.AppendLine();
-        sb.Append("export { ").Append(segmentCamel).AppendLine("Keys };");
+        sb.Append("export { ").Append(segmentCamel).AppendLine("Queries };");
+    }
+
+    private static void AppendQueryOptionsEntry(
+        StringBuilder sb,
+        HookInfo info,
+        string segmentCamel,
+        TypeScriptNamingStrategy namingStrategy,
+        bool convertDates,
+        bool brandedIds)
+    {
+        var (declarations, names) = QueryInputs(info, info.QueryParams, info.HeaderParams, namingStrategy, convertDates, brandedIds);
+
+        // The key: headers and cookies are left out so the cache does not fragment on per-request headers
+        // (correlation ids), unless a header is part of what the read returns (KeyHeaders).
+        var keyArgs = new List<string>();
+        foreach (var p in info.PathParams)
+        {
+            keyArgs.Add(TypeScriptOperationHelper.ParameterIdentifier(p, namingStrategy));
+        }
+
+        if (info.HasBody)
+        {
+            keyArgs.Add("body");
+        }
+
+        foreach (var p in info.QuerystringParams)
+        {
+            keyArgs.Add(TypeScriptOperationHelper.ParameterIdentifier(p, namingStrategy));
+        }
+
+        if (info.QueryParams.Count > 0)
+        {
+            keyArgs.Add("query");
+        }
+
+        if (KeyHeaders(info, info.HeaderParams).Count > 0)
+        {
+            keyArgs.Add("headers");
+        }
+
+        var signalName = TypeScriptOperationHelper.SignalParameterName(names);
+        var clientCallArgs = WithSignal(BuildClientCallArgs(info.PathParams, info.QueryParams, info.HeaderParams, info.CookieParams, info.QuerystringParams, hasBody: info.HasBody, namingStrategy: namingStrategy), signalName);
+        var dataType = info.ReturnType == "void" ? "void" : info.ReturnType;
+
+        sb.Append("  ").Append(info.MethodName).Append(": (").Append(TypeScriptOperationHelper.JoinParameters(["api: ApiService", .. declarations]))
+            .Append(") => queryOptions<").Append(dataType).AppendLine(", ApiError>({");
+        sb.Append("    queryKey: ").Append(segmentCamel).Append("Keys.").Append(KeyNameOf(info, segmentCamel)).Append('(').Append(string.Join(", ", keyArgs)).AppendLine("),");
+        sb.Append("    queryFn: async ({ ").Append(SignalBinding(signalName)).AppendLine(" }) => {");
+        sb.Append("      const result = await api.").Append(segmentCamel).Append('.').Append(info.MethodName).Append('(').Append(clientCallArgs).AppendLine(");");
+        AppendResultUnwrap(sb, info.ReturnType, info.HttpMethod, info.Success2xxDiscriminators);
+        sb.AppendLine("    },");
+
+        AppendNoRetry(sb, info);
+        sb.AppendLine("  }),");
+    }
+
+    // A specification that declares retry (x-retry-*) has the ApiClient retry per operation: React Query's own retry
+    // would multiply those attempts and re-send operations marked x-retry-enabled: false. One that declares none
+    // leaves retry to the app (its QueryClient defaults), as React Query does
+    private static void AppendNoRetry(
+        StringBuilder sb,
+        HookInfo info)
+    {
+        if (info.RetryOwnedByClient)
+        {
+            sb.AppendLine("    retry: false,");
+        }
+    }
+
+    private static void AppendInfiniteQueryOptionsEntry(
+        StringBuilder sb,
+        HookInfo info,
+        string segmentCamel,
+        TypeScriptNamingStrategy namingStrategy,
+        bool convertDates,
+        bool brandedIds)
+    {
+        var pagination = info.Pagination!;
+        var (queryParams, headerParams) = InfiniteHookParameters(info);
+        var (declarations, names) = QueryInputs(info, queryParams, headerParams, namingStrategy, convertDates, brandedIds);
+
+        var keyArgs = new List<string>();
+        foreach (var p in info.PathParams)
+        {
+            keyArgs.Add(TypeScriptOperationHelper.ParameterIdentifier(p, namingStrategy));
+        }
+
+        if (info.HasBody)
+        {
+            keyArgs.Add("body");
+        }
+
+        foreach (var p in info.QuerystringParams)
+        {
+            keyArgs.Add(TypeScriptOperationHelper.ParameterIdentifier(p, namingStrategy));
+        }
+
+        if (queryParams.Count > 0)
+        {
+            keyArgs.Add("query");
+        }
+
+        if (KeyHeaders(info, headerParams).Count > 0)
+        {
+            keyArgs.Add("headers");
+        }
+
+        var signalName = TypeScriptOperationHelper.SignalParameterName(names);
+        var pageType = info.ReturnType;
+        sb.Append("  ").Append(info.MethodName).Append("Infinite: (").Append(TypeScriptOperationHelper.JoinParameters(["api: ApiService", .. declarations]))
+            .Append(") => infiniteQueryOptions<").Append(pageType).Append(", ApiError, InfiniteData<").Append(pageType)
+            .AppendLine(", string | undefined>, readonly unknown[], string | undefined>({");
+        sb.Append("    queryKey: ").Append(segmentCamel).Append("Keys.").Append(KeyNameOf(info, segmentCamel)).Append("Infinite(").Append(string.Join(", ", keyArgs)).AppendLine("),");
+        sb.Append("    queryFn: async ({ pageParam, ").Append(SignalBinding(signalName)).AppendLine(" }: { pageParam: string | undefined; signal: AbortSignal }) => {");
+        sb.Append("      const result = await api.").Append(segmentCamel).Append('.').Append(info.MethodName).Append('(').Append(WithSignal(BuildInfiniteClientCallArgs(info, "pageParam", namingStrategy), signalName)).AppendLine(");");
+        AppendResultUnwrap(sb, info.ReturnType, info.HttpMethod, info.Success2xxDiscriminators);
+        sb.AppendLine("    },");
+        sb.AppendLine("    initialPageParam: undefined as string | undefined,");
+
+        // A token equal to the one this page was fetched with ends the query (a server that repeats its token
+        // would page forever)
+        sb.Append("    getNextPageParam: (lastPage, _allPages, lastPageParam) => { const next = ").Append(TokenAccess("lastPage", pagination, namingStrategy)).AppendLine(" || undefined; return next !== lastPageParam ? next : undefined; },");
+
+        AppendNoRetry(sb, info);
+        sb.AppendLine("  }),");
     }
 
     private static void AppendQueryHook(
@@ -479,47 +569,9 @@ public static class TypeScriptReactQueryHookExtractor
         var hookName = useSuspenseSuffix ? baseHookName + "Suspense" : baseHookName;
         var queryFn = isSuspense ? "useSuspenseQuery" : "useQuery";
         var optionsType = isSuspense ? "UseSuspenseQueryOptions" : "UseQueryOptions";
-        var keyName = DeriveKeyName(info.MethodName, segmentCamel);
-        var segmentProperty = segmentCamel;
 
-        // Build hook parameter list
-        var hookParams = new List<string>();
-        foreach (var param in info.PathParams)
-        {
-            var paramName = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
-            var paramType = TypeScriptOperationHelper.GetParameterType(param, convertDates, brandedIds, info.Path);
-            hookParams.Add(paramName + ": " + paramType);
-        }
-
-        // Mirrors the client method's parameter order: pathParams..., body, querystring..., query.
-        if (info.HasBody)
-        {
-            hookParams.Add("body: " + info.BodyType);
-        }
-
-        foreach (var param in info.QuerystringParams)
-        {
-            var paramName = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
-            hookParams.Add(paramName + "?: string");
-        }
-
-        if (info.QueryParams.Count > 0)
-        {
-            var queryType = TypeScriptOperationHelper.BuildQueryTypeInline(info.QueryParams, namingStrategy, convertDates);
-            hookParams.Add("query?: " + queryType);
-        }
-
-        if (info.HeaderParams.Count > 0)
-        {
-            var headerType = TypeScriptOperationHelper.BuildHeaderTypeInline(info.HeaderParams, convertDates);
-            hookParams.Add("headers?: " + headerType);
-        }
-
-        if (info.CookieParams.Count > 0)
-        {
-            var cookieType = BuildCookieTypeInline(info.CookieParams, namingStrategy);
-            hookParams.Add("cookies?: " + cookieType);
-        }
+        // Mirrors the client method's parameter order: pathParams..., body, querystring..., query, headers, cookies.
+        var (hookParams, names) = QueryInputs(info, info.QueryParams, info.HeaderParams, namingStrategy, convertDates, brandedIds);
 
         // Pass-through options: every generated hook accepts a final options? arg whose
         // type omits the keys the hook body already populates. Consumers can override
@@ -530,48 +582,11 @@ public static class TypeScriptReactQueryHookExtractor
         var queryDataType = info.ReturnType == "void" ? "void" : info.ReturnType;
         hookParams.Add("options?: Omit<" + optionsType + "<" + queryDataType + ", ApiError>, 'queryKey' | 'queryFn'>");
 
-        var hookParamStr = string.Join(", ", hookParams);
-
-        // Build key args — headers and cookies are intentionally excluded so the React Query
-        // cache does NOT fragment on per-request headers/cookies (correlation IDs, etc).
-        // Query params and querystring params ARE included alongside path params.
-        var keyArgsParts = new List<string>();
-        foreach (var p in info.PathParams)
-        {
-            keyArgsParts.Add((p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
-        }
-
-        if (info.HasBody)
-        {
-            keyArgsParts.Add("body");
-        }
-
-        foreach (var p in info.QuerystringParams)
-        {
-            keyArgsParts.Add((p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
-        }
-
-        if (info.QueryParams.Count > 0)
-        {
-            keyArgsParts.Add("query");
-        }
-
-        var keyCallArgs = string.Join(", ", keyArgsParts);
-
-        // Build client call args (headers and cookies ARE forwarded to the client method)
-        var clientCallArgs = BuildClientCallArgs(info.PathParams, info.QueryParams, info.HeaderParams, info.CookieParams, info.QuerystringParams, hasBody: info.HasBody, namingStrategy: namingStrategy);
-
         AppendHookJsDoc(sb, info);
-        sb.Append("export function ").Append(hookName).Append('(').Append(hookParamStr).AppendLine(") {");
+        sb.Append("export function ").Append(hookName).Append('(').Append(TypeScriptOperationHelper.JoinParameters(hookParams)).AppendLine(") {");
         sb.AppendLine("  const api = useApiService();");
         sb.Append("  return ").Append(queryFn).AppendLine("({");
-        sb.Append("    queryKey: ").Append(segmentCamel).Append("Keys.").Append(keyName).Append('(').Append(keyCallArgs).AppendLine("),");
-        sb.AppendLine("    queryFn: async () => {");
-        sb.Append("      const result = await api.").Append(segmentProperty).Append('.').Append(info.MethodName).Append('(').Append(clientCallArgs).AppendLine(");");
-
-        AppendResultUnwrap(sb, info.ReturnType, info.HttpMethod, info.Success2xxDiscriminators);
-
-        sb.AppendLine("    },");
+        sb.Append("    ...").Append(segmentCamel).Append("Queries.").Append(info.MethodName).Append("(api").Append(string.Concat(names.Select(n => ", " + n))).AppendLine("),");
 
         // Add enabled guard for detail queries with path params — but only for the
         // standard variant. useSuspenseQuery doesn't support conditional execution
@@ -581,202 +596,22 @@ public static class TypeScriptReactQueryHookExtractor
         // guards on its id: the caller often has nothing to send on the first render. An
         // operation with both — a QUERY nested under a path parameter — guards on both, since
         // either one being absent makes the request meaningless.
+        // Spread caller options so they override the generated defaults (retry); the guard below keeps the
+        // caller's enabled as a narrowing. The Omit on the options type still blocks queryKey/queryFn.
+        sb.AppendLine("    ...options,");
         if (!isSuspense)
         {
-            var guards = new List<string>();
-            if (info.PathParams.Count > 0)
-            {
-                guards.Add("!!" + (info.PathParams[0].Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
-            }
-
-            if (info.HasBody)
-            {
-                guards.Add("!!body");
-            }
-
-            if (guards.Count > 0)
-            {
-                sb.Append("    enabled: ").Append(string.Join(" && ", guards)).AppendLine(",");
-            }
+            AppendEnabledGuard(sb, info, namingStrategy);
         }
-
-        // Spread caller options LAST so they override the generated defaults (enabled,
-        // queryKey, queryFn). The Omit on the options type still blocks queryKey/queryFn,
-        // so only the safe defaults are overridable.
-        sb.AppendLine("    ...options,");
 
         sb.AppendLine("  });");
         sb.AppendLine("}");
     }
 
     /// <summary>
-    /// Emits Option A from issues/001-feedback.md: a useState/useEffect/useRef-backed hook
-    /// that consumes the AsyncGenerator-style client method and accumulates items into local
-    /// state. Aborts on unmount or param change, swallows AbortError, exposes a 4-state
-    /// status machine plus cancel/reset controls.
-    /// </summary>
-    private static void AppendStreamHook(
-        StringBuilder sb,
-        HookInfo info,
-        string segmentCamel,
-        TypeScriptNamingStrategy namingStrategy,
-        bool convertDates,
-        bool brandedIds)
-    {
-        var hookName = "use" + info.MethodName.ToPascalCaseForDotNet() + "Stream";
-        var segmentProperty = segmentCamel;
-        var itemType = string.IsNullOrEmpty(info.ReturnType) ? "unknown" : info.ReturnType;
-
-        // Hook signature: pathParams..., query?, headers?, options?: { enabled?: boolean }
-        var hookParams = new List<string>();
-        foreach (var param in info.PathParams)
-        {
-            var paramName = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
-            var paramType = TypeScriptOperationHelper.GetParameterType(param, convertDates, brandedIds, info.Path);
-            hookParams.Add(paramName + ": " + paramType);
-        }
-
-        if (info.QueryParams.Count > 0)
-        {
-            var queryType = TypeScriptOperationHelper.BuildQueryTypeInline(info.QueryParams, namingStrategy, convertDates);
-            hookParams.Add("query?: " + queryType);
-        }
-
-        if (info.HeaderParams.Count > 0)
-        {
-            var headerType = TypeScriptOperationHelper.BuildHeaderTypeInline(info.HeaderParams, convertDates);
-            hookParams.Add("headers?: " + headerType);
-        }
-
-        hookParams.Add("options?: { enabled?: boolean }");
-
-        var hookParamStr = string.Join(", ", hookParams);
-
-        // Client call args mirror the streaming client method:
-        //   pathParams..., query, headers, controller.signal
-        var clientCallParts = new List<string>();
-        foreach (var p in info.PathParams)
-        {
-            clientCallParts.Add((p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
-        }
-
-        if (info.QueryParams.Count > 0)
-        {
-            clientCallParts.Add("query");
-        }
-
-        if (info.HeaderParams.Count > 0)
-        {
-            clientCallParts.Add("headers");
-        }
-
-        clientCallParts.Add("controller.signal");
-        var clientCallArgs = string.Join(", ", clientCallParts);
-
-        // useEffect dependency list. Path params and the enabled flag are direct deps.
-        // Query + headers are non-primitive bags, so we serialize them to a string for a
-        // stable dependency value (avoid re-running the effect on every parent re-render).
-        var depParts = new List<string> { "enabled" };
-        foreach (var p in info.PathParams)
-        {
-            depParts.Add((p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
-        }
-
-        var needsKeyDep = info.QueryParams.Count > 0 || info.HeaderParams.Count > 0;
-        if (needsKeyDep)
-        {
-            depParts.Add("keyDep");
-        }
-
-        var depList = string.Join(", ", depParts);
-
-        AppendHookJsDoc(sb, info);
-        sb.Append("export function ").Append(hookName).Append('(').Append(hookParamStr).AppendLine(") {");
-        sb.AppendLine("  const api = useApiService();");
-        sb.Append("  const [items, setItems] = useState<readonly ").Append(itemType).AppendLine("[]>([]);");
-        sb.AppendLine("  const [status, setStatus] = useState<'idle' | 'streaming' | 'success' | 'error'>('idle');");
-        sb.AppendLine("  const [error, setError] = useState<Error | null>(null);");
-        sb.AppendLine("  const controllerRef = useRef<AbortController | null>(null);");
-        sb.AppendLine();
-        sb.AppendLine("  const cancel = useCallback(() => {");
-        sb.AppendLine("    controllerRef.current?.abort();");
-        sb.AppendLine("    controllerRef.current = null;");
-        sb.AppendLine("    setStatus('idle');");
-        sb.AppendLine("  }, []);");
-        sb.AppendLine();
-        sb.AppendLine("  const reset = useCallback(() => {");
-        sb.AppendLine("    cancel();");
-        sb.AppendLine("    setItems([]);");
-        sb.AppendLine("    setError(null);");
-        sb.AppendLine("  }, [cancel]);");
-        sb.AppendLine();
-        sb.AppendLine("  const enabled = options?.enabled !== false;");
-
-        if (needsKeyDep)
-        {
-            sb.Append("  const keyDep = JSON.stringify({");
-            if (info.QueryParams.Count > 0)
-            {
-                sb.Append(" query");
-            }
-
-            if (info.HeaderParams.Count > 0)
-            {
-                sb.Append(info.QueryParams.Count > 0 ? ", headers" : " headers");
-            }
-
-            sb.AppendLine(" });");
-        }
-
-        sb.AppendLine();
-        sb.AppendLine("  useEffect(() => {");
-        sb.AppendLine("    if (!enabled) return;");
-        sb.AppendLine();
-        sb.AppendLine("    const controller = new AbortController();");
-        sb.AppendLine("    controllerRef.current = controller;");
-        sb.AppendLine("    setStatus('streaming');");
-        sb.AppendLine("    setItems([]);");
-        sb.AppendLine("    setError(null);");
-        sb.AppendLine();
-        sb.Append("    let buffer: ").Append(itemType).AppendLine("[] = [];");
-        sb.AppendLine("    let flushTimer: ReturnType<typeof setTimeout> | null = null;");
-        sb.AppendLine("    const flush = () => { flushTimer = null; if (!controller.signal.aborted) setItems(buffer.slice()); };");
-        sb.AppendLine("    (async () => {");
-        sb.AppendLine("      try {");
-        sb.Append("        for await (const item of api.").Append(segmentProperty).Append('.').Append(info.MethodName).Append('(').Append(clientCallArgs).AppendLine(")) {");
-        sb.AppendLine("          if (controller.signal.aborted) return;");
-        sb.AppendLine("          buffer.push(item);");
-        sb.AppendLine("          if (flushTimer === null) flushTimer = setTimeout(flush, 200);");
-        sb.AppendLine("        }");
-        sb.AppendLine("        if (!controller.signal.aborted) {");
-        sb.AppendLine("          if (flushTimer !== null) clearTimeout(flushTimer);");
-        sb.AppendLine("          setItems(buffer.slice());");
-        sb.AppendLine("          setStatus('success');");
-        sb.AppendLine("        }");
-        sb.AppendLine("      } catch (err) {");
-        sb.AppendLine("        if (controller.signal.aborted) return;");
-        sb.AppendLine("        if (err instanceof DOMException && err.name === 'AbortError') return;");
-        sb.AppendLine("        if (flushTimer !== null) clearTimeout(flushTimer);");
-        sb.AppendLine("        setItems(buffer.slice());");
-        sb.AppendLine("        setError(err as Error);");
-        sb.AppendLine("        setStatus('error');");
-        sb.AppendLine("      }");
-        sb.AppendLine("    })();");
-        sb.AppendLine();
-        sb.AppendLine("    return () => { controller.abort(); if (flushTimer !== null) clearTimeout(flushTimer); };");
-        sb.AppendLine("    // eslint-disable-next-line react-hooks/exhaustive-deps");
-        sb.Append("  }, [").Append(depList).AppendLine("]);");
-        sb.AppendLine();
-        sb.AppendLine("  return { items, status, error, cancel, reset };");
-        sb.AppendLine("}");
-    }
-
-    /// <summary>
-    /// Emits a useInfiniteQuery hook that consumes the <c>&lt;methodName&gt;Page</c>
-    /// companion of a paginated-streaming operation. The hook returns one page at a time
-    /// and surfaces <c>fetchNextPage()</c>; the continuation token from the previous page
-    /// is threaded back via the <c>x-continuation</c> request header that the Page
-    /// companion accepts (see <see cref="TypeScriptClientExtractor"/>).
+    /// Emits a useInfiniteQuery hook for a paginated read: the query hook's inputs without the
+    /// continuation parameter; each page sends the previous page's token through that parameter,
+    /// and the pages end at the first page without a token.
     /// </summary>
     private static void AppendInfiniteHook(
         StringBuilder sb,
@@ -787,78 +622,114 @@ public static class TypeScriptReactQueryHookExtractor
         bool brandedIds)
     {
         var hookName = "use" + info.MethodName.ToPascalCaseForDotNet() + "Infinite";
-        var pageMethodName = info.MethodName + "Page";
-        var infiniteKeyName = info.MethodName.ToCamelCase().ToTypeScriptIdentifier() + "Infinite";
+        var (queryParams, headerParams) = InfiniteHookParameters(info);
+        var (hookParams, names) = QueryInputs(info, queryParams, headerParams, namingStrategy, convertDates, brandedIds);
 
-        // Hook signature: same shape as the streaming sibling minus signal/options —
-        // useInfiniteQuery owns the lifecycle, so the consumer just supplies inputs.
-        var hookParams = new List<string>();
-        foreach (var p in info.PathParams)
-        {
-            var n = (p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
-            var t = TypeScriptOperationHelper.GetParameterType(p, convertDates, brandedIds, info.Path);
-            hookParams.Add(n + ": " + t);
-        }
-
-        if (info.QueryParams.Count > 0)
-        {
-            var queryType = TypeScriptOperationHelper.BuildQueryTypeInline(info.QueryParams, namingStrategy, convertDates);
-            hookParams.Add("query?: " + queryType);
-        }
-
-        var hookParamStr = string.Join(", ", hookParams);
-
-        // queryKey args mirror the standard query-hook approach: path params + query bag.
-        var keyArgs = new List<string>();
-        foreach (var p in info.PathParams)
-        {
-            keyArgs.Add((p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
-        }
-
-        if (info.QueryParams.Count > 0)
-        {
-            keyArgs.Add("query");
-        }
-
-        var keyCallArgs = string.Join(", ", keyArgs);
-
-        // Client-side call args for the Page companion: pathParams..., query, headers
-        var callArgs = new List<string>();
-        foreach (var p in info.PathParams)
-        {
-            callArgs.Add((p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
-        }
-
-        if (info.QueryParams.Count > 0)
-        {
-            callArgs.Add("query");
-        }
-
-        callArgs.Add("pageParam ? { 'x-continuation': pageParam } : undefined");
-        var callArgsStr = string.Join(", ", callArgs);
+        // The same override point as the query hooks: everything but what the hook computes itself.
+        var pageType = info.ReturnType;
+        hookParams.Add(
+            "options?: Omit<UseInfiniteQueryOptions<" + pageType + ", ApiError, InfiniteData<" + pageType +
+            ", string | undefined>, readonly unknown[], string | undefined>, 'queryKey' | 'queryFn' | 'initialPageParam' | 'getNextPageParam'>");
 
         AppendHookJsDoc(sb, info);
-        sb.Append("export function ").Append(hookName).Append('(').Append(hookParamStr).AppendLine(") {");
+        sb.Append("export function ").Append(hookName).Append('(').Append(TypeScriptOperationHelper.JoinParameters(hookParams)).AppendLine(") {");
         sb.AppendLine("  const api = useApiService();");
         sb.AppendLine("  return useInfiniteQuery({");
-        sb.Append("    queryKey: ").Append(segmentCamel).Append("Keys.").Append(infiniteKeyName).Append('(').Append(keyCallArgs).AppendLine("),");
-        sb.AppendLine("    queryFn: async ({ pageParam }: { pageParam: string | undefined }) => {");
-        sb.Append("      const result = await api.").Append(segmentCamel).Append('.').Append(pageMethodName).Append('(').Append(callArgsStr).AppendLine(");");
-        sb.AppendLine("      if (result.status === 'ok') {");
-        sb.AppendLine("        return result.data;");
-        sb.AppendLine("      }");
-        sb.AppendLine("      throw new ApiError(");
-        sb.AppendLine("        result.response.status,");
-        sb.AppendLine("        result.response.statusText,");
-        sb.AppendLine("        'error' in result ? result.error.message : 'Request failed',");
-        sb.AppendLine("        result.response,");
-        sb.AppendLine("      );");
-        sb.AppendLine("    },");
-        sb.AppendLine("    getNextPageParam: (lastPage) => lastPage.continuationToken ?? undefined,");
-        sb.AppendLine("    initialPageParam: undefined as string | undefined,");
+        sb.Append("    ...").Append(segmentCamel).Append("Queries.").Append(info.MethodName).Append("Infinite(api").Append(string.Concat(names.Select(n => ", " + n))).AppendLine("),");
+
+        // No request while a path parameter or the body of a QUERY read is missing (as the query hook).
+        sb.AppendLine("    ...options,");
+        AppendEnabledGuard(sb, info, namingStrategy);
         sb.AppendLine("  });");
         sb.AppendLine("}");
     }
+
+    /// <summary>
+    /// The inputs of a read, in the client method's order (path parameters, body, querystring parameters,
+    /// query, headers, cookies): their declarations for a signature and their names for a call.
+    /// </summary>
+    private static (List<string> Declarations, List<string> Names) QueryInputs(
+        HookInfo info,
+        List<OpenApiParameter> queryParams,
+        List<OpenApiParameter> headerParams,
+        TypeScriptNamingStrategy namingStrategy,
+        bool convertDates,
+        bool brandedIds)
+    {
+        var declarations = new List<string>();
+        var names = new List<string>();
+        foreach (var param in info.PathParams)
+        {
+            var name = TypeScriptOperationHelper.ParameterIdentifier(param, namingStrategy);
+            declarations.Add(name + ": " + TypeScriptOperationHelper.GetParameterType(param, convertDates, brandedIds, info.Path));
+            names.Add(name);
+        }
+
+        if (info.HasBody)
+        {
+            declarations.Add("body: " + info.BodyType);
+            names.Add("body");
+        }
+
+        foreach (var param in info.QuerystringParams)
+        {
+            var name = TypeScriptOperationHelper.ParameterIdentifier(param, namingStrategy);
+            declarations.Add(name + "?: string");
+            names.Add(name);
+        }
+
+        if (queryParams.Count > 0)
+        {
+            declarations.Add(TypeScriptOperationHelper.BuildQueryParameter(queryParams, namingStrategy, convertDates));
+            names.Add("query");
+        }
+
+        if (headerParams.Count > 0)
+        {
+            declarations.Add(TypeScriptOperationHelper.BuildHeaderParameter(headerParams, convertDates));
+            names.Add("headers");
+        }
+
+        if (info.CookieParams.Count > 0)
+        {
+            declarations.Add("cookies?: " + BuildCookieTypeInline(info.CookieParams, namingStrategy));
+            names.Add("cookies");
+        }
+
+        return (declarations, names);
+    }
+
+    /// <summary>
+    /// <c>enabled</c> for a read that has nothing to send yet: a missing path parameter or the body of a QUERY.
+    /// </summary>
+    private static void AppendEnabledGuard(
+        StringBuilder sb,
+        HookInfo info,
+        TypeScriptNamingStrategy namingStrategy)
+    {
+        // Every path parameter, by presence (an id of 0 is an id); the caller's enabled narrows the guard, it
+        // does not replace it - so this comes after the options spread
+        var guards = info.PathParams
+            .Select(p => TypeScriptOperationHelper.ParameterIdentifier(p, namingStrategy) + " != null")
+            .ToList();
+        if (info.HasBody)
+        {
+            guards.Add("body != null");
+        }
+
+        if (guards.Count > 0)
+        {
+            sb.Append("    enabled: ").Append(string.Join(" && ", guards)).AppendLine(" && (options?.enabled ?? true),");
+        }
+    }
+
+    private static string WithSignal(
+        string arguments,
+        string signalName)
+        => arguments.Length == 0 ? signalName : arguments + ", " + signalName;
+
+    private static string SignalBinding(string signalName)
+        => signalName == "signal" ? "signal" : "signal: " + signalName;
 
     private static void AppendMutationHook(
         StringBuilder sb,
@@ -873,155 +744,19 @@ public static class TypeScriptReactQueryHookExtractor
         var isVoidReturn = info.ReturnType == "void";
         var isDelete = info.HttpMethod.Equals("DELETE", StringComparison.OrdinalIgnoreCase);
 
-        // Determine hook signature params (path params that are "stable" go as hook params)
-        // and mutation fn arg (body or path params for delete). variablesType tracks the
-        // type of the mutationFn arg so we can wire it into UseMutationOptions<TData, TError, TVariables>.
-        var hookParams = new List<string>();
-        string mutationArg;
-        string clientCallArgs;
-        string variablesType;
-
-        if (info.HasBody && info.PathParams.Count > 0)
-        {
-            // Path params as hook params, body as mutation arg
-            foreach (var param in info.PathParams)
-            {
-                var paramName = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
-                var paramType = TypeScriptOperationHelper.GetParameterType(param, convertDates, brandedIds, info.Path);
-                hookParams.Add(paramName + ": " + paramType);
-            }
-
-            mutationArg = "(body: " + info.BodyType + ")";
-            clientCallArgs = BuildClientCallArgs(info.PathParams, info.QueryParams, info.HeaderParams, info.CookieParams, info.QuerystringParams, hasBody: true, namingStrategy: namingStrategy);
-            variablesType = info.BodyType;
-        }
-        else if (info.HasBody)
-        {
-            // Body only as mutation arg
-            mutationArg = "(body: " + info.BodyType + ")";
-            clientCallArgs = BuildClientCallArgs(info.PathParams, info.QueryParams, info.HeaderParams, info.CookieParams, info.QuerystringParams, hasBody: true, namingStrategy: namingStrategy);
-            variablesType = info.BodyType;
-        }
-        else if (info.HasFileUploadArg && info.PathParams.Count > 0)
-        {
-            // File upload with path params — merge path params into mutation arg
-            var pathParamParts = new List<string>();
-            var pathParamNames = new List<string>();
-            foreach (var param in info.PathParams)
-            {
-                var paramName = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
-                var paramType = TypeScriptOperationHelper.GetParameterType(param, convertDates, brandedIds, info.Path);
-                pathParamParts.Add(paramName + ": " + paramType);
-                pathParamNames.Add(paramName);
-            }
-
-            // Parse the existing file upload param declaration to extract its type
-            var colonIdx = info.FileUploadParam.IndexOf(':', StringComparison.Ordinal);
-            var fileArgName = info.FileUploadParam[..colonIdx].Trim();
-            var fileTypeStr = info.FileUploadParam[(colonIdx + 1)..].Trim();
-
-            // Build destructured param: ({ pizzaId, ...data }: { pizzaId: string; file?: ...; altText?: ... })
-            string mutationParamDestructure;
-            string mutationParamType;
-
-            if (fileTypeStr.StartsWith("{", StringComparison.Ordinal) && fileTypeStr.EndsWith("}", StringComparison.Ordinal))
-            {
-                // Inline object type — merge path params into it
-                var innerProps = fileTypeStr[1..^1].Trim();
-                mutationParamType = "{ " + string.Join("; ", pathParamParts) + "; " + innerProps + " }";
-                mutationParamDestructure = "{ " + string.Join(", ", pathParamNames) + ", ..." + fileArgName + " }";
-            }
-            else
-            {
-                // Non-object type (e.g., Blob | File) — wrap in object with path params
-                mutationParamType = "{ " + string.Join("; ", pathParamParts) + "; " + info.FileUploadParam + " }";
-                mutationParamDestructure = "{ " + string.Join(", ", pathParamNames) + ", " + fileArgName + " }";
-            }
-
-            mutationArg = "(" + mutationParamDestructure + ": " + mutationParamType + ")";
-            clientCallArgs = string.Join(", ", pathParamNames) + ", " + fileArgName;
-            variablesType = mutationParamType;
-        }
-        else if (info.HasFileUploadArg)
-        {
-            // File upload without path params
-            mutationArg = "(" + info.FileUploadParam + ")";
-            clientCallArgs = info.FileUploadArgName;
-
-            // info.FileUploadParam is `<name>: <type>` — slice the type out so it can
-            // appear inside the UseMutationOptions generic.
-            var fileColon = info.FileUploadParam.IndexOf(':', StringComparison.Ordinal);
-            variablesType = fileColon >= 0
-                ? info.FileUploadParam[(fileColon + 1)..].Trim()
-                : "unknown";
-        }
-        else if (info.PathParams.Count > 0)
-        {
-            // Path params as mutation args (e.g., delete by ID)
-            if (info.PathParams.Count == 1)
-            {
-                var param = info.PathParams[0];
-                var paramName = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
-                var paramType = TypeScriptOperationHelper.GetParameterType(param, convertDates, brandedIds, info.Path);
-                mutationArg = "(" + paramName + ": " + paramType + ")";
-                clientCallArgs = paramName;
-                variablesType = paramType;
-            }
-            else
-            {
-                var paramParts = info.PathParams.Select(p =>
-                {
-                    var pName = (p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
-                    var pType = TypeScriptOperationHelper.GetParameterType(p, convertDates, brandedIds, info.Path);
-                    return pName + ": " + pType;
-                }).ToList();
-                mutationArg = "(params: { " + string.Join("; ", paramParts) + " })";
-                clientCallArgs = string.Join(
-                    ", ",
-                    info.PathParams.Select(p => "params." + (p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy)));
-                variablesType = "{ " + string.Join("; ", paramParts) + " }";
-            }
-        }
-        else
-        {
-            // No args
-            mutationArg = "()";
-            clientCallArgs = string.Empty;
-            variablesType = "void";
-        }
-
-        // Query params are hook-scoped (set once per useXxx() call) for mutations,
-        // matching the pattern used for header params below. HasBody branches already
-        // include 'query' in clientCallArgs via BuildClientCallArgs; remaining branches
-        // (path-only, file-upload, no-args) need it appended here as well.
-        // Not adding query to hookParams was the cause of TS2304 ("Cannot find name 'query'").
-        if (info.QueryParams.Count > 0)
-        {
-            var queryType = TypeScriptOperationHelper.BuildQueryTypeInline(info.QueryParams, namingStrategy, convertDates);
-            hookParams.Add("query?: " + queryType);
-
-            if (!info.HasBody)
-            {
-                clientCallArgs = clientCallArgs.Length == 0 ? "query" : clientCallArgs + ", query";
-            }
-        }
-
-        // Header params are hook-scoped (set once per useXxx() call) for mutations,
-        // matching how query params behave for the same operation. The order at the
-        // call site is path-params..., body, query, headers — see BuildClientCallArgs.
-        if (info.HeaderParams.Count > 0)
-        {
-            var headerType = TypeScriptOperationHelper.BuildHeaderTypeInline(info.HeaderParams, convertDates);
-            hookParams.Add("headers?: " + headerType);
-            clientCallArgs = clientCallArgs.Length == 0 ? "headers" : clientCallArgs + ", headers";
-        }
+        // Hook-scoped params, the mutationFn argument and its variables type (shared with the SWR hooks).
+        var signature = BuildMutationSignature(info, namingStrategy, convertDates, brandedIds);
+        var hookParams = signature.HookParams;
+        var mutationArg = signature.MutationArg;
+        var clientCallArgs = signature.ClientCallArgs;
+        var variablesType = signature.VariablesType;
 
         // Pass-through options for the mutation. TData mirrors the unwrap path: void
         // for delete / no-body returns, the operation's return type otherwise.
         var mutationDataType = (isVoidReturn || isDelete) ? "void" : info.ReturnType;
         hookParams.Add("options?: Omit<UseMutationOptions<" + mutationDataType + ", ApiError, " + variablesType + ">, 'mutationFn'>");
 
-        var hookParamStr = string.Join(", ", hookParams);
+        var hookParamStr = TypeScriptOperationHelper.JoinParameters(hookParams);
 
         AppendHookJsDoc(sb, info);
         sb.Append("export function ").Append(hookName).Append('(').Append(hookParamStr).AppendLine(") {");
@@ -1044,391 +779,34 @@ public static class TypeScriptReactQueryHookExtractor
         // onSuccess(data, variables, onMutateResult, context). Forward all four so the
         // composed wrapper type-matches the caller's options.onSuccess. See the bumped
         // peerDependency (@tanstack/react-query >= 5.81) in the package scaffold.
-        sb.AppendLine("    onSuccess: (data, variables, onMutateResult, context) => {");
-        sb.Append("      queryClient.invalidateQueries({ queryKey: ").Append(segmentCamel).AppendLine("Keys.all });");
-        sb.AppendLine("      options?.onSuccess?.(data, variables, onMutateResult, context);");
+        // Awaited, so mutateAsync resolves after the invalidated queries have refetched
+        sb.AppendLine("    onSuccess: async (data, variables, onMutateResult, context) => {");
+        sb.Append("      await queryClient.invalidateQueries({ queryKey: ").Append(segmentCamel).AppendLine("Keys.all });");
+        sb.AppendLine("      await options?.onSuccess?.(data, variables, onMutateResult, context);");
         sb.AppendLine("    },");
 
         sb.AppendLine("  });");
         sb.AppendLine("}");
     }
 
-    private static void AppendResultUnwrap(
-        StringBuilder sb,
-        string returnType,
-        string httpMethod,
-        List<string> success2xxDiscriminators)
-    {
-        var isVoid = returnType == "void";
-        var isDelete = httpMethod.Equals("DELETE", StringComparison.OrdinalIgnoreCase);
-
-        // The narrowing list must match the per-op result type's declared 2xx arms. Without
-        // this, a hook generated for an op that only declares 200 would type-error on
-        // `result.status === 'created'` because 'created' isn't in the per-op union.
-        if (isVoid || isDelete)
-        {
-            var allSuccess = success2xxDiscriminators.Count > 0
-                ? success2xxDiscriminators
-                : ["noContent", "ok"];
-            sb.Append("      if (").Append(BuildStatusDisjunction(allSuccess)).AppendLine(") {");
-            sb.AppendLine("        return;");
-        }
-        else
-        {
-            // Data-bearing arms only — noContent has no data to forward.
-            var dataBearing = success2xxDiscriminators
-                .Where(d => !string.Equals(d, "noContent", StringComparison.Ordinal))
-                .ToList();
-            if (dataBearing.Count == 0)
-            {
-                dataBearing.Add("ok");
-            }
-
-            sb.Append("      if (").Append(BuildStatusDisjunction(dataBearing)).AppendLine(") {");
-            sb.AppendLine("        return result.data;");
-        }
-
-        sb.AppendLine("      }");
-        sb.AppendLine("      throw new ApiError(");
-        sb.AppendLine("        result.response.status,");
-        sb.AppendLine("        result.response.statusText,");
-        sb.AppendLine("        'error' in result ? result.error.message : 'Request failed',");
-        sb.AppendLine("        result.response,");
-        sb.AppendLine("      );");
-    }
-
-    private static string BuildStatusDisjunction(List<string> discriminators)
-        => string.Join(
-            " || ",
-            discriminators.Select(d => $"result.status === '{d}'"));
-
-    private static string BuildClientCallArgs(
-        List<OpenApiParameter> pathParams,
-        List<OpenApiParameter> queryParams,
-        List<OpenApiParameter> headerParams,
-        List<OpenApiParameter> cookieParams,
-        List<OpenApiParameter> querystringParams,
-        bool hasBody,
-        TypeScriptNamingStrategy namingStrategy = TypeScriptNamingStrategy.CamelCase)
-    {
-        // Argument order must mirror the client method's parameter list:
-        //   pathParams..., body, querystringParams (individual)..., query, headers, cookies
-        // See TypeScriptClientExtractor.BuildParameterList.
-        var args = new List<string>();
-
-        foreach (var param in pathParams)
-        {
-            args.Add((param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
-        }
-
-        if (hasBody)
-        {
-            args.Add("body");
-        }
-
-        foreach (var param in querystringParams)
-        {
-            args.Add((param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
-        }
-
-        if (queryParams.Count > 0)
-        {
-            args.Add("query");
-        }
-
-        if (headerParams.Count > 0)
-        {
-            args.Add("headers");
-        }
-
-        if (cookieParams.Count > 0)
-        {
-            args.Add("cookies");
-        }
-
-        return string.Join(", ", args);
-    }
-
-    private static string BuildCookieTypeInline(
-        List<OpenApiParameter> cookieParams,
-        TypeScriptNamingStrategy namingStrategy)
-    {
-        var props = cookieParams.Select(p =>
-        {
-            var name = (p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
-            var optional = p.Required ? string.Empty : "?";
-            return name + optional + ": string";
-        });
-        return "{ " + string.Join("; ", props) + " }";
-    }
-
     /// <summary>
-    /// Derives a query key entry name from an operationId.
-    /// Strips the segment prefix and converts remainder to camelCase.
-    /// Examples: listAccounts -> list, getAccountById -> detail, listPaginatedAccounts -> listPaginated.
+    /// What a hooks file imports from React and TanStack Query, and whether it needs ApiError.
     /// </summary>
-    private static string DeriveKeyName(
-        string methodName,
-        string segmentCamel)
-    {
-        // The methodName is already camelCase (e.g., listAccounts, getAccountById)
-        // Try to strip the segment suffix (case-insensitive)
-        var segmentPascal = segmentCamel.ToPascalCaseForDotNet();
-
-        // Check if this is a "get...By..." pattern.
-        // Derive a unique key by stripping the "get" prefix and the segment name so that
-        // multiple get*By* operations on the same segment each get a distinct key —
-        // e.g. getFoundryUsagesByAccount → usagesByAccount, getFoundryUsagesByModel → usagesByModel.
-        // Returning the hardcoded "detail" caused TS1117 (duplicate object-literal keys)
-        // when a segment had more than one get*By* operation.
-        if (methodName.StartsWith("get", StringComparison.OrdinalIgnoreCase) &&
-            methodName.Contains("By", StringComparison.Ordinal))
-        {
-            var withoutGet = methodName.Length > 3 ? methodName[3..] : methodName;
-            if (withoutGet.StartsWith(segmentPascal, StringComparison.OrdinalIgnoreCase) &&
-                withoutGet.Length > segmentPascal.Length)
-            {
-                withoutGet = withoutGet[segmentPascal.Length..];
-            }
-
-            return withoutGet.Length > 0
-                ? char.ToLowerInvariant(withoutGet[0]) + withoutGet[1..]
-                : methodName;
-        }
-
-        // Strip segment name from the method name
-        // e.g., "listAccounts" with segment "accounts" -> "list"
-        // e.g., "listPaginatedAccounts" with segment "accounts" -> "listPaginated"
-        var result = methodName;
-
-        // Remove trailing segment name (PascalCase form)
-        if (result.EndsWith(segmentPascal, StringComparison.Ordinal))
-        {
-            result = result[..^segmentPascal.Length];
-        }
-
-        // If nothing left, use the full method name
-        if (string.IsNullOrEmpty(result))
-        {
-            result = methodName;
-        }
-
-        return result;
-    }
-
-    private static HookInfo ClassifyOperation(
-        string path,
-        string httpMethod,
-        OpenApiOperation operation,
-        OpenApiDocument openApiDoc,
-        TypeScriptNamingStrategy namingStrategy,
-        HashSet<string> writableSchemas)
-    {
-        var isStreaming = operation.IsStreamingResponse();
-        var isFileDownload = operation.HasFileDownload();
-        var isFileUpload = operation.HasFileUpload();
-        var operationId = operation.GetOperationId(path, httpMethod);
-        var methodName = operationId.ToCamelCase().ToTypeScriptIdentifier();
-
-        var pathParams = TypeScriptOperationHelper.GetMergedParameters(
-            operation, openApiDoc, path, ParameterLocation.Path);
-        var queryParams = TypeScriptOperationHelper.GetMergedParameters(
-            operation, openApiDoc, path, ParameterLocation.Query);
-        var headerParams = TypeScriptOperationHelper.GetMergedParameters(
-            operation, openApiDoc, path, ParameterLocation.Header);
-        var cookieParams = TypeScriptOperationHelper.GetMergedParameters(
-            operation, openApiDoc, path, ParameterLocation.Cookie);
-        var querystringParams = TypeScriptOperationHelper.GetMergedParameters(
-            operation, openApiDoc, path, ParameterLocation.QueryString);
-
-        var returnType = TypeScriptOperationHelper.GetReturnType(operation, isStreaming, isFileDownload);
-
-        var (bodySchema, bodyContentType) = operation.GetRequestBodySchemaWithContentType();
-        var hasBody = bodySchema is not null && !isFileUpload;
-        var bodyType = hasBody ? bodySchema!.ToTypeScriptReturnType() : string.Empty;
-
-        // Mirror the client extractor: a body that's a $ref to a schema with the
-        // readOnly/writeOnly split must use the <Name>Writable variant in the mutation
-        // signature so consumers can't accidentally pass readOnly fields.
-        if (hasBody && bodySchema is OpenApiSchemaReference bodyRef)
-        {
-            var bodyRefName = bodyRef.Reference.Id ?? bodyRef.Id;
-            if (bodyRefName is not null && writableSchemas.Contains(bodyRefName))
-            {
-                bodyType = bodyRefName + TypeScriptModelExtractor.WritableSuffix;
-            }
-        }
-
-        // Determine file upload parameter info
-        var hasFileUploadArg = false;
-        var fileUploadParam = string.Empty;
-        var fileUploadArgName = string.Empty;
-        if (isFileUpload && bodySchema is not null)
-        {
-            (hasFileUploadArg, fileUploadParam, fileUploadArgName) = GetFileUploadInfo(bodySchema, bodyContentType, namingStrategy);
-        }
-
-        // GET / QUERY + not file download + not streaming => useQuery
-        // GET + file download => useMutation (user-triggered)
-        // Streaming => skip
-        // Everything else => useMutation
-        //
-        // The OpenAPI 3.2 QUERY method is safe and idempotent — a read whose criteria travel
-        // in the request body because they are too large for a URL. It belongs in useQuery
-        // (cached, refetchable) exactly like GET, not in useMutation.
-        var isQuery = (httpMethod.Equals("GET", StringComparison.OrdinalIgnoreCase) ||
-                       httpMethod.Equals("QUERY", StringComparison.OrdinalIgnoreCase))
-                      && !isFileDownload
-                      && !isStreaming;
-
-        // Paginated-streaming ops get a useInfiniteQuery sibling. PageReturnType is
-        // the full response schema (PaginationResult<Item>) — i.e. the schema treated as
-        // non-streaming — so the queryFn's data type lines up with the Page companion.
-        var isPaginatedStreaming = operation.IsPaginatedStreamingOperation();
-        var pageReturnType = isPaginatedStreaming
-            ? TypeScriptOperationHelper.GetReturnType(operation, isStreaming: false, isFileDownload: false)
-            : string.Empty;
-
-        return new HookInfo(
-            MethodName: methodName,
-            HttpMethod: httpMethod,
-            IsQuery: isQuery,
-            IsStreaming: isStreaming,
-            PathParams: pathParams,
-            QueryParams: queryParams,
-            HeaderParams: headerParams,
-            CookieParams: cookieParams,
-            QuerystringParams: querystringParams,
-            ReturnType: returnType,
-            HasBody: hasBody,
-            BodyType: bodyType,
-            HasFileUploadArg: hasFileUploadArg,
-            FileUploadParam: fileUploadParam,
-            FileUploadArgName: fileUploadArgName,
-            Success2xxDiscriminators: TypeScriptOperationHelper.CollectDeclared2xxDiscriminators(operation),
-            IsPaginatedStreaming: isPaginatedStreaming,
-            PageReturnType: pageReturnType,
-            Summary: operation.Summary,
-            Description: operation.Description,
-            Deprecated: operation.Deprecated,
-            Path: path);
-    }
-
-    /// <summary>
-    /// Renders a `/** ... */` block from the operation's summary/description plus a
-    /// `@deprecated` tag when the spec marks the operation deprecated. Skipped when
-    /// there's nothing worth saying so the emitted file stays clean.
-    /// </summary>
-    private static void AppendHookJsDoc(
-        StringBuilder sb,
-        HookInfo info)
-    {
-        var description = !string.IsNullOrWhiteSpace(info.Summary)
-            ? info.Summary
-            : info.Description;
-        if (string.IsNullOrWhiteSpace(description) && !info.Deprecated)
-        {
-            return;
-        }
-
-        var jsDoc = new JsDocComment(
-            description,
-            parameters: null,
-            returns: null,
-            isDeprecated: info.Deprecated,
-            deprecatedMessage: null,
-            example: null);
-        var rendered = new JsDocCommentGenerator().GenerateTags(indentSpaces: 0, jsDoc);
-        if (!string.IsNullOrEmpty(rendered))
-        {
-            sb.Append(rendered);
-        }
-    }
-
-    private static (bool HasArg, string ParamDecl, string ArgName) GetFileUploadInfo(
-        IOpenApiSchema bodySchema,
-        string bodyContentType,
-        TypeScriptNamingStrategy namingStrategy)
-    {
-        // Raw binary upload
-        if (bodyContentType.Equals("application/octet-stream", StringComparison.OrdinalIgnoreCase))
-        {
-            return (true, "file: Blob | File", "file");
-        }
-
-        // Array of files
-        if (bodySchema is OpenApiSchema { Type: var type } && type?.HasFlag(JsonSchemaType.Array) == true)
-        {
-            return (true, "files: (Blob | File)[]", "files");
-        }
-
-        // Object with file properties
-        if (bodySchema.Properties is { Count: > 0 })
-        {
-            var formParts = new List<string>();
-            var required = new HashSet<string>(StringComparer.Ordinal);
-            if (bodySchema is OpenApiSchema actualSchema && actualSchema.Required is not null)
-            {
-                foreach (var r in actualSchema.Required)
-                {
-                    required.Add(r);
-                }
-            }
-
-            foreach (var prop in bodySchema.Properties)
-            {
-                var propName = prop.Key.ApplyNamingStrategy(namingStrategy);
-                var isRequired = required.Contains(prop.Key);
-                var propType = prop.Value.ToTypeScriptTypeForModel(isRequired);
-
-                if (prop.Value is OpenApiSchema propSchema)
-                {
-                    if (propSchema.Type?.HasFlag(JsonSchemaType.String) == true &&
-                        string.Equals(propSchema.Format, "binary", StringComparison.OrdinalIgnoreCase))
-                    {
-                        propType = "Blob | File";
-                    }
-                    else if (propSchema.Type?.HasFlag(JsonSchemaType.Array) == true &&
-                             propSchema.Items is OpenApiSchema itemSchema &&
-                             itemSchema.Type?.HasFlag(JsonSchemaType.String) == true &&
-                             string.Equals(itemSchema.Format, "binary", StringComparison.OrdinalIgnoreCase))
-                    {
-                        propType = "(Blob | File)[]";
-                    }
-                }
-
-                var optional = isRequired ? string.Empty : "?";
-                formParts.Add(propName + optional + ": " + propType);
-            }
-
-            var typeStr = "{ " + string.Join("; ", formParts) + " }";
-            return (true, "data: " + typeStr, "data");
-        }
-
-        return (true, "data: FormData", "data");
-    }
-
-    private sealed record HookInfo(
-        string MethodName,
-        string HttpMethod,
-        bool IsQuery,
-        bool IsStreaming,
-        List<OpenApiParameter> PathParams,
-        List<OpenApiParameter> QueryParams,
-        List<OpenApiParameter> HeaderParams,
-        List<OpenApiParameter> CookieParams,
-        List<OpenApiParameter> QuerystringParams,
-        string ReturnType,
-        bool HasBody,
-        string BodyType,
-        bool HasFileUploadArg,
-        string FileUploadParam,
-        string FileUploadArgName,
-        List<string> Success2xxDiscriminators,
-        bool IsPaginatedStreaming,
-        string PageReturnType,
-        string? Summary,
-        string? Description,
-        bool Deprecated,
-        string Path);
+    /// <param name="UseQuery">The useQuery hooks (and their options type).</param>
+    /// <param name="UseSuspenseQuery">The useSuspenseQuery hooks (and their options type).</param>
+    /// <param name="UseMutation">The useMutation hooks (and their options type).</param>
+    /// <param name="UseQueryClient">useQueryClient (a mutation invalidates the reads).</param>
+    /// <param name="ReactHooks">The React hooks a stream hook is written with.</param>
+    /// <param name="ApiError">ApiError (the result unwrap of a query or a mutation).</param>
+    /// <param name="UseInfiniteQuery">The useInfiniteQuery hooks of the paginated reads.</param>
+    /// <param name="QueryOptions">The queryOptions factory of the reads.</param>
+    private readonly record struct HookImports(
+        bool UseQuery,
+        bool UseSuspenseQuery,
+        bool UseMutation,
+        bool UseQueryClient,
+        bool ReactHooks,
+        bool ApiError,
+        bool UseInfiniteQuery,
+        bool QueryOptions);
 }

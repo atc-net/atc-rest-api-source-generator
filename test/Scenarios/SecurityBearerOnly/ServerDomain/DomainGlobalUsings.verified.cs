@@ -1,3 +1,4 @@
+#pragma warning disable CS1591
 global using SecurityBearerOnly.Generated.Handlers;
 global using SecurityBearerOnly.Generated.Results;
 global using System.Threading.Tasks;

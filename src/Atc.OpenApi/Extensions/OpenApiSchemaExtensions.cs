@@ -17,14 +17,76 @@ public static class OpenApiSchemaExtensions
 {
     /// <summary>
     /// Sanitizes a schema name to be a valid C# identifier.
-    /// Replaces dots with underscores (e.g., "Foo.Bar.Baz" becomes "Foo_Bar_Baz").
+    /// Every character an identifier cannot hold becomes an underscore ("Foo.Bar" becomes "Foo_Bar",
+    /// "Note-Size" becomes "Note_Size"), and a name that starts with a digit gets a leading underscore
+    /// ("3DModel" becomes "_3DModel").
     /// </summary>
     /// <param name="schemaName">The original schema name from OpenAPI.</param>
     /// <returns>A sanitized name that is a valid C# identifier.</returns>
     public static string SanitizeSchemaName(string schemaName)
-        => string.IsNullOrEmpty(schemaName)
-            ? schemaName
-            : schemaName.Replace(".", "_"); // Replace dots with underscores for valid C# identifiers
+    {
+        if (string.IsNullOrEmpty(schemaName))
+        {
+            return schemaName;
+        }
+
+        // A keyword cannot name a type: its first letter is capitalised (class -> Class), and one with no letter to
+        // capitalise gets an underscore (__arglist -> ___arglist)
+        if (CSharpKeywords.IsKeyword(schemaName))
+        {
+            return char.IsLetter(schemaName[0])
+                ? char.ToUpperInvariant(schemaName[0]) + schemaName.Substring(1)
+                : "_" + schemaName;
+        }
+
+        var needsChange = char.IsDigit(schemaName[0]);
+        foreach (var c in schemaName)
+        {
+            if (!char.IsLetterOrDigit(c) && c != '_')
+            {
+                needsChange = true;
+                break;
+            }
+        }
+
+        if (!needsChange)
+        {
+            return schemaName;
+        }
+
+        var sb = new System.Text.StringBuilder(schemaName.Length + 1);
+        if (char.IsDigit(schemaName[0]))
+        {
+            sb.Append('_');
+        }
+
+        foreach (var c in schemaName)
+        {
+            sb.Append(char.IsLetterOrDigit(c) || c == '_' ? c : '_');
+        }
+
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Resolves a type name, using full namespace qualification if it conflicts with a .NET system type.
+    /// Also sanitizes the type name to be a valid C# identifier.
+    /// </summary>
+    /// <param name="typeName">The original type name from the OpenAPI schema.</param>
+    /// <param name="registry">Optional conflict registry for detecting naming conflicts.</param>
+    /// <returns>The resolved type name (fully qualified if conflicting).</returns>
+    public static string ResolveTypeName(
+        string typeName,
+        TypeConflictRegistry? registry = null)
+    {
+        // First sanitize the name to be a valid C# identifier
+        var sanitized = SanitizeSchemaName(typeName);
+
+        // Then check for conflicts with system types
+        return registry?.IsConflicting(sanitized) == true
+            ? registry.GetFullyQualifiedName(sanitized)
+            : sanitized;
+    }
 
     /// <summary>
     /// Determines whether a composition branch exists only to permit <c>null</c>, and so carries no
@@ -71,29 +133,20 @@ public static class OpenApiSchemaExtensions
                string.IsNullOrEmpty(candidate.Format);
     }
 
-    /// <summary>
-    /// Resolves a type name, using full namespace qualification if it conflicts with a .NET system type.
-    /// Also sanitizes the type name to be a valid C# identifier.
-    /// </summary>
-    /// <param name="typeName">The original type name from the OpenAPI schema.</param>
-    /// <param name="registry">Optional conflict registry for detecting naming conflicts.</param>
-    /// <returns>The resolved type name (fully qualified if conflicting).</returns>
-    public static string ResolveTypeName(
-        string typeName,
-        TypeConflictRegistry? registry = null)
-    {
-        // First sanitize the name to be a valid C# identifier
-        var sanitized = SanitizeSchemaName(typeName);
-
-        // Then check for conflicts with system types
-        return registry?.IsConflicting(sanitized) == true
-            ? registry.GetFullyQualifiedName(sanitized)
-            : sanitized;
-    }
-
     /// <param name="schema">The OpenAPI schema interface.</param>
     extension(IOpenApiSchema schema)
     {
+        /// <summary>
+        /// The date format of a string schema, lower case: <c>"date"</c> (a calendar day) or <c>"date-time"</c> (an
+        /// instant), whatever the case the specification writes it in (as the type mappers read it);
+        /// <see langword="null"/> for any other schema.
+        /// </summary>
+        public string? DateFormat
+            => schema.IsOfType(JsonSchemaType.String) &&
+               schema.Format?.ToLowerInvariant() is ("date" or "date-time") and var format
+                ? format
+                : null;
+
         /// <summary>
         /// Checks if the schema is a schema reference.
         /// </summary>
@@ -166,7 +219,7 @@ public static class OpenApiSchemaExtensions
             {
                 OpenApiSchemaReference schemaRef => SanitizeSchemaName(schemaRef.Reference.Id ?? "object"),
                 OpenApiSchema actualSchema when actualSchema.Type?.HasFlag(JsonSchemaType.Array) == true => actualSchema.GetArrayTypeName(),
-                OpenApiSchema actualSchema => actualSchema.Type.ToPrimitiveCSharpTypeName(actualSchema.Format) ?? "object",
+                OpenApiSchema actualSchema => WidenForBounds(EffectiveType(actualSchema).ToPrimitiveCSharpTypeName(actualSchema.Format) ?? "object", actualSchema),
                 _ => "object",
             };
 
@@ -176,45 +229,64 @@ public static class OpenApiSchemaExtensions
         /// Also checks the string representation for older formats.
         /// </summary>
         /// <returns>True if the schema allows null values.</returns>
-        public bool IsNullable()
+        public bool IsNullable
         {
-            if (schema is not OpenApiSchema openApiSchema)
+            get
             {
-                return false;
-            }
+                if (schema is not OpenApiSchema openApiSchema)
+                {
+                    return false;
+                }
 
-            // `nullable: true` is an OpenAPI 3.0 keyword. Microsoft.OpenApi up to 3.7.0 still
-            // honoured it inside a 3.1 document by folding it into the Null type flag; 3.10.2
-            // correctly stopped, because 3.1 replaced it with `type: [x, 'null']` — the keyword
-            // lands in UnrecognizedKeywords instead.
-            //
-            // The 3.1 spec is on the library's side, but silently flipping a consumer's generated
-            // model from `string?` to `string` on a package bump is a breaking change they never
-            // asked for and would not notice until it failed at runtime. So the keyword is still
-            // honoured wherever it appears, and ATC_API_SCH022 tells the author to migrate.
-            if (openApiSchema.UnrecognizedKeywords is { } unrecognized &&
-                unrecognized.TryGetValue("nullable", out var nullableNode) &&
-                nullableNode?.GetValueKind() == System.Text.Json.JsonValueKind.True)
-            {
-                return true;
-            }
+                // `nullable: true` is an OpenAPI 3.0 keyword. Microsoft.OpenApi up to 3.7.0 still
+                // honoured it inside a 3.1 document by folding it into the Null type flag; 3.10.2
+                // correctly stopped, because 3.1 replaced it with `type: [x, 'null']` — the keyword
+                // lands in UnrecognizedKeywords instead.
+                //
+                // The 3.1 spec is on the library's side, but silently flipping a consumer's generated
+                // model from `string?` to `string` on a package bump is a breaking change they never
+                // asked for and would not notice until it failed at runtime. So the keyword is still
+                // honoured wherever it appears, and ATC_API_SCH022 tells the author to migrate.
+                if (openApiSchema.UnrecognizedKeywords is { } unrecognized &&
+                    unrecognized.TryGetValue("nullable", out var nullableNode) &&
+                    nullableNode?.GetValueKind() == JsonValueKind.True)
+                {
+                    return true;
+                }
 
-            var schemaType = openApiSchema.Type;
-            if (schemaType is null)
-            {
-                return false;
-            }
+                var schemaType = openApiSchema.Type;
+                if (schemaType is null)
+                {
+                    return false;
+                }
 
-            // Check if the type includes the Null flag (JsonSchemaType is a flags enum)
-            if (schemaType.Value.HasFlag(JsonSchemaType.Null))
-            {
-                return true;
-            }
+                // Check if the type includes the Null flag (JsonSchemaType is a flags enum)
+                if (schemaType.Value.HasFlag(JsonSchemaType.Null))
+                {
+                    return true;
+                }
 
-            // Fallback: Check if the type string representation contains "null"
-            var typeString = schemaType.ToString();
-            return typeString is not null && typeString.Contains("Null", StringComparison.OrdinalIgnoreCase);
+                // Fallback: Check if the type string representation contains "null"
+                var typeString = schemaType.ToString();
+                return typeString is not null && typeString.Contains("Null", StringComparison.OrdinalIgnoreCase);
+            }
         }
+
+        /// <summary>
+        /// Checks the schema's type, ignoring nullability: <c>type: object</c>, the OpenAPI 3.1
+        /// <c>type: [object, 'null']</c> and the 3.0 <c>type: object</c> + <c>nullable: true</c>
+        /// are all of type <see cref="JsonSchemaType.Object"/>.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="JsonSchemaType"/> is a flags enum, so comparing <c>Type</c> with <c>==</c>
+        /// is false for a nullable schema — which then is neither generated nor resolved.
+        /// </remarks>
+        /// <param name="type">The single (non-null) type to check for.</param>
+        /// <returns>True when the schema's type, without the Null flag, is <paramref name="type"/>.</returns>
+        public bool IsOfType(JsonSchemaType type)
+            => schema is OpenApiSchema actual &&
+               EffectiveType(actual) is { } schemaType &&
+               (schemaType & ~JsonSchemaType.Null) == type;
 
         /// <summary>
         /// Determines whether a <c>oneOf</c> / <c>anyOf</c> composition carries a branch whose only
@@ -337,7 +409,7 @@ public static class OpenApiSchemaExtensions
                         continue;
                     }
 
-                    var refName = branchRef.Reference.Id ?? branchRef.Id;
+                    var refName = branchRef.ComponentName;
                     if (!string.IsNullOrEmpty(refName) && !result.Contains(refName!, StringComparer.Ordinal))
                     {
                         result.Add(refName!);
@@ -366,20 +438,6 @@ public static class OpenApiSchemaExtensions
             }
 
             return schemaType.Value.CountNonNullTypes() > 1;
-        }
-
-        /// <summary>
-        /// Gets the count of non-null types in the schema.
-        /// </summary>
-        /// <returns>The count of non-null types, or 0 if no type is defined.</returns>
-        public int GetNonNullTypeCount()
-        {
-            if (schema is not OpenApiSchema openApiSchema)
-            {
-                return 0;
-            }
-
-            return openApiSchema.Type?.CountNonNullTypes() ?? 0;
         }
 
         /// <summary>
@@ -414,37 +472,6 @@ public static class OpenApiSchemaExtensions
         // ========== OpenAPI 3.1 $ref with Sibling Properties ==========
 
         /// <summary>
-        /// Gets the effective description for a schema, considering OpenAPI 3.1 $ref with sibling support.
-        /// In OpenAPI 3.1, a description alongside a $ref overrides the referenced schema's description.
-        /// </summary>
-        /// <param name="document">The OpenAPI document for resolving references.</param>
-        /// <returns>The effective description, prioritizing sibling properties over target.</returns>
-        public string? GetEffectiveDescription(OpenApiDocument document)
-        {
-            // If schema has its own description (sibling property), use it
-            if (schema is OpenApiSchemaReference schemaRef)
-            {
-                // Check if the reference has a sibling description
-                if (!string.IsNullOrEmpty(schemaRef.Description))
-                {
-                    return schemaRef.Description;
-                }
-
-                // Fall back to target schema's description
-                var target = schema.ResolveSchema(document);
-                return target?.Description;
-            }
-
-            // For non-references, just return the schema's description
-            if (schema is OpenApiSchema actualSchema)
-            {
-                return actualSchema.Description;
-            }
-
-            return null;
-        }
-
-        /// <summary>
         /// Gets the <c>summary</c> value for a schema (OpenAPI 3.2 field).
         /// Microsoft.OpenApi 3.6.0 does not expose <c>summary</c> as a first-class property on
         /// <see cref="OpenApiSchema"/>, so the value is read from <see cref="OpenApiSchema.UnrecognizedKeywords"/>.
@@ -466,68 +493,6 @@ public static class OpenApiSchemaExtensions
         }
 
         /// <summary>
-        /// Gets the effective deprecated status for a schema, considering OpenAPI 3.1 $ref with sibling support.
-        /// In OpenAPI 3.1, a deprecated flag alongside a $ref can override the referenced schema's status.
-        /// </summary>
-        /// <param name="document">The OpenAPI document for resolving references.</param>
-        /// <returns>True if the schema is effectively deprecated.</returns>
-        public bool IsEffectivelyDeprecated(OpenApiDocument document)
-        {
-            // If schema has its own deprecated flag (sibling property), use it
-            if (schema is OpenApiSchemaReference schemaRef)
-            {
-                // Check if the reference is marked deprecated
-                if (schemaRef.Deprecated)
-                {
-                    return true;
-                }
-
-                // Fall back to target schema's deprecated status
-                var target = schema.ResolveSchema(document);
-                return target?.Deprecated ?? false;
-            }
-
-            // For non-references, just return the schema's deprecated status
-            if (schema is OpenApiSchema actualSchema)
-            {
-                return actualSchema.Deprecated;
-            }
-
-            return false;
-        }
-
-        /// <summary>
-        /// Gets the effective default value for a schema, considering OpenAPI 3.1 $ref with sibling support.
-        /// In OpenAPI 3.1, a default value alongside a $ref overrides the referenced schema's default.
-        /// </summary>
-        /// <param name="document">The OpenAPI document for resolving references.</param>
-        /// <returns>The effective default value, or null if none.</returns>
-        public JsonNode? GetEffectiveDefault(OpenApiDocument document)
-        {
-            // If schema has its own default (sibling property), use it
-            if (schema is OpenApiSchemaReference schemaRef)
-            {
-                // Check if the reference has a sibling default
-                if (schemaRef.Default is not null)
-                {
-                    return schemaRef.Default;
-                }
-
-                // Fall back to target schema's default
-                var target = schema.ResolveSchema(document);
-                return target?.Default;
-            }
-
-            // For non-references, just return the schema's default
-            if (schema is OpenApiSchema actualSchema)
-            {
-                return actualSchema.Default;
-            }
-
-            return null;
-        }
-
-        /// <summary>
         /// Checks if this schema reference has any sibling properties that would override
         /// the target schema's properties (OpenAPI 3.1 feature).
         /// </summary>
@@ -539,10 +504,11 @@ public static class OpenApiSchemaExtensions
                 return false;
             }
 
-            // Check for common sibling properties
-            return !string.IsNullOrEmpty(schemaRef.Description) ||
-                   schemaRef.Deprecated ||
-                   schemaRef.Default is not null;
+            // The reference's own siblings: OpenApiSchemaReference.Description falls back to the target's, so a bare $ref
+            // to a described schema would count as one
+            return !string.IsNullOrEmpty(schemaRef.Reference.Description) ||
+                   (schemaRef.Deprecated && schemaRef.Target?.Deprecated != true) ||
+                   (schemaRef.Default is not null && schemaRef.Target?.Default is null);
         }
 
         // ========== JSON Schema 2020-12 Support ==========
@@ -633,28 +599,6 @@ public static class OpenApiSchemaExtensions
         }
 
         /// <summary>
-        /// Gets the contentMediaType value from the schema (JSON Schema 2020-12 / OpenAPI 3.1).
-        /// ContentMediaType specifies the media type of the encoded content (e.g., "application/json", "image/png").
-        /// </summary>
-        /// <returns>The content media type, or null if not specified.</returns>
-        public string? GetContentMediaType()
-        {
-            if (schema is not OpenApiSchema actualSchema)
-            {
-                return null;
-            }
-
-            // Check UnrecognizedKeywords for contentMediaType
-            if (actualSchema.UnrecognizedKeywords is not null &&
-                actualSchema.UnrecognizedKeywords.TryGetValue("contentMediaType", out var value))
-            {
-                return value?.ToString();
-            }
-
-            return null;
-        }
-
-        /// <summary>
         /// Checks if the schema represents base64-encoded binary content.
         /// Returns true if contentEncoding is "base64" or "base64url".
         /// </summary>
@@ -696,22 +640,25 @@ public static class OpenApiSchemaExtensions
         /// PrefixItems defines a tuple with typed positional elements.
         /// </summary>
         /// <returns>True if prefixItems is defined.</returns>
-        public bool HasPrefixItems()
+        public bool HasPrefixItems
         {
-            if (schema is not OpenApiSchema actualSchema)
+            get
             {
-                return false;
-            }
+                if (schema is not OpenApiSchema actualSchema)
+                {
+                    return false;
+                }
 
-            // Microsoft.OpenApi 3.x doesn't surface prefixItems as a typed property — for
-            // OpenAPI 3.1 specs the YAML reader drops the keyword into UnrecognizedKeywords,
-            // and older specs that work around the parser put it under Extensions (with or
-            // without the "x-" prefix). Accept both so the helper works regardless of how
-            // the spec was written.
-            return (actualSchema.UnrecognizedKeywords is not null &&
-                    actualSchema.UnrecognizedKeywords.ContainsKey("prefixItems")) ||
-                   (actualSchema.Extensions is not null &&
-                    actualSchema.Extensions.ContainsKey("prefixItems"));
+                // Microsoft.OpenApi 3.x doesn't surface prefixItems as a typed property — for
+                // OpenAPI 3.1 specs the YAML reader drops the keyword into UnrecognizedKeywords,
+                // and older specs that work around the parser put it under Extensions (with or
+                // without the "x-" prefix). Accept both so the helper works regardless of how
+                // the spec was written.
+                return (actualSchema.UnrecognizedKeywords is not null &&
+                        actualSchema.UnrecognizedKeywords.ContainsKey("prefixItems")) ||
+                       (actualSchema.Extensions is not null &&
+                        actualSchema.Extensions.ContainsKey("prefixItems"));
+            }
         }
 
         /// <summary>
@@ -721,7 +668,7 @@ public static class OpenApiSchemaExtensions
         /// <returns>True if this is a strict tuple.</returns>
         public bool IsStrictTuple()
         {
-            if (!schema.HasPrefixItems())
+            if (!schema.HasPrefixItems)
             {
                 return false;
             }
@@ -759,13 +706,14 @@ public static class OpenApiSchemaExtensions
                 return null;
             }
 
-            if (actualSchema.Extensions is null ||
-                !actualSchema.Extensions.TryGetValue("prefixItems", out var extension))
+            // An OpenAPI 3.1 document carries prefixItems as an unrecognized keyword; older workarounds as an extension
+            var prefixItemsArray = TypeScriptTypeMapper.GetPrefixItemsArray(actualSchema);
+            if (prefixItemsArray is null)
             {
                 return null;
             }
 
-            var prefixItems = ExtractPrefixItemsFromExtension(extension, document, registry);
+            var prefixItems = ExtractPrefixItems(prefixItemsArray, document, registry);
             if (prefixItems.Count == 0)
             {
                 return null;
@@ -804,27 +752,21 @@ public static class OpenApiSchemaExtensions
         }
 
         /// <summary>
-        /// Extracts prefixItems schemas from an extension value.
+        /// Extracts the tuple items from the prefixItems array.
         /// </summary>
-        private static List<TupleItemInfo> ExtractPrefixItemsFromExtension(
-            IOpenApiExtension extension,
+        private static List<TupleItemInfo> ExtractPrefixItems(
+            JsonArray jsonArray,
             OpenApiDocument? document,
             TypeConflictRegistry? registry)
         {
             var result = new List<TupleItemInfo>();
-
-            if (extension is not JsonNodeExtension jsonNodeExt ||
-                jsonNodeExt.Node is not JsonArray jsonArray)
-            {
-                return result;
-            }
 
             var index = 0;
             foreach (var item in jsonArray)
             {
                 if (item is JsonObject schemaObj)
                 {
-                    var itemInfo = ParseTupleItemFromJson(schemaObj, index, document, registry);
+                    var itemInfo = ParseTupleItemFromJson(schemaObj, index, registry);
                     result.Add(itemInfo);
                 }
 
@@ -837,20 +779,215 @@ public static class OpenApiSchemaExtensions
         /// <summary>
         /// Parses a tuple item from a JSON schema object.
         /// </summary>
+        /// <summary>
+        /// The schema's type - or, without a <c>type</c> (JSON Schema 2020-12 needs none next to <c>const</c> or
+        /// <c>enum</c>), the type its values have: a const is kept as text by the reader, so it is a string; an enum
+        /// is the kind of its members (strings, integers, numbers or booleans; <c>null</c> members do not count).
+        /// Neither is an <c>object</c> no client could pass a value to.
+        /// </summary>
+        private static JsonSchemaType? EffectiveType(OpenApiSchema actual)
+        {
+            if (actual.Type is { } type)
+            {
+                return type;
+            }
+
+            if (!string.IsNullOrEmpty(actual.Const))
+            {
+                return JsonSchemaType.String;
+            }
+
+            var members = (actual.Enum ?? []).Where(m => m is JsonValue value && value.GetValueKind() != JsonValueKind.Null).Cast<JsonValue>().ToList();
+            if (members.Count == 0)
+            {
+                return null;
+            }
+
+            if (members.All(m => m.GetValueKind() == JsonValueKind.String))
+            {
+                return JsonSchemaType.String;
+            }
+
+            if (members.All(m => m.GetValueKind() is JsonValueKind.True or JsonValueKind.False))
+            {
+                return JsonSchemaType.Boolean;
+            }
+
+            if (members.All(m => m.GetValueKind() == JsonValueKind.Number))
+            {
+                return members.All(m => long.TryParse(m.ToJsonString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out _))
+                    ? JsonSchemaType.Integer
+                    : JsonSchemaType.Number;
+            }
+
+            return JsonSchemaType.String;
+        }
+
+        /// <summary>
+        /// Whether a schema's <c>default</c> can be the default of a C# parameter: a string, number or boolean for a
+        /// property that is a string, a number, a boolean or an enum (its own or one it wraps in <c>allOf</c>). A date
+        /// (<c>DateOnly</c> is no constant), an array or an object cannot.
+        /// </summary>
+        /// <param name="registry">The registry of the generation; with <see cref="TypeConflictRegistry.ExtensibleEnums"/> a string enum's member is no constant.</param>
+        public bool HasConstantDefault(TypeConflictRegistry? registry = null)
+            => DefaultIsConstant(schema, registry);
+
+        private static bool DefaultIsConstant(
+            IOpenApiSchema candidate,
+            TypeConflictRegistry? registry)
+        {
+            if (candidate is not OpenApiSchema actual ||
+                actual.Default is not JsonValue value ||
+                value.GetValueKind() is not (JsonValueKind.String or JsonValueKind.Number or JsonValueKind.True or JsonValueKind.False))
+            {
+                return false;
+            }
+
+            if ((actual.Enum is { Count: > 0 } ? actual : actual.WrappedEnum()) is { } enumSchema)
+            {
+                // A client's extensible enum is a struct: its members are no compile-time constants
+                return registry?.ExtensibleEnums != true || !enumSchema.IsOfType(JsonSchemaType.String);
+            }
+
+            var csharp = EffectiveType(actual).ToPrimitiveCSharpTypeName(actual.Format);
+            return csharp is "string" or "bool" or "int" or "long" or "short" or "double" or "float" or "decimal";
+        }
+
+        /// <summary>
+        /// The one reference the schema wraps in an <c>allOf</c> - <c>allOf: [$ref, {}]</c>, the OpenAPI 3.0 way to give
+        /// a reference a description or <c>nullable</c> (what springdoc writes) - or null: a schema with a type, its own
+        /// properties, items, an enum or another composition, or an <c>allOf</c> with more than a reference and empty
+        /// schemas, is no wrapper.
+        /// </summary>
+        /// <returns>The wrapped reference, or null.</returns>
+        public OpenApiSchemaReference? SingleWrappedReference()
+        {
+            if (schema is not OpenApiSchema wrapper ||
+                wrapper.AllOf is not { Count: > 0 } allOf ||
+                HasValueType(wrapper.Type) ||
+                wrapper.Properties is { Count: > 0 } ||
+                wrapper.OneOf is { Count: > 0 } ||
+                wrapper.AnyOf is { Count: > 0 } ||
+                wrapper.Items is not null ||
+                wrapper.Enum is { Count: > 0 })
+            {
+                return null;
+            }
+
+            var references = allOf.OfType<OpenApiSchemaReference>().ToList();
+            return references.Count == 1 && allOf.All(part => part is OpenApiSchemaReference || part.IsUntyped())
+                ? references[0]
+                : null;
+        }
+
+        /// <summary>
+        /// Whether the value has no text form - an object, a map, a composition without a type, or an array of any of
+        /// them - so it is no URL-encoded form field (or query value) a client can send or a server can bind; in a
+        /// multipart form it is sent as an application/json part. An enum or a model
+        /// wrapped as <c>allOf: [$ref]</c> is judged as what it wraps; an untyped schema is its text.
+        /// </summary>
+        /// <returns>True for a value with no text form.</returns>
+        public bool HasNoTextForm()
+        {
+            var value = (IOpenApiSchema?)schema.SingleWrappedReference() ?? schema;
+            if (value.Type?.HasFlag(JsonSchemaType.Array) == true)
+            {
+                return value.Items is { } items && items.HasNoTextForm();
+            }
+
+            return value.Type?.HasFlag(JsonSchemaType.Object) == true ||
+                   value.Properties is { Count: > 0 } ||
+                   ((value.Type is null || value.Type == JsonSchemaType.Null) &&
+                    (value.OneOf is { Count: > 0 } || value.AnyOf is { Count: > 0 } || value.AllOf is { Count: > 0 }));
+        }
+
+        /// <summary>
+        /// Whether a model property of this schema can be null (so a client checks it before sending it): its C#
+        /// type is nullable, or a reference type (a string, a <c>Uri</c>, an object). A required value type cannot.
+        /// </summary>
+        /// <param name="isRequired">Whether the model requires the property.</param>
+        /// <returns>True when the property can be null.</returns>
+        public bool CanBeNullInQueryObject(bool isRequired)
+        {
+            var type = schema.ToCSharpTypeForModel(isRequired);
+            return type.EndsWith("?", StringComparison.Ordinal) ||
+                   type is "string" or "object" or "Uri" or "System.Uri" or "byte[]";
+        }
+
+        /// <summary>
+        /// Whether the schema says nothing about the value (<c>{}</c>, or one with only a description or
+        /// <c>nullable</c>): no type but null, no format, properties, items, enum or composition. A parameter of such a
+        /// schema is the text it is on the wire.
+        /// </summary>
+        /// <returns>True for an untyped schema.</returns>
+        public bool IsUntyped()
+            => schema is OpenApiSchema actual &&
+               (actual.Type is null || actual.Type == JsonSchemaType.Null) &&
+               string.IsNullOrEmpty(actual.Format) &&
+               actual.Properties is null or { Count: 0 } &&
+               actual.Items is null &&
+               actual.Enum is null or { Count: 0 } &&
+               actual.AllOf is null or { Count: 0 } &&
+               actual.OneOf is null or { Count: 0 } &&
+               actual.AnyOf is null or { Count: 0 };
+
+        /// <summary>
+        /// The enum a property wraps as <c>allOf: [$ref]</c> (the 3.0 way to give a referenced enum a default or
+        /// a description), or <see langword="null"/>.
+        /// </summary>
+        /// <returns>The enum schema the single <c>allOf</c> reference points to.</returns>
+        public OpenApiSchema? WrappedEnum()
+            => schema is OpenApiSchema { AllOf: { Count: 1 } allOf } &&
+               allOf[0] is OpenApiSchemaReference { Target: OpenApiSchema { Enum.Count: > 0 } target }
+                ? target
+                : null;
+
+        private static (string? Value, bool IsExclusive) Bound(
+            string? inclusive,
+            string? exclusive)
+            => !string.IsNullOrEmpty(inclusive)
+                ? (inclusive, false)
+                : !string.IsNullOrEmpty(exclusive)
+                    ? (exclusive, true)
+                    : (null, false);
+
+        private static string? ParseNumberBound(string? bound)
+            => double.TryParse(bound, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) && !double.IsInfinity(value) && !double.IsNaN(value)
+                ? value.ToString(CultureInfo.InvariantCulture)
+                : null;
+
+        /// <summary>
+        /// An integer whose bounds do not fit an <c>int</c> (<c>maximum: 4294967295</c>) is a <c>long</c>.
+        /// </summary>
+        private static string WidenForBounds(
+            string typeName,
+            OpenApiSchema actual)
+        {
+            if (!string.Equals(typeName, "int", StringComparison.Ordinal))
+            {
+                return typeName;
+            }
+
+            return Exceeds(actual.Minimum) || Exceeds(actual.Maximum) ? "long" : typeName;
+
+            static bool Exceeds(string? bound)
+                => decimal.TryParse(bound, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) &&
+                   (value > int.MaxValue || value < int.MinValue);
+        }
+
         private static TupleItemInfo ParseTupleItemFromJson(
             JsonObject schemaObj,
             int index,
-            OpenApiDocument? document,
             TypeConflictRegistry? registry)
         {
             // Extract type info
-            var typeStr = schemaObj["type"]?.GetValue<string>() ?? "object";
-            var format = schemaObj["format"]?.GetValue<string>();
-            var description = schemaObj["description"]?.GetValue<string>();
+            var typeStr = JsonKeywordReader.StringOrNull(schemaObj["type"]) ?? "object";
+            var format = JsonKeywordReader.StringOrNull(schemaObj["format"]);
+            var description = JsonKeywordReader.StringOrNull(schemaObj["description"]);
             var nullable = schemaObj["nullable"]?.GetValue<bool>() ?? false;
 
             // Handle $ref
-            var refStr = schemaObj["$ref"]?.GetValue<string>();
+            var refStr = JsonKeywordReader.StringOrNull(schemaObj["$ref"]);
             string csharpType;
             var refName = !string.IsNullOrEmpty(refStr)
                 ? refStr!.Split('/').LastOrDefault()
@@ -906,13 +1043,14 @@ public static class OpenApiSchemaExtensions
             {
                 "string" when format == "uuid" => "Guid",
                 "string" when format == "date-time" => "DateTimeOffset",
-                "string" when format == "date" => "DateTimeOffset",
+                "string" when format == "date" => "DateOnly",
                 "string" when format == "uri" => "Uri",
                 "string" when format == "byte" => "byte[]",
                 "string" => "string",
                 "integer" when format == "int64" => "long",
                 "integer" => "int",
                 "number" when format == "float" => "float",
+                "number" when format == "decimal" => "decimal",
                 "number" => "double",
                 "boolean" => "bool",
                 _ => "object",
@@ -926,11 +1064,21 @@ public static class OpenApiSchemaExtensions
         {
             if (schema is OpenApiSchemaReference schemaRef)
             {
-                return schemaRef.Reference.Id ?? schemaRef.Id;
+                return schemaRef.ComponentName;
             }
 
             return null;
         }
+
+        /// <summary>
+        /// The component a reference names when that component is an alias - only a primitive or an array (no enum, no
+        /// composition): the generators emit no type for it, so the value takes the aliased type and its constraints.
+        /// </summary>
+        /// <returns>The aliased schema, or null when this is no reference to an alias.</returns>
+        public OpenApiSchema? AliasTarget
+            => schema is OpenApiSchemaReference { Target: OpenApiSchema target } && IsAliasSchema(target)
+                ? target
+                : null;
 
         /// <summary>
         /// Resolves a schema reference to the actual schema from the document.
@@ -960,18 +1108,47 @@ public static class OpenApiSchemaExtensions
         }
 
         /// <summary>
+        /// The validation attributes of a model property. A property that is required and nullable must be present
+        /// and may be null: it gets <c>[JsonRequired]</c> (presence, checked by the JSON reader) instead of
+        /// <c>[Required]</c>, which would answer an explicit null with a validation error.
+        /// </summary>
+        /// <param name="isRequired">Whether the property is in the schema's <c>required</c> list.</param>
+        /// <param name="isNullable">Whether the property's type allows null.</param>
+        /// <returns>The attributes, as <see cref="GetValidationAttributes"/> writes them.</returns>
+        public IList<string> GetModelValidationAttributes(
+            bool isRequired,
+            bool isNullable)
+        {
+            if (!isRequired || !isNullable)
+            {
+                return schema.GetValidationAttributes(isRequired);
+            }
+
+            var attributes = schema.GetValidationAttributes(isRequired: false);
+            attributes.Insert(0, "global::System.Text.Json.Serialization.JsonRequired");
+            return attributes;
+        }
+
+        /// <summary>
         /// Gets validation attributes for a schema based on OpenAPI constraints.
         /// </summary>
         /// <param name="isRequired">Whether the property is required.</param>
         /// <returns>A list of validation attribute strings (e.g., "Required", "Range(0, 100)").</returns>
         public IList<string> GetValidationAttributes(bool isRequired)
         {
-            IList<string> attributes = new List<string>();
+            var attributes = new List<string>();
 
             // Add Required attribute for required properties
             if (isRequired)
             {
                 attributes.Add("Required");
+            }
+
+            // A reference to an alias (a component that is only a primitive or an array, ProductCode: a string with a
+            // pattern) is no generated type: the value is the aliased type, so the component's constraints are its own
+            if (schema is OpenApiSchemaReference { Target: OpenApiSchema aliasTarget } && IsAliasSchema(aliasTarget))
+            {
+                return aliasTarget.GetValidationAttributes(isRequired);
             }
 
             // Handle actual schemas (not references)
@@ -980,113 +1157,164 @@ public static class OpenApiSchemaExtensions
                 return attributes;
             }
 
-            // Range validation for numeric types (use HasFlag for flags enum compatibility)
             var schemaType = actualSchema.Type ?? JsonSchemaType.Null;
-            if (schemaType.HasFlag(JsonSchemaType.Integer))
-            {
-                var hasMin = !string.IsNullOrEmpty(actualSchema.Minimum);
-                var hasMax = !string.IsNullOrEmpty(actualSchema.Maximum);
-
-                if (hasMin && hasMax)
-                {
-                    var min = long.Parse(actualSchema.Minimum!, CultureInfo.InvariantCulture);
-                    var max = long.Parse(actualSchema.Maximum!, CultureInfo.InvariantCulture);
-                    attributes.Add($"Range({min}, {max})");
-                }
-                else if (hasMin)
-                {
-                    var min = long.Parse(actualSchema.Minimum!, CultureInfo.InvariantCulture);
-                    attributes.Add($"Range({min}, long.MaxValue)");
-                }
-                else if (hasMax)
-                {
-                    var max = long.Parse(actualSchema.Maximum!, CultureInfo.InvariantCulture);
-                    attributes.Add($"Range(long.MinValue, {max})");
-                }
-            }
-            else if (schemaType.HasFlag(JsonSchemaType.Number))
-            {
-                var hasMin = !string.IsNullOrEmpty(actualSchema.Minimum);
-                var hasMax = !string.IsNullOrEmpty(actualSchema.Maximum);
-
-                if (hasMin && hasMax)
-                {
-                    var min = double.Parse(actualSchema.Minimum!, CultureInfo.InvariantCulture);
-                    var max = double.Parse(actualSchema.Maximum!, CultureInfo.InvariantCulture);
-                    attributes.Add($"Range({min.ToString(CultureInfo.InvariantCulture)}, {max.ToString(CultureInfo.InvariantCulture)})");
-                }
-                else if (hasMin)
-                {
-                    var min = double.Parse(actualSchema.Minimum!, CultureInfo.InvariantCulture);
-                    attributes.Add($"Range({min.ToString(CultureInfo.InvariantCulture)}, double.MaxValue)");
-                }
-                else if (hasMax)
-                {
-                    var max = double.Parse(actualSchema.Maximum!, CultureInfo.InvariantCulture);
-                    attributes.Add($"Range(double.MinValue, {max.ToString(CultureInfo.InvariantCulture)})");
-                }
-            }
-
-            // String length validation - use separate MinLength/MaxLength (match old generator style)
-            // Skip for formats that convert to non-string C# types (Uri, Guid, DateTimeOffset, byte[])
+            attributes.AddRange(RangeAttributes(actualSchema, schemaType));
             if (schemaType.HasFlag(JsonSchemaType.String))
             {
-                var format = actualSchema.Format?.ToLowerInvariant();
-                var isNonStringFormat = format is "uri" or "uuid" or "date" or "date-time" or "byte";
-
-                if (!isNonStringFormat)
-                {
-                    if (actualSchema.MinLength > 0)
-                    {
-                        attributes.Add($"MinLength({actualSchema.MinLength})");
-                    }
-
-                    if (actualSchema.MaxLength > 0)
-                    {
-                        attributes.Add($"MaxLength({actualSchema.MaxLength})");
-                    }
-
-                    // Regular expression validation
-                    if (!string.IsNullOrWhiteSpace(actualSchema.Pattern))
-                    {
-                        // Use verbatim string literal (@"...") to handle backslashes in regex patterns
-                        // In verbatim strings, double quotes are escaped by doubling them
-                        var escapedPattern = actualSchema.Pattern.Replace("\"", "\"\"");
-                        attributes.Add($"RegularExpression(@\"{escapedPattern}\")");
-                    }
-                }
-
-                // Format-based validation attributes
-                if (!string.IsNullOrEmpty(actualSchema.Format))
-                {
-                    switch (actualSchema.Format.ToLowerInvariant())
-                    {
-                        case "email":
-                            attributes.Add("EmailAddress");
-                            break;
-                    }
-                }
+                attributes.AddRange(StringAttributes(actualSchema));
             }
 
-            // Array length validation
             if (schemaType.HasFlag(JsonSchemaType.Array))
             {
-                var hasMinItems = actualSchema.MinItems > 0;
-                var hasMaxItems = actualSchema.MaxItems > 0;
-
-                if (hasMinItems)
-                {
-                    attributes.Add($"MinLength({actualSchema.MinItems})");
-                }
-
-                if (hasMaxItems)
-                {
-                    attributes.Add($"MaxLength({actualSchema.MaxItems})");
-                }
+                attributes.AddRange(ArrayAttributes(actualSchema));
             }
 
             return attributes;
         }
+
+        // Range for a numeric type (HasFlag for a type that also allows null)
+        private static IEnumerable<string> RangeAttributes(
+            OpenApiSchema actualSchema,
+            JsonSchemaType schemaType)
+        {
+            // An exclusive bound (the 3.0 boolean next to minimum/maximum, which the reader folds into
+            // exclusiveMinimum/exclusiveMaximum, or the 3.1 number) is the same Range with its exclusive flag
+            var (minimum, minimumIsExclusive) = Bound(actualSchema.Minimum, actualSchema.ExclusiveMinimum);
+            var (maximum, maximumIsExclusive) = Bound(actualSchema.Maximum, actualSchema.ExclusiveMaximum);
+            var flags = (minimumIsExclusive ? ", MinimumIsExclusive = true" : string.Empty) +
+                        (maximumIsExclusive ? ", MaximumIsExclusive = true" : string.Empty);
+            if (schemaType.HasFlag(JsonSchemaType.Integer))
+            {
+                // A bound may be written as a decimal or in exponent form (minimum: 1.0, maximum: 1e3):
+                // it is rounded inwards to the integers it allows. A bound that is no number is skipped.
+                var min = ParseIntegerBound(minimum, isMinimum: true);
+                var max = ParseIntegerBound(maximum, isMinimum: false);
+
+                if (min is not null || max is not null)
+                {
+                    // The open bound of an int (no int64 format) is int's, so the attribute binds the int constructor;
+                    // long's made it the double one, and a tool that builds values from the attribute (a test data
+                    // generator) then made doubles for an int
+                    var asInt = !string.Equals(actualSchema.Format, "int64", StringComparison.OrdinalIgnoreCase) &&
+                                (min ?? 0) is >= int.MinValue and <= int.MaxValue &&
+                                (max ?? 0) is >= int.MinValue and <= int.MaxValue;
+                    var minText = min?.ToString(CultureInfo.InvariantCulture);
+                    var maxText = max?.ToString(CultureInfo.InvariantCulture);
+                    yield return $"Range({minText ?? (asInt ? "int.MinValue" : "long.MinValue")}, {maxText ?? (asInt ? "int.MaxValue" : "long.MaxValue")}{flags}{OneBoundMessage(minText, minimumIsExclusive, maxText, maximumIsExclusive)})";
+                }
+            }
+            else if (schemaType.HasFlag(JsonSchemaType.Number))
+            {
+                var min = ParseNumberBound(minimum);
+                var max = ParseNumberBound(maximum);
+
+                if (min is not null || max is not null)
+                {
+                    yield return $"Range({min ?? "double.MinValue"}, {max ?? "double.MaxValue"}{flags}{OneBoundMessage(min, minimumIsExclusive, max, maximumIsExclusive)})";
+                }
+            }
+        }
+
+        // A Range with one bound says that bound: "at most 100", not the default "between -9.22E+18 and 100"
+        private static string OneBoundMessage(
+            string? minimum,
+            bool minimumIsExclusive,
+            string? maximum,
+            bool maximumIsExclusive)
+            => (minimum, maximum) switch
+            {
+                (null, { } max) => $", ErrorMessage = \"The field {{0}} must be {(maximumIsExclusive ? "less than" : "at most")} {max}.\"",
+                ({ } min, null) => $", ErrorMessage = \"The field {{0}} must be {(minimumIsExclusive ? "greater than" : "at least")} {min}.\"",
+                _ => string.Empty,
+            };
+
+        // String length validation: ApiMinLength/ApiMaxLength, the trim- and AOT-safe MinLength/MaxLength a generated
+        // project declares (LengthLimitAttributesExtractor)
+        // Skip for formats that convert to non-string C# types (Uri, Guid, DateTimeOffset, byte[], int, long) - a length
+        // attribute on one throws when it validates
+        private static IEnumerable<string> StringAttributes(
+            OpenApiSchema actualSchema)
+        {
+            var format = actualSchema.Format?.ToLowerInvariant();
+            var isNonStringFormat = format is "uri" or "uuid" or "guid" or "date" or "date-time" or "byte" or "int32" or "int" or "int64" or "long";
+
+            if (!isNonStringFormat)
+            {
+                if (actualSchema.MinLength > 0)
+                {
+                    yield return $"ApiMinLength({actualSchema.MinLength})";
+                }
+
+                if (actualSchema.MaxLength > 0)
+                {
+                    yield return $"ApiMaxLength({actualSchema.MaxLength})";
+                }
+
+                // Regular expression validation: ApiRegularExpression, the generated RegularExpression that matches an
+                // empty string against the pattern too (the base counts "" as valid; the specification's pattern
+                // applies to it). A verbatim literal keeps the backslashes; a double quote is doubled
+                if (!string.IsNullOrWhiteSpace(actualSchema.Pattern))
+                {
+                    var escapedPattern = actualSchema.Pattern.Replace("\"", "\"\"");
+                    yield return $"ApiRegularExpression(@\"{escapedPattern}\")";
+                }
+            }
+
+            // Format-based validation attributes: an email address; a uri is absolute (a relative reference is
+            // format: uri-reference), which the Uri it binds to does not check
+            switch (format)
+            {
+                case "email":
+                    yield return "EmailAddress";
+                    break;
+                case "uri":
+                    yield return "ApiAbsoluteUri";
+                    break;
+            }
+        }
+
+        // Array length validation
+        private static IEnumerable<string> ArrayAttributes(
+            OpenApiSchema actualSchema)
+        {
+            var hasMinItems = actualSchema.MinItems > 0;
+            var hasMaxItems = actualSchema.MaxItems > 0;
+
+            if (hasMinItems)
+            {
+                yield return $"ApiMinLength({actualSchema.MinItems})";
+            }
+
+            if (hasMaxItems)
+            {
+                yield return $"ApiMaxLength({actualSchema.MaxItems})";
+            }
+
+            // A pattern on the items (in place, or on the string component they reference): RegularExpression
+            // validates one string, so each item is matched by the generated ApiItemsRegularExpression
+            if (ItemPattern(actualSchema.Items) is { } itemPattern)
+            {
+                yield return $"ApiItemsRegularExpression(@\"{itemPattern.Replace("\"", "\"\"")}\")";
+            }
+
+            // Items of format: uri are absolute, as one is
+            var items = actualSchema.Items is OpenApiSchemaReference itemsRef ? itemsRef.AliasTarget : actualSchema.Items as OpenApiSchema;
+            if (items is { Type: { } itemType } && itemType.HasFlag(JsonSchemaType.String) &&
+                string.Equals(items.Format, "uri", StringComparison.OrdinalIgnoreCase))
+            {
+                yield return "ApiAbsoluteUri";
+            }
+        }
+
+        /// <summary>
+        /// The pattern every item of this array must match: the <c>pattern</c> of a string <c>items</c> schema, declared
+        /// in place or on the string component the items reference; null when there is none.
+        /// </summary>
+        /// <returns>The pattern, or null.</returns>
+        public string? GetItemPattern()
+            => schema is OpenApiSchema { Type: { } type } actual && type.HasFlag(JsonSchemaType.Array)
+                ? ItemPattern(actual.Items)
+                : null;
 
         /// <summary>
         /// Checks if schema represents a file or collection of files.
@@ -1129,8 +1357,15 @@ public static class OpenApiSchemaExtensions
             // Handle schema references
             if (schema is OpenApiSchemaReference schemaRef)
             {
+                // An alias (a component that is only an array or a primitive) is no generated type: the parameter
+                // takes the aliased type itself (string, List<string>, Guid, ...)
+                if (schemaRef.Target is OpenApiSchema aliasTarget && IsAliasSchema(aliasTarget))
+                {
+                    return aliasTarget.ToCSharpType(isRequired, registry);
+                }
+
                 // Try Reference.Id first (Microsoft.OpenApi v3.0+), fall back to Id
-                var refName = schemaRef.Reference.Id ?? schemaRef.Id ?? "object";
+                var refName = schemaRef.ComponentName ?? "object";
                 refName = ResolveTypeName(refName, registry);
                 return isRequired ? refName : $"{refName}?";
             }
@@ -1156,7 +1391,7 @@ public static class OpenApiSchemaExtensions
             }
 
             // Handle primitive types using HasFlag for combined flags (e.g., String | Null)
-            var baseType = schema1.Type.ToCSharpTypeName(schema1.Format, includeIFormFile: true);
+            var baseType = WidenForBounds(EffectiveType(schema1).ToCSharpTypeName(schema1.Format, includeIFormFile: true), schema1);
 
             // For parameters: optional value types and strings should be nullable
             if (!isRequired && (CSharpTypeHelper.IsExtendedValueType(baseType) || baseType == "string"))
@@ -1169,8 +1404,8 @@ public static class OpenApiSchemaExtensions
 
         /// <summary>
         /// Maps an OpenAPI schema to a C# type string for model properties.
-        /// Only properties with nullable: true in the schema are made nullable.
-        /// The isRequired parameter only affects value types (which need ? to be optional).
+        /// A property is nullable when the schema says so (<c>nullable: true</c>, <c>type: [..., "null"]</c>), or when it
+        /// is optional (not in <c>required</c>) and has no <c>default</c>: a property left out of the JSON is null.
         /// </summary>
         /// <param name="isRequired">Whether the property is in the required array.</param>
         /// <param name="registry">Optional conflict registry for detecting naming conflicts.</param>
@@ -1179,11 +1414,28 @@ public static class OpenApiSchemaExtensions
             bool isRequired,
             TypeConflictRegistry? registry = null)
         {
-            // Handle schema references - references are never nullable based on required alone
+            // Optional without a default: a property the JSON leaves out is null - for a value type not a default
+            // (0, false) that looks like a sent value, for a reference type not a "never null" the compiler trusts.
+            // A default no C# constant can hold (a date, an array, an object) is no default for the parameter: the
+            // property stays optional and nullable, as if it had none
+            var isOptional = !isRequired && !DefaultIsConstant(schema, registry);
+
+            // Handle schema references (a model, or an enum)
             if (schema is OpenApiSchemaReference schemaRef)
             {
-                var refName = schemaRef.Reference.Id ?? schemaRef.Id ?? "object";
-                return ResolveTypeName(refName, registry);
+                // An alias (a component that is only an array or a primitive) is no generated type:
+                // the property takes the aliased type itself (List<string>, Guid, ...).
+                if (schemaRef.Target is OpenApiSchema aliasTarget && IsAliasSchema(aliasTarget))
+                {
+                    return aliasTarget.ToCSharpTypeForModel(isRequired, registry);
+                }
+
+                var refName = schemaRef.ComponentName ?? "object";
+                var refTypeName = ResolveTypeName(refName, registry);
+
+                // A component that allows null (type: [object, 'null']) makes the property nullable
+                // even when it is required.
+                return isOptional || schemaRef.Target.IsNullable ? $"{refTypeName}?" : refTypeName;
             }
 
             // Handle actual schemas
@@ -1193,7 +1445,7 @@ public static class OpenApiSchemaExtensions
             }
 
             // Check if schema has nullable: true (in OpenAPI 3.1/Microsoft.OpenApi 3.0.x, this is indicated by JsonSchemaType.Null flag)
-            var isNullable = schema1.IsNullable();
+            var isNullable = schema1.IsNullable || isOptional;
 
             // Handle allOf compositions (commonly used for nullable $ref in OpenAPI 3.0)
             // Pattern: allOf: [ $ref: "#/..." ] with nullable: true
@@ -1204,18 +1456,8 @@ public static class OpenApiSchemaExtensions
                 {
                     if (subSchema is OpenApiSchemaReference allOfRef)
                     {
-                        // Check if the referenced schema is a polymorphic type (oneOf/anyOf)
-                        // Polymorphic base types are not currently generated by the generators,
-                        // so we fall back to object to maintain compatibility
-                        var targetSchema = allOfRef.Target;
-                        if (targetSchema is not null && targetSchema.HasPolymorphicComposition())
-                        {
-                            return isNullable
-                                ? "object?"
-                                : "object";
-                        }
-
-                        var refName = allOfRef.Reference.Id ?? allOfRef.Id ?? "object";
+                        // A polymorphic component (oneOf/anyOf) is a generated base type with its converter too
+                        var refName = allOfRef.ComponentName ?? "object";
                         var typeName = ResolveTypeName(refName, registry);
                         return isNullable ? $"{typeName}?" : typeName;
                     }
@@ -1255,11 +1497,78 @@ public static class OpenApiSchemaExtensions
             }
 
             // Handle primitive types using HasFlag for combined flags (e.g., String | Null)
-            var baseType = schema1.Type.ToCSharpTypeName(schema1.Format, includeIFormFile: true);
+            var baseType = WidenForBounds(EffectiveType(schema1).ToCSharpTypeName(schema1.Format, includeIFormFile: true), schema1);
 
-            // For models: all types (value and reference) are only nullable if nullable: true is set in the schema
-            // The required array means "must be present in JSON", not "cannot be null"
-            return isNullable ? $"{baseType}?" : baseType;
+            return isNullable
+                ? $"{baseType}?"
+                : baseType;
+        }
+
+        /// <summary>
+        /// Reads an integer schema's <c>minimum</c> / <c>maximum</c>, which a specification may write as any
+        /// JSON number. Rounded inwards (a minimum up, a maximum down) and limited to the range of a long.
+        /// </summary>
+        private static long? ParseIntegerBound(
+            string? bound,
+            bool isMinimum)
+        {
+            if (string.IsNullOrEmpty(bound) ||
+                !decimal.TryParse(bound, NumberStyles.Float, CultureInfo.InvariantCulture, out var value))
+            {
+                return null;
+            }
+
+            value = isMinimum ? decimal.Ceiling(value) : decimal.Floor(value);
+            if (value <= long.MinValue)
+            {
+                return long.MinValue;
+            }
+
+            return value >= long.MaxValue ? long.MaxValue : (long)value;
+        }
+
+        /// <summary>
+        /// A component schema that only names an array or a primitive (no enum, no composition,
+        /// no tuple) - the generators emit no type for it.
+        /// </summary>
+        private static bool IsAliasSchema(OpenApiSchema target)
+        {
+            if (EffectiveType(target) is not { } type ||
+                target.AllOf is { Count: > 0 } ||
+                target.HasPolymorphicComposition ||
+                target.HasPrefixItems)
+            {
+                return false;
+            }
+
+            var withoutNull = type & ~JsonSchemaType.Null;
+
+            // A string or integer enum is a generated enum type; a number or boolean enum has no C# enum to be and
+            // is its primitive, with the values in the documentation
+            if (target.Enum is { Count: > 0 } && withoutNull is JsonSchemaType.String or JsonSchemaType.Integer)
+            {
+                return false;
+            }
+
+            return withoutNull != default && withoutNull != JsonSchemaType.Object;
+        }
+
+        // The pattern of an array's string items: declared in place, or on the string component they reference
+        private static string? ItemPattern(IOpenApiSchema? items)
+        {
+            var item = items switch
+            {
+                OpenApiSchemaReference { Target: OpenApiSchema target } when IsAliasSchema(target) => target,
+                OpenApiSchema inPlace => inPlace,
+                _ => null,
+            };
+
+            return item is { Type: { } type } &&
+                   type.HasFlag(JsonSchemaType.String) &&
+                   !string.IsNullOrWhiteSpace(item.Pattern) &&
+                   item.Format?.ToLowerInvariant() is not ("uri" or "uuid" or "date" or "date-time" or "byte")
+                ? item.Pattern
+                : null;
         }
 
         /// <summary>
@@ -1308,7 +1617,7 @@ public static class OpenApiSchemaExtensions
         /// Checks if the schema uses polymorphic composition (oneOf or anyOf).
         /// </summary>
         /// <returns>True if the schema has oneOf or anyOf elements.</returns>
-        public bool HasPolymorphicComposition()
+        public bool HasPolymorphicComposition
             => schema.HasOneOfComposition() || schema.HasAnyOfComposition();
 
         /// <summary>
@@ -1323,7 +1632,7 @@ public static class OpenApiSchemaExtensions
         /// Gets the discriminator property name from a polymorphic schema.
         /// </summary>
         /// <returns>The discriminator property name, or null if not defined.</returns>
-        public string? GetDiscriminatorPropertyName()
+        public string? DiscriminatorPropertyName
             => schema is not OpenApiSchema actualSchema
                 ? null
                 : actualSchema.Discriminator?.PropertyName;
@@ -1403,7 +1712,7 @@ public static class OpenApiSchemaExtensions
                 {
                     if (subSchema is OpenApiSchemaReference schemaRef)
                     {
-                        var refId = schemaRef.Reference.Id ?? schemaRef.Id;
+                        var refId = schemaRef.ComponentName;
                         if (!string.IsNullOrEmpty(refId))
                         {
                             result.Add(refId!);
@@ -1419,7 +1728,7 @@ public static class OpenApiSchemaExtensions
                 {
                     if (subSchema is OpenApiSchemaReference schemaRef)
                     {
-                        var refId = schemaRef.Reference.Id ?? schemaRef.Id;
+                        var refId = schemaRef.ComponentName;
                         if (!string.IsNullOrEmpty(refId))
                         {
                             result.Add(refId!);
@@ -1432,8 +1741,12 @@ public static class OpenApiSchemaExtensions
         }
 
         /// <summary>
-        /// Auto-detects a discriminator property from polymorphic variant schemas.
-        /// Looks for a common string property with priority: "type", "kind", "discriminator", "$type".
+        /// Auto-detects the discriminator property of a <c>oneOf</c> / <c>anyOf</c> without a <c>propertyName</c>.
+        /// With a <c>discriminator</c> block (OpenAPI 3.2 allows one without <c>propertyName</c>) the block says there
+        /// is one: a string property every variant has is it ("type", "kind", "discriminator", "$type" first). Without
+        /// a block, a property every variant has is a discriminator only when each variant pins it to a value of its
+        /// own (<c>const</c> or a one-value <c>enum</c>), or when it has one of those names; any other common property
+        /// (a <c>color</c> on every shape) is data, and the variants are told apart by their properties instead.
         /// </summary>
         /// <param name="document">The OpenAPI document for resolving schema references.</param>
         /// <returns>The detected discriminator property name, or null if not found.</returns>
@@ -1453,67 +1766,93 @@ public static class OpenApiSchemaExtensions
             // Priority list of common discriminator property names
             var priorityNames = new[] { "type", "kind", "discriminator", "$type" };
 
-            // Get all string properties from each variant schema
-            var variantProperties = new List<HashSet<string>>();
+            // The string properties of each variant (a pinned const without a type is a string too)
+            var variants = new List<OpenApiSchema>();
             foreach (var variantName in variantNames)
             {
-                if (document.Components?.Schemas is null ||
-                    !document.Components.Schemas.TryGetValue(variantName, out var variantSchema))
+                if (document.Components?.Schemas is not null &&
+                    document.Components.Schemas.TryGetValue(variantName, out var variantSchema) &&
+                    variantSchema is OpenApiSchema { Properties: not null } actualVariant)
                 {
-                    continue;
+                    variants.Add(actualVariant);
                 }
-
-                if (variantSchema is not OpenApiSchema actualVariant || actualVariant.Properties is null)
-                {
-                    continue;
-                }
-
-                var stringProps = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                foreach (var prop in actualVariant.Properties)
-                {
-                    if (prop.Value is OpenApiSchema propSchema &&
-                        propSchema.Type?.HasFlag(JsonSchemaType.String) == true)
-                    {
-                        stringProps.Add(prop.Key);
-                    }
-                }
-
-                variantProperties.Add(stringProps);
             }
 
-            if (variantProperties.Count == 0)
+            if (variants.Count == 0)
             {
                 return null;
             }
 
-            // Find common properties across all variants
-            var commonProps = variantProperties[0];
-            for (var i = 1; i < variantProperties.Count; i++)
-            {
-                commonProps = new HashSet<string>(
-                    commonProps.Where(p => variantProperties[i].Contains(p, StringComparer.OrdinalIgnoreCase)),
+            HashSet<string> StringProperties(OpenApiSchema variant)
+                => new(
+                    variant.Properties!
+                        .Where(p => p.Value is OpenApiSchema propSchema &&
+                                    (propSchema.Type?.HasFlag(JsonSchemaType.String) == true || variant.GetPinnedStringValue(p.Key) is not null))
+                        .Select(p => p.Key),
                     StringComparer.OrdinalIgnoreCase);
-            }
 
-            // Check priority names first
-            foreach (var priorityName in priorityNames)
+            // Find common properties across all variants
+            var commonProps = StringProperties(variants[0]);
+            foreach (var variant in variants.Skip(1))
             {
-                if (commonProps.Contains(priorityName, StringComparer.OrdinalIgnoreCase))
-                {
-                    // Return the actual property name with correct casing
-                    foreach (var prop in commonProps)
-                    {
-                        if (prop.Equals(priorityName, StringComparison.OrdinalIgnoreCase))
-                        {
-                            return prop;
-                        }
-                    }
-                }
+                commonProps.IntersectWith(StringProperties(variant));
             }
 
-            // If no priority name found, return the alphabetically first common string property
-            // (sorted for deterministic output across GC runs and .NET versions)
-            return commonProps.Count > 0 ? commonProps.OrderBy(p => p, StringComparer.Ordinal).First() : null;
+            if (commonProps.Count == 0)
+            {
+                return null;
+            }
+
+            // The property with its declared casing, priority names first, then in order
+            var ordered = commonProps
+                .OrderBy(p => Array.FindIndex(priorityNames, n => n.Equals(p, StringComparison.OrdinalIgnoreCase)) is var i and >= 0 ? i : priorityNames.Length)
+                .ThenBy(p => p, StringComparer.Ordinal)
+                .ToList();
+
+            if (schema is OpenApiSchema { Discriminator: not null })
+            {
+                return ordered[0];
+            }
+
+            // Without a block: a property each variant pins to a distinct value, else one with a discriminator's name
+            var pinned = ordered.FirstOrDefault(p =>
+            {
+                var values = variants.Select(v => v.GetPinnedStringValue(p)).ToList();
+                return values.All(v => v is not null) && values.Distinct(StringComparer.Ordinal).Count() == values.Count;
+            });
+
+            return pinned ?? ordered.FirstOrDefault(p => priorityNames.Contains(p, StringComparer.OrdinalIgnoreCase));
+        }
+
+        /// <summary>
+        /// The one value a property of this object schema is pinned to: its <c>const</c>, or the single value of its
+        /// <c>enum</c> - what a variant of a discriminated union says its discriminator is.
+        /// </summary>
+        /// <param name="propertyName">The property name (compared without case).</param>
+        /// <returns>The pinned string value, or null when the property is not pinned to one string.</returns>
+        public string? GetPinnedStringValue(string propertyName)
+        {
+            if (schema is not OpenApiSchema { Properties: not null } actualSchema)
+            {
+                return null;
+            }
+
+            var property = actualSchema.Properties
+                .FirstOrDefault(p => string.Equals(p.Key, propertyName, StringComparison.OrdinalIgnoreCase))
+                .Value as OpenApiSchema;
+            if (property is null)
+            {
+                return null;
+            }
+
+            if (!string.IsNullOrEmpty(property.Const))
+            {
+                return property.Const;
+            }
+
+            return property.Enum is { Count: 1 } values && values[0] is JsonValue value && value.TryGetValue<string>(out var text)
+                ? text
+                : null;
         }
 
         /// <summary>
@@ -1568,34 +1907,7 @@ public static class OpenApiSchemaExtensions
                 return "object";
             }
 
-            if (actualSchema.AdditionalProperties is null)
-            {
-                return "object";
-            }
-
-            // Handle schema reference
-            if (actualSchema.AdditionalProperties is OpenApiSchemaReference schemaRef)
-            {
-                var refName = schemaRef.Reference?.Id ?? schemaRef.Id ?? "object";
-                return ResolveTypeName(refName, registry);
-            }
-
-            // Handle inline schema
-            if (actualSchema.AdditionalProperties is OpenApiSchema addPropsSchema)
-            {
-                // Untyped (additionalProperties: true) or empty schema
-                if (addPropsSchema.Type is null ||
-                    addPropsSchema.Type == JsonSchemaType.Null ||
-                    (addPropsSchema.Type.Value == default && addPropsSchema.Properties?.Count is null or 0))
-                {
-                    return "object";
-                }
-
-                // Typed (additionalProperties: { type: ... })
-                return addPropsSchema.Type.ToPrimitiveCSharpTypeName(addPropsSchema.Format) ?? "object";
-            }
-
-            return "object";
+            return DictionaryValueType(actualSchema.AdditionalProperties, registry, depth: 0);
         }
 
         /// <summary>
@@ -1641,7 +1953,7 @@ public static class OpenApiSchemaExtensions
             {
                 if (subSchema is OpenApiSchemaReference schemaRef)
                 {
-                    return schemaRef.Reference.Id ?? schemaRef.Id;
+                    return schemaRef.ComponentName;
                 }
             }
 
@@ -1703,6 +2015,15 @@ public static class OpenApiSchemaExtensions
 
                         return itemType;
                     }
+
+                    // The override names an array alias component (results: $ref Accounts): its items are the page's items
+                    if (prop.Value is OpenApiSchemaReference { Target: OpenApiSchema aliasSchema } &&
+                        aliasSchema.IsOfType(JsonSchemaType.Array) &&
+                        aliasSchema.Items is not null &&
+                        !aliasSchema.HasPrefixItems)
+                    {
+                        return aliasSchema.GetArrayItemType(registry);
+                    }
                 }
             }
 
@@ -1731,7 +2052,7 @@ public static class OpenApiSchemaExtensions
             }
 
             // Check if it's an array schema
-            if (schemaInterface is OpenApiSchema { Type: JsonSchemaType.Array } arraySchema)
+            if (schemaInterface is OpenApiSchema arraySchema && arraySchema.IsOfType(JsonSchemaType.Array))
             {
                 // Return the array's item type instead
                 return arraySchema.GetArrayItemType(registry);
@@ -1756,14 +2077,14 @@ public static class OpenApiSchemaExtensions
             // Handle schema references first - this covers simple $ref cases
             if (schema is OpenApiSchemaReference schemaRef)
             {
-                var refId = schemaRef.Reference.Id ?? schemaRef.Id;
+                var refId = schemaRef.ComponentName;
 
                 if (!string.IsNullOrEmpty(refId))
                 {
                     // Check if this reference points to an array schema (array alias)
                     if (document.Components?.Schemas is not null &&
                         document.Components.Schemas.TryGetValue(refId!, out var resolvedSchema) &&
-                        resolvedSchema is OpenApiSchema { Type: JsonSchemaType.Array } arraySchema &&
+                        resolvedSchema is OpenApiSchema arraySchema && arraySchema.IsOfType(JsonSchemaType.Array) &&
                         arraySchema.Items is not null)
                     {
                         // It's an array alias - resolve to actual array type with type conflict resolution
@@ -1849,7 +2170,7 @@ public static class OpenApiSchemaExtensions
             }
 
             // Check if it's an array schema
-            if (schemaInterface is not OpenApiSchema { Type: JsonSchemaType.Array } arraySchema)
+            if (schemaInterface is not OpenApiSchema arraySchema || !arraySchema.IsOfType(JsonSchemaType.Array))
             {
                 return typeName;
             }
@@ -1873,22 +2194,8 @@ public static class OpenApiSchemaExtensions
                 return result;
             }
 
-            // Look for x-implements extension
-            if (actualSchema.Extensions is null ||
-                !actualSchema.Extensions.TryGetValue("x-implements", out var extension))
-            {
-                return result;
-            }
-
-            // Use reflection to access Node property (Microsoft.OpenApi v3.0.1 pattern)
-            var extensionType = extension.GetType();
-            var nodeProperty = extensionType.GetProperty("Node");
-            if (nodeProperty is null)
-            {
-                return result;
-            }
-
-            var node = nodeProperty.GetValue(extension);
+            // The x-implements extension: a list of names, or one text of comma-separated names
+            var node = actualSchema.Extensions.NodeOf("x-implements");
 
             // Handle array of interface names
             if (node is JsonArray jsonArray)
@@ -1977,6 +2284,11 @@ public static class OpenApiSchemaExtensions
             {
                 case null:
                     return "object";
+
+                // An item that names a primitive alias (ProductCode: a string) is that primitive; an array alias keeps
+                // its name, which the callers unwrap to its own items (ResolveArrayAliasType)
+                case OpenApiSchemaReference { Target: OpenApiSchema aliasTarget } when IsAliasSchema(aliasTarget) && !aliasTarget.IsOfType(JsonSchemaType.Array):
+                    return aliasTarget.ToCSharpType(true, registry);
                 case OpenApiSchemaReference itemRef:
                 {
                     var itemRefName = itemRef.Reference.Id ?? "object";
@@ -1989,5 +2301,46 @@ public static class OpenApiSchemaExtensions
                     return "object";
             }
         }
+    }
+
+    // A type other than null ('nullable: true' alone says nothing about the value)
+    private static bool HasValueType(JsonSchemaType? type)
+        => type is { } value && (value | JsonSchemaType.Null) != JsonSchemaType.Null;
+
+    // The C# type of a dictionary's value: a referenced model by its name, a primitive by its type, an array as a
+    // List of its item type, a nested map as a Dictionary - anything else (untyped, an inline object) object
+    private static string DictionaryValueType(
+        IOpenApiSchema? value,
+        TypeConflictRegistry? registry,
+        int depth)
+    {
+        if (value is null || depth > 16)
+        {
+            return "object";
+        }
+
+        if (value is OpenApiSchemaReference reference)
+        {
+            return ResolveTypeName(reference.Reference?.Id ?? reference.Id ?? "object", registry);
+        }
+
+        if (value is not OpenApiSchema inline || !HasValueType(inline.Type))
+        {
+            return "object";
+        }
+
+        if (inline.Type!.Value.HasFlag(JsonSchemaType.Array))
+        {
+            return $"List<{DictionaryValueType(inline.Items, registry, depth + 1)}>";
+        }
+
+        if (inline.Type.Value.HasFlag(JsonSchemaType.Object))
+        {
+            return inline.AdditionalProperties is not null && inline.Properties is null or { Count: 0 }
+                ? $"Dictionary<string, {DictionaryValueType(inline.AdditionalProperties, registry, depth + 1)}>"
+                : "object";
+        }
+
+        return inline.Type.ToPrimitiveCSharpTypeName(inline.Format) ?? "object";
     }
 }

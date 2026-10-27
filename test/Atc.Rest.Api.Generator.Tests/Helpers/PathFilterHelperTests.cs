@@ -2,6 +2,40 @@ namespace Atc.Rest.Api.Generator.Tests.Helpers;
 
 public class PathFilterHelperTests
 {
+    private const string PathsYaml = """
+        openapi: 3.0.0
+        info: { title: T, version: 1.0.0 }
+        paths:
+          /pets:
+            get:
+              operationId: listPets
+              responses:
+                '200': { description: OK }
+          /pets/{id}:
+            get:
+              operationId: getPet
+              parameters:
+                - { name: id, in: path, required: true, schema: { type: string } }
+              responses:
+                '200': { description: OK }
+          /pets/internal:
+            get:
+              operationId: getInternal
+              responses:
+                '200': { description: OK }
+          /users:
+            get:
+              operationId: listUsers
+              responses:
+                '200': { description: OK }
+        components:
+          schemas:
+            Pet:
+              type: object
+              properties:
+                name: { type: string }
+        """;
+
     [Theory]
     [InlineData("/pets", "/pets", true)]
     [InlineData("/pets", "/users", false)]
@@ -103,21 +137,81 @@ public class PathFilterHelperTests
     }
 
     [Fact]
-    public void MatchesPattern_PathologicalDoubleStars_TerminatesQuickly()
+    public async Task MatchesPattern_PathologicalDoubleStars_TerminatesQuickly()
     {
         // Regression guard for Copilot review item: the recursive backtracking matcher
         // was worst-case exponential on patterns with many ** against paths missing the
-        // literal anchors. The DP matcher should evaluate each (i, j) state once.
-        const string pattern = "/**/a/**/b/**/c/**/d/**/e";
-        var path = "/" + string.Join("/", Enumerable.Repeat("x", 30));
+        // literal anchors. The DP matcher evaluates each (i, j) state once: about 3,400 states here, against some
+        // 10^13 steps for backtracking. With that margin on both sides the 10-second bound cannot flake under coverage
+        // instrumentation or a busy machine, and a regression fails instead of hanging the run.
+        const string pattern = "/**/a/**/b/**/c/**/d/**/e/**/f/**/g/**/h";
+        var path = "/" + string.Join("/", Enumerable.Repeat("x", 200));
 
-        var sw = Stopwatch.StartNew();
-        var result = PathFilterHelper.MatchesPattern(path, pattern);
-        sw.Stop();
+        // A TimeoutException here suggests a backtracking regression
+        var result = await Task
+            .Run(() => PathFilterHelper.MatchesPattern(path, pattern), TestContext.Current.CancellationToken)
+            .WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
 
         Assert.False(result);
-        Assert.True(
-            sw.ElapsedMilliseconds < 500,
-            $"Matcher took {sw.ElapsedMilliseconds}ms — suggests backtracking regression.");
+    }
+
+    [Theory]
+    [InlineData("/pets/{id}", true)] // second pattern
+    [InlineData("/users/1/orders", true)] // first pattern
+    [InlineData("/orders", false)]
+    public void MatchesAnyPattern_ReturnsTrueWhenAnyPatternMatches(
+        string path,
+        bool expected)
+    {
+        var patterns = new List<string> { "/users/**", "/pets/*" };
+
+        Assert.Equal(expected, PathFilterHelper.MatchesAnyPattern(path, patterns));
+    }
+
+    [Fact]
+    public void MatchesAnyPattern_NoPatterns_ReturnsFalse()
+    {
+        Assert.False(PathFilterHelper.MatchesAnyPattern("/pets", new List<string>()));
+    }
+
+    [Fact]
+    public void WithFilteredPaths_IncludeAndExclude_ReturnsACopyWithOnlyTheAllowedPaths()
+    {
+        var document = OpenApiDocumentHelper.ParseYaml(PathsYaml);
+
+        var filtered = PathFilterHelper.WithFilteredPaths(document, ["/pets/**"], ["/pets/internal"]);
+
+        Assert.NotSame(document, filtered);
+        Assert.Equal(["/pets", "/pets/{id}"], filtered.Paths.Keys.OrderBy(k => k, StringComparer.Ordinal), StringComparer.Ordinal);
+        Assert.Same(document.Paths["/pets"], filtered.Paths["/pets"]);
+        Assert.True(filtered.Components!.Schemas!.ContainsKey("Pet"));
+
+        // The given (possibly cached) document is untouched
+        Assert.Equal(4, document.Paths.Count);
+    }
+
+    [Fact]
+    public void WithFilteredPaths_ExcludeOnly_RemovesTheMatchingPaths()
+    {
+        var document = OpenApiDocumentHelper.ParseYaml(PathsYaml);
+
+        var filtered = PathFilterHelper.WithFilteredPaths(document, null, ["/users"]);
+
+        Assert.Equal(["/pets", "/pets/internal", "/pets/{id}"], filtered.Paths.Keys.OrderBy(k => k, StringComparer.Ordinal), StringComparer.Ordinal);
+    }
+
+    [Fact]
+    public void WithFilteredPaths_NoFilter_ReturnsTheSameDocument()
+    {
+        var document = OpenApiDocumentHelper.ParseYaml(PathsYaml);
+
+        Assert.Same(document, PathFilterHelper.WithFilteredPaths(document, null, null));
+        Assert.Same(document, PathFilterHelper.WithFilteredPaths(document, [], []));
+    }
+
+    [Fact]
+    public void WithFilteredPaths_NullDocument_Throws()
+    {
+        Assert.Throws<ArgumentNullException>(() => PathFilterHelper.WithFilteredPaths(null!, ["/pets"], null));
     }
 }

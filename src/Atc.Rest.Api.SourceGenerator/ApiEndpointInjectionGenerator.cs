@@ -8,9 +8,12 @@ namespace Atc.Rest.Api.SourceGenerator;
 [Generator(LanguageNames.CSharp)]
 public class ApiEndpointInjectionGenerator : IIncrementalGenerator
 {
-    private const string AttributeName = "EndpointRegistrationAttribute";
-    private const string AttributeShortName = "EndpointRegistration";
+    private const string AttributeMetadataName = "Atc.Rest.Api.SourceGenerator.EndpointRegistrationAttribute";
 
+    /// <summary>
+    /// Registers the pipeline: the partial classes decorated with <c>[EndpointRegistration]</c>, and the endpoint fields and constructors as the output.
+    /// </summary>
+    /// <param name="context">The initialization context.</param>
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         // 1. Always generate the attribute as post-initialization (required for semantic analysis)
@@ -18,25 +21,28 @@ public class ApiEndpointInjectionGenerator : IIncrementalGenerator
         //    when multiple assemblies reference the same generated attribute.
         context.RegisterPostInitializationOutput(GenerateAttribute);
 
-        // 2. Create syntax provider to find partial classes with [EndpointRegistration] attribute
+        // 2. The partial classes carrying the generator's own [EndpointRegistration] attribute, found by its full
+        //    metadata name (Roslyn indexes attributed nodes, so no semantic model runs for any other class)
         var classDeclarations = context.SyntaxProvider
-            .CreateSyntaxProvider(
+            .ForAttributeWithMetadataName(
+                AttributeMetadataName,
                 predicate: static (node, _) => node.IsPartialClassWithAttribute(),
-                transform: GetClassInfo)
+                transform: static (attributeContext, _) => GetClassInfo(attributeContext))
             .Where(info => info is not null);
 
         // 3. Collect YAML files for OpenAPI specs
-        var yamlFiles = context.AdditionalTextsProvider
-            .Where(static file => file.Path.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase) ||
-                                 file.Path.EndsWith(".yml", StringComparison.OrdinalIgnoreCase))
-            .Select(static (file, cancellationToken) =>
-                new YamlFileInfo(file.Path, file.GetText(cancellationToken)?.ToString() ?? string.Empty))
-            .Where(static file => !string.IsNullOrEmpty(file.Content))
-            .Collect()
-            .Select(static (array, _) => new EquatableArray<YamlFileInfo>(array));
+        var yamlFiles = SpecificationFileProvider.Create(context);
 
-        // 4. Combine class declarations with YAML files
-        var combined = classDeclarations.Combine(yamlFiles);
+        // The project's marker files: the overlays they list are applied to the specification here too
+        var markerFiles = context.AdditionalTextsProvider
+            .Where(static file => Path.GetFileName(file.Path).StartsWith(".atc-rest-api-", StringComparison.OrdinalIgnoreCase))
+            .Select(static (file, cancellationToken) =>
+                new MarkerFileInfo(file.Path, file.GetText(cancellationToken)?.ToString() ?? "{}"))
+            .Collect()
+            .Select(static (array, _) => new EquatableArray<MarkerFileInfo>(array));
+
+        // 4. Combine class declarations with YAML files and markers
+        var combined = classDeclarations.Combine(yamlFiles.Combine(markerFiles));
 
         // 5. Register source output for generating partial class code
         context.RegisterSourceOutput(combined, GeneratePartialClass!);
@@ -78,67 +84,38 @@ public class ApiEndpointInjectionGenerator : IIncrementalGenerator
             }
             """;
 
-        context.AddSource("EndpointRegistrationAttribute.g.cs", SourceText.From(attributeSource, Encoding.UTF8));
+        context.AddGeneratedSource("EndpointRegistrationAttribute.g.cs", SourceText.From(attributeSource, Encoding.UTF8));
     }
 
     /// <summary>
-    /// Transform to extract class information from the semantic model.
+    /// Transform to extract the class information and the project name from the matched attribute.
     /// </summary>
     private static ClassInfo? GetClassInfo(
-        GeneratorSyntaxContext context,
-        CancellationToken cancellationToken)
+        GeneratorAttributeSyntaxContext context)
     {
-        var classDecl = (ClassDeclarationSyntax)context.Node;
-        var semanticModel = context.SemanticModel;
-
-        // Get the symbol for this class
-        var classSymbol = semanticModel.GetDeclaredSymbol(classDecl, cancellationToken);
-        if (classSymbol is null)
+        if (context.TargetSymbol is not INamedTypeSymbol classSymbol ||
+            context.TargetNode is not ClassDeclarationSyntax classDecl)
         {
             return null;
         }
 
-        // Look for the EndpointRegistration attribute
-        foreach (var attributeData in classSymbol.GetAttributes())
+        foreach (var attributeData in context.Attributes)
         {
-            var attributeClass = attributeData.AttributeClass;
-            if (attributeClass is null)
-            {
-                continue;
-            }
-
-            // Check if this is our attribute (by name)
-            var attributeClassName = attributeClass.Name;
-            if (!attributeClassName.Equals(AttributeName, StringComparison.Ordinal) &&
-                !attributeClassName.Equals(AttributeShortName, StringComparison.Ordinal))
-            {
-                continue;
-            }
-
             // Extract the project name from constructor argument
-            if (attributeData.ConstructorArguments.Length == 0)
+            if (attributeData.ConstructorArguments.Length == 0 ||
+                attributeData.ConstructorArguments[0].Value is not string projectName ||
+                string.IsNullOrEmpty(projectName))
             {
                 continue;
             }
-
-            var projectNameArg = attributeData.ConstructorArguments[0];
-            if (projectNameArg.Value is not string projectName || string.IsNullOrEmpty(projectName))
-            {
-                continue;
-            }
-
-            // Extract class information
-            var className = classSymbol.Name;
-            var classNamespace = classSymbol.ContainingNamespace?.ToDisplayString() ?? string.Empty;
-
-            // Determine modifiers
-            var modifiers = classDecl.GetModifiersString();
 
             return new ClassInfo(
-                ClassName: className,
-                ClassNamespace: classNamespace,
+                ClassName: classSymbol.Name,
+                ClassNamespace: classSymbol.ContainingNamespace is { IsGlobalNamespace: false } containingNamespace
+                    ? containingNamespace.ToDisplayString()
+                    : string.Empty,
                 ProjectName: projectName,
-                Modifiers: modifiers);
+                Modifiers: classDecl.GetModifiersString());
         }
 
         return null;
@@ -149,14 +126,17 @@ public class ApiEndpointInjectionGenerator : IIncrementalGenerator
     /// </summary>
     private static void GeneratePartialClass(
         SourceProductionContext context,
-        (ClassInfo ClassInfo, EquatableArray<YamlFileInfo> YamlFiles) input)
+        (ClassInfo ClassInfo, (EquatableArray<YamlFileInfo> YamlFiles, EquatableArray<MarkerFileInfo> Markers) Files) input)
     {
-        var (classInfo, yamlFiles) = input;
+        var (classInfo, (allFiles, markers)) = input;
+        var (yamlFiles, overlayFiles) = OverlayFileHelper.Split(allFiles.Values);
 
         try
         {
+            GeneratorFaultInjection.ThrowIfRequested(RuleIdentifiers.EndpointInjectionGenerationError);
+
             // Find YAML file matching the project name
-            var matchingYaml = yamlFiles.Values.FirstOrDefault(y =>
+            var matchingYaml = yamlFiles.FirstOrDefault(y =>
                 Path.GetFileNameWithoutExtension(y.Path).Equals(classInfo.ProjectName, StringComparison.OrdinalIgnoreCase));
 
             if (string.IsNullOrEmpty(matchingYaml.Content))
@@ -165,8 +145,33 @@ public class ApiEndpointInjectionGenerator : IIncrementalGenerator
                 return;
             }
 
-            // Parse the OpenAPI spec
-            var (openApiDoc, _) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(matchingYaml.Content, matchingYaml.Path);
+            // The specification as the project's generator reads it: merged with its parts, with the overlays its
+            // marker lists (the generator reports their problems)
+            var overlays = OverlayFileHelper.ResolveListed(markers, overlayFiles);
+            var partFiles = yamlFiles
+                .Where(y => YamlFileHelper.IsPartFile(y.Path, classInfo.ProjectName))
+                .ToList();
+            OpenApiDocument? openApiDoc;
+            if (partFiles.Count > 0)
+            {
+                openApiDoc = SpecificationLoader.Merge(context, matchingYaml, partFiles, MarkerFileHelper.MultiPartConfigurationOf(markers.Values), overlays);
+            }
+            else
+            {
+                var content = matchingYaml.Content;
+                if (overlays.Count > 0)
+                {
+                    var (effective, _) = SpecificationOverlays.Apply(content, overlays);
+                    if (effective is null)
+                    {
+                        return;
+                    }
+
+                    content = effective;
+                }
+
+                (openApiDoc, _) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(content, matchingYaml.Path);
+            }
 
             if (openApiDoc is null)
             {
@@ -174,10 +179,14 @@ public class ApiEndpointInjectionGenerator : IIncrementalGenerator
                 return;
             }
 
-            // Discover endpoints from OpenAPI spec
+            // As the client generator reads it
+            SpecificationLoader.Normalize(openApiDoc);
+
+            // Discover endpoints from OpenAPI spec, in the namespaces the client generator declares them in: the
+            // attribute names the specification file, the root namespace follows the client's rule
             var endpoints = EndpointInjectionExtractor.DiscoverEndpointsFromOpenApi(
                 openApiDoc,
-                classInfo.ProjectName);
+                NamespaceResolver.Resolve(ClientNamespaceOf(markers), openApiDoc.Info?.Title, matchingYaml.Path));
 
             // Report warning if no endpoints found
             if (endpoints.Count == 0)
@@ -194,12 +203,38 @@ public class ApiEndpointInjectionGenerator : IIncrementalGenerator
                 classInfo.Modifiers);
 
             // Add the generated source
-            var fileName = $"{classInfo.ClassName}.EndpointInjection.g.cs";
-            context.AddSource(fileName, SourceText.From(generatedCode, Encoding.UTF8));
+            // Named by the namespace as well: two classes of the same name in different namespaces each get a file
+            var fileName = classInfo.ClassNamespace.Length == 0
+                ? $"{classInfo.ClassName}.EndpointInjection.g.cs"
+                : $"{classInfo.ClassNamespace}.{classInfo.ClassName}.EndpointInjection.g.cs";
+            context.AddGeneratedSource(fileName, SourceText.From(generatedCode, Encoding.UTF8));
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             DiagnosticHelpers.ReportEndpointInjectionGenerationError(context, classInfo.ClassName, ex);
+        }
+    }
+
+    /// <summary>
+    /// The <c>namespace</c> of the project's client marker, or <see langword="null"/> when there is no marker, it
+    /// sets none or it cannot be read (the client generator reports that).
+    /// </summary>
+    private static string? ClientNamespaceOf(
+        EquatableArray<MarkerFileInfo> markers)
+    {
+        var clientMarker = markers.Values.FirstOrDefault(m => Path.GetFileName(m.Path).StartsWith(".atc-rest-api-client", StringComparison.OrdinalIgnoreCase));
+        if (string.IsNullOrEmpty(clientMarker.Content))
+        {
+            return null;
+        }
+
+        try
+        {
+            return MarkerConfigInspector.Read<ClientConfig>(clientMarker.Content, out _).Namespace;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return null;
         }
     }
 

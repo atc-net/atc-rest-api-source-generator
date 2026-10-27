@@ -1,0 +1,365 @@
+namespace Atc.OpenApi.Tests.Helpers;
+
+public class OpenApiDocumentHelperTests
+{
+    private const string MinimalValidYaml = """
+        openapi: 3.1.0
+        info:
+          title: Test API
+          version: 1.0.0
+        paths: {}
+        """;
+
+    private const string YamlWithPet = """
+        openapi: 3.1.0
+        info:
+          title: Pet API
+          version: 1.0.0
+        paths:
+          /pets:
+            get:
+              operationId: listPets
+              responses:
+                '200':
+                  description: A list of pets
+        """;
+
+    // ========== A specification the parser cannot read is a diagnostic, never an exception ==========
+
+    /// <summary>
+    /// JSON is YAML, and a specification with overlays reaches the parser as JSON text - whose writer escapes
+    /// characters outside ASCII, an emoji as an escaped surrogate pair. SharpYaml throws reading such a pair, so JSON
+    /// text is read as JSON: the document parses, wherever the escape falls.
+    /// </summary>
+    [Fact]
+    public void TryParseYamlWithDiagnostic_JsonText_ParsesAnEscapedEmojiWhereverItFalls()
+    {
+        // The pizza emoji as JSON writes it: two escaped UTF-16 halves
+        var escapedPizza = string.Concat(@"\", "u", "D83C", @"\", "u", "DF55");
+        var pizza = char.ConvertFromUtf32(0x1F355);
+        for (var padding = 0; padding < 1100; padding += 1)
+        {
+            var json = $$$"""{"openapi":"3.0.3","info":{"title":"{{{new string('x', padding)}}}{{{escapedPizza}}} API","version":"1.0.0"},"paths":{}}""";
+
+            var (document, _) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(json, $"escape-{padding}.yaml");
+
+            Assert.True(document is not null, $"padding {padding}");
+            Assert.Equal(new string('x', padding) + pizza + " API", document.Info?.Title);
+        }
+    }
+
+    [Theory]
+    [InlineData("openapi: '#/not/a/version'\ninfo: { title: T, version: 1.0.0 }\npaths: {}\n", "version")]
+    [InlineData("openapi: 3.0.3\ninfo: { title: T, version: 1.0.0 }\npaths: {}\ncomponents:\n  schemas:\n    A:\n      anyOf:\n        - $ref: ''\n", "")]
+    public void TryParseYamlWithDiagnostic_WhatTheParserThrowsOn_IsAnError(
+        string yaml,
+        string messagePart)
+    {
+        var (document, diagnostic) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(yaml, $"throws-{messagePart.Length}.yaml");
+
+        Assert.Null(document);
+        var error = Assert.Single(diagnostic!.Errors);
+        Assert.Contains(messagePart, error.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// An <c>xml.namespace</c> that is no absolute URI makes the reader throw ("Invalid URI"); the error names the
+    /// schema and the value instead, so the author can find it - in YAML and in JSON.
+    /// </summary>
+    [Theory]
+    [InlineData("petstore")]
+    [InlineData("'urn'")]
+    [InlineData("\"./pets\"")]
+    public void TryParseYamlWithDiagnostic_ARelativeXmlNamespace_IsAnErrorNamingTheSchema(
+        string value)
+    {
+        var yaml = $$"""
+            openapi: 3.0.3
+            info: { title: T, version: 1.0.0 }
+            paths: {}
+            components:
+              schemas:
+                Ok:
+                  type: object
+                  xml: { name: ok, namespace: 'http://example.com/ok' }
+                Pet:
+                  type: object
+                  xml:
+                    name: pet
+                    namespace: {{value}}
+                  properties:
+                    name: { type: string }
+            """;
+
+        var (document, diagnostic) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(yaml, $"xml-namespace-{value.Length}.yaml");
+
+        Assert.Null(document);
+        var error = Assert.Single(diagnostic!.Errors);
+        Assert.Contains("'Pet'", error.Message, StringComparison.Ordinal);
+        Assert.Contains("xml.namespace", error.Message, StringComparison.Ordinal);
+        Assert.Contains(value.Trim('\'', '"'), error.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("'Ok'", error.Message, StringComparison.Ordinal);
+    }
+
+    // ========== ParseYaml Tests ==========
+    [Fact]
+    public void ParseYaml_ValidYaml_ReturnsDocument()
+    {
+        // Act
+        var document = OpenApiDocumentHelper.ParseYaml(MinimalValidYaml);
+
+        // Assert
+        Assert.NotNull(document);
+        Assert.Equal("Test API", document.Info?.Title);
+    }
+
+    [Fact]
+    public void ParseYaml_NullContent_ThrowsArgumentNullException()
+    {
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() => OpenApiDocumentHelper.ParseYaml(null));
+    }
+
+    // ========== TryParseYaml Tests ==========
+    [Fact]
+    public void TryParseYaml_ValidYaml_ReturnsTrueAndDocument()
+    {
+        // Act
+        var success = OpenApiDocumentHelper.TryParseYaml(MinimalValidYaml, "test.yaml", out var document);
+
+        // Assert
+        Assert.True(success);
+        Assert.NotNull(document);
+        Assert.Equal("Test API", document.Info.Title);
+    }
+
+    [Fact]
+    public void TryParseYaml_NullContent_ThrowsArgumentNullException()
+    {
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() =>
+            OpenApiDocumentHelper.TryParseYaml(null, "test.yaml", out _));
+    }
+
+    [Fact]
+    public void TryParseYaml_NullPath_ThrowsArgumentNullException()
+    {
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() =>
+            OpenApiDocumentHelper.TryParseYaml(MinimalValidYaml, null, out _));
+    }
+
+    // ========== TryParseYamlWithDiagnostic Tests ==========
+    [Fact]
+    public void TryParseYamlWithDiagnostic_ValidYaml_ReturnsDocumentAndDiagnostic()
+    {
+        // Act
+        var (document, diagnostic) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(
+            MinimalValidYaml,
+            "test.yaml");
+
+        // Assert
+        Assert.NotNull(document);
+        Assert.NotNull(diagnostic);
+        Assert.Equal("Test API", document.Info?.Title);
+        Assert.Equal("1.0.0", document.Info?.Version);
+    }
+
+    [Fact]
+    public void TryParseYamlWithDiagnostic_NullContent_ThrowsArgumentNullException()
+    {
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() =>
+            OpenApiDocumentHelper.TryParseYamlWithDiagnostic(null, "test.yaml"));
+    }
+
+    [Fact]
+    public void TryParseYamlWithDiagnostic_NullPath_ThrowsArgumentNullException()
+    {
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() =>
+            OpenApiDocumentHelper.TryParseYamlWithDiagnostic(MinimalValidYaml, null));
+    }
+
+    [Fact]
+    public void TryParseYamlWithDiagnostic_YamlWithPaths_ParsesOperations()
+    {
+        // Act
+        var (document, _) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(
+            YamlWithPet,
+            "pet.yaml");
+
+        // Assert
+        Assert.NotNull(document);
+        Assert.NotNull(document.Paths);
+        Assert.True(document.Paths.ContainsKey("/pets"));
+    }
+
+    [Fact]
+    public void TryParseYamlWithDiagnostic_WindowsPath_HandlesBackslashes()
+    {
+        // Act
+        var (document, _) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(
+            MinimalValidYaml,
+            @"C:\Projects\MyApi\spec.yaml");
+
+        // Assert
+        Assert.NotNull(document);
+    }
+
+    // ========== Caching Behavior Tests ==========
+    [Fact]
+    public void TryParseYamlWithDiagnostic_SameContent_ReturnsCachedResult()
+    {
+        // Arrange
+        // Use unique content so this test is isolated from other tests sharing the static cache
+        const string uniqueYaml = """
+            openapi: 3.1.0
+            info:
+              title: Cache Test Same Content
+              version: 1.0.0
+            paths: {}
+            """;
+
+        // Act
+        var (doc1, diag1) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(uniqueYaml, "cache-same.yaml");
+        var (doc2, diag2) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(uniqueYaml, "cache-same.yaml");
+
+        // Assert
+        // Same path+content returns the same cached object references
+        Assert.Same(doc1, doc2);
+        Assert.Same(diag1, diag2);
+    }
+
+    [Fact]
+    public void TryParseYamlWithDiagnostic_DifferentContent_ReturnsDifferentResults()
+    {
+        // Arrange
+        const string yaml1 = """
+            openapi: 3.1.0
+            info:
+              title: Cache Test API One
+              version: 1.0.0
+            paths: {}
+            """;
+
+        const string yaml2 = """
+            openapi: 3.1.0
+            info:
+              title: Cache Test API Two
+              version: 2.0.0
+            paths: {}
+            """;
+
+        // Act
+        var (doc1, _) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(yaml1, "one.yaml");
+        var (doc2, _) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(yaml2, "two.yaml");
+
+        // Assert
+        Assert.NotSame(doc1, doc2);
+        Assert.Equal("Cache Test API One", doc1.Info.Title);
+        Assert.Equal("Cache Test API Two", doc2.Info.Title);
+    }
+
+    [Fact]
+    public void TryParseYamlWithDiagnostic_SamePathChangedContentOfSameLength_ParsesTheNewContent()
+    {
+        // Arrange
+        const string yamlPath = "same-length-edit.yaml";
+        const string before = """
+            openapi: 3.1.0
+            info:
+              title: Same Length A
+              version: 1.0.0
+            paths: {}
+            """;
+        const string after = """
+            openapi: 3.1.0
+            info:
+              title: Same Length B
+              version: 1.0.0
+            paths: {}
+            """;
+
+        // Act
+        var (first, _) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(before, yamlPath);
+        var (second, _) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(after, yamlPath);
+        var (third, _) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(after, yamlPath);
+
+        // Assert
+        Assert.Equal(before.Length, after.Length);
+        Assert.NotSame(first, second);
+        Assert.Equal("Same Length B", second!.Info.Title);
+        Assert.Same(second, third);
+    }
+
+    [Fact]
+    public void TryParseYamlWithDiagnostic_SameContentDifferentPaths_ReturnsDifferentInstances()
+    {
+        // Arrange
+        // The cache is keyed by (path, content).
+        // Different paths with the same content should return different results
+        // because the path affects $ref resolution via baseUri.
+        const string uniqueYaml = """
+            openapi: 3.1.0
+            info:
+              title: Cache Test Path Variant
+              version: 1.0.0
+            paths: {}
+            """;
+
+        // Act
+        var (doc1, _) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(uniqueYaml, "path/a.yaml");
+        var (doc2, _) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(uniqueYaml, "path/b.yaml");
+
+        // Assert
+        Assert.NotSame(doc1, doc2);
+    }
+
+    [Fact]
+    public void TryParseYaml_AlsoUsesCacheFromTryParseYamlWithDiagnostic()
+    {
+        // Arrange
+        // TryParseYaml delegates to TryParseYamlWithDiagnostic, so the cache applies
+        const string uniqueYaml = """
+                                  openapi: 3.1.0
+                                  info:
+                                    title: Cache Test TryParseYaml Delegation
+                                    version: 1.0.0
+                                  paths: {}
+                                  """;
+
+        // Act
+        var (docFromDiag, _) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(uniqueYaml, "shared.yaml");
+        var parsed = OpenApiDocumentHelper.TryParseYaml(uniqueYaml, "shared.yaml", out var docFromTry);
+
+        // Assert
+        Assert.True(parsed);
+        Assert.Same(docFromDiag, docFromTry);
+    }
+
+    // ========== ClearCache Tests ==========
+    [Fact]
+    public void ClearCache_InvalidatesCachedEntries()
+    {
+        // Arrange
+        const string uniqueYaml = """
+            openapi: 3.1.0
+            info:
+              title: Cache Test ClearCache
+              version: 1.0.0
+            paths: {}
+            """;
+
+        var (doc1, _) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(uniqueYaml, "test.yaml");
+
+        // Act
+        OpenApiDocumentHelper.ClearCache();
+
+        var (doc2, _) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(uniqueYaml, "test.yaml");
+
+        // Assert
+        // After clearing, a new parse should produce a different object instance
+        Assert.NotSame(doc1, doc2);
+    }
+}

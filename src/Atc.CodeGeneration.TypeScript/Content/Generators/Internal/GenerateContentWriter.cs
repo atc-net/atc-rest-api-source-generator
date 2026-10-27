@@ -1,5 +1,9 @@
 namespace Atc.CodeGeneration.TypeScript.Content.Generators.Internal;
 
+/// <summary>
+/// Renders the pieces the class and interface generators share - file top, properties, method signatures,
+/// methods and constructors - as strings indented two spaces for a member of a top-level type.
+/// </summary>
 [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "OK.")]
 public class GenerateContentWriter
 {
@@ -7,12 +11,23 @@ public class GenerateContentWriter
 
     private readonly IJsDocCommentGenerator jsDocCommentGenerator;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="GenerateContentWriter"/> class.
+    /// </summary>
+    /// <param name="jsDocCommentGenerator">Renders the JSDoc of the members written.</param>
     public GenerateContentWriter(
         IJsDocCommentGenerator jsDocCommentGenerator)
     {
         this.jsDocCommentGenerator = jsDocCommentGenerator;
     }
 
+    /// <summary>
+    /// Renders the header, the import lines followed by a blank line, and the type's JSDoc.
+    /// </summary>
+    /// <param name="headerContent">Text written first, verbatim; null or empty writes nothing.</param>
+    /// <param name="importStatements">The import lines, or null for none.</param>
+    /// <param name="documentationTags">The JSDoc of the type, or null for none.</param>
+    /// <returns>The text that precedes the type declaration.</returns>
     public string GenerateTopOfType(
         string? headerContent,
         IList<string>? importStatements,
@@ -43,6 +58,11 @@ public class GenerateContentWriter
         return sb.ToString();
     }
 
+    /// <summary>
+    /// Renders a property as <c>[readonly ]name[?]: type[ = default];</c> preceded by its JSDoc.
+    /// </summary>
+    /// <param name="parameters">The property's name, type, flags and default.</param>
+    /// <returns>The property line without a trailing line break.</returns>
     public string GenerateProperty(
         TypeScriptPropertyParameters parameters)
     {
@@ -82,6 +102,11 @@ public class GenerateContentWriter
         return sb.ToString();
     }
 
+    /// <summary>
+    /// Renders an interface method signature as <c>name&lt;T&gt;(params): returnType;</c> preceded by its JSDoc.
+    /// </summary>
+    /// <param name="parameters">The method's name, type parameter, parameters and return type.</param>
+    /// <returns>The signature line without a trailing line break.</returns>
     public string GenerateMethodSignature(
         TypeScriptMethodSignatureParameters parameters)
     {
@@ -118,6 +143,12 @@ public class GenerateContentWriter
         return sb.ToString();
     }
 
+    /// <summary>
+    /// Renders a class method as <c>[async ]name&lt;T&gt;(params): returnType { body }</c> preceded by its JSDoc;
+    /// only <see cref="TypeScriptModifiers.Async"/> is honoured from the modifiers.
+    /// </summary>
+    /// <param name="parameters">The method's name, modifiers, parameters, return type and body.</param>
+    /// <returns>The method text ending in the closing brace, without a trailing line break.</returns>
     public string GenerateMethod(
         TypeScriptMethodParameters parameters)
     {
@@ -171,6 +202,13 @@ public class GenerateContentWriter
         return sb.ToString();
     }
 
+    /// <summary>
+    /// Renders a constructor preceded by its JSDoc. Parameters go one per line when any is a
+    /// <c>private</c>/<c>readonly</c> parameter property or there are more than two, else on one line;
+    /// no body gives <c>{}</c>.
+    /// </summary>
+    /// <param name="parameters">The constructor's parameters and body.</param>
+    /// <returns>The constructor text ending in the closing brace, without a trailing line break.</returns>
     public string GenerateConstructor(
         TypeScriptConstructorParameters parameters)
     {

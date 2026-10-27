@@ -30,16 +30,12 @@ public static class JsonPropertyNameHelper
             return false;
         }
 
-        // Exact match with C# name (e.g. PascalCase in JSON matching PascalCase C# name)
-        if (string.Equals(jsonKey, csharpPropertyName, StringComparison.Ordinal))
-        {
-            return false;
-        }
-
-        // Standard camelCase match (e.g. "errorText" for "ErrorText", "id" for "Id")
+        // Standard camelCase match (e.g. "errorText" for "ErrorText", "id" for "Id"): the web serializer defaults
+        // (camelCase naming policy - what minimal APIs and the clients use) write that name without help.
         var camelCased = char.ToLowerInvariant(csharpPropertyName[0]) + csharpPropertyName.Substring(1);
 
-        // All other cases require explicit mapping:
+        // All other cases require explicit mapping - also a key that already is the C# name ("UserId" for "UserId"),
+        // which the camelCase policy would write as "userId":
         // - Underscores: "MyEnergyData_MarketDocument", "error_code", "created_date_time"
         // - Dots: "sender_MarketParticipant.name", "period.timeInterval"
         // - Hyphens: "x-correlation-id", "api-key"

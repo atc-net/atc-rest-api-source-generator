@@ -13,12 +13,13 @@ public class TypeScriptAxiosApiClientExtractorTests
     [Fact]
     public void Generate_AxiosConfig_ForwardsTextResponseType()
     {
-        // Axios picks the wire-level parser from its responseType config. For raw text
-        // bodies the generated config must select 'text' so axios does NOT JSON.parse.
+        // Every body is asked for as bytes (so its text is decoded by its charset); what the operation reads travels
+        // as bodyType: 'text' keeps the text as it is, 'json' parses a success whatever its Content-Type says, and a
+        // request without a response type lets the Content-Type decide ('auto').
         var result = TypeScriptAxiosApiClientExtractor.Generate(headerContent: null);
 
         Assert.Contains(
-            "responseType: options?.responseType === 'blob' ? 'blob' : options?.responseType === 'text' ? 'text' : 'json'",
+            "bodyType: options?.responseType === 'blob' ? 'arraybuffer' : options?.responseType ?? 'auto',",
             result,
             StringComparison.Ordinal);
     }
@@ -88,10 +89,9 @@ public class TypeScriptAxiosApiClientExtractorTests
     [Fact]
     public void Generate_StreamHeadersLoop_GuardsAgainstUndefinedValue()
     {
-        // RequestOptions.headers accepts `string | number | boolean | undefined` (axios
-        // gives the caller flexibility), but Headers.set requires a string. The loop now
-        // skips undefined and coerces with String(...) — matching the same guard used in
-        // the axios request() method and the fetch requestStream().
+        // RequestOptions.headers accepts `string | number | boolean | undefined`, but a header
+        // value is a string. The loop skips undefined and coerces with String(...) — the same
+        // guard in request() and requestStream().
         var result = TypeScriptAxiosApiClientExtractor.Generate(headerContent: null);
 
         Assert.Contains(
@@ -99,48 +99,12 @@ public class TypeScriptAxiosApiClientExtractorTests
             result,
             StringComparison.Ordinal);
         Assert.Contains(
-            "headers.set(key, String(value));",
+            "headers[key] = String(value);",
             result,
             StringComparison.Ordinal);
 
         // Regression-guard for the original buggy emission shape.
-        Assert.DoesNotContain("headers.set(key, value);", result, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void Generate_ConvertDates_AnchorsIsoDateRegexToWholeString()
-    {
-        // The reviver must only convert strings that are ENTIRELY an ISO datetime.
-        // An end-anchored regex prevents free-text fields like
-        // "2026-06-01T12:30:45Z [INFO] hello" (which merely start with a date) from
-        // being silently turned into Date objects.
-        var result = TypeScriptAxiosApiClientExtractor.Generate(headerContent: null, convertDates: true);
-
-        Assert.Contains(
-            "const ISO_DATE_RE = /^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}(:\\d{2})?(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})?$/;",
-            result,
-            StringComparison.Ordinal);
-
-        // Regression guard for the buggy prefix-only regex.
-        Assert.DoesNotContain("/^\\d{4}-\\d{2}-\\d{2}(T\\d{2}:\\d{2})/;", result, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void Generate_ConvertDates_GuardsAgainstInvalidDate()
-    {
-        // Even when the regex matches, new Date(value) can yield an Invalid Date.
-        // The reviver must return the original string in that case rather than a
-        // corrupt Date object.
-        var result = TypeScriptAxiosApiClientExtractor.Generate(headerContent: null, convertDates: true);
-
-        Assert.Contains("const parsed = new Date(value);", result, StringComparison.Ordinal);
-        Assert.Contains(
-            "return Number.isNaN(parsed.getTime()) ? value : parsed;",
-            result,
-            StringComparison.Ordinal);
-
-        // Regression guard: the old reviver returned the Date unconditionally.
-        Assert.DoesNotContain("    return new Date(value);", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("headers[key] = value as string;", result, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -152,13 +116,12 @@ public class TypeScriptAxiosApiClientExtractorTests
         // Zod-parsed shape rather than the raw parse.
         var result = TypeScriptAxiosApiClientExtractor.Generate(
             headerContent: null,
-            convertDates: false,
             hasRetry: false,
             zodRuntimeValidate: true);
 
         Assert.Contains("import type { ZodTypeAny } from 'zod';", result, StringComparison.Ordinal);
         Assert.Contains("parseSchema?: ZodTypeAny;", result, StringComparison.Ordinal);
-        Assert.Contains("if (parseSchema && expectsJson) {", result, StringComparison.Ordinal);
+        Assert.Contains("if (parseSchema && expectsJson && response.data !== undefined) {", result, StringComparison.Ordinal);
         Assert.Contains("parseSchema.safeParse(response.data);", result, StringComparison.Ordinal);
         Assert.Contains("return { status: 'schemaMismatch', issues: parsed.error.issues, data: response.data, response };", result, StringComparison.Ordinal);
         Assert.Contains("setStrictMode(enabled: boolean): void {", result, StringComparison.Ordinal);
@@ -171,7 +134,6 @@ public class TypeScriptAxiosApiClientExtractorTests
         // four signature tokens that would change under the flag.
         var result = TypeScriptAxiosApiClientExtractor.Generate(
             headerContent: null,
-            convertDates: false,
             hasRetry: false,
             zodRuntimeValidate: false);
 
@@ -206,37 +168,16 @@ public class TypeScriptAxiosApiClientExtractorTests
     }
 
     [Fact]
-    public void Generate_BuildUrl_UsesAppendForArrayValuesAndSetForScalars()
+    public void Generate_Stream_GoesThroughTheAxiosInstance()
     {
-        // The streaming path uses buildUrl (not axios params). Array query params must
-        // produce repeated keys (?tags=a&tags=b) there too.
+        // A stream is sent by the axios instance (its fetch adapter, a 'stream' response), so the default
+        // headers, the credentials, the interceptors and the params serializer (repeated keys) apply to it too.
         var result = TypeScriptAxiosApiClientExtractor.Generate(headerContent: null);
 
-        Assert.Contains("Array.isArray(value)", result, StringComparison.Ordinal);
-        Assert.Contains("url.searchParams.append(key, String(item));", result, StringComparison.Ordinal);
-        Assert.Contains("url.searchParams.set(key, String(value));", result, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void Generate_BuildUrl_SkipsUndefinedBeforeArrayCheck()
-    {
-        // The undefined-guard must come before the Array.isArray branch so the
-        // loop does not try to iterate undefined.
-        var result = TypeScriptAxiosApiClientExtractor.Generate(headerContent: null);
-
-        // Scope the search to the buildUrl method definition so the assertion cannot be
-        // satisfied by an unrelated 'continue;' elsewhere in the generated file
-        // (e.g. the streaming/multipart parser).
-        var buildUrlIdx = result.IndexOf("buildUrl(path: string,", StringComparison.Ordinal);
-        Assert.True(buildUrlIdx >= 0, "buildUrl method must be generated.");
-        var buildUrlBody = result.Substring(buildUrlIdx);
-
-        var undefinedGuardIdx = buildUrlBody.IndexOf("value === undefined", StringComparison.Ordinal);
-        var continueIdx = buildUrlBody.IndexOf("continue;", StringComparison.Ordinal);
-        var arrayIdx = buildUrlBody.IndexOf("Array.isArray(value)", StringComparison.Ordinal);
-        Assert.True(undefinedGuardIdx >= 0, "buildUrl must contain the 'value === undefined' guard.");
-        Assert.True(continueIdx > undefinedGuardIdx, "The 'continue' must follow the undefined guard within buildUrl.");
-        Assert.True(arrayIdx > continueIdx, "The undefined guard must appear before Array.isArray within buildUrl.");
+        Assert.Contains("adapter: 'fetch',", result, StringComparison.Ordinal);
+        Assert.Contains("responseType: 'stream',", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("buildUrl(", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("await fetch(", result, StringComparison.Ordinal);
     }
 
     // ========== SSE parser LF-only ==========
@@ -278,6 +219,38 @@ public class TypeScriptAxiosApiClientExtractorTests
         var result = TypeScriptAxiosApiClientExtractor.Generate(headerContent: null);
 
         Assert.Contains("async function* parseEventStream<T>(", result, StringComparison.Ordinal);
-        Assert.Contains("yield* parseEventStream<T>(reader, decoder);", result, StringComparison.Ordinal);
+        Assert.Contains("yield* parseEventStream<T>(reader, decoder, undefined, sseItemEvents, options?.onEvent);", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Generate_RequestStream_CancelsABodyTheConsumerStoppedReading()
+    {
+        // A consumer that breaks out of `for await` runs the generator's finally: the body must be cancelled
+        // (not only unlocked) so the server sees the disconnect instead of sending until the process ends.
+        var result = TypeScriptAxiosApiClientExtractor.Generate(headerContent: null);
+
+        Assert.Contains("async function releaseReader(reader: ReadableStreamDefaultReader<Uint8Array>, finished: boolean): Promise<void> {", result, StringComparison.Ordinal);
+        Assert.Contains("await reader.cancel().catch(() => undefined);", result, StringComparison.Ordinal);
+
+        // One per reader: SSE, JSON array, JSON Lines, JSON Text Sequence, multipart
+        Assert.Equal(5, result.Split("await releaseReader(reader, finished);").Length - 1);
+        Assert.DoesNotContain("    reader.releaseLock();\n    }", result.Replace("\r\n", "\n", StringComparison.Ordinal), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Generate_SuccessBody_JsonOperationReadsJson_EmptyBodyIsNoData()
+    {
+        // responseType 'json' (every generated JSON operation) parses the body whatever the Content-Type says; a
+        // hand-written request without one is parsed by Content-Type; an empty body is undefined (a text
+        // operation keeps ''); a schema check only sees a body that is there.
+        var result = TypeScriptAxiosApiClientExtractor.Generate(headerContent: null, zodRuntimeValidate: true);
+
+        Assert.Contains("const successReadAsJson = bodyType === 'json' && (status ?? 200) < 400;", result, StringComparison.Ordinal);
+        Assert.Contains("if (!successReadAsJson && !contentType.includes('application/json') && !contentType.includes('+json')) return data;", result, StringComparison.Ordinal);
+        Assert.Contains("responseType: 'arraybuffer',", result, StringComparison.Ordinal);
+        Assert.Contains("bodyType: options?.responseType === 'blob' ? 'arraybuffer' : options?.responseType ?? 'auto',", result, StringComparison.Ordinal);
+        Assert.Contains("data = decodeText(data as ArrayBuffer, rawContentType);", result, StringComparison.Ordinal);
+        Assert.Contains("if ((response.data as unknown) === '' && bodyTypeOf(response.config) !== 'text') {", result, StringComparison.Ordinal);
+        Assert.Contains("if (parseSchema && expectsJson && response.data !== undefined) {", result, StringComparison.Ordinal);
     }
 }

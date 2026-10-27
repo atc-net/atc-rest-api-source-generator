@@ -57,6 +57,39 @@ public class ParameterSerializationRoundTripTests
         Assert.Contains("ids=x&ids=y", query, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task Server_ParsableList_BindsRepeatedQueryKeys()
+    {
+        // The client emits form-explode repeated keys: ?tags=a&tags=b.
+        // This proves the SERVER's ParsableList<string> binds that exact wire format.
+        var builder = Microsoft.AspNetCore.Builder.WebApplication.CreateSlimBuilder();
+        var app = builder.Build();
+        app.Urls.Add("http://127.0.0.1:0");
+
+        Microsoft.AspNetCore.Builder.EndpointRouteBuilderExtensions.MapGet(
+            app,
+            "/items",
+            ([Microsoft.AspNetCore.Mvc.FromQuery(Name = "tags")] ParsableList<string> tags)
+                => tags.Count);
+
+        await app.StartAsync(TestContext.Current.CancellationToken);
+        try
+        {
+            var address = new Uri(app.Urls.First());
+            using var client = new System.Net.Http.HttpClient { BaseAddress = address };
+            var count = await client.GetStringAsync(
+                new Uri("/items?tags=a&tags=b", UriKind.Relative),
+                TestContext.Current.CancellationToken);
+
+            Assert.Equal("2", count);
+        }
+        finally
+        {
+            await app.StopAsync(TestContext.Current.CancellationToken);
+            await app.DisposeAsync();
+        }
+    }
+
     /// <summary>
     /// Builds a constructor argument for the generated <c>ListItemsParameters</c> record: the array
     /// params (tags, ids) get two-element lists; everything else gets null.
@@ -94,53 +127,6 @@ public class ParameterSerializationRoundTripTests
         }
 
         return list;
-    }
-
-    [Fact]
-    public async Task Server_ParsableList_BindsRepeatedQueryKeys()
-    {
-        // The client emits form-explode repeated keys: ?tags=a&tags=b.
-        // This proves the SERVER's ParsableList<string> binds that exact wire format.
-        var builder = Microsoft.AspNetCore.Builder.WebApplication.CreateSlimBuilder();
-        var app = builder.Build();
-        app.Urls.Add("http://127.0.0.1:0");
-
-        Microsoft.AspNetCore.Builder.EndpointRouteBuilderExtensions.MapGet(
-            app,
-            "/items",
-            ([Microsoft.AspNetCore.Mvc.FromQuery(Name = "tags")] ParsableList<string> tags)
-                => tags.Count);
-
-        await app.StartAsync(TestContext.Current.CancellationToken);
-        try
-        {
-            var address = new Uri(app.Urls.First());
-            using var client = new System.Net.Http.HttpClient { BaseAddress = address };
-            var count = await client.GetStringAsync(
-                new Uri("/items?tags=a&tags=b", UriKind.Relative),
-                TestContext.Current.CancellationToken);
-
-            Assert.Equal("2", count);
-        }
-        finally
-        {
-            await app.StopAsync(TestContext.Current.CancellationToken);
-            await app.DisposeAsync();
-        }
-    }
-
-    /// <summary>
-    /// An <see cref="System.Net.Http.HttpMessageHandler"/> that captures the outgoing request and
-    /// returns a canned response, so the emitted client can be driven without a live server.
-    /// </summary>
-    private sealed class CapturingHandler(
-        Func<System.Net.Http.HttpRequestMessage, System.Net.Http.HttpResponseMessage> respond)
-        : System.Net.Http.HttpMessageHandler
-    {
-        protected override Task<System.Net.Http.HttpResponseMessage> SendAsync(
-            System.Net.Http.HttpRequestMessage request,
-            CancellationToken cancellationToken)
-            => Task.FromResult(respond(request));
     }
 
     /// <summary>
@@ -193,5 +179,19 @@ public class ParameterSerializationRoundTripTests
 
             return true;
         }
+    }
+
+    /// <summary>
+    /// An <see cref="System.Net.Http.HttpMessageHandler"/> that captures the outgoing request and
+    /// returns a canned response, so the emitted client can be driven without a live server.
+    /// </summary>
+    private sealed class CapturingHandler(
+        Func<System.Net.Http.HttpRequestMessage, System.Net.Http.HttpResponseMessage> respond)
+        : System.Net.Http.HttpMessageHandler
+    {
+        protected override Task<System.Net.Http.HttpResponseMessage> SendAsync(
+            System.Net.Http.HttpRequestMessage request,
+            CancellationToken cancellationToken)
+            => Task.FromResult(respond(request));
     }
 }

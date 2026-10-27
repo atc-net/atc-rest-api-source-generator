@@ -36,7 +36,7 @@ public class TypeScriptOperationHelperOtherMethodsTests
 
         var result = TypeScriptOperationHelper.GetParameterType(param);
 
-        Assert.Equal("'Admin' | 'Manager' | 'Guest'", result);
+        Assert.Equal("'Admin' | 'Manager' | 'Guest' | (string & {})", result);
     }
 
     [Fact]
@@ -94,6 +94,24 @@ public class TypeScriptOperationHelperOtherMethodsTests
 
         Assert.Contains("`/pets/${", result, StringComparison.Ordinal);
         Assert.Contains("petId", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BuildInterpolatedPath_EncodesEveryPathParameter()
+    {
+        // A value such as "a/b?c" must stay one path segment: unencoded it addresses another endpoint.
+        var pathParams = new List<OpenApiParameter>
+        {
+            new() { Name = "ownerId", In = ParameterLocation.Path, Schema = new OpenApiSchema { Type = JsonSchemaType.String } },
+            new() { Name = "petId", In = ParameterLocation.Path, Schema = new OpenApiSchema { Type = JsonSchemaType.Integer } },
+            new() { Name = "tags", In = ParameterLocation.Path, Schema = new OpenApiSchema { Type = JsonSchemaType.Array } },
+        };
+
+        var result = TypeScriptOperationHelper.BuildInterpolatedPath("/owners/{ownerId}/pets/{petId}/{tags}", pathParams, TypeScriptNamingStrategy.CamelCase);
+
+        Assert.Equal(
+            "`/owners/${encodeURIComponent(ownerId)}/pets/${encodeURIComponent(petId)}/${encodeURIComponent(String(tags))}`",
+            result);
     }
 
     [Fact]
@@ -564,8 +582,12 @@ public class TypeScriptOperationHelperOtherMethodsTests
         Assert.False(TypeScriptOperationHelper.IsDateParam(param));
     }
 
-    [Fact]
-    public void GetDateSerializationSuffix_DateTimeFormat_ReturnsFullIsoString()
+    [Theory]
+    [InlineData(false, "from.toISOString()")]
+    [InlineData(true, "from?.toISOString()")]
+    public void SerializeDateParameter_DateTimeFormat_ReturnsFullIsoString(
+        bool optional,
+        string expected)
     {
         var param = new OpenApiParameter
         {
@@ -573,21 +595,24 @@ public class TypeScriptOperationHelperOtherMethodsTests
             Schema = new OpenApiSchema { Type = JsonSchemaType.String, Format = "date-time" },
         };
 
-        Assert.Equal(".toISOString()", TypeScriptOperationHelper.GetDateSerializationSuffix(param));
+        Assert.Equal(expected, TypeScriptOperationHelper.SerializeDateParameter(param, "from", optional));
     }
 
-    [Fact]
-    public void GetDateSerializationSuffix_DateFormat_TruncatesToDateOnly()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void SerializeDateParameter_DateFormat_WritesTheLocalCalendarDay(
+        bool optional)
     {
-        // OpenAPI `format: date` is YYYY-MM-DD on the wire. ISO datetime's substring(0, 10)
-        // matches that contract; emitting full toISOString() would send the time portion too.
+        // OpenAPI `format: date` is YYYY-MM-DD on the wire: the caller's calendar day, not the UTC day of the instant
+        // (toISOString().substring(0, 10) is the day before for a local midnight east of UTC).
         var param = new OpenApiParameter
         {
             Name = "birthday",
             Schema = new OpenApiSchema { Type = JsonSchemaType.String, Format = "date" },
         };
 
-        Assert.Equal(".toISOString().substring(0, 10)", TypeScriptOperationHelper.GetDateSerializationSuffix(param));
+        Assert.Equal("dateOnly(birthday)", TypeScriptOperationHelper.SerializeDateParameter(param, "birthday", optional));
     }
 
     [Fact]
@@ -728,7 +753,7 @@ public class TypeScriptOperationHelperOtherMethodsTests
             TypeScriptNamingStrategy.CamelCase,
             convertDates: true);
 
-        Assert.Contains("${snapshotAt.toISOString()}", result, StringComparison.Ordinal);
+        Assert.Contains("${encodeURIComponent(snapshotAt.toISOString())}", result, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -752,7 +777,7 @@ public class TypeScriptOperationHelperOtherMethodsTests
             TypeScriptNamingStrategy.CamelCase,
             convertDates: true);
 
-        Assert.Contains("${day.toISOString().substring(0, 10)}", result, StringComparison.Ordinal);
+        Assert.Contains("${encodeURIComponent(dateOnly(day))}", result, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -775,7 +800,7 @@ public class TypeScriptOperationHelperOtherMethodsTests
             pathParams,
             TypeScriptNamingStrategy.CamelCase);
 
-        Assert.Contains("${snapshotAt}", result, StringComparison.Ordinal);
+        Assert.Contains("${encodeURIComponent(snapshotAt)}", result, StringComparison.Ordinal);
         Assert.DoesNotContain("toISOString", result, StringComparison.Ordinal);
     }
 
@@ -982,7 +1007,7 @@ public class TypeScriptOperationHelperOtherMethodsTests
 
         var result = TypeScriptOperationHelper.BuildHeaderTypeInline(headerParams);
 
-        Assert.Contains("'X-Api-Version': string /* default: 'v1' */", result, StringComparison.Ordinal);
+        Assert.Contains("'X-Api-Version'?: string /* default: 'v1' */", result, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1040,9 +1065,10 @@ public class TypeScriptOperationHelperOtherMethodsTests
     }
 
     [Fact]
-    public void BuildPerOperationResultType_NoResponses_EmitsOnlyParseError()
+    public void BuildPerOperationResultType_NoResponses_EmitsOnlyTheUniversalArms()
     {
-        // Degenerate spec: an op declaring no responses still needs a callable shape.
+        // Degenerate spec: an op declaring no responses still needs a callable shape - the arms any
+        // response can take regardless of the spec: clientError, serverError and parseError.
         const string yaml = """
                             openapi: 3.0.0
                             info: { title: t, version: '1' }
@@ -1057,7 +1083,7 @@ public class TypeScriptOperationHelperOtherMethodsTests
 
         var operation = ((OpenApiPathItem)doc.Paths["/noop"]).Operations.Values.First();
 
-        var (declaration, imports) = TypeScriptOperationHelper.BuildPerOperationResultType(
+        var (declaration, imports, _, _) = TypeScriptOperationHelper.BuildPerOperationResultType(
             operation,
             "NoopResult",
             isFileDownload: false,
@@ -1066,7 +1092,10 @@ public class TypeScriptOperationHelperOtherMethodsTests
 
         Assert.Contains("export type NoopResult =", declaration, StringComparison.Ordinal);
         Assert.Contains("status: 'parseError'", declaration, StringComparison.Ordinal);
-        Assert.Empty(imports);
+        Assert.Contains("status: 'clientError'; error: ApiError", declaration, StringComparison.Ordinal);
+        Assert.Contains("status: 'serverError'; error: ApiError", declaration, StringComparison.Ordinal);
+        Assert.DoesNotContain("status: 'badRequest'", declaration, StringComparison.Ordinal);
+        Assert.Equal(["ApiError"], imports);
     }
 
     // ========== itemSchema streaming — import collection ==========
@@ -1109,6 +1138,288 @@ public class TypeScriptOperationHelperOtherMethodsTests
         TypeScriptOperationHelper.CollectImportTypes(operation, importTypes, doc, "/events-sse");
 
         Assert.Contains("Event", importTypes, StringComparer.Ordinal);
+    }
+
+    [Fact]
+    public void ResolveParametersByLocation_ResolvesRefsAndKeepsOnlyTheLocation()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /pets/{petId}:
+                                get:
+                                  operationId: getPet
+                                  parameters:
+                                    - $ref: '#/components/parameters/PetId'
+                                    - name: include
+                                      in: query
+                                      schema: { type: string }
+                                    - name: X-Trace
+                                      in: header
+                                      schema: { type: string }
+                                  responses:
+                                    '200': { description: OK }
+                            components:
+                              parameters:
+                                PetId:
+                                  name: petId
+                                  in: path
+                                  required: true
+                                  schema: { type: string }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+        var op = doc.Paths.Values.First().Operations![HttpMethod.Get];
+
+        var pathParams = TypeScriptOperationHelper.ResolveParametersByLocation(op.Parameters, ParameterLocation.Path);
+        var queryParams = TypeScriptOperationHelper.ResolveParametersByLocation(op.Parameters, ParameterLocation.Query);
+        var cookieParams = TypeScriptOperationHelper.ResolveParametersByLocation(op.Parameters, ParameterLocation.Cookie);
+
+        Assert.Equal("petId", Assert.Single(pathParams).Name);
+        Assert.Equal("include", Assert.Single(queryParams).Name);
+        Assert.Empty(cookieParams);
+        Assert.Empty(TypeScriptOperationHelper.ResolveParametersByLocation(parameters: null, ParameterLocation.Path));
+    }
+
+    [Theory]
+    [InlineData("{ $ref: '#/components/schemas/Pet' }", "PetSchema", false)]
+    [InlineData("{ type: array, items: { $ref: '#/components/schemas/Pet' } }", "z.array(PetSchema)", true)]
+    [InlineData("{ type: string }", "z.string()", true)]
+    [InlineData("{ type: integer }", "z.number()", true)]
+    [InlineData("{ type: boolean }", "z.boolean()", true)]
+    public void TryGetResponseZodSchemaSpec_SupportedShapes_ResolveToAnExpression(
+        string schema,
+        string expectedExpression,
+        bool expectedNeedsZodImport)
+    {
+        var yaml = $$"""
+                     openapi: 3.0.0
+                     info: { title: T, version: 1.0.0 }
+                     paths:
+                       /pets:
+                         get:
+                           operationId: listPets
+                           responses:
+                             '200':
+                               description: OK
+                               content:
+                                 application/json:
+                                   schema: {{schema}}
+                     components:
+                       schemas:
+                         Pet:
+                           type: object
+                           properties:
+                             name: { type: string }
+                     """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+        var op = doc.Paths.Values.First().Operations![HttpMethod.Get];
+
+        var spec = TypeScriptOperationHelper.TryGetResponseZodSchemaSpec(op);
+
+        Assert.NotNull(spec);
+        Assert.Equal(expectedExpression, spec.Expression);
+        Assert.Equal(expectedNeedsZodImport, spec.NeedsZodImport);
+        Assert.Equal(schema.Contains("Pet", StringComparison.Ordinal) ? ["Pet"] : Array.Empty<string>(), spec.RefSchemaNames, StringComparer.Ordinal);
+    }
+
+    [Fact]
+    public void TryGetResponseZodSchemaSpec_InlineObjectOrNoBody_ReturnsNull()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /inline:
+                                get:
+                                  operationId: getInline
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: object
+                                            properties:
+                                              name: { type: string }
+                              /empty:
+                                delete:
+                                  operationId: deleteIt
+                                  responses:
+                                    '204': { description: Gone }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        Assert.Null(TypeScriptOperationHelper.TryGetResponseZodSchemaSpec(doc.Paths["/inline"].Operations![HttpMethod.Get]));
+        Assert.Null(TypeScriptOperationHelper.TryGetResponseZodSchemaSpec(doc.Paths["/empty"].Operations![HttpMethod.Delete]));
+    }
+
+    [Fact]
+    public void GetResponseModelSchema_JsonBody_ReturnsIt()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /pets:
+                                get:
+                                  operationId: listPets
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema: { $ref: '#/components/schemas/Pet' }
+                            components:
+                              schemas:
+                                Pet:
+                                  type: object
+                                  properties:
+                                    name: { type: string }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+        var op = doc.Paths.Values.First().Operations![HttpMethod.Get];
+
+        var schema = TypeScriptOperationHelper.GetResponseModelSchema(op, "200");
+
+        Assert.Equal("Pet", Assert.IsType<OpenApiSchemaReference>(schema).Reference.Id);
+        Assert.Null(TypeScriptOperationHelper.GetResponseModelSchema(op, "404"));
+    }
+
+    [Fact]
+    public void GetResponseModelSchema_XmlOnlyModelBody_ReturnsTheXmlSchema()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /pets:
+                                get:
+                                  operationId: listPets
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/xml:
+                                          schema: { $ref: '#/components/schemas/Pet' }
+                            components:
+                              schemas:
+                                Pet:
+                                  type: object
+                                  properties:
+                                    name: { type: string }
+                                  xml: { name: pet }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+        var op = doc.Paths.Values.First().Operations![HttpMethod.Get];
+
+        var schema = TypeScriptOperationHelper.GetResponseModelSchema(op, "200");
+
+        Assert.Equal("Pet", Assert.IsType<OpenApiSchemaReference>(schema).Reference.Id);
+    }
+
+    [Theory]
+    [InlineData("const x: Device = {};", "Device", true)]
+    [InlineData("const x: DeviceManagement = {};", "Device", false)]
+    [InlineData("const device = 1;", "Device", false)]
+    [InlineData("/** List Device entries */ const x = 1;", "Device", false)]
+    [InlineData("foo(Device)", "Device", true)]
+    [InlineData("Device", "", false)]
+    [InlineData("wire: { response: { array: 'ItemLog' } }", "ItemLog", false)]
+    [InlineData("const x: ItemLog = { kind: 'ItemLog' };", "ItemLog", true)]
+    public void ReferencesIdentifier_MatchesWholeIdentifiersOutsideBlockComments(
+        string text,
+        string identifier,
+        bool expected)
+        => Assert.Equal(expected, TypeScriptOperationHelper.ReferencesIdentifier(text, identifier));
+
+    [Fact]
+    public void CollectSchemaRefTypes_InlineAllOfAndArrayOfRefs_AddsEveryRef()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths: {}
+                            components:
+                              schemas:
+                                Base:
+                                  type: object
+                                  properties:
+                                    id: { type: string }
+                                Tag:
+                                  type: object
+                                  properties:
+                                    name: { type: string }
+                                Composite:
+                                  allOf:
+                                    - $ref: '#/components/schemas/Base'
+                                    - type: object
+                                      properties:
+                                        tags:
+                                          type: array
+                                          items: { $ref: '#/components/schemas/Tag' }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+        var composite = doc.Components!.Schemas!["Composite"];
+        var tags = ((OpenApiSchema)((OpenApiSchema)composite).AllOf![1]).Properties!["tags"];
+
+        var fromComposite = new HashSet<string>(StringComparer.Ordinal);
+        TypeScriptOperationHelper.CollectSchemaRefTypes(composite, fromComposite);
+        var fromArray = new HashSet<string>(StringComparer.Ordinal);
+        TypeScriptOperationHelper.CollectSchemaRefTypes(tags, fromArray);
+        var fromNull = new HashSet<string>(StringComparer.Ordinal);
+        TypeScriptOperationHelper.CollectSchemaRefTypes(schema: null, fromNull);
+
+        Assert.Contains("Base", fromComposite);
+        Assert.Equal(["Tag"], fromArray);
+        Assert.Empty(fromNull);
+    }
+
+    [Theory]
+    [InlineData("pageSize", "pageSize")]
+    [InlineData("page-token", "'page-token'")]
+    [InlineData("_internal", "_internal")]
+    [InlineData("1st", "'1st'")]
+    public void PropertyKey_QuotesNamesThatAreNotIdentifiers(
+        string name,
+        string expected)
+        => Assert.Equal(expected, TypeScriptOperationHelper.PropertyKey(name));
+
+    [Theory]
+    [InlineData("pageSize", "query?.pageSize")]
+    [InlineData("page-token", "query?.['page-token']")]
+    public void OptionalPropertyAccess_UsesBracketsForNamesThatAreNotIdentifiers(
+        string name,
+        string expected)
+        => Assert.Equal(expected, TypeScriptOperationHelper.OptionalPropertyAccess("query", name));
+
+    [Fact]
+    public void JoinParameters_OptionalBeforeRequired_TakesUndefinedExplicitly()
+    {
+        var joined = TypeScriptOperationHelper.JoinParameters(["query?: Q", "headers: H", "options?: RequestOptions"]);
+
+        Assert.Equal("query: Q | undefined, headers: H, options?: RequestOptions", joined);
+    }
+
+    [Fact]
+    public void JoinParameters_OptionalFunctionTypeBeforeRequired_ParenthesizesTheFunction()
+    {
+        var joined = TypeScriptOperationHelper.JoinParameters(["onItem?: (item: T) => void", "signal: AbortSignal"]);
+
+        Assert.Equal("onItem: ((item: T) => void) | undefined, signal: AbortSignal", joined);
+    }
+
+    [Fact]
+    public void JoinParameters_AllOptionalOrEmpty_JoinsUnchanged()
+    {
+        Assert.Equal("query?: Q, options?: RequestOptions", TypeScriptOperationHelper.JoinParameters(["query?: Q", "options?: RequestOptions"]));
+        Assert.Equal(string.Empty, TypeScriptOperationHelper.JoinParameters([]));
     }
 
     private static OpenApiDocument? ParseYaml(string yaml)

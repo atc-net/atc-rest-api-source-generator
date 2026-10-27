@@ -16,8 +16,6 @@ internal readonly struct EquatableArray<T> : IEquatable<EquatableArray<T>>
         Values = values.IsDefault ? ImmutableArray<T>.Empty : values;
     }
 
-    public int Length => Values.Length;
-
     public bool IsEmpty => Values.IsEmpty;
 
     public bool Equals(EquatableArray<T> other)

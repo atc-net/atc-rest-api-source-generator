@@ -42,9 +42,8 @@ Console.WriteLine();
 var builder = Host.CreateApplicationBuilder(args);
 
 // Holds whichever bearer token is currently active (refresh token first, then the
-// issued access token). The handler below reads it on every outgoing request.
+// issued access token). The generated credentials handler reads it on every outgoing request.
 builder.Services.AddSingleton<BearerTokenProvider>();
-builder.Services.AddTransient<BearerTokenHandler>();
 
 // Registering ThirdPartyApiClient as a typed client lets IHttpClientFactory own
 // the HttpClient lifetime and hand a correctly configured instance to the
@@ -56,7 +55,12 @@ builder.Services
         client.BaseAddress = new Uri(baseAddress);
         client.Timeout = TimeSpan.FromSeconds(100);
     })
-    .AddHttpMessageHandler<BearerTokenHandler>();
+    .AddApiCredentials((services, credentials) =>
+    {
+        // AddApiCredentials() is generated: the token goes to the operations whose security asks for it
+        var tokenProvider = services.GetRequiredService<BearerTokenProvider>();
+        credentials.AccessToken = _ => new ValueTask<string?>(tokenProvider.Token);
+    });
 
 using var host = builder.Build();
 
@@ -76,7 +80,7 @@ try
     Console.WriteLine("1. GET /thirdpartyapi/api/isalive");
 
     var isAlive = await client
-        .GetThirdpartyapiApiIsaliveAsync(new GetThirdpartyapiApiIsaliveParameters())
+        .IsAliveAsync(new IsAliveParameters())
         .ConfigureAwait(false);
 
     Console.WriteLine($"   API is alive: {isAlive}");
@@ -97,7 +101,7 @@ try
     tokenProvider.Token = refreshToken;
 
     var tokenResponse = await client
-        .GetThirdpartyapiApiTokenAsync(new GetThirdpartyapiApiTokenParameters())
+        .GetTokenAsync(new GetTokenParameters())
         .ConfigureAwait(false);
 
     Console.WriteLine("   Access token acquired.");
@@ -115,8 +119,8 @@ try
     var identifier = Environment.GetEnvironmentVariable("ELOVERBLIK_IDENTIFIER") ?? "12345678";
 
     var meteringPointsResponse = await client
-        .GetThirdpartyapiApiAuthorizationAuthorizationMeteringpointsScopeIdentifierAsync(
-            new GetThirdpartyapiApiAuthorizationAuthorizationMeteringpointsScopeIdentifierParameters(
+        .GetAuthorizedMeteringPointsAsync(
+            new GetAuthorizedMeteringPointsParameters(
                 Scope: scope,
                 Identifier: identifier))
         .ConfigureAwait(false);
@@ -151,8 +155,8 @@ try
     Console.WriteLine("4. POST /thirdpartyapi/api/meteringpoint/meteringpoint/getdetails");
 
     var detailsResponse = await client
-        .PostThirdpartyapiApiMeteringpointGetdetailsAsync(
-            new PostThirdpartyapiApiMeteringpointGetdetailsParameters(
+        .GetMeteringPointDetailsAsync(
+            new GetMeteringPointDetailsParameters(
                 Request: new MeteringPointsRequest(
                     new MeteringPoints(meteringPointIds))))
         .ConfigureAwait(false);

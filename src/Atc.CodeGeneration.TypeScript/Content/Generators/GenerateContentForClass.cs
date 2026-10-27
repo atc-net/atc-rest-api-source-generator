@@ -1,10 +1,20 @@
 namespace Atc.CodeGeneration.TypeScript.Content.Generators;
 
+/// <summary>
+/// Writes a complete TypeScript class file: header, imports, JSDoc, the class declaration with its
+/// <c>extends</c> and <c>implements</c> clauses, then constructors, properties and methods separated by
+/// blank lines.
+/// </summary>
 public class GenerateContentForClass : IContentGenerator
 {
     private readonly GenerateContentWriter writer;
     private readonly TypeScriptClassParameters parameters;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="GenerateContentForClass"/> class.
+    /// </summary>
+    /// <param name="writer">Renders the file top and the members.</param>
+    /// <param name="parameters">What the class is made of.</param>
     public GenerateContentForClass(
         GenerateContentWriter writer,
         TypeScriptClassParameters parameters)
@@ -13,6 +23,10 @@ public class GenerateContentForClass : IContentGenerator
         this.parameters = parameters ?? throw new ArgumentNullException(nameof(parameters));
     }
 
+    /// <summary>
+    /// Renders the class file.
+    /// </summary>
+    /// <returns>The TypeScript source of the class, ending in a line break.</returns>
     public string Generate()
     {
         var sb = new StringBuilder();

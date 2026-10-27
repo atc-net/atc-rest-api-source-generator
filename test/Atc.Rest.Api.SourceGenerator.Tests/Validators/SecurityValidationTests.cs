@@ -309,6 +309,28 @@ public class SecurityValidationTests
         Assert.Null(sec006);
     }
 
+    /// <summary>
+    /// The validator reads the roles as the generator does: a global role list that holds a role in two casings keeps
+    /// both (it kept only the first, so the second used on an operation was a false SEC006), and an empty role is no
+    /// role (it was a SEC "not defined" for '').
+    /// </summary>
+    [Theory]
+    [InlineData(new[] { "admin", "Admin" }, new[] { "Admin" })]
+    [InlineData(new[] { "Admin" }, new[] { "Admin", "" })]
+    public void Validate_RolesReadAsTheGeneratorReadsThem_NoFalseRoleDiagnostic(
+        string[] globalRoles,
+        string[] operationRoles)
+    {
+        var document = ParseYaml(CreateYamlWithGlobalAndOperationRoles(globalRoles, operationRoles));
+        Assert.NotNull(document);
+
+        var diagnostics = OpenApiDocumentValidator.Validate(ValidateSpecificationStrategy.Strict, document, [], TestFilePath);
+
+        Assert.DoesNotContain(diagnostics, d =>
+            d.RuleId == Generator.RuleIdentifiers.OperationAuthorizeRoleCasing ||
+            d.RuleId == Generator.RuleIdentifiers.OperationAuthorizeRoleNotDefined);
+    }
+
     // ========== SEC007: Operation authentication scheme has incorrect casing vs global section ==========
 
     [Fact]

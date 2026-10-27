@@ -299,7 +299,8 @@ public class SchemaExtractorTests
         // Assert
         Assert.NotNull(result);
         Assert.Single(result.Parameters);
-        Assert.Contains(" : IAnimal", result.Parameters[0].Name, StringComparison.Ordinal);
+        Assert.Equal("Pet", result.Parameters[0].Name);
+        Assert.Equal("IAnimal", result.Parameters[0].BaseTypeName);
     }
 
     [Fact]
@@ -338,7 +339,8 @@ public class SchemaExtractorTests
         // Assert
         Assert.NotNull(result);
         Assert.Single(result.Parameters);
-        Assert.Contains(" : IAnimal, ISerializable", result.Parameters[0].Name, StringComparison.Ordinal);
+        Assert.Equal("Pet", result.Parameters[0].Name);
+        Assert.Equal("IAnimal, ISerializable", result.Parameters[0].BaseTypeName);
     }
 
     [Fact]
@@ -415,6 +417,54 @@ public class SchemaExtractorTests
         {
             Assert.Fail($"Property type is {idProp.GetType().Name}, cannot check ReadOnly");
         }
+    }
+
+    // required + nullable: the property must be in the JSON, and null is a value. [Required] would answer an explicit
+    // null with a 400, so the property gets [JsonRequired] (presence) instead
+    [Theory]
+    [InlineData("3.0.3", "{ type: string, nullable: true }")]
+    [InlineData("3.1.0", "{ type: [string, 'null'] }")]
+    public void ExtractForSchemas_RequiredNullableProperty_IsJsonRequiredNotRequired(
+        string openApiVersion,
+        string nullableSchema)
+    {
+        var yaml = $$"""
+                    openapi: {{openApiVersion}}
+                    info:
+                      title: Test
+                      version: 1.0.0
+                    paths: {}
+                    components:
+                      schemas:
+                        Profile:
+                          type: object
+                          required:
+                            - name
+                            - bio
+                          properties:
+                            name:
+                              type: string
+                            bio: {{nullableSchema}}
+                    """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+        var result = SchemaExtractor.ExtractForSchemas(
+            document,
+            "TestProject",
+            new HashSet<string>(StringComparer.Ordinal) { "Profile" },
+            pathSegment: null);
+
+        Assert.NotNull(result);
+        var parameters = result.Parameters[0].Parameters!;
+
+        var bio = parameters.First(p => p.Name == "Bio");
+        Assert.True(bio.IsNullableType);
+        Assert.Null(bio.DefaultValue);
+        Assert.DoesNotContain(bio.Attributes!, a => a.Name == "Required");
+        Assert.Contains(bio.Attributes!, a => a.Name == "global::System.Text.Json.Serialization.JsonRequired");
+
+        var name = parameters.First(p => p.Name == "Name");
+        Assert.Contains(name.Attributes!, a => a.Name == "Required");
     }
 
     [Fact]
@@ -566,7 +616,7 @@ public class SchemaExtractorTests
     [InlineData("number", "double", "double")]
     [InlineData("string", "uuid", "Guid")]
     [InlineData("string", "date-time", "DateTimeOffset")]
-    [InlineData("string", "date", "DateTimeOffset")]
+    [InlineData("string", "date", "DateOnly")]
     [InlineData("string", "uri", "Uri")]
     [InlineData("boolean", null, "bool")]
     public void ExtractForSchemas_FormatMapping_ProducesCorrectCSharpType(
@@ -842,6 +892,140 @@ public class SchemaExtractorTests
     }
 
     [Fact]
+    public void ExtractForSchemas_PropertyDescriptions_BecomeParameterDocs()
+    {
+        // IntelliSense shows a record property's description through the record's <param> doc
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                Pet:
+                                  type: object
+                                  properties:
+                                    name:
+                                      type: string
+                                      description: The pet's name.
+                                    tag:
+                                      type: string
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+        var schemaNames = new HashSet<string>(StringComparer.Ordinal) { "Pet" };
+
+        var result = SchemaExtractor.ExtractForSchemas(document, "TestProject", schemaNames, pathSegment: null);
+
+        Assert.NotNull(result);
+        var docs = result.Parameters[0].DocumentationTags;
+        Assert.NotNull(docs);
+        Assert.NotNull(docs.Parameters);
+        Assert.Equal("The pet's name.", docs.Parameters["Name"]);
+
+        // Once one property is documented every one must be (CS1573), so an undocumented one gets a plain line
+        Assert.Equal("The tag property.", docs.Parameters["Tag"]);
+    }
+
+    [Theory]
+    [InlineData("Line one<br>Line two", "Line one<br/>Line two")]
+    [InlineData("Line one<BR >Line two", "Line one<br/>Line two")]
+    [InlineData("Line one<br/>Line two", "Line one<br/>Line two")]
+    [InlineData("Line one</br>Line two", "Line one<br/>Line two")]
+    public void ExtractForSchemas_HtmlLineBreakInDescription_IsWellFormedXml(
+        string description,
+        string expected)
+    {
+        // Real specifications write HTML line breaks; an unclosed <br> would be malformed XML in the doc comment (CS1570)
+        var yaml = $$"""
+                     openapi: 3.0.0
+                     info:
+                       title: Test API
+                       version: 1.0.0
+                     paths: {}
+                     components:
+                       schemas:
+                         Pet:
+                           type: object
+                           description: "{{description}}"
+                           properties:
+                             name:
+                               type: string
+                               description: "{{description}}"
+                     """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+        var schemaNames = new HashSet<string>(StringComparer.Ordinal) { "Pet" };
+
+        var result = SchemaExtractor.ExtractForSchemas(document, "TestProject", schemaNames, pathSegment: null);
+
+        Assert.NotNull(result);
+        var docs = result.Parameters[0].DocumentationTags!;
+        Assert.Equal(expected, docs.Summary);
+        Assert.Equal(expected, docs.Parameters!["Name"]);
+    }
+
+    [Fact]
+    public void ExtractForSchemas_DeprecatedProperty_IsObsolete()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                Pet:
+                                  type: object
+                                  properties:
+                                    name:
+                                      type: string
+                                    nickname:
+                                      type: string
+                                      deprecated: true
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+        var schemaNames = new HashSet<string>(StringComparer.Ordinal) { "Pet" };
+
+        var result = SchemaExtractor.ExtractForSchemas(document, "TestProject", schemaNames, pathSegment: null);
+
+        Assert.NotNull(result);
+        var parameters = result.Parameters[0].Parameters!;
+        Assert.Contains(parameters.Single(p => p.Name == "Nickname").Attributes!, a => a.Name == "Obsolete");
+        Assert.DoesNotContain(parameters.Single(p => p.Name == "Name").Attributes ?? [], a => a.Name == "Obsolete");
+    }
+
+    [Fact]
+    public void ExtractIndividual_DeprecatedSchemaIncluded_IsObsolete()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                LegacyPet:
+                                  type: object
+                                  deprecated: true
+                                  properties:
+                                    name:
+                                      type: string
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+
+        var result = SchemaExtractor.ExtractIndividual(document, includeDeprecated: true);
+
+        Assert.NotNull(result);
+        Assert.Contains(Assert.Single(result).Attributes!, a => a.Name == "Obsolete");
+    }
+
+    [Fact]
     public void ExtractForSchemas_WithSchemaExample_GeneratesExampleTag()
     {
         const string yaml = """
@@ -882,6 +1066,129 @@ public class SchemaExtractorTests
     }
 
     [Fact]
+    public void ExtractForSchemas_ComponentExtendingGenericPage_DerivesFromClosedPage()
+    {
+        const string yaml = """
+                            openapi: 3.1.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                Account:
+                                  type: object
+                                  properties:
+                                    id:
+                                      type: string
+                                PaginatedResult:
+                                  type: object
+                                  properties:
+                                    continuation:
+                                      type: [string, 'null']
+                                    results:
+                                      type: array
+                                      items: {}
+                                AccountPage:
+                                  allOf:
+                                    - $ref: '#/components/schemas/PaginatedResult'
+                                    - type: object
+                                      properties:
+                                        results:
+                                          type: array
+                                          items:
+                                            $ref: '#/components/schemas/Account'
+                                        total:
+                                          type: integer
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+        var schemaNames = new HashSet<string>(StringComparer.Ordinal) { "PaginatedResult", "AccountPage" };
+
+        var result = SchemaExtractor.ExtractForSchemas(
+            document,
+            "TestProject",
+            schemaNames,
+            pathSegment: null);
+
+        Assert.NotNull(result);
+
+        // The page a component extends cannot be sealed
+        var page = result.Parameters.Single(r => r.Name == "PaginatedResult<T>");
+        Assert.Equal(DeclarationModifiers.PublicRecord, page.DeclarationModifier);
+
+        var accountPage = result.Parameters.Single(r => r.Name == "AccountPage");
+        Assert.Equal("PaginatedResult<Account>", accountPage.BaseTypeName);
+        Assert.Equal(["Continuation", "Results"], accountPage.BaseConstructorArguments);
+
+        // The forwarded parameters are the page's own with T filled in, followed by the component's own
+        Assert.NotNull(accountPage.Parameters);
+        Assert.Equal(["Continuation", "Results", "Total"], accountPage.Parameters.Select(p => p.Name), StringComparer.Ordinal);
+        Assert.Equal("List<Account>", accountPage.Parameters[1].TypeName);
+
+        // results is not in the page's required list: optional, so nullable and null by default, as every optional property
+        Assert.True(accountPage.Parameters[1].IsNullableType);
+        Assert.Equal("null", accountPage.Parameters[1].DefaultValue);
+    }
+
+    /// <summary>
+    /// A chain of allOf: the deepest component derives from the one above it and forwards every inherited
+    /// parameter to that base, so the record carries every property of the chain.
+    /// </summary>
+    [Fact]
+    public void ExtractForSchemas_ThreeLevelAllOf_EachLevelDerivesFromTheOneAbove()
+    {
+        const string yaml = """
+                            openapi: 3.0.3
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                Base:
+                                  type: object
+                                  required: [id]
+                                  properties:
+                                    id: { type: string }
+                                Mid:
+                                  allOf:
+                                    - $ref: '#/components/schemas/Base'
+                                    - type: object
+                                      required: [name]
+                                      properties:
+                                        name: { type: string }
+                                Leaf:
+                                  allOf:
+                                    - $ref: '#/components/schemas/Mid'
+                                    - type: object
+                                      properties:
+                                        extra: { type: string }
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+        var schemaNames = new HashSet<string>(StringComparer.Ordinal) { "Base", "Mid", "Leaf" };
+
+        var result = SchemaExtractor.ExtractForSchemas(
+            document,
+            "TestProject",
+            schemaNames,
+            pathSegment: null);
+
+        Assert.NotNull(result);
+        var mid = result.Parameters.Single(r => r.Name == "Mid");
+        Assert.Equal("Base", mid.BaseTypeName);
+        Assert.Equal(["Id"], mid.BaseConstructorArguments);
+        Assert.Equal(DeclarationModifiers.PublicRecord, mid.DeclarationModifier);
+
+        var leaf = result.Parameters.Single(r => r.Name == "Leaf");
+        Assert.Equal("Mid", leaf.BaseTypeName);
+        Assert.Equal(["Id", "Name"], leaf.BaseConstructorArguments);
+        Assert.NotNull(leaf.Parameters);
+        Assert.Equal(["Id", "Name", "Extra"], leaf.Parameters.Select(p => p.Name), StringComparer.Ordinal);
+    }
+
+    [Fact]
     public void ExtractForSchemas_WithoutDescriptionOrExample_NullDocumentationTags()
     {
         const string yaml = """
@@ -911,5 +1218,234 @@ public class SchemaExtractorTests
         Assert.NotNull(result);
         var record = result.Parameters[0];
         Assert.Null(record.DocumentationTags);
+    }
+
+    [Fact]
+    public void ExtractIndividual_WithoutFilter_ReturnsObjectRecordsAndSkipsEnumsArraysAndDeprecated()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                Pet:
+                                  type: object
+                                  required: [name]
+                                  properties:
+                                    name:
+                                      type: string
+                                Pets:
+                                  type: array
+                                  items:
+                                    $ref: '#/components/schemas/Pet'
+                                Status:
+                                  type: string
+                                  enum: [available, sold]
+                                LegacyPet:
+                                  type: object
+                                  deprecated: true
+                                  properties:
+                                    name:
+                                      type: string
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+
+        var result = SchemaExtractor.ExtractIndividual(document);
+        var withDeprecated = SchemaExtractor.ExtractIndividual(document, includeDeprecated: true);
+
+        Assert.NotNull(result);
+        var pet = Assert.Single(result);
+        Assert.Equal("Pet", pet.Name);
+        Assert.Equal(DeclarationModifiers.PublicSealedRecord, pet.DeclarationModifier);
+        var name = Assert.Single(pet.Parameters!);
+        Assert.Equal("Name", name.Name);
+        Assert.Equal("string", name.TypeName);
+        Assert.False(name.IsNullableType);
+
+        Assert.Equal(["Pet", "LegacyPet"], withDeprecated!.Select(r => r.Name), StringComparer.Ordinal);
+    }
+
+    [Fact]
+    public void ExtractIndividual_GeneratePartialModels_EmitsPartialRecords()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                Pet:
+                                  type: object
+                                  properties:
+                                    name:
+                                      type: string
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+
+        var result = SchemaExtractor.ExtractIndividual(document, generatePartialModels: true);
+
+        Assert.Equal(DeclarationModifiers.PublicPartialRecord, Assert.Single(result!).DeclarationModifier);
+    }
+
+    [Fact]
+    public void ExtractIndividual_NoSchemas_ReturnsNull()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths: {}
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+
+        Assert.Null(SchemaExtractor.ExtractIndividual(document));
+    }
+
+    [Fact]
+    public void ExtractIndividual_VariantInheritsBaseAndBaseIsSkipped()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                Shape:
+                                  oneOf:
+                                    - $ref: '#/components/schemas/Circle'
+                                    - $ref: '#/components/schemas/Square'
+                                  discriminator:
+                                    propertyName: shapeType
+                                    mapping:
+                                      circle: '#/components/schemas/Circle'
+                                      square: '#/components/schemas/Square'
+                                Circle:
+                                  type: object
+                                  properties:
+                                    shapeType:
+                                      type: string
+                                    radius:
+                                      type: number
+                                Square:
+                                  type: object
+                                  properties:
+                                    shapeType:
+                                      type: string
+                                    sideLength:
+                                      type: number
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+
+        var records = SchemaExtractor.ExtractIndividual(document);
+
+        // The oneOf base is handled by PolymorphicTypeExtractor; the variants derive from it
+        Assert.Equal(["Circle", "Square"], records!.Select(r => r.Name), StringComparer.Ordinal);
+        Assert.All(records!, r => Assert.Equal("Shape", r.BaseTypeName));
+    }
+
+    [Fact]
+    public void SchemaExtractor_WithOneOfSingleReference_GeneratesCorrectRecordProperty()
+    {
+        // Arrange - full integration test using SchemaExtractor
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /devices:
+                                get:
+                                  operationId: getDevices
+                                  responses:
+                                    '200':
+                                      description: OK
+                            components:
+                              schemas:
+                                InsightDevice:
+                                  type: object
+                                  properties:
+                                    id:
+                                      type: string
+                                      format: uuid
+                                    name:
+                                      type: string
+                                    customer:
+                                      nullable: true
+                                      oneOf:
+                                        - $ref: '#/components/schemas/IdValue'
+                                    site:
+                                      nullable: true
+                                      oneOf:
+                                        - $ref: '#/components/schemas/IdValue'
+                                    suggestedCustomer:
+                                      nullable: true
+                                      oneOf:
+                                        - $ref: '#/components/schemas/KeyValue'
+                                IdValue:
+                                  type: object
+                                  properties:
+                                    id:
+                                      type: string
+                                      format: uuid
+                                    name:
+                                      type: string
+                                KeyValue:
+                                  type: object
+                                  properties:
+                                    key:
+                                      type: string
+                                    value:
+                                      type: string
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+
+        // Act - use overload without pathSegment to extract all component schemas
+        var recordsParams = SchemaExtractor.Extract(
+            document,
+            "TestApi",
+            includeDeprecated: false);
+
+        // Assert
+        Assert.NotNull(recordsParams);
+
+        var insightDeviceRecord = recordsParams.Parameters
+            .FirstOrDefault(r => r.Name == "InsightDevice");
+        Assert.NotNull(insightDeviceRecord);
+        Assert.NotNull(insightDeviceRecord.Parameters);
+
+        // Every property is optional (no required list), so each one is nullable; the type is the oneOf reference.
+        // Check the customer property type
+        var customerParam = insightDeviceRecord.Parameters
+            .FirstOrDefault(p => p.Name == "Customer");
+        Assert.NotNull(customerParam);
+        Assert.Equal("IdValue", customerParam.TypeName);
+        Assert.True(customerParam.IsNullableType);
+
+        // Check the site property type
+        var siteParam = insightDeviceRecord.Parameters
+            .FirstOrDefault(p => p.Name == "Site");
+        Assert.NotNull(siteParam);
+        Assert.Equal("IdValue", siteParam.TypeName);
+        Assert.True(siteParam.IsNullableType);
+
+        // Check the suggestedCustomer property type
+        var suggestedCustomerParam = insightDeviceRecord.Parameters
+            .FirstOrDefault(p => p.Name == "SuggestedCustomer");
+        Assert.NotNull(suggestedCustomerParam);
+        Assert.Equal("KeyValue", suggestedCustomerParam.TypeName);
+        Assert.True(suggestedCustomerParam.IsNullableType);
     }
 }

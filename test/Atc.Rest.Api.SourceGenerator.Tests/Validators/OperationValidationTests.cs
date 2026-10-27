@@ -480,6 +480,62 @@ public class OperationValidationTests
 
     // ========== OPR008: Pluralized operationId but response is single item ==========
 
+    /// <summary>
+    /// A streamed response is a sequence of its schema: <c>listPriceEvents</c> answering a stream of one
+    /// <c>PriceTick</c> at a time (Server-Sent Events, JSON Lines, an OpenAPI 3.2 <c>itemSchema</c>) is named
+    /// right, and <c>getPriceEvent</c> for the same stream is the singular name of a collection.
+    /// </summary>
+    [Theory]
+    [InlineData("text/event-stream")]
+    [InlineData("application/jsonl")]
+    [InlineData("application/json-seq")]
+    [InlineData("multipart/mixed")]
+    public void Validate_AStreamOfOneSchema_IsACollection(string mediaType)
+    {
+        string Yaml(string operationId)
+            => $$"""
+                openapi: 3.0.0
+                info:
+                  title: Test API
+                  version: 1.0.0
+                paths:
+                  /prices:
+                    get:
+                      operationId: {{operationId}}
+                      x-return-async-enumerable: true
+                      responses:
+                        '200':
+                          description: Prices
+                          content:
+                            {{mediaType}}:
+                              schema:
+                                $ref: '#/components/schemas/PriceTick'
+                components:
+                  schemas:
+                    PriceTick:
+                      type: object
+                      title: PriceTick
+                      properties:
+                        symbol: { type: string }
+                """;
+
+        List<string> Rules(string operationId)
+        {
+            var document = ParseYaml(Yaml(operationId));
+            Assert.NotNull(document);
+            return OpenApiDocumentValidator
+                .Validate(ValidateSpecificationStrategy.Strict, document, [], TestFilePath)
+                .Select(d => d.RuleId)
+                .ToList();
+        }
+
+        var plural = Rules("listPriceEvents");
+        Assert.DoesNotContain(Generator.RuleIdentifiers.OperationIdPluralizationMismatch, plural, StringComparer.Ordinal);
+        Assert.DoesNotContain(Generator.RuleIdentifiers.OperationIdSingularMismatch, plural, StringComparer.Ordinal);
+
+        Assert.Contains(Generator.RuleIdentifiers.OperationIdSingularMismatch, Rules("getPriceEvent"), StringComparer.Ordinal);
+    }
+
     [Fact]
     public void Validate_PluralOperationIdReturnsSingleObject_ReportsOPR008()
     {
@@ -1953,6 +2009,368 @@ public class OperationValidationTests
         Assert.Contains("createPet", opr018.Message, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("100")]
+    [InlineData("101")]
+    [InlineData("102")]
+    [InlineData("103")]
+    public void Validate_InformationalStatusCode_ReportsOPR030(
+        string statusCode)
+    {
+        // Arrange
+        var document = ParseYaml($$"""
+            openapi: 3.0.3
+            info:
+              title: Test
+              version: 1.0.0
+            paths:
+              /pets:
+                get:
+                  operationId: listPets
+                  responses:
+                    '200':
+                      description: OK
+                    '{{statusCode}}':
+                      description: Informational
+            """);
+        Assert.NotNull(document);
+
+        // Act
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Strict,
+            document,
+            [],
+            TestFilePath);
+
+        // Assert
+        var opr030 = Assert.Single(diagnostics, d => d.RuleId == Generator.RuleIdentifiers.InformationalResponseStatusCode);
+        Assert.Equal(Generator.Models.DiagnosticSeverity.Warning, opr030.Severity);
+        Assert.Contains(statusCode, opr030.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Validate_BodiesNotGeneratedAsDeclared_ReportOPR031()
+    {
+        // Arrange: every body the generator cannot represent as declared, next to one it can
+        var document = ParseYaml("""
+            openapi: 3.0.3
+            info:
+              title: Test
+              version: 1.0.0
+            paths:
+              /inline-xml:
+                get:
+                  operationId: getInlineXml
+                  responses:
+                    '200':
+                      description: OK
+                      content:
+                        application/xml:
+                          schema:
+                            type: object
+                            properties:
+                              name:
+                                type: string
+              /json-and-inline-xml:
+                get:
+                  operationId: getJsonAndInlineXml
+                  responses:
+                    '200':
+                      description: OK
+                      content:
+                        application/json:
+                          schema:
+                            $ref: '#/components/schemas/Pet'
+                        application/xml:
+                          schema:
+                            type: object
+                            properties:
+                              name:
+                                type: string
+              /xml-list-body:
+                post:
+                  operationId: addPets
+                  requestBody:
+                    required: true
+                    content:
+                      application/xml:
+                        schema:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/Pet'
+                  responses:
+                    '204':
+                      description: Stored
+              /inline-xml-error:
+                get:
+                  operationId: getInlineXmlError
+                  responses:
+                    '200':
+                      description: OK
+                    '404':
+                      description: Not found
+                      content:
+                        application/xml:
+                          schema:
+                            type: object
+                            properties:
+                              code:
+                                type: string
+              /model-or-file:
+                get:
+                  operationId: getModelOrFile
+                  responses:
+                    '200':
+                      description: OK
+                      content:
+                        application/json:
+                          schema:
+                            $ref: '#/components/schemas/Pet'
+                        application/pdf:
+                          schema:
+                            type: string
+                            format: binary
+              /model-or-file-accepted:
+                post:
+                  operationId: acceptModelOrFile
+                  responses:
+                    '202':
+                      description: Accepted
+                      content:
+                        application/json:
+                          schema:
+                            $ref: '#/components/schemas/Pet'
+                        application/pdf:
+                          schema:
+                            type: string
+                            format: binary
+              /mapped-xml:
+                get:
+                  operationId: getMappedXml
+                  responses:
+                    '200':
+                      description: OK
+                      content:
+                        application/xml:
+                          schema:
+                            $ref: '#/components/schemas/Pet'
+            components:
+              schemas:
+                Pet:
+                  type: object
+                  title: Pet
+                  required: [name]
+                  properties:
+                    name:
+                      type: string
+            """);
+        Assert.NotNull(document);
+
+        // Act
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Strict,
+            document,
+            [],
+            TestFilePath).Where(d => d.RuleId == Generator.RuleIdentifiers.BodyNotGeneratedAsDeclared).ToList();
+
+        // Assert: one warning per body, naming the operation, the status and the media type; none for the mapped body,
+        // nor for a 200 that is a model or a file (both are generated) - only for a model or a file of another status.
+        // An XML list request body is generated too: the server binds it into a generated list by its Content-Type.
+        Assert.All(diagnostics, d => Assert.Equal(Generator.Models.DiagnosticSeverity.Warning, d.Severity));
+        Assert.Collection(
+            diagnostics.Select(d => d.Message).Order(StringComparer.Ordinal),
+            m => Assert.Contains("'acceptModelOrFile' response 202 (application/pdf)", m, StringComparison.Ordinal),
+            m => Assert.Contains("'getInlineXml' response 200 (application/xml)", m, StringComparison.Ordinal),
+            m => Assert.Contains("'getInlineXmlError' response 404 (application/xml)", m, StringComparison.Ordinal),
+            m => Assert.Contains("'getJsonAndInlineXml' response 200 (application/xml)", m, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Validate_FormUrlEncodedRequestBody_ReportsOPR031()
+    {
+        // Arrange: a form-only body is generated as the form's fields (no warning); beside JSON the body is JSON; a field
+        // that is an object has no form encoding
+        var document = ParseYaml("""
+            openapi: 3.0.3
+            info:
+              title: Test
+              version: 1.0.0
+            paths:
+              /form-only:
+                post:
+                  operationId: postForm
+                  requestBody:
+                    required: true
+                    content:
+                      application/x-www-form-urlencoded:
+                        schema:
+                          $ref: '#/components/schemas/Pet'
+                  responses:
+                    '204':
+                      description: Stored
+              /form-with-an-object:
+                post:
+                  operationId: postNestedForm
+                  requestBody:
+                    required: true
+                    content:
+                      application/x-www-form-urlencoded:
+                        schema:
+                          $ref: '#/components/schemas/Order'
+                  responses:
+                    '204':
+                      description: Stored
+              /form-or-json:
+                post:
+                  operationId: postFormOrJson
+                  requestBody:
+                    required: true
+                    content:
+                      application/json:
+                        schema:
+                          $ref: '#/components/schemas/Pet'
+                      application/x-www-form-urlencoded:
+                        schema:
+                          $ref: '#/components/schemas/Pet'
+                  responses:
+                    '204':
+                      description: Stored
+              /json-only:
+                post:
+                  operationId: postJson
+                  requestBody:
+                    required: true
+                    content:
+                      application/json:
+                        schema:
+                          $ref: '#/components/schemas/Pet'
+                  responses:
+                    '204':
+                      description: Stored
+            components:
+              schemas:
+                Order:
+                  type: object
+                  title: Order
+                  properties:
+                    pet:
+                      $ref: '#/components/schemas/Pet'
+                    tags:
+                      type: array
+                      items: { type: string }
+                Pet:
+                  type: object
+                  title: Pet
+                  required: [name]
+                  properties:
+                    name:
+                      type: string
+            """);
+        Assert.NotNull(document);
+
+        // Act
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Strict,
+            document,
+            [],
+            TestFilePath).Where(d => d.RuleId == Generator.RuleIdentifiers.BodyNotGeneratedAsDeclared).ToList();
+
+        // Assert: the form beside JSON; nothing for the form-only and the JSON-only operations, nor for the object field
+        // (ATC_API_OPR037, Validate_FormFieldWithNoFormEncoding_ReportsOPR037)
+        Assert.All(diagnostics, d => Assert.Equal(Generator.Models.DiagnosticSeverity.Warning, d.Severity));
+        Assert.Collection(
+            diagnostics.Select(d => d.Message).Order(StringComparer.Ordinal),
+            m =>
+            {
+                Assert.Contains("'postFormOrJson' request body (application/x-www-form-urlencoded)", m, StringComparison.Ordinal);
+                Assert.Contains("as JSON only", m, StringComparison.Ordinal);
+            });
+    }
+
+    [Theory]
+    [InlineData("application/x-www-form-urlencoded", "{ $ref: '#/components/schemas/Address' }", "")]
+    [InlineData("application/x-www-form-urlencoded", "{ type: array, items: { $ref: '#/components/schemas/Address' } }", "")]
+    [InlineData("application/x-www-form-urlencoded", "{ $ref: '#/components/schemas/Composed' }", "")]
+    [InlineData("application/x-www-form-urlencoded", "{ $ref: '#/components/schemas/Either' }", "")]
+    [InlineData("application/x-www-form-urlencoded", "{ type: object, additionalProperties: { type: string } }", "")]
+    [InlineData("multipart/form-data", "{ $ref: '#/components/schemas/Address' }", "text/plain")]
+    [InlineData("multipart/form-data", "{ type: array, items: { $ref: '#/components/schemas/Address' } }", "text/plain")]
+    [InlineData("multipart/form-data", "{ type: object, additionalProperties: { type: string } }", "application/xml")] // XML maps a model only
+    [InlineData("multipart/form-data", "{ $ref: '#/components/schemas/Either' }", "application/x-www-form-urlencoded")] // URL-encoded is a flat model's
+    public void Validate_FormFieldWithNoFormEncoding_ReportsOPR037(
+        string mediaType,
+        string fieldYaml,
+        string encodingContentType)
+    {
+        // Arrange: a URL-encoded field that is an object, a map or a composition has no text form, nor has a multipart
+        // field whose encoding names a media type other than JSON - a client cannot send it, a server cannot bind it
+        var document = ParseYaml(FormWithFieldYaml(mediaType, fieldYaml, encodingContentType));
+        Assert.NotNull(document);
+
+        // Act
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Strict,
+            document,
+            [],
+            TestFilePath).Where(d => d.RuleId is Generator.RuleIdentifiers.ParameterValueNotBindable or Generator.RuleIdentifiers.BodyNotGeneratedAsDeclared).ToList();
+
+        // Assert: one warning (a client leaves the field out; a server generator raises it to an error)
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Equal(Generator.RuleIdentifiers.ParameterValueNotBindable, diagnostic.RuleId);
+        Assert.Equal(Generator.Models.DiagnosticSeverity.Warning, diagnostic.Severity);
+        Assert.Contains($"'upload' request body ({mediaType}) field 'field'", diagnostic.Message, StringComparison.Ordinal);
+        Assert.Contains("the generated clients leave it out", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("{ $ref: '#/components/schemas/Address' }", "")]
+    [InlineData("{ type: array, items: { $ref: '#/components/schemas/Address' } }", "")]
+    [InlineData("{ $ref: '#/components/schemas/Composed' }", "")]
+    [InlineData("{ $ref: '#/components/schemas/Either' }", "")]
+    [InlineData("{ type: object, additionalProperties: { type: string } }", "")]
+    [InlineData("{ $ref: '#/components/schemas/Address' }", "application/json")]
+    [InlineData("{ $ref: '#/components/schemas/Address' }", "application/vnd.contoso+json")]
+    public void Validate_MultipartFieldWithNoTextForm_IsAJsonPart_ReportsNoOPR037(
+        string fieldYaml,
+        string encodingContentType)
+    {
+        // Arrange: a multipart field that is an object, a map or a composition is an application/json part, OpenAPI's
+        // default for it (a list of one is a part per item)
+        var document = ParseYaml(FormWithFieldYaml("multipart/form-data", fieldYaml, encodingContentType));
+        Assert.NotNull(document);
+
+        // Act
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Strict,
+            document,
+            [],
+            TestFilePath).Where(d => d.RuleId is Generator.RuleIdentifiers.ParameterValueNotBindable or Generator.RuleIdentifiers.BodyNotGeneratedAsDeclared).ToList();
+
+        // Assert
+        Assert.Empty(diagnostics);
+    }
+
+    [Theory]
+    [InlineData("{ type: string }")]
+    [InlineData("{ type: array, items: { type: integer } }")]
+    [InlineData("{ $ref: '#/components/schemas/Color' }")]
+    [InlineData("{ allOf: [ { $ref: '#/components/schemas/Color' } ], description: Wrapped }")]
+    [InlineData("{ type: string, format: binary }")]
+    public void Validate_FormFieldWithATextForm_ReportsNoOPR037(
+        string fieldYaml)
+    {
+        var document = ParseYaml(FormWithFieldYaml("multipart/form-data", fieldYaml));
+        Assert.NotNull(document);
+
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Strict,
+            document,
+            [],
+            TestFilePath).Where(d => d.RuleId is Generator.RuleIdentifiers.ParameterValueNotBindable or Generator.RuleIdentifiers.BodyNotGeneratedAsDeclared).ToList();
+
+        Assert.Empty(diagnostics);
+    }
+
     [Fact]
     public void Validate_Single2xxStatusCode_NoOPR018()
     {
@@ -2212,7 +2630,7 @@ public class OperationValidationTests
     // ========== OPR026: Parameter serialization not supported ==========
 
     [Fact]
-    public void Validate_QueryArray_SpaceDelimited_EmitsOPR026Warning()
+    public void Validate_QueryArray_DeepObject_EmitsOPR026Warning()
     {
         // Arrange
         const string yaml = """
@@ -2228,7 +2646,7 @@ public class OperationValidationTests
                                   parameters:
                                     - name: tags
                                       in: query
-                                      style: spaceDelimited
+                                      style: deepObject
                                       schema:
                                         type: array
                                         items:
@@ -2295,6 +2713,107 @@ public class OperationValidationTests
         var opr026 = diagnostics.FirstOrDefault(d =>
             d.RuleId == Generator.RuleIdentifiers.ParameterSerializationNotSupported);
         Assert.Null(opr026);
+    }
+
+    /// <summary>
+    /// OAS 3.2: a querystring parameter is the whole query string - it MUST NOT appear more than once, nor next to a
+    /// query parameter of the operation or its path item.
+    /// </summary>
+    [Theory]
+    [InlineData("- { name: q, in: query, schema: { type: string } }")]
+    [InlineData("- { name: other, in: querystring, content: { application/x-www-form-urlencoded: { schema: { type: string } } } }")]
+    public void Validate_QueryStringWithAQueryParameterOrASecondQueryString_ReportsOPR036Error(
+        string secondParameter)
+    {
+        var yaml = $$"""
+                     openapi: 3.2.0
+                     info:
+                       title: Test API
+                       version: 1.0.0
+                     paths:
+                       /items:
+                         get:
+                           operationId: listItems
+                           parameters:
+                             - { name: filter, in: querystring, content: { application/x-www-form-urlencoded: { schema: { type: string } } } }
+                             {{secondParameter}}
+                           responses:
+                             '200':
+                               description: Success
+                     """;
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        foreach (var strategy in (ValidateSpecificationStrategy[])[ValidateSpecificationStrategy.None, ValidateSpecificationStrategy.Standard, ValidateSpecificationStrategy.Strict])
+        {
+            var diagnostics = OpenApiDocumentValidator.Validate(strategy, document, [], TestFilePath);
+
+            var error = Assert.Single(diagnostics, d => d.RuleId == Generator.RuleIdentifiers.QueryStringParameterNotAlone);
+            Assert.Equal(Generator.Models.DiagnosticSeverity.Error, error.Severity);
+            Assert.Contains("listItems", error.Message, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public void Validate_AQueryStringParameterAlone_NoOPR036()
+    {
+        const string yaml = """
+                            openapi: 3.2.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /items:
+                                get:
+                                  operationId: listItems
+                                  parameters:
+                                    - { name: filter, in: querystring, content: { application/x-www-form-urlencoded: { schema: { type: string } } } }
+                                    - { name: x-trace, in: header, schema: { type: string } }
+                                  responses:
+                                    '200':
+                                      description: Success
+                            """;
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var diagnostics = OpenApiDocumentValidator.Validate(ValidateSpecificationStrategy.Strict, document, [], TestFilePath);
+
+        Assert.DoesNotContain(diagnostics, d => d.RuleId == Generator.RuleIdentifiers.QueryStringParameterNotAlone);
+    }
+
+    [Theory]
+    [InlineData("explode: false")]
+    [InlineData("style: pipeDelimited")]
+    [InlineData("style: spaceDelimited")]
+    public void Validate_QueryArray_DelimitedStyle_NoOPR026Warning(string style)
+    {
+        var yaml = $"""
+                    openapi: 3.0.0
+                    info:
+                      title: Test API
+                      version: 1.0.0
+                    paths:
+                      /items:
+                        get:
+                          operationId: listItems
+                          parameters:
+                            - name: tags
+                              in: query
+                              {style}
+                              schema:
+                                type: array
+                                items:
+                                  type: string
+                          responses:
+                            '200':
+                              description: Success
+                    """;
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var diagnostics = OpenApiDocumentValidator.Validate(ValidateSpecificationStrategy.Strict, document, [], TestFilePath);
+
+        Assert.DoesNotContain(diagnostics, d => d.RuleId == Generator.RuleIdentifiers.ParameterSerializationNotSupported);
     }
 
     // ========== Helper Methods ==========
@@ -2975,4 +3494,61 @@ public class OperationValidationTests
                      description: Too many requests
 
            """;
+
+    private static string FormWithFieldYaml(
+        string mediaType,
+        string fieldYaml,
+        string encodingContentType = "")
+        => $$"""
+            openapi: 3.0.3
+            info:
+              title: Test
+              version: 1.0.0
+            paths:
+              /upload:
+                post:
+                  operationId: upload
+                  requestBody:
+                    required: true
+                    content:
+                      {{mediaType}}:
+                        schema:
+                          $ref: '#/components/schemas/UploadForm'
+                        {{(encodingContentType.Length == 0 ? string.Empty : "encoding: { field: { contentType: '" + encodingContentType + "' } }")}}
+                  responses:
+                    '204':
+                      description: Stored
+            components:
+              schemas:
+                Address:
+                  type: object
+                  title: Address
+                  properties:
+                    street: { type: string }
+                Other:
+                  type: object
+                  title: Other
+                  properties:
+                    code: { type: integer }
+                Composed:
+                  title: Composed
+                  allOf:
+                    - $ref: '#/components/schemas/Address'
+                    - $ref: '#/components/schemas/Other'
+                Either:
+                  title: Either
+                  oneOf:
+                    - $ref: '#/components/schemas/Address'
+                    - $ref: '#/components/schemas/Other'
+                Color:
+                  type: string
+                  title: Color
+                  enum: [red, dark-blue]
+                UploadForm:
+                  type: object
+                  title: UploadForm
+                  properties:
+                    name: { type: string }
+                    field: {{fieldYaml}}
+            """;
 }

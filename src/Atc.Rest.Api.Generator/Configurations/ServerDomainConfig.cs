@@ -41,6 +41,7 @@ public class ServerDomainConfig : BaseConfig
     /// Type of stub implementation to generate. Default: "throw-not-implemented".
     /// Options: "throw-not-implemented", "error-501", "default-value".
     /// </summary>
+    [MarkerValues("throw-not-implemented", "error-501", "default-value")]
     public string StubImplementation { get; set; } = "throw-not-implemented";
 
     /// <summary>

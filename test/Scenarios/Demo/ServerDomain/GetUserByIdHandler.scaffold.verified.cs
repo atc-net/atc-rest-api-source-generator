@@ -5,6 +5,9 @@ namespace Demo.ApiHandlers;
 /// </summary>
 public sealed class GetUserByIdHandler : IGetUserByIdHandler
 {
+    /// <summary>
+    /// Executes the GetUserById operation.
+    /// </summary>
     public System.Threading.Tasks.Task<GetUserByIdResult> ExecuteAsync(
         GetUserByIdParameters parameters,
         CancellationToken cancellationToken = default)

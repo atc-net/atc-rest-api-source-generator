@@ -54,6 +54,89 @@ public class TypeScriptEnumExtractorTests
         Assert.DoesNotContain("enum Status", content, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// A value listed twice is one member; two values that differ in case only are two members, each with its value.
+    /// </summary>
+    [Theory]
+    [InlineData(TypeScriptEnumStyle.Enum)]
+    [InlineData(TypeScriptEnumStyle.Union)]
+    public void Extract_StringEnum_DuplicateValueIsOneMember_CaseVariantsKeepTheirValues(
+        TypeScriptEnumStyle style)
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: T
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                State:
+                                  type: string
+                                  enum: [active, Active, archived, archived]
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptEnumExtractor.Extract(doc, new TypeScriptClientConfig { EnumStyle = style }));
+
+        // The declaration (an open union's guard after it lists the values again)
+        var declaration = content.Split("export function", StringSplitOptions.None)[0];
+        Assert.Equal(1, CountOf(declaration, "'archived'"));
+        Assert.Equal(1, CountOf(declaration, "'active'"));
+        Assert.Equal(1, CountOf(declaration, "'Active'"));
+        Assert.DoesNotContain("Archived2", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_StringEnum_UnionStyle_IsOpen_SoAValueTheServerAddsLaterStillTypeChecks()
+    {
+        var doc = ParseYaml(StatusYaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptEnumExtractor.Extract(doc, new TypeScriptClientConfig()));
+
+        Assert.Contains("export type Status = 'active' | 'inactive' | (string & {});", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_StringEnum_UnionStyle_ExtensibleEnumsFalse_IsClosed()
+    {
+        var doc = ParseYaml(StatusYaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptEnumExtractor.Extract(doc, new TypeScriptClientConfig { ExtensibleEnums = false }));
+
+        Assert.Contains("export type Status = 'active' | 'inactive';", content, StringComparison.Ordinal);
+
+        // Closed: every value is known, so there is no guard
+        Assert.DoesNotContain("isKnownStatus", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_StringEnum_UnionStyle_IsOpen_ExportsAGuardForTheKnownValues()
+    {
+        var doc = ParseYaml(StatusYaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptEnumExtractor.Extract(doc, new TypeScriptClientConfig()));
+
+        Assert.Contains("export function isKnownStatus(value: Status | null | undefined): value is 'active' | 'inactive' {", content, StringComparison.Ordinal);
+        Assert.Contains("  return value != null && (['active', 'inactive'] as readonly string[]).includes(value);", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_StringEnum_UnionStyle_IsOpen_WithRuntimeValues_TheGuardReadsTheValues()
+    {
+        var doc = ParseYaml(StatusYaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptEnumExtractor.Extract(doc, new TypeScriptClientConfig { EnumRuntimeValues = true }));
+
+        Assert.Contains("export const StatusValues = ['active', 'inactive'] as const;", content, StringComparison.Ordinal);
+        Assert.Contains("  return value != null && (StatusValues as readonly string[]).includes(value);", content, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void Extract_StringEnum_EnumStyle_GeneratesEnumDeclaration()
     {
@@ -113,7 +196,7 @@ public class TypeScriptEnumExtractorTests
         Assert.Equal("Status", name);
 
         // The type alias is still emitted unchanged ...
-        Assert.Contains("export type Status = 'active' | 'inactive' | 'pending';", content, StringComparison.Ordinal);
+        Assert.Contains("export type Status = 'active' | 'inactive' | 'pending' | (string & {});", content, StringComparison.Ordinal);
 
         // ... plus the runtime const array beside it.
         Assert.Contains("export const StatusValues = ['active', 'inactive', 'pending'] as const;", content, StringComparison.Ordinal);
@@ -235,8 +318,24 @@ public class TypeScriptEnumExtractorTests
         Assert.Single(includedResult);
     }
 
+    private const string StatusYaml = """
+                                      openapi: 3.0.0
+                                      info: { title: T, version: 1.0.0 }
+                                      paths: {}
+                                      components:
+                                        schemas:
+                                          Status:
+                                            type: string
+                                            enum: [active, inactive]
+                                      """;
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document
             : null;
+
+    private static int CountOf(
+        string text,
+        string value)
+        => text.Split(value).Length - 1;
 }

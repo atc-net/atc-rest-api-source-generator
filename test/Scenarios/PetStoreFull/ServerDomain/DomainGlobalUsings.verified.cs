@@ -1,3 +1,4 @@
+#pragma warning disable CS1591
 global using PetStoreFull.Generated.Pet.Handlers;
 global using PetStoreFull.Generated.Pet.Parameters;
 global using PetStoreFull.Generated.Pet.Results;

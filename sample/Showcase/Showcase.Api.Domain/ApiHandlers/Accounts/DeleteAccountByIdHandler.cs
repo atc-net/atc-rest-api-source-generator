@@ -7,9 +7,15 @@ public sealed class DeleteAccountByIdHandler : IDeleteAccountByIdHandler
 {
     private static readonly ActivitySource ActivitySource = new("Showcase.Handlers.Accounts.DeleteAccountById");
     private readonly AccountInMemoryRepository repository;
+    private readonly IOutputCacheStore outputCacheStore;
 
-    public DeleteAccountByIdHandler(AccountInMemoryRepository repository)
-        => this.repository = repository;
+    public DeleteAccountByIdHandler(
+        AccountInMemoryRepository repository,
+        IOutputCacheStore outputCacheStore)
+    {
+        this.repository = repository;
+        this.outputCacheStore = outputCacheStore;
+    }
 
     public async Task<DeleteAccountByIdResult> ExecuteAsync(
         DeleteAccountByIdParameters parameters,
@@ -20,8 +26,12 @@ public sealed class DeleteAccountByIdHandler : IDeleteAccountByIdHandler
 
         var account = await repository.Delete(parameters.AccountId);
 
-        return account is null
-            ? DeleteAccountByIdResult.NotFound()
-            : DeleteAccountByIdResult.NoContent();
+        if (account is null)
+        {
+            return DeleteAccountByIdResult.NotFound();
+        }
+
+        await outputCacheStore.EvictByTagAsync(OutputCacheTags.Accounts, cancellationToken);
+        return DeleteAccountByIdResult.NoContent();
     }
 }

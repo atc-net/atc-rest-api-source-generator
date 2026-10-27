@@ -8,7 +8,7 @@ namespace EloverblikThirdPartyApiClientApp;
 /// exchanged for a short-lived access token. Because <c>IHttpClientFactory</c>
 /// pools and reuses handlers, the token cannot be baked into
 /// <c>DefaultRequestHeaders</c> at registration time. Instead this singleton acts
-/// as a mutable holder that <see cref="BearerTokenHandler"/> reads on every
+/// as a mutable holder that the generated <c>ApiCredentialsHandler</c> reads on every
 /// outgoing request, which keeps the swap from refresh token to access token
 /// visible to the generated client without rebuilding it.
 /// </remarks>

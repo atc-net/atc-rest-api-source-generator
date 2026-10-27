@@ -1,23 +1,24 @@
 import { defineConfig, devices } from '@playwright/test';
+import { API_PORT, BLAZOR_PORT, REACT_AXIOS_PORT, REACT_FETCH_PORT } from './ports';
 
-const API_PORT = 15046;
-const BLAZOR_PORT = 5048;
-const REACT_FETCH_PORT = 5173;
-const REACT_AXIOS_PORT = 5174;
+// A server already on a port is reused only when asked (PW_REUSE=1): otherwise an old build, an Aspire or an IDE run
+// would be tested silently, and the run fails loudly on the taken port instead.
+const reuseExistingServer = !process.env.CI && process.env.PW_REUSE === '1';
 
 export default defineConfig({
   testDir: './specs',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
+  // No retries: a test that fails once is reported as failing, not hidden as passed-on-retry
+  retries: 0,
   workers: process.env.CI ? 1 : undefined,
-  reporter: [['html', { open: 'never' }]],
+  // The JSON file feeds the Playwright tab of the test-suite report (Report_EndToEndErrorBodyMatrix)
+  reporter: [['html', { open: 'never' }], ['json', { outputFile: 'test-results/results.json' }]],
 
   use: {
-    trace: 'on-first-retry',
+    trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
-
   projects: [
     {
       name: 'blazor',
@@ -27,6 +28,9 @@ export default defineConfig({
         navigationTimeout: 30_000,
         actionTimeout: 15_000,
       },
+      // Every page load boots the .NET WebAssembly runtime before the first render: with every worker loading at
+      // once, that takes longer than the default 5 s an assertion waits
+      expect: { timeout: 15_000 },
       metadata: { appType: 'blazor' },
     },
     {
@@ -34,7 +38,9 @@ export default defineConfig({
       use: {
         ...devices['Desktop Chrome'],
         baseURL: `http://localhost:${REACT_FETCH_PORT}`,
-        navigationTimeout: 10_000,
+        // The Vite dev server transforms a module on its first request: under every worker at once, a first load
+        // can take longer than 10 s
+        navigationTimeout: 30_000,
         actionTimeout: 10_000,
       },
       metadata: { appType: 'react', appVariant: 'fetch' },
@@ -44,7 +50,7 @@ export default defineConfig({
       use: {
         ...devices['Desktop Chrome'],
         baseURL: `http://localhost:${REACT_AXIOS_PORT}`,
-        navigationTimeout: 10_000,
+        navigationTimeout: 30_000,
         actionTimeout: 10_000,
       },
       metadata: { appType: 'react', appVariant: 'axios' },
@@ -55,27 +61,30 @@ export default defineConfig({
     {
       command: 'dotnet run --project ../../sample/Showcase/Showcase.Api',
       port: API_PORT,
-      reuseExistingServer: true,
-      timeout: 60_000,
+      reuseExistingServer,
+      timeout: 300_000,
+      // Three apps at once, from one IP address and as one identity, would exceed the API's per-minute rate limits
+      // (Program.cs): the run is a test of the apps and their clients, not of the limiter
+      env: { Showcase__DisableRateLimiter: 'true' },
     },
     {
       command: 'dotnet run --project ../../sample/Showcase/Showcase.BlazorApp',
       port: BLAZOR_PORT,
-      reuseExistingServer: true,
-      timeout: 120_000,
+      reuseExistingServer,
+      timeout: 300_000,
     },
     {
       command: 'npm run dev --prefix ../../sample/Showcase/Showcase.ReactApp.Fetch',
       port: REACT_FETCH_PORT,
-      reuseExistingServer: true,
-      timeout: 30_000,
+      reuseExistingServer,
+      timeout: 120_000,
       env: { PORT: String(REACT_FETCH_PORT) },
     },
     {
       command: 'npm run dev --prefix ../../sample/Showcase/Showcase.ReactApp.Axios',
       port: REACT_AXIOS_PORT,
-      reuseExistingServer: true,
-      timeout: 30_000,
+      reuseExistingServer,
+      timeout: 120_000,
       env: { PORT: String(REACT_AXIOS_PORT) },
     },
   ],
