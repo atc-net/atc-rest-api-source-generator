@@ -3,6 +3,14 @@
 > ⬆️ **Upgrading from 2.x?** The entries below list the commits of each release. What to change in a project, and
 > why, is in the wiki: [Upgrading to v3](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Upgrading-to-v3).
 
+## [3.0.1](https://github.com/atc-net/atc-rest-api-source-generator/compare/v3.0.0...v3.0.1) (2026-10-27)
+
+
+### Bug fixes
+
+* **cli:** the TypeScript package scaffold takes React 19, SignalR 9 and 10, and TypeScript 6 and 7 - its ranges shut out the versions the generated code is built and tested with; a test now checks every range against the TypeScript gates' workspace and the Showcase React apps ([3a4c117](https://github.com/atc-net/atc-rest-api-source-generator/commit/3a4c117ce1c9beafab2dc7d8df699e8bf39d5929))
+* **server:** a streamed request body is read to its end when the client pauses between records - Kestrel's minimum request body data rate (240 bytes a second after 5 seconds) ended such a body, so a client that sends records as it produces them lost the rest ([795cbd4](https://github.com/atc-net/atc-rest-api-source-generator/commit/795cbd4baccdd91a82e98d001d26f5c649f1a4f6))
+
 ## [3.0.0](https://github.com/atc-net/atc-rest-api-source-generator/compare/v2.1.1...v3.0.0) (2026-10-27)
 
 
