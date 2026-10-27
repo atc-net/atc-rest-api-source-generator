@@ -5,6 +5,7 @@
 using System;
 using System.CodeDom.Compiler;
 using System.Globalization;
+using System.Linq;
 using System.Security.Claims;
 using System.Threading.RateLimiting;
 using System.Threading.Tasks;
@@ -25,6 +26,7 @@ public static class RateLimitingServiceCollectionExtensions
 {
     /// <summary>
     /// Registers rate limiting policies for the API based on OpenAPI extensions.
+    /// Safe to call more than once: a repeat call registers no policy again and only applies its <paramref name="configure"/>.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configure">Optional callback for customizing the rate limiter options. Invoked last, so it can override any generated configuration.</param>
@@ -33,6 +35,19 @@ public static class RateLimitingServiceCollectionExtensions
         this IServiceCollection services,
         Action<RateLimiterOptions>? configure = null)
     {
+        // A repeat call (a host's own call beside the generated Add...Api()) adds no policy twice - it only applies its configure
+        if (services.Any(d => d.ServiceType == typeof(ApiRateLimitingMarker)))
+        {
+            if (configure is not null)
+            {
+                services.Configure(configure);
+            }
+
+            return services;
+        }
+
+        services.AddSingleton<ApiRateLimitingMarker>();
+
         services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -138,5 +153,12 @@ public static class RateLimitingServiceCollectionExtensions
         });
 
         return services;
+    }
+
+    /// <summary>
+    /// Marks a service collection the policies are registered in, so a repeat call does not add them twice.
+    /// </summary>
+    private sealed class ApiRateLimitingMarker
+    {
     }
 }
