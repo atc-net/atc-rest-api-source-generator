@@ -66,7 +66,7 @@ public sealed class DeviceInMemoryRepository
         var parent = devices.Find(candidate => candidate.Id == device.ParentDeviceId);
         while (parent is not null)
         {
-            ancestors.Insert(0, new AncestorIdentity(parent.Id, parent.DeviceType, DisplayName(parent)));
+            ancestors.Insert(0, new AncestorIdentity(Id: parent.Id, DeviceType: parent.DeviceType, DisplayName: DisplayName(parent), Level: 0));
             parent = devices.Find(candidate => candidate.Id == parent.ParentDeviceId);
         }
 
@@ -101,7 +101,7 @@ public sealed class DeviceInMemoryRepository
         CancellationToken cancellationToken = default)
     {
         var items = Filter(devices, filter)
-            .Select(device => new DeviceManagementDevice(device.Id, device.ParentDeviceId, device.DeviceType, device.BrandName, device.ModelName, device.SerialNumber, device.ProviderData, device.Properties))
+            .Select(device => new DeviceManagementDevice(Id: device.Id, ParentDeviceId: device.ParentDeviceId, DeviceType: device.DeviceType, BrandName: device.BrandName, ModelName: device.ModelName, SerialNumber: device.SerialNumber, ProviderData: device.ProviderData, Properties: device.Properties))
             .ToList();
 
         return PagesStreaming(items, pageSize, pageIndex, cancellationToken);
@@ -118,15 +118,15 @@ public sealed class DeviceInMemoryRepository
 
         var items = Filter(devices, filter)
             .Select(device => new InsightDevice(
-                device.Id,
-                DisplayName(device),
-                device.BrandName,
-                device.ModelName,
-                device.SerialNumber,
-                new KeyValue(device.DeviceType.ToWireValue(), device.DeviceType?.ToString()),
-                device.DeviceType == DeviceType.ElectricVehicleChargingStation ? DeviceState.Attention : DeviceState.Neutral,
-                customer,
-                site))
+                Id: device.Id,
+                Name: DisplayName(device),
+                BrandName: device.BrandName,
+                ModelName: device.ModelName,
+                SerialNumber: device.SerialNumber,
+                DeviceType: new KeyValue(device.DeviceType.ToWireValue(), device.DeviceType.ToString()),
+                DeviceState: device.DeviceType == DeviceType.ElectricVehicleChargingStation ? DeviceState.Attention : DeviceState.Neutral,
+                Customer: customer,
+                Site: site))
             .ToList();
 
         return PagesStreaming(items, pageSize, pageIndex, cancellationToken);
@@ -163,7 +163,7 @@ public sealed class DeviceInMemoryRepository
                 ? skip.ToString(CultureInfo.InvariantCulture)
                 : null;
 
-            yield return new PaginationResult<T>(pageSize, continuationToken, page);
+            yield return new PaginationResult<T>(PageSize: pageSize, ContinuationToken: continuationToken, Items: page);
             await Task.Yield();
         }
         while (skip < items.Count);
