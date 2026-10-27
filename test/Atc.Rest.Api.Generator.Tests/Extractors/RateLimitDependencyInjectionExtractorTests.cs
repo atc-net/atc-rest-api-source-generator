@@ -80,6 +80,29 @@ public class RateLimitDependencyInjectionExtractorTests
         Assert.Contains("configure?.Invoke(options);", result, StringComparison.Ordinal);
     }
 
+    // ========== Idempotent registration ==========
+    [Fact]
+    public void Extract_WithPolicies_GuardsARepeatCallWithAMarkerRegistration()
+    {
+        var doc = OpenApiDocumentHelper.ParseYaml(YamlSinglePolicy);
+
+        var result = RateLimitDependencyInjectionExtractor.Extract(doc, "TestProject");
+
+        Assert.NotNull(result);
+        Assert.Contains("private sealed class ApiRateLimitingMarker", result, StringComparison.Ordinal);
+        Assert.Contains("if (services.Any(d => d.ServiceType == typeof(ApiRateLimitingMarker)))", result, StringComparison.Ordinal);
+        Assert.Contains("services.Configure(configure);", result, StringComparison.Ordinal);
+        Assert.Contains("services.AddSingleton<ApiRateLimitingMarker>();", result, StringComparison.Ordinal);
+        Assert.Contains("using System.Linq;", result, StringComparison.Ordinal);
+
+        // The guard runs ahead of the policy registration: a repeat call never reaches AddRateLimiter
+        var guardIndex = result.IndexOf("services.Any(", StringComparison.Ordinal);
+        var markerIndex = result.IndexOf("services.AddSingleton<ApiRateLimitingMarker>();", StringComparison.Ordinal);
+        var addRateLimiterIndex = result.IndexOf("services.AddRateLimiter(", StringComparison.Ordinal);
+        Assert.True(guardIndex < markerIndex, "The marker check should come before the marker registration");
+        Assert.True(markerIndex < addRateLimiterIndex, "The marker should be registered before AddRateLimiter");
+    }
+
     // ========== Partitioning (Option C) ==========
     [Fact]
     public void Extract_WithGlobalPartition_EmitsBuiltInLimiterUnchanged()

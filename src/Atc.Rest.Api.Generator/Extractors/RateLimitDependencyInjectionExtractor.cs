@@ -64,7 +64,8 @@ public static class RateLimitDependencyInjectionExtractor
         var emitRetryAfter = policies.Values.Any(p => p.EmitRetryAfter);
         var hasUserPartition = policies.Values.Any(p => p.Partition == RateLimitPartitionStrategy.User);
 
-        var alwaysIncludeNamespaces = new List<string> { NamespaceConstants.SystemCodeDomCompiler };
+        // System.Linq for the repeat-call guard (services.Any(...))
+        var alwaysIncludeNamespaces = new List<string> { NamespaceConstants.SystemCodeDomCompiler, NamespaceConstants.SystemLinq };
         if (emitRetryAfter)
         {
             alwaysIncludeNamespaces.Add(NamespaceConstants.SystemGlobalization);
@@ -91,6 +92,7 @@ public static class RateLimitDependencyInjectionExtractor
         builder.AppendLine("{");
         builder.AppendLine(4, "/// <summary>");
         builder.AppendLine(4, "/// Registers rate limiting policies for the API based on OpenAPI extensions.");
+        builder.AppendLine(4, "/// Safe to call more than once: a repeat call registers no policy again and only applies its <paramref name=\"configure\"/>.");
         builder.AppendLine(4, "/// </summary>");
         builder.AppendLine(4, "/// <param name=\"services\">The service collection.</param>");
         builder.AppendLine(4, "/// <param name=\"configure\">Optional callback for customizing the rate limiter options. Invoked last, so it can override any generated configuration.</param>");
@@ -105,6 +107,13 @@ public static class RateLimitDependencyInjectionExtractor
         builder.Append(methodContent);
 
         builder.AppendLine(4, "}");
+        builder.AppendLine();
+        builder.AppendLine(4, "/// <summary>");
+        builder.AppendLine(4, "/// Marks a service collection the policies are registered in, so a repeat call does not add them twice.");
+        builder.AppendLine(4, "/// </summary>");
+        builder.AppendLine(4, "private sealed class ApiRateLimitingMarker");
+        builder.AppendLine(4, "{");
+        builder.AppendLine(4, "}");
         builder.AppendLine("}");
 
         return builder.ToString();
@@ -118,6 +127,21 @@ public static class RateLimitDependencyInjectionExtractor
     {
         var builder = new StringBuilder();
 
+        // Idempotent: Add{Project}Api() calls this, and a host may call it too - RateLimiterOptions throws on a
+        // policy name it already has, so a repeat call only forwards its configure
+        builder.AppendLine(8, "// A repeat call (a host's own call beside the generated Add...Api()) adds no policy twice - it only applies its configure");
+        builder.AppendLine(8, "if (services.Any(d => d.ServiceType == typeof(ApiRateLimitingMarker)))");
+        builder.AppendLine(8, "{");
+        builder.AppendLine(12, "if (configure is not null)");
+        builder.AppendLine(12, "{");
+        builder.AppendLine(16, "services.Configure(configure);");
+        builder.AppendLine(12, "}");
+        builder.AppendLine();
+        builder.AppendLine(12, "return services;");
+        builder.AppendLine(8, "}");
+        builder.AppendLine();
+        builder.AppendLine(8, "services.AddSingleton<ApiRateLimitingMarker>();");
+        builder.AppendLine();
         builder.AppendLine(8, "services.AddRateLimiter(options =>");
         builder.AppendLine(8, "{");
         builder.AppendLine(12, "options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;");
