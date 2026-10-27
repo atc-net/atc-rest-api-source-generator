@@ -72,6 +72,9 @@ public static partial class OpenApiDocumentValidator
         // A required readOnly/writeOnly property the generated record makes optional, as its schema is used both ways
         diagnostics.AddRange(ReadOrWriteOnlyRequiredValidator.Validate(document, sourceFilePath));
 
+        // An object schema with properties but no required list: every property generated nullable
+        diagnostics.AddRange(ValidateSchemasWithoutRequired(document, sourceFilePath));
+
         // A path template the route or the generated code could not carry, a placeholder no parameter declares, and
         // a response for a status range (generated as its first status)
         diagnostics.AddRange(ValidatePaths(document, sourceFilePath));

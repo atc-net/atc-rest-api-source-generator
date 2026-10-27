@@ -5,8 +5,9 @@ namespace Atc.Rest.Api.Generator.Tests.Validators;
 /// </summary>
 /// <remarks>
 /// Every property of such a schema is optional, so each one is generated nullable with a <c>= null</c> default. That is
-/// correct for what the schema says, but usually a gap in the specification: the API always sends some of them. An Info
-/// in Strict mode points at the fix - list those properties in <c>required</c>.
+/// correct for what the schema says, but usually a gap in the specification: the API always sends some of them. It is
+/// the most common reason code written against a 2.x model no longer compiles, so it is a warning under every strategy -
+/// a build shows it - pointing at the fix: list those properties in <c>required</c>.
 /// </remarks>
 [RuleTest("ATC_API_SCH022")]
 public class SchemaWithoutRequiredValidationTests
@@ -50,28 +51,44 @@ public class SchemaWithoutRequiredValidationTests
                                         - Blue
                                 """;
 
-    [Fact]
-    public void Informs_OnlyAboutAnObjectSchemaWithPropertiesButNoRequiredList()
+    [Theory]
+    [InlineData(ValidateSpecificationStrategy.None)]
+    [InlineData(ValidateSpecificationStrategy.Standard)]
+    [InlineData(ValidateSpecificationStrategy.Strict)]
+    public void Warns_OnlyAboutAnObjectSchemaWithPropertiesButNoRequiredList_UnderEveryStrategy(
+        ValidateSpecificationStrategy strategy)
     {
         var doc = OpenApiDocumentHelper.ParseYaml(Yaml);
 
-        var diagnostics = OpenApiDocumentValidator.Validate(ValidateSpecificationStrategy.Strict, doc, [], TestFilePath)
+        var diagnostics = OpenApiDocumentValidator.Validate(strategy, doc, [], TestFilePath)
             .Where(d => d.RuleId == RuleIdentifiers.SchemaWithoutRequiredProperties)
             .ToList();
 
         var diagnostic = Assert.Single(diagnostics);
-        Assert.Equal(DiagnosticSeverity.Info, diagnostic.Severity);
+        Assert.Equal(DiagnosticSeverity.Warning, diagnostic.Severity);
         Assert.Contains("'Item'", diagnostic.Message, StringComparison.Ordinal);
         Assert.Contains("required", diagnostic.Message, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void IsQuiet_InStandardMode()
+    public void IsSwitchedOff_ByXAtcSuppressOnTheSchema()
     {
-        var doc = OpenApiDocumentHelper.ParseYaml(Yaml);
+        // Item says its properties are optional on purpose; Filter, a copy of it, does not
+        var doc = OpenApiDocumentHelper.ParseYaml(Yaml
+            .Replace(
+                "    Pet:",
+                "    Filter:\n      type: object\n      title: Filter\n      properties:\n        name:\n          type: string\n    Pet:",
+                StringComparison.Ordinal)
+            .Replace(
+                "title: Item",
+                "title: Item\n      x-atc-suppress: [ATC_API_SCH022]",
+                StringComparison.Ordinal));
 
-        var diagnostics = OpenApiDocumentValidator.Validate(ValidateSpecificationStrategy.Standard, doc, [], TestFilePath);
+        var diagnostics = OpenApiDocumentValidator.Validate(ValidateSpecificationStrategy.Standard, doc, [], TestFilePath)
+            .Where(d => d.RuleId == RuleIdentifiers.SchemaWithoutRequiredProperties)
+            .ToList();
 
-        Assert.DoesNotContain(diagnostics, d => d.RuleId == RuleIdentifiers.SchemaWithoutRequiredProperties);
+        var reported = Assert.Single(diagnostics);
+        Assert.Contains("'Filter'", reported.Message, StringComparison.Ordinal);
     }
 }

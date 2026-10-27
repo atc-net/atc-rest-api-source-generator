@@ -174,6 +174,49 @@ public class RuleSeverityConfigurationTests
         Assert.DoesNotContain(diagnostics, d => d.Id == Generator.RuleIdentifiers.GetOperationIdPrefix);
     }
 
+    /// <summary>
+    /// ATC_API_SCH022 is a warning under every strategy (a build shows it); the marker's <c>ruleSeverities</c> brings it
+    /// back to an information, which a build does not print.
+    /// </summary>
+    [Theory]
+    [InlineData("""{ "validateSpecificationStrategy": "Standard" }""", DiagnosticSeverity.Warning)]
+    [InlineData("""{ "validateSpecificationStrategy": "Standard", "ruleSeverities": { "ATC_API_SCH022": "suggestion" } }""", DiagnosticSeverity.Info)]
+    [InlineData("""{ "validateSpecificationStrategy": "Strict", "ruleSeverities": { "ATC_API_SCH022": "suggestion" } }""", DiagnosticSeverity.Info)]
+    public void SchemaWithoutRequired_IsAWarning_TheMarkerCanMakeItInfo(
+        string marker,
+        DiagnosticSeverity expected)
+    {
+        const string yaml = """
+            openapi: 3.1.1
+            info:
+              title: Things
+              version: 1.0.0
+            paths:
+              /things:
+                get:
+                  operationId: listThings
+                  responses:
+                    '200':
+                      description: The things
+                      content:
+                        application/json:
+                          schema:
+                            $ref: '#/components/schemas/Thing'
+            components:
+              schemas:
+                Thing:
+                  type: object
+                  title: Thing
+                  properties:
+                    id:
+                      type: string
+            """;
+
+        var diagnostics = Run(marker, yaml);
+
+        Assert.Equal(expected, Assert.Single(diagnostics, d => d.Id == "ATC_API_SCH022").Severity);
+    }
+
     [Fact]
     public void AnErrorThatStopsGeneration_IsNotSwitchedOff()
     {

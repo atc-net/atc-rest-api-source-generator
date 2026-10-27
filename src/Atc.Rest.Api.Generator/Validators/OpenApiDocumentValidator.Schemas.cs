@@ -48,20 +48,6 @@ public static partial class OpenApiDocumentValidator
             // ATC_API_SCH017: unevaluatedProperties (JSON Schema 2020-12)
             ValidateUnevaluatedProperties(diagnostics, sourceFilePath, schemaName, actualSchema);
 
-            // ATC_API_SCH022: properties but no required list - every property optional, generated nullable
-            if (actualSchema.Properties is { Count: > 0 } &&
-                actualSchema.Required is not { Count: > 0 } &&
-                actualSchema.GetSchemaType() == "object")
-            {
-                diagnostics.Add(new DiagnosticMessage(
-                    RuleIdentifiers.SchemaWithoutRequiredProperties,
-                    $"Schema '{schemaName}' has properties but no 'required' list, so every property is optional and " +
-                    "generated nullable (with a '= null' default). List in 'required' the properties that are always there: what the API always sends (a response), what it always needs (a request). " +
-                    $"Location: #/components/schemas/{schemaName}",
-                    DiagnosticSeverity.Info,
-                    sourceFilePath));
-            }
-
             var schemaType = actualSchema.GetSchemaType();
 
             // Validate based on schema type
@@ -89,6 +75,46 @@ public static partial class OpenApiDocumentValidator
             }
 
             InScope(diagnostics, schemaStart, SpecSuppressions.Schema(schemaName));
+        }
+
+        return diagnostics;
+    }
+
+    /// <summary>
+    /// ATC_API_SCH022: an object schema with properties but no <c>required</c> list - every property optional, generated
+    /// nullable. A warning under every strategy: it explains the most common reason code written against an older model
+    /// no longer compiles.
+    /// </summary>
+    private static List<DiagnosticMessage> ValidateSchemasWithoutRequired(
+        OpenApiDocument document,
+        string sourceFilePath)
+    {
+        var diagnostics = new List<DiagnosticMessage>();
+        if (document.Components?.Schemas is null)
+        {
+            return diagnostics;
+        }
+
+        foreach (var schemaEntry in document.Components.Schemas)
+        {
+            var schemaName = schemaEntry.Key;
+            var schema = schemaEntry.Value is OpenApiSchemaReference { Target: not null } schemaRef
+                ? schemaRef.Target
+                : schemaEntry.Value;
+
+            if (schema.Properties is { Count: > 0 } &&
+                schema.Required is not { Count: > 0 } &&
+                schema.GetSchemaType() == "object")
+            {
+                diagnostics.Add(new DiagnosticMessage(
+                    RuleIdentifiers.SchemaWithoutRequiredProperties,
+                    $"Schema '{schemaName}' has properties but no 'required' list, so every property is optional and " +
+                    "generated nullable (with a '= null' default). List in 'required' the properties that are always there: what the API always sends (a response), what it always needs (a request). " +
+                    $"Location: #/components/schemas/{schemaName}",
+                    DiagnosticSeverity.Warning,
+                    sourceFilePath,
+                    Scope: SpecSuppressions.Schema(schemaName)));
+            }
         }
 
         return diagnostics;

@@ -51,7 +51,7 @@
           "error"
         ]
       },
-      "description": "The severity this project gives a rule about the specification, by its id (e.g. \"ATC_API_SCH022\": \"warning\"): default, none, silent, suggestion, warning or error. Default: none. An error, which stands for code the generator cannot write, keeps its severity. The specification is no C# file, so an .editorconfig severity does not reach its rules; a global config (is_global = true) does."
+      "description": "The severity this project gives a rule about the specification, by its id (e.g. \"ATC_API_SCH022\": \"suggestion\"): default, none, silent, suggestion, warning or error. Default: none. An error, which stands for code the generator cannot write, keeps its severity. The specification is no C# file, so an .editorconfig severity does not reach its rules; a global config (is_global = true) does."
     },
     "includeDeprecated": {
       "type": "boolean",
