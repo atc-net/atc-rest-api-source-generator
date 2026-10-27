@@ -1,4 +1,6 @@
-# Weekly update PRs, minor and patch versions grouped per ecosystem; "chore(deps)" keeps release-please's changelog clean
+# Weekly update PRs: minor and patch versions in one PR per ecosystem, major versions in another, so a week behind is a
+# couple of PRs and not one per package and folder. "chore(deps)" keeps release-please's changelog clean.
+# scripts/check-outdated.sh lists the same updates locally, majors included.
 version: 2
 updates:
   - package-ecosystem: nuget
@@ -14,6 +16,8 @@ updates:
     groups:
       nuget-minor-and-patch:
         update-types: [minor, patch]
+      nuget-major:
+        update-types: [major]
 
   - package-ecosystem: github-actions
     directory: /
@@ -25,10 +29,9 @@ updates:
       actions:
         patterns: ['*']
 
-  # The TypeScript gates' pinned workspace, the Showcase React apps and the Playwright tests
+  # The Showcase React apps and the Playwright tests
   - package-ecosystem: npm
     directories:
-      - /test/NodeWorkspace
       - /test/Showcase.E2ETests
       - /sample/Showcase/Showcase.ReactApp.Fetch
       - /sample/Showcase/Showcase.ReactApp.Axios
@@ -38,4 +41,22 @@ updates:
       prefix: chore(deps)
     groups:
       npm-minor-and-patch:
+        update-types: [minor, patch]
+      npm-major:
+        update-types: [major]
+
+  # The TypeScript gates' pinned workspace: its versions are the ones the generated TypeScript is compiled and run
+  # against (TypeScript, React, zod, msw, ...). A major there changes what the generated clients support, so it is a
+  # decision taken in a PR of its own, not a weekly update
+  - package-ecosystem: npm
+    directory: /test/NodeWorkspace
+    schedule:
+      interval: weekly
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+    commit-message:
+      prefix: chore(deps)
+    groups:
+      gates-minor-and-patch:
         update-types: [minor, patch]
