@@ -71,29 +71,28 @@ public static class UnifiedWebApplicationExtensions
     }
 
     /// <summary>
-    /// Maps all endpoints of the OpenApi32Features API. Adds no middleware: call <see cref="UseOpenApi32FeaturesApi"/> first.
+    /// Maps all endpoints of the OpenApi32Features API. Call it after <see cref="UseOpenApi32FeaturesApi"/>, which adds the middleware
+    /// the endpoints need (error handling, authentication, ...).
     /// </summary>
     /// <param name="app">The web application.</param>
     /// <param name="requireUse">
-    /// True (default): throw when <see cref="UseOpenApi32FeaturesApi"/> was not called first. False: the host adds the
-    /// middleware itself.
+    /// <see langword="true"/> (default): throw at startup when <see cref="UseOpenApi32FeaturesApi"/> was not called first.
+    /// <see langword="false"/>: the host adds that middleware itself.
     /// </param>
     /// <returns>The web application, for chaining.</returns>
-    /// <exception cref="InvalidOperationException"><see cref="UseOpenApi32FeaturesApi"/> was not called first and <paramref name="requireUse"/> is true.</exception>
-    /// <remarks>
-    /// <para>Until 3.1 this method also added the middleware; since 3.2 <see cref="UseOpenApi32FeaturesApi"/> does.</para>
-    /// </remarks>
+    /// <exception cref="InvalidOperationException">
+    /// <see cref="UseOpenApi32FeaturesApi"/> was not called first, and <paramref name="requireUse"/> is <see langword="true"/>.
+    /// </exception>
     public static WebApplication MapOpenApi32FeaturesApi(
         this WebApplication app,
         bool requireUse = true)
     {
-        // Until 3.1 this method also added the middleware: a host that still calls only it would lose its error
-        // handling without a compile error
+        // The endpoints rely on the middleware Use…Api() adds: without it they would run without their error handling
         if (requireUse && !((global::Microsoft.AspNetCore.Builder.IApplicationBuilder)app).Properties.ContainsKey(UseApiMark))
         {
             throw new InvalidOperationException(
                 "Call app.UseOpenApi32FeaturesApi() before app.MapOpenApi32FeaturesApi(): it adds the error handling, the status code pages " +
-                "and the rest of the middleware the endpoints rely on (since 3.2 MapOpenApi32FeaturesApi() maps only the endpoints). " +
+                "and the rest of the middleware the endpoints rely on. " +
                 "A host that adds that middleware itself calls app.MapOpenApi32FeaturesApi(requireUse: false).");
         }
 

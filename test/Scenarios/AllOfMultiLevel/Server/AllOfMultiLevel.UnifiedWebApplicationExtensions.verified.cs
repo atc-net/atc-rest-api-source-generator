@@ -71,29 +71,28 @@ public static class UnifiedWebApplicationExtensions
     }
 
     /// <summary>
-    /// Maps all endpoints of the AllOfMultiLevel API. Adds no middleware: call <see cref="UseAllOfMultiLevelApi"/> first.
+    /// Maps all endpoints of the AllOfMultiLevel API. Call it after <see cref="UseAllOfMultiLevelApi"/>, which adds the middleware
+    /// the endpoints need (error handling, authentication, ...).
     /// </summary>
     /// <param name="app">The web application.</param>
     /// <param name="requireUse">
-    /// True (default): throw when <see cref="UseAllOfMultiLevelApi"/> was not called first. False: the host adds the
-    /// middleware itself.
+    /// <see langword="true"/> (default): throw at startup when <see cref="UseAllOfMultiLevelApi"/> was not called first.
+    /// <see langword="false"/>: the host adds that middleware itself.
     /// </param>
     /// <returns>The web application, for chaining.</returns>
-    /// <exception cref="InvalidOperationException"><see cref="UseAllOfMultiLevelApi"/> was not called first and <paramref name="requireUse"/> is true.</exception>
-    /// <remarks>
-    /// <para>Until 3.1 this method also added the middleware; since 3.2 <see cref="UseAllOfMultiLevelApi"/> does.</para>
-    /// </remarks>
+    /// <exception cref="InvalidOperationException">
+    /// <see cref="UseAllOfMultiLevelApi"/> was not called first, and <paramref name="requireUse"/> is <see langword="true"/>.
+    /// </exception>
     public static WebApplication MapAllOfMultiLevelApi(
         this WebApplication app,
         bool requireUse = true)
     {
-        // Until 3.1 this method also added the middleware: a host that still calls only it would lose its error
-        // handling without a compile error
+        // The endpoints rely on the middleware Use…Api() adds: without it they would run without their error handling
         if (requireUse && !((global::Microsoft.AspNetCore.Builder.IApplicationBuilder)app).Properties.ContainsKey(UseApiMark))
         {
             throw new InvalidOperationException(
                 "Call app.UseAllOfMultiLevelApi() before app.MapAllOfMultiLevelApi(): it adds the error handling, the status code pages " +
-                "and the rest of the middleware the endpoints rely on (since 3.2 MapAllOfMultiLevelApi() maps only the endpoints). " +
+                "and the rest of the middleware the endpoints rely on. " +
                 "A host that adds that middleware itself calls app.MapAllOfMultiLevelApi(requireUse: false).");
         }
 

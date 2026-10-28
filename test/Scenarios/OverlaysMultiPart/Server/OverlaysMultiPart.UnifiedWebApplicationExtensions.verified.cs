@@ -71,29 +71,28 @@ public static class UnifiedWebApplicationExtensions
     }
 
     /// <summary>
-    /// Maps all endpoints of the OverlaysMultiPart API. Adds no middleware: call <see cref="UseOverlaysMultiPartApi"/> first.
+    /// Maps all endpoints of the OverlaysMultiPart API. Call it after <see cref="UseOverlaysMultiPartApi"/>, which adds the middleware
+    /// the endpoints need (error handling, authentication, ...).
     /// </summary>
     /// <param name="app">The web application.</param>
     /// <param name="requireUse">
-    /// True (default): throw when <see cref="UseOverlaysMultiPartApi"/> was not called first. False: the host adds the
-    /// middleware itself.
+    /// <see langword="true"/> (default): throw at startup when <see cref="UseOverlaysMultiPartApi"/> was not called first.
+    /// <see langword="false"/>: the host adds that middleware itself.
     /// </param>
     /// <returns>The web application, for chaining.</returns>
-    /// <exception cref="InvalidOperationException"><see cref="UseOverlaysMultiPartApi"/> was not called first and <paramref name="requireUse"/> is true.</exception>
-    /// <remarks>
-    /// <para>Until 3.1 this method also added the middleware; since 3.2 <see cref="UseOverlaysMultiPartApi"/> does.</para>
-    /// </remarks>
+    /// <exception cref="InvalidOperationException">
+    /// <see cref="UseOverlaysMultiPartApi"/> was not called first, and <paramref name="requireUse"/> is <see langword="true"/>.
+    /// </exception>
     public static WebApplication MapOverlaysMultiPartApi(
         this WebApplication app,
         bool requireUse = true)
     {
-        // Until 3.1 this method also added the middleware: a host that still calls only it would lose its error
-        // handling without a compile error
+        // The endpoints rely on the middleware Use…Api() adds: without it they would run without their error handling
         if (requireUse && !((global::Microsoft.AspNetCore.Builder.IApplicationBuilder)app).Properties.ContainsKey(UseApiMark))
         {
             throw new InvalidOperationException(
                 "Call app.UseOverlaysMultiPartApi() before app.MapOverlaysMultiPartApi(): it adds the error handling, the status code pages " +
-                "and the rest of the middleware the endpoints rely on (since 3.2 MapOverlaysMultiPartApi() maps only the endpoints). " +
+                "and the rest of the middleware the endpoints rely on. " +
                 "A host that adds that middleware itself calls app.MapOverlaysMultiPartApi(requireUse: false).");
         }
 

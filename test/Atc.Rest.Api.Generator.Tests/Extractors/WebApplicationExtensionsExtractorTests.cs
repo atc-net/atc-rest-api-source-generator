@@ -317,7 +317,9 @@ public class WebApplicationExtensionsExtractorTests
         Assert.DoesNotContain(lines, line => line.TrimStart().StartsWith("/// - ", StringComparison.Ordinal));
         Assert.DoesNotContain("TestApi API", result, StringComparison.Ordinal);
         Assert.Contains("/// Adds the middleware the Test API needs, in the recommended order. Call it before <see cref=\"MapTestApi\"/>.", result, StringComparison.Ordinal);
-        Assert.Contains("/// Maps all endpoints of the Test API. Adds no middleware: call <see cref=\"UseTestApi\"/> first.", result, StringComparison.Ordinal);
+        Assert.Contains("/// Maps all endpoints of the Test API. Call it after <see cref=\"UseTestApi\"/>, which adds the middleware", result, StringComparison.Ordinal);
+        Assert.Contains("/// <see langword=\"true\"/> (default): throw at startup when <see cref=\"UseTestApi\"/> was not called first.", result, StringComparison.Ordinal);
+        Assert.Contains("/// <see langword=\"false\"/>: the host adds that middleware itself.", result, StringComparison.Ordinal);
 
         // One paragraph per item with a typed bullet: Visual Studio's tooltip renders a <list> as one run-on line
         Assert.DoesNotContain("<list", result, StringComparison.Ordinal);
@@ -330,6 +332,31 @@ public class WebApplicationExtensionsExtractorTests
         var normalized = result.Replace("\r\n", "\n", StringComparison.Ordinal);
         Assert.Contains("calls <c>MapTestApi(requireUse: false)</c>.\n    /// </para>", normalized, StringComparison.Ordinal);
         Assert.DoesNotContain(lines, line => line.Contains("<para>", StringComparison.Ordinal) && !line.Contains("</para>", StringComparison.Ordinal) && !line.TrimEnd().EndsWith("<para>", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// The generated host wiring describes how it works now - in its docs, its comments and the startup error -
+    /// without the history of earlier versions (until 3.1 ..., since 3.2 ...), which a reader cannot use.
+    /// </summary>
+    [Fact]
+    public void ExtractUnified_NamesNoGeneratorVersion()
+    {
+        // Arrange
+        var document = OpenApiDocumentHelper.ParseYaml(SecuredAndLimitedYaml.Replace("{partition}", "user", StringComparison.Ordinal));
+
+        // Act
+        var result = WebApplicationExtensionsExtractor.ExtractUnified(document, ProjectName, new ServerConfig());
+
+        // Assert
+        // The [GeneratedCode(…, "version")] stamp is the one version the code carries
+        var text = string.Join('\n', result.Split('\n').Where(line => !line.Contains("[GeneratedCode(", StringComparison.Ordinal)));
+        Assert.DoesNotMatch(@"\b3\.[0-9]\b", text);
+        Assert.DoesNotContain("Until ", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("since ", result, StringComparison.Ordinal);
+        Assert.Contains(
+            "\"and the rest of the middleware the endpoints rely on. \" +",
+            result,
+            StringComparison.Ordinal);
     }
 
     private static string MethodBody(

@@ -222,8 +222,8 @@ public static class WebApplicationExtensionsExtractor
     }
 
     /// <summary>
-    /// Generates the Map{Api}Api method: the endpoints, no middleware. Until 3.1 the method of that name also added the
-    /// middleware, so it refuses to run without Use{Api}Api() first - unless the host orders its own pipeline.
+    /// Generates the Map{Api}Api method: the endpoints, no middleware. It refuses to run without Use{Api}Api() first -
+    /// unless the host orders its own pipeline - so a host never runs its endpoints without their error handling.
     /// </summary>
     private static void GenerateMapApiMethod(
         StringBuilder builder,
@@ -231,29 +231,28 @@ public static class WebApplicationExtensionsExtractor
         string apiName)
     {
         builder.AppendLine(4, "/// <summary>");
-        builder.AppendLine(4, $"/// Maps all endpoints of the {apiName} API. Adds no middleware: call <see cref=\"Use{apiName}Api\"/> first.");
+        builder.AppendLine(4, $"/// Maps all endpoints of the {apiName} API. Call it after <see cref=\"Use{apiName}Api\"/>, which adds the middleware");
+        builder.AppendLine(4, "/// the endpoints need (error handling, authentication, ...).");
         builder.AppendLine(4, "/// </summary>");
         builder.AppendLine(4, "/// <param name=\"app\">The web application.</param>");
         builder.AppendLine(4, "/// <param name=\"requireUse\">");
-        builder.AppendLine(4, $"/// True (default): throw when <see cref=\"Use{apiName}Api\"/> was not called first. False: the host adds the");
-        builder.AppendLine(4, "/// middleware itself.");
+        builder.AppendLine(4, $"/// <see langword=\"true\"/> (default): throw at startup when <see cref=\"Use{apiName}Api\"/> was not called first.");
+        builder.AppendLine(4, "/// <see langword=\"false\"/>: the host adds that middleware itself.");
         builder.AppendLine(4, "/// </param>");
         builder.AppendLine(4, "/// <returns>The web application, for chaining.</returns>");
-        builder.AppendLine(4, $"/// <exception cref=\"InvalidOperationException\"><see cref=\"Use{apiName}Api\"/> was not called first and <paramref name=\"requireUse\"/> is true.</exception>");
-        builder.AppendLine(4, "/// <remarks>");
-        XmlDocCommentHelper.AppendParagraph(builder, 4, $"Until 3.1 this method also added the middleware; since 3.2 <see cref=\"Use{apiName}Api\"/> does.");
-        builder.AppendLine(4, "/// </remarks>");
+        builder.AppendLine(4, "/// <exception cref=\"InvalidOperationException\">");
+        builder.AppendLine(4, $"/// <see cref=\"Use{apiName}Api\"/> was not called first, and <paramref name=\"requireUse\"/> is <see langword=\"true\"/>.");
+        builder.AppendLine(4, "/// </exception>");
         builder.AppendLine(4, $"public static WebApplication Map{apiName}Api(");
         builder.AppendLine(8, "this WebApplication app,");
         builder.AppendLine(8, "bool requireUse = true)");
         builder.AppendLine(4, "{");
-        builder.AppendLine(8, "// Until 3.1 this method also added the middleware: a host that still calls only it would lose its error");
-        builder.AppendLine(8, "// handling without a compile error");
+        builder.AppendLine(8, "// The endpoints rely on the middleware Use…Api() adds: without it they would run without their error handling");
         builder.AppendLine(8, "if (requireUse && !((global::Microsoft.AspNetCore.Builder.IApplicationBuilder)app).Properties.ContainsKey(UseApiMark))");
         builder.AppendLine(8, "{");
         builder.AppendLine(12, "throw new InvalidOperationException(");
         builder.AppendLine(16, $"\"Call app.Use{apiName}Api() before app.Map{apiName}Api(): it adds the error handling, the status code pages \" +");
-        builder.AppendLine(16, $"\"and the rest of the middleware the endpoints rely on (since 3.2 Map{apiName}Api() maps only the endpoints). \" +");
+        builder.AppendLine(16, "\"and the rest of the middleware the endpoints rely on. \" +");
         builder.AppendLine(16, $"\"A host that adds that middleware itself calls app.Map{apiName}Api(requireUse: false).\");");
         builder.AppendLine(8, "}");
         builder.AppendLine();
