@@ -16,12 +16,16 @@ public static class SpecificationPipeline
     /// <param name="content">The file's content, after the overlays.</param>
     /// <param name="strategy">The validation strategy.</param>
     /// <param name="parametersMustBind">Whether a parameter the server could not bind is an error (a server).</param>
+    /// <param name="includePaths">The marker's <c>includePaths</c>, by which the rules about generated models judge.</param>
+    /// <param name="excludePaths">The marker's <c>excludePaths</c>.</param>
     /// <returns>The document (none when it could not be parsed) and the diagnostics.</returns>
     public static SpecificationPipelineResult ParseAndValidate(
         string path,
         string content,
         ValidateSpecificationStrategy strategy,
-        bool parametersMustBind = false)
+        bool parametersMustBind = false,
+        IList<string>? includePaths = null,
+        IList<string>? excludePaths = null)
     {
         var (document, parserDiagnostic) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(content, path);
         if (document is null)
@@ -41,7 +45,9 @@ public static class SpecificationPipeline
             parserDiagnostic?.Errors ?? [],
             path,
             content,
-            parserDiagnostic?.Warnings);
+            parserDiagnostic?.Warnings,
+            includePaths,
+            excludePaths);
 
         return Finish(document, diagnostics, parametersMustBind);
     }
@@ -54,12 +60,16 @@ public static class SpecificationPipeline
     /// <param name="sources">The files' paths and texts, the base file first.</param>
     /// <param name="strategy">The validation strategy.</param>
     /// <param name="parametersMustBind">Whether a parameter the server could not bind is an error (a server).</param>
+    /// <param name="includePaths">The marker's <c>includePaths</c>, by which the rules about generated models judge.</param>
+    /// <param name="excludePaths">The marker's <c>excludePaths</c>.</param>
     /// <returns>The document and the diagnostics.</returns>
     public static SpecificationPipelineResult Validate(
         OpenApiDocument document,
         IReadOnlyList<(string FilePath, string Text)> sources,
         ValidateSpecificationStrategy strategy,
-        bool parametersMustBind = false)
+        bool parametersMustBind = false,
+        IList<string>? includePaths = null,
+        IList<string>? excludePaths = null)
     {
         if (document is null)
         {
@@ -77,7 +87,9 @@ public static class SpecificationPipeline
             strategy,
             document,
             Array.Empty<OpenApiError>(),
-            sources[0].FilePath);
+            sources[0].FilePath,
+            includePaths: includePaths,
+            excludePaths: excludePaths);
         Validators.SpecLocations.Apply(diagnostics, sources);
 
         return Finish(document, diagnostics, parametersMustBind);
