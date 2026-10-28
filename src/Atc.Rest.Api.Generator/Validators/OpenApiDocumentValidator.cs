@@ -25,6 +25,8 @@ public static partial class OpenApiDocumentValidator
     /// lets them report a line number.
     /// </param>
     /// <param name="diagnosticWarnings">Diagnostic warnings from parsing (reported under Standard and Strict).</param>
+    /// <param name="includePaths">The marker's <c>includePaths</c>: the rules about generated models judge the document they are generated from.</param>
+    /// <param name="excludePaths">The marker's <c>excludePaths</c>.</param>
     /// <returns>List of diagnostic messages to report.</returns>
     public static List<DiagnosticMessage> Validate(
         ValidateSpecificationStrategy strategy,
@@ -32,7 +34,9 @@ public static partial class OpenApiDocumentValidator
         IList<OpenApiError> diagnosticErrors,
         string sourceFilePath,
         string? sourceText = null,
-        IList<OpenApiError>? diagnosticWarnings = null)
+        IList<OpenApiError>? diagnosticWarnings = null,
+        IList<string>? includePaths = null,
+        IList<string>? excludePaths = null)
     {
         // A value of another kind where an object belongs (the reader leaves a null there, without an error): an
         // error under every strategy, and nothing else is checked - every later step would trip over the null
@@ -69,8 +73,9 @@ public static partial class OpenApiDocumentValidator
         diagnostics.AddRange(SchemaConstraintValidator.Validate(document, sourceFilePath));
         diagnostics.AddRange(ValidateNoOperations(document, sourceFilePath));
 
-        // A required readOnly/writeOnly property the generated record makes optional, as its schema is used both ways
-        diagnostics.AddRange(ReadOrWriteOnlyRequiredValidator.Validate(document, sourceFilePath));
+        // A required readOnly/writeOnly property the generated record makes optional, as its schema is used both ways in
+        // the document the models are generated from (path-filtered by the marker)
+        diagnostics.AddRange(ReadOrWriteOnlyRequiredValidator.Validate(document, sourceFilePath, includePaths, excludePaths));
 
         // An object schema with properties but no required list: every property generated nullable
         diagnostics.AddRange(ValidateSchemasWithoutRequired(document, sourceFilePath));

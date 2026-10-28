@@ -16,6 +16,10 @@ internal static class SpecificationLoader
     /// <param name="strategy">The validation strategy.</param>
     /// <param name="reportParsingError">Reports the generator's own parsing-error diagnostic.</param>
     /// <param name="overlays">The overlays applied to the file before it is parsed, in order.</param>
+    /// <param name="parametersMustBind">Whether a parameter the server could not bind is an error (a server).</param>
+    /// <param name="severities">The marker's rule severities.</param>
+    /// <param name="includePaths">The marker's <c>includePaths</c>, by which the rules about generated models judge.</param>
+    /// <param name="excludePaths">The marker's <c>excludePaths</c>.</param>
     /// <returns>The document, or <see langword="null"/> when it could not be parsed or has a validation error.</returns>
     public static OpenApiDocument? ParseAndValidate(
         SourceProductionContext context,
@@ -25,7 +29,9 @@ internal static class SpecificationLoader
         Action<SourceProductionContext, string> reportParsingError,
         IReadOnlyList<OverlayFile>? overlays = null,
         bool parametersMustBind = false,
-        RuleSeverityOverrides? severities = null)
+        RuleSeverityOverrides? severities = null,
+        IList<string>? includePaths = null,
+        IList<string>? excludePaths = null)
     {
         // A superseded IDE run stops before the parse, the most expensive step
         context.CancellationToken.ThrowIfCancellationRequested();
@@ -42,7 +48,7 @@ internal static class SpecificationLoader
             yamlContent = effective;
         }
 
-        var result = SpecificationPipeline.ParseAndValidate(yamlPath, yamlContent, strategy, parametersMustBind);
+        var result = SpecificationPipeline.ParseAndValidate(yamlPath, yamlContent, strategy, parametersMustBind, includePaths, excludePaths);
         if (result.Document is null)
         {
             // That it failed, and why: the parser's own errors
@@ -84,6 +90,10 @@ internal static class SpecificationLoader
     /// <param name="mergeConfiguration">The merge configuration, or <see langword="null"/> for the default.</param>
     /// <param name="strategy">The validation strategy.</param>
     /// <param name="overlays">The overlays applied to the merged document, in order.</param>
+    /// <param name="parametersMustBind">Whether a parameter the server could not bind is an error (a server).</param>
+    /// <param name="severities">The marker's rule severities.</param>
+    /// <param name="includePaths">The marker's <c>includePaths</c>, by which the rules about generated models judge.</param>
+    /// <param name="excludePaths">The marker's <c>excludePaths</c>.</param>
     /// <returns>The merged document, or <see langword="null"/> when the merge failed or the result has a validation error.</returns>
     public static OpenApiDocument? MergeAndValidate(
         SourceProductionContext context,
@@ -93,7 +103,9 @@ internal static class SpecificationLoader
         ValidateSpecificationStrategy strategy,
         IReadOnlyList<OverlayFile>? overlays = null,
         bool parametersMustBind = false,
-        RuleSeverityOverrides? severities = null)
+        RuleSeverityOverrides? severities = null,
+        IList<string>? includePaths = null,
+        IList<string>? excludePaths = null)
     {
         // A superseded IDE run stops before the parse, the most expensive step
         context.CancellationToken.ThrowIfCancellationRequested();
@@ -106,7 +118,7 @@ internal static class SpecificationLoader
         }
 
         // On the line of the file - the base or a part - that declares the operation, the path or the schema
-        var result = SpecificationPipeline.Validate(document, SourcesOf(baseFile, partFiles), strategy, parametersMustBind);
+        var result = SpecificationPipeline.Validate(document, SourcesOf(baseFile, partFiles), strategy, parametersMustBind, includePaths, excludePaths);
         return ReportAndContinue(context, result.Diagnostics, severities) ? result.Document : null;
     }
 

@@ -118,7 +118,9 @@ internal static class GeneratorStartup
                 config.ValidateSpecificationStrategy,
                 files.Overlays,
                 parametersMustBind,
-                RuleSeverityOverrides.From(config.RuleSeverities, config.SuppressRules))
+                RuleSeverityOverrides.From(config.RuleSeverities, config.SuppressRules),
+                config.IncludePaths,
+                config.ExcludePaths)
             : SpecificationLoader.ParseAndValidate(
                 context,
                 files.BaseFile.Path,
@@ -127,5 +129,7 @@ internal static class GeneratorStartup
                 reportParsingError,
                 files.Overlays,
                 parametersMustBind,
-                RuleSeverityOverrides.From(config.RuleSeverities, config.SuppressRules));
+                RuleSeverityOverrides.From(config.RuleSeverities, config.SuppressRules),
+                config.IncludePaths,
+                config.ExcludePaths);
 }
