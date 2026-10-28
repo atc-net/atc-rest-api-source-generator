@@ -311,9 +311,18 @@ public class GeneratorDiagnosticsTests
             Assert.Equal(DiagnosticSeverity.Warning, warning.Severity);
             Assert.Contains("createThing", warning.GetMessage(CultureInfo.InvariantCulture), StringComparison.Ordinal);
 
-            // The third fix, and what each does to a published client; on the operation's line in the specification
-            Assert.Contains("remove the 400's content", warning.GetMessage(CultureInfo.InvariantCulture), StringComparison.Ordinal);
-            Assert.Contains("BadRequestContent", warning.GetMessage(CultureInfo.InvariantCulture), StringComparison.Ordinal);
+            // The recommended fix first - no content, so the 400 is the problem and a handler's text its detail - then
+            // what it does to a published client, then the way to keep the string; on the operation's line
+            var message = warning.GetMessage(CultureInfo.InvariantCulture);
+            var fix = message.IndexOf("Recommended fix: remove the 400 response's content", StringComparison.Ordinal);
+            Assert.InRange(fix, 0, message.IndexOf('.', StringComparison.Ordinal) + 2);
+            Assert.Contains("BadRequest(\"...\") puts its text in 'detail'", message, StringComparison.Ordinal);
+            Assert.Contains("changes the client's 400 content type", message, StringComparison.Ordinal);
+            Assert.Contains("BadRequestContent", message, StringComparison.Ordinal);
+            Assert.True(
+                message.IndexOf("x-atc-suppress: [ATC_API_SRV002]", StringComparison.Ordinal) > fix,
+                "The suppression is the escape hatch, after the fix");
+            Assert.Contains("keep the string body", message, StringComparison.Ordinal);
             Assert.EndsWith(".yaml", warning.Location.GetLineSpan().Path, StringComparison.Ordinal);
             Assert.True(warning.Location.GetLineSpan().StartLinePosition.Line > 0, "SRV002 is on the operation's line");
         }
