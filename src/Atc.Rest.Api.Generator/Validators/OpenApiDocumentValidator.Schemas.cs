@@ -95,12 +95,20 @@ public static partial class OpenApiDocumentValidator
             return diagnostics;
         }
 
+        // From OpenAPI 3.1 (JSON Schema 2020-12) an explicit 'required: []' says every property is optional on purpose;
+        // OpenAPI 3.0's 'required' (JSON Schema draft 5) must name at least one property, so there it says nothing
+        var emptyRequiredIsDeliberate = document.SpecVersion is OpenApiSpecVersion.OpenApi3_1 or OpenApiSpecVersion.OpenApi3_2;
         foreach (var schemaEntry in document.Components.Schemas)
         {
             var schemaName = schemaEntry.Key;
             var schema = schemaEntry.Value is OpenApiSchemaReference { Target: not null } schemaRef
                 ? schemaRef.Target
                 : schemaEntry.Value;
+
+            if (emptyRequiredIsDeliberate && schema.Required is { Count: 0 })
+            {
+                continue;
+            }
 
             if (schema.Properties is { Count: > 0 } &&
                 schema.Required is not { Count: > 0 } &&
@@ -111,6 +119,7 @@ public static partial class OpenApiDocumentValidator
                     $"Schema '{schemaName}' has properties but no 'required' list, so every property is optional and " +
                     "generated nullable (with a '= null' default). List in 'required' the properties that are always there: what the API always sends (a response), what it always needs (a request). " +
                     "A property added to 'required' moves ahead of the optional parameters in the generated record's constructor, so construct it with named arguments. " +
+                    "A schema whose properties are all optional on purpose says so with 'required: []' (OpenAPI 3.1 and later) or 'x-atc-suppress: [ATC_API_SCH022]'. " +
                     $"Location: #/components/schemas/{schemaName}",
                     DiagnosticSeverity.Warning,
                     sourceFilePath,
