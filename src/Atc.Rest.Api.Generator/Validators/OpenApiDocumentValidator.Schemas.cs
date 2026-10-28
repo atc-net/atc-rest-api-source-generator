@@ -110,6 +110,7 @@ public static partial class OpenApiDocumentValidator
                     RuleIdentifiers.SchemaWithoutRequiredProperties,
                     $"Schema '{schemaName}' has properties but no 'required' list, so every property is optional and " +
                     "generated nullable (with a '= null' default). List in 'required' the properties that are always there: what the API always sends (a response), what it always needs (a request). " +
+                    "A property added to 'required' moves ahead of the optional parameters in the generated record's constructor, so construct it with named arguments. " +
                     $"Location: #/components/schemas/{schemaName}",
                     DiagnosticSeverity.Warning,
                     sourceFilePath,

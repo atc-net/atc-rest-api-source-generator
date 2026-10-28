@@ -71,6 +71,20 @@ public class SchemaWithoutRequiredValidationTests
     }
 
     [Fact]
+    public void Message_SaysThatARequiredPropertyMovesAheadInTheConstructor()
+    {
+        var doc = OpenApiDocumentHelper.ParseYaml(Yaml);
+
+        var diagnostic = Assert.Single(
+            OpenApiDocumentValidator.Validate(ValidateSpecificationStrategy.Standard, doc, [], TestFilePath),
+            d => d.RuleId == RuleIdentifiers.SchemaWithoutRequiredProperties);
+
+        Assert.Contains("ahead of the optional parameters", diagnostic.Message, StringComparison.Ordinal);
+        Assert.Contains("named arguments", diagnostic.Message, StringComparison.Ordinal);
+        Assert.EndsWith("Location: #/components/schemas/Item", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void IsSwitchedOff_ByXAtcSuppressOnTheSchema()
     {
         // Item says its properties are optional on purpose; Filter, a copy of it, does not
