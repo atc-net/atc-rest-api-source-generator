@@ -226,8 +226,14 @@ public class ApiServerGenerator : IIncrementalGenerator
             return;
         }
 
-        // A rule about the specification only a server with the ValidationFilter has
-        ReportValidationBadRequestsDeclaredAsString(context, openApiDoc, files, config, useValidationFilter);
+        // A rule about the specification only a server with the ValidationFilter has: about the operations the marker's
+        // path filter keeps, the generated ones
+        ReportValidationBadRequestsDeclaredAsString(
+            context,
+            PathFilterHelper.WithFilteredPaths(openApiDoc, config.IncludePaths, config.ExcludePaths),
+            files,
+            config,
+            useValidationFilter);
 
         // The root namespace: marker namespace, qualifying info.title, then base file name - as for a client
         var projectName = DiagnosticHelpers.ResolveRootNamespace(context, config.Namespace, openApiDoc, files.BaseFile.Path);
@@ -262,12 +268,13 @@ public class ApiServerGenerator : IIncrementalGenerator
         // An inline allOf over a plain base becomes one inline object, so it gets a model of its own
         InlineAllOfFlattener.Flatten(openApiDoc);
 
-        // What the project and the specification need to know before anything is generated
-        ReportServerPreamble(context, openApiDoc, projectName, packages, useValidationFilter);
-
         // Filter paths based on include/exclude patterns before segmentation
         // (on a copy: the parsed document is cached and shared)
         openApiDoc = PathFilterHelper.WithFilteredPaths(openApiDoc, config.IncludePaths, config.ExcludePaths);
+
+        // What the project and the specification need to know before anything is generated (about the operations that
+        // are generated)
+        ReportServerPreamble(context, openApiDoc, projectName, packages, useValidationFilter);
 
         // Get unique path segments for grouping generated files
         var pathSegments = PathSegmentHelper.GetUniquePathSegments(openApiDoc);

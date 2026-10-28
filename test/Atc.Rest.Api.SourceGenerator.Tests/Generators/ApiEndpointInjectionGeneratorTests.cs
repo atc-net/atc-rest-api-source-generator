@@ -90,6 +90,56 @@ public class ApiEndpointInjectionGeneratorTests
     }
 
     /// <summary>
+    /// The client marker's <c>includePaths</c> / <c>excludePaths</c> leave operations out of the client: their endpoints
+    /// are not generated, so the partial class does not inject them (it named endpoint types that do not exist).
+    /// </summary>
+    [Fact]
+    public void InjectsOnlyTheEndpointsOfTheOperationsTheClientMarkersPathFilterKeeps()
+    {
+        const string source = """
+            namespace Contoso.Host;
+
+            [Atc.Rest.Api.SourceGenerator.EndpointRegistration("Contoso")]
+            public partial class Program
+            {
+            }
+            """;
+        const string yaml = """
+            openapi: 3.0.3
+            info: { title: Contoso, version: 1.0.0 }
+            paths:
+              /things:
+                get:
+                  operationId: listThings
+                  responses:
+                    '200':
+                      description: OK
+              /admin/things:
+                get:
+                  operationId: listAdminThings
+                  responses:
+                    '200':
+                      description: OK
+            """;
+        var compilation = CSharpCompilation.Create(
+            "TestAssembly",
+            [CSharpSyntaxTree.ParseText(source, cancellationToken: TestContext.Current.CancellationToken)],
+            CompilationVerificationHarness.GetMinimalReferences(),
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+        var additionalTexts = ImmutableArray.Create<AdditionalText>(
+            new InMemoryAdditionalText("Contoso.yaml", yaml),
+            new InMemoryAdditionalText(".atc-rest-api-client", """{ "excludePaths": ["/admin/**"] }"""));
+
+        var driver = CSharpGeneratorDriver.Create(new ApiEndpointInjectionGenerator()).AddAdditionalTexts(additionalTexts);
+        driver = (CSharpGeneratorDriver)driver.RunGeneratorsAndUpdateCompilation(compilation, out _, out var diagnostics, TestContext.Current.CancellationToken);
+
+        Assert.Empty(diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
+        var partial = Assert.Single(driver.GetRunResult().GeneratedTrees.Select(t => t.GetText().ToString()), s => s.Contains("partial class Program", StringComparison.Ordinal));
+        Assert.Contains("IListThingsEndpoint", partial, StringComparison.Ordinal);
+        Assert.DoesNotContain("IListAdminThingsEndpoint", partial, StringComparison.Ordinal);
+    }
+
+    /// <summary>
     /// Two classes of the same name in different namespaces each get their partial class: the generated file is named
     /// by the namespace as well (it was named by the class alone, so the second file failed the whole generator, CS8785).
     /// </summary>

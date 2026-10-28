@@ -183,10 +183,12 @@ public class ApiEndpointInjectionGenerator : IIncrementalGenerator
             SpecificationLoader.Normalize(openApiDoc);
 
             // Discover endpoints from OpenAPI spec, in the namespaces the client generator declares them in: the
-            // attribute names the specification file, the root namespace follows the client's rule
+            // attribute names the specification file, the root namespace follows the client's rule. Only the operations
+            // the client marker's includePaths / excludePaths keep have endpoints.
+            var clientConfig = ClientConfigOf(markers);
             var endpoints = EndpointInjectionExtractor.DiscoverEndpointsFromOpenApi(
-                openApiDoc,
-                NamespaceResolver.Resolve(ClientNamespaceOf(markers), openApiDoc.Info?.Title, matchingYaml.Path));
+                PathFilterHelper.WithFilteredPaths(openApiDoc, clientConfig?.IncludePaths, clientConfig?.ExcludePaths),
+                NamespaceResolver.Resolve(clientConfig?.Namespace, openApiDoc.Info?.Title, matchingYaml.Path));
 
             // Report warning if no endpoints found
             if (endpoints.Count == 0)
@@ -216,10 +218,10 @@ public class ApiEndpointInjectionGenerator : IIncrementalGenerator
     }
 
     /// <summary>
-    /// The <c>namespace</c> of the project's client marker, or <see langword="null"/> when there is no marker, it
-    /// sets none or it cannot be read (the client generator reports that).
+    /// The project's client marker (its <c>namespace</c> and path filter), or <see langword="null"/> when there is no
+    /// marker or it cannot be read (the client generator reports that).
     /// </summary>
-    private static string? ClientNamespaceOf(
+    private static ClientConfig? ClientConfigOf(
         EquatableArray<MarkerFileInfo> markers)
     {
         var clientMarker = markers.Values.FirstOrDefault(m => Path.GetFileName(m.Path).StartsWith(".atc-rest-api-client", StringComparison.OrdinalIgnoreCase));
@@ -230,7 +232,7 @@ public class ApiEndpointInjectionGenerator : IIncrementalGenerator
 
         try
         {
-            return MarkerConfigInspector.Read<ClientConfig>(clientMarker.Content, out _).Namespace;
+            return MarkerConfigInspector.Read<ClientConfig>(clientMarker.Content, out _);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

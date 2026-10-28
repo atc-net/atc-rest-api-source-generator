@@ -165,10 +165,11 @@ public class ApiClientGenerator : IIncrementalGenerator
         }
 
         // A TypedClient needs Atc.Rest.Client only for a file (IFileContent) or the Result style: without the package
-        // that is an error naming it, not a compile error in generated code
+        // that is an error naming it, not a compile error in generated code. A file an operation the marker's path filter
+        // leaves out would send is not generated.
         if (config.GenerationMode == GenerationModeType.TypedClient &&
             packages.AtcRestClientVersion is null &&
-            TypedClientNeedsAtcRestClient(openApiDoc, config) is { } reason)
+            TypedClientNeedsAtcRestClient(PathFilterHelper.WithFilteredPaths(openApiDoc, config.IncludePaths, config.ExcludePaths), config) is { } reason)
         {
             DiagnosticHelpers.ReportTypedClientRequiresAtcRestClient(context, reason);
             return;

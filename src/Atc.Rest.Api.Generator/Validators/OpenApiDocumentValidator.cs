@@ -25,7 +25,7 @@ public static partial class OpenApiDocumentValidator
     /// lets them report a line number.
     /// </param>
     /// <param name="diagnosticWarnings">Diagnostic warnings from parsing (reported under Standard and Strict).</param>
-    /// <param name="includePaths">The marker's <c>includePaths</c>: the rules about generated models judge the document they are generated from.</param>
+    /// <param name="includePaths">The marker's <c>includePaths</c>: the rules about paths and operations judge only the operations it keeps (the generated ones).</param>
     /// <param name="excludePaths">The marker's <c>excludePaths</c>.</param>
     /// <returns>List of diagnostic messages to report.</returns>
     public static List<DiagnosticMessage> Validate(
@@ -56,37 +56,48 @@ public static partial class OpenApiDocumentValidator
 
         var diagnostics = new List<DiagnosticMessage>();
 
+        // The document the generators generate from: only the paths the marker's includePaths / excludePaths keep. A rule
+        // about a path or an operation judges these - one left out is never generated, and an error there must not stop
+        // the rest. A rule about the document itself (its components, servers, webhooks, version) judges it whole: every
+        // component schema is generated whatever the filter keeps.
+        var generated = PathFilterHelper.WithFilteredPaths(document, includePaths, excludePaths);
+
         // Two schema names that become one C# type (User / user, Foo-Bar / Foo_Bar) break generation under every
         // strategy - the generator fails on the duplicate file - so the collision is always an error
         diagnostics.AddRange(ValidateSchemaNameCollisions(document, sourceFilePath));
-        diagnostics.AddRange(ValidateOperationIdCollisions(document, sourceFilePath));
-        diagnostics.AddRange(ValidateSecuritySchemeReferences(document, sourceFilePath));
+        diagnostics.AddRange(ValidateOperationIdCollisions(generated, sourceFilePath));
+        diagnostics.AddRange(ValidateSecuritySchemeReferences(generated, sourceFilePath));
 
         // What the generated code would name and not find: a $ref to a component that is not there, a parameter
         // with no type, a schema with no type but null; and a document with nothing to generate from
         // An OpenAPI 2.0 (Swagger) document generates nothing: reported whatever the strategy
         diagnostics.AddRange(ValidateOpenApiVersion(document, sourceFilePath));
-        diagnostics.AddRange(DanglingReferenceValidator.Validate(document, sourceFilePath));
+        diagnostics.AddRange(DanglingReferenceValidator.Validate(generated, sourceFilePath));
         diagnostics.AddRange(SignalRHubValidator.Validate(document, sourceFilePath));
-        diagnostics.AddRange(ValidateParameterSchemas(document, sourceFilePath));
+        diagnostics.AddRange(ValidateParameterSchemas(generated, sourceFilePath));
         diagnostics.AddRange(ValidateNullOnlyTypes(document, sourceFilePath));
-        diagnostics.AddRange(SchemaConstraintValidator.Validate(document, sourceFilePath));
+        diagnostics.AddRange(SchemaConstraintValidator.Validate(generated, sourceFilePath));
+
+        // A document without operations - not one whose operations the filter leaves out
         diagnostics.AddRange(ValidateNoOperations(document, sourceFilePath));
 
         // A required readOnly/writeOnly property the generated record makes optional, as its schema is used both ways in
-        // the document the models are generated from (path-filtered by the marker)
-        diagnostics.AddRange(ReadOrWriteOnlyRequiredValidator.Validate(document, sourceFilePath, includePaths, excludePaths));
+        // the document the models are generated from
+        diagnostics.AddRange(ReadOrWriteOnlyRequiredValidator.Validate(generated, sourceFilePath));
 
         // An object schema with properties but no required list: every property generated nullable
         diagnostics.AddRange(ValidateSchemasWithoutRequired(document, sourceFilePath));
 
         // A path template the route or the generated code could not carry, a placeholder no parameter declares, and
         // a response for a status range (generated as its first status)
-        diagnostics.AddRange(ValidatePaths(document, sourceFilePath));
-        diagnostics.AddRange(ValidatePathsTheReaderDropped(diagnosticErrors, sourceFilePath));
-        diagnostics.AddRange(ValidateResponseRanges(document, sourceFilePath));
-        diagnostics.AddRange(ValidateHeadResponses(document, sourceFilePath));
-        diagnostics.AddRange(MediaTypeNormalizer.DroppedDeclarations(document).Select(dropped => new DiagnosticMessage(
+        diagnostics.AddRange(ValidatePaths(generated, sourceFilePath));
+        diagnostics.AddRange(ValidatePathsTheReaderDropped(diagnosticErrors, sourceFilePath, includePaths, excludePaths));
+        diagnostics.AddRange(ValidateResponseRanges(generated, sourceFilePath));
+        diagnostics.AddRange(ValidateHeadResponses(generated, sourceFilePath));
+
+        // A media type declared twice (a document already rewritten carries what it dropped, for every operation: those
+        // of the generated ones)
+        diagnostics.AddRange(MediaTypeNormalizer.DroppedDeclarations(generated).Where(dropped => IsAtAKeptOperation(dropped.Scope, generated)).Select(dropped => new DiagnosticMessage(
             RuleIdentifiers.MediaTypeDeclaredTwice,
             $"{char.ToUpperInvariant(dropped.Where[0])}{dropped.Where.Substring(1)} declares the media type '{dropped.Dropped}', which is the same media type as '{dropped.Kept}' declared before it, with another schema: '{dropped.Kept}' is generated, '{dropped.Dropped}' is not. Declare the media type once.",
             DiagnosticSeverity.Warning,
@@ -95,8 +106,8 @@ public static partial class OpenApiDocumentValidator
 
         // A querystring parameter the generated code cannot carry beside another (OAS 3.2 forbids it), and a parameter
         // whose value it cannot bind or send at all
-        diagnostics.AddRange(ValidateQueryStringParameters(document, sourceFilePath));
-        diagnostics.AddRange(ValidateParameterValues(document, sourceFilePath));
+        diagnostics.AddRange(ValidateQueryStringParameters(generated, sourceFilePath));
+        diagnostics.AddRange(ValidateParameterValues(generated, sourceFilePath));
 
         if (strategy == ValidateSpecificationStrategy.None)
         {
@@ -106,7 +117,7 @@ public static partial class OpenApiDocumentValidator
         // Standard validation: Report Microsoft.OpenApi parsing errors + schema reference validation
         if (strategy >= ValidateSpecificationStrategy.Standard)
         {
-            diagnostics.AddRange(ValidateStandard(strategy, diagnosticErrors, document, sourceFilePath));
+            diagnostics.AddRange(ValidateStandard(strategy, diagnosticErrors, generated, sourceFilePath));
 
             // The reader's warnings, but for the kinds a rule of its own reports as an error with its place
             foreach (var warning in diagnosticWarnings ?? [])
@@ -124,7 +135,7 @@ public static partial class OpenApiDocumentValidator
         // Strict validation: Standard + custom ATC rules
         if (strategy == ValidateSpecificationStrategy.Strict)
         {
-            diagnostics.AddRange(ValidateStrict(document, sourceFilePath));
+            diagnostics.AddRange(ValidateStrict(generated, sourceFilePath));
 
             // ATC_API_VER0xx: constructs that do not mean what the author thinks at the declared
             // spec version, or that must change when the version is raised.
@@ -132,6 +143,23 @@ public static partial class OpenApiDocumentValidator
         }
 
         return Located(SpecSuppressions.Apply(document, diagnostics), sourceFilePath, sourceText);
+    }
+
+    /// <summary>
+    /// Whether a diagnostic's scope is not an operation, or an operation of a path the document keeps.
+    /// </summary>
+    private static bool IsAtAKeptOperation(
+        string? scope,
+        OpenApiDocument generated)
+    {
+        const string prefix = "operation:";
+        if (scope is null || !scope.StartsWith(prefix, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        var space = scope.IndexOf(' ', prefix.Length);
+        return space < 0 || generated.Paths?.ContainsKey(scope.Substring(space + 1)) == true;
     }
 
     /// <summary>
