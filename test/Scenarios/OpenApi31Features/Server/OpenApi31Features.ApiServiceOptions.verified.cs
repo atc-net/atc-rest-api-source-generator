@@ -9,7 +9,7 @@ using System.CodeDom.Compiler;
 namespace OpenApi31Features.Generated;
 
 /// <summary>
-/// Options for configuring OpenApi31Features API services.
+/// The options of the generated <c>Add…Api()</c>: a switch per registration it makes.
 /// </summary>
 /// <remarks>
 /// Note: the handlers (AddApiHandlersFrom{HandlerProject}) and the validators (AddApiValidatorsFrom{HandlerProject},

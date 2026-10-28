@@ -299,6 +299,39 @@ public class WebApplicationExtensionsExtractorTests
             StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// The XML docs are what Visual Studio shows on mouse-over: lists as real bullets (a <c>/// - </c> line is joined
+    /// into one long line), the API by its name (not its namespace), and the companion method as a link.
+    /// </summary>
+    [Fact]
+    public void ExtractUnified_TheToolTips_ListTheMiddlewareAndLinkTheCompanionMethod()
+    {
+        // Arrange
+        var document = OpenApiDocumentHelper.ParseYaml(SecuredAndLimitedYaml.Replace("{partition}", "ip", StringComparison.Ordinal));
+
+        // Act
+        var result = WebApplicationExtensionsExtractor.ExtractUnified(document, ProjectName, new ServerConfig());
+
+        // Assert
+        var lines = result.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
+        Assert.DoesNotContain(lines, line => line.TrimStart().StartsWith("/// - ", StringComparison.Ordinal));
+        Assert.DoesNotContain("TestApi API", result, StringComparison.Ordinal);
+        Assert.Contains("/// Adds the middleware the Test API needs, in the recommended order. Call it before <see cref=\"MapTestApi\"/>.", result, StringComparison.Ordinal);
+        Assert.Contains("/// Maps all endpoints of the Test API. Adds no middleware: call <see cref=\"UseTestApi\"/> first.", result, StringComparison.Ordinal);
+
+        // One paragraph per item with a typed bullet: Visual Studio's tooltip renders a <list> as one run-on line
+        Assert.DoesNotContain("<list", result, StringComparison.Ordinal);
+        foreach (var item in new[] { "Global error handler", "Status code pages", "AfterErrorHandling", "Rate limiter", "Authentication and authorization" })
+        {
+            Assert.Contains(lines, line => line.Contains("/// <para>• ", StringComparison.Ordinal) && line.Contains(item, StringComparison.Ordinal) && line.TrimEnd().EndsWith("</para>", StringComparison.Ordinal));
+        }
+
+        // A paragraph is one <para>…</para>: no text outside it (a tooltip would run it into the next line)
+        var normalized = result.Replace("\r\n", "\n", StringComparison.Ordinal);
+        Assert.Contains("calls <c>MapTestApi(requireUse: false)</c>.\n    /// </para>", normalized, StringComparison.Ordinal);
+        Assert.DoesNotContain(lines, line => line.Contains("<para>", StringComparison.Ordinal) && !line.Contains("</para>", StringComparison.Ordinal) && !line.TrimEnd().EndsWith("<para>", StringComparison.Ordinal));
+    }
+
     private static string MethodBody(
         string source,
         string signature)

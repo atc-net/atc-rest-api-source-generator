@@ -72,7 +72,7 @@ public class ApiOptionsExtractorTests
         Assert.Contains("public bool UseRateLimiting { get; set; } = true;", result, StringComparison.Ordinal);
         Assert.Contains("public bool UseVersioning { get; set; } = true;", result, StringComparison.Ordinal);
         Assert.Contains("public bool UseSecurity { get; set; } = true;", result, StringComparison.Ordinal);
-        Assert.Contains("/// Options for configuring TestApi API services.", result, StringComparison.Ordinal);
+        Assert.Contains("/// The options of the generated <c>Add…Api()</c>: a switch per registration it makes.", result, StringComparison.Ordinal);
 
         // The default is decided when the code is generated, not detected at run time: the comment says which
         Assert.DoesNotContain("Auto-detected", result, StringComparison.Ordinal);
@@ -153,6 +153,7 @@ public class ApiOptionsExtractorTests
         // The host's own middleware (CORS, HSTS, ...) goes in at the generator's spot; a host that orders its whole
         // pipeline does not call Use{Api}Api() at all, so there is no switch for that any more
         Assert.Contains("public Action<IApplicationBuilder>? AfterErrorHandling { get; set; }", result, StringComparison.Ordinal);
+        Assert.Contains("/// The options of the generated <c>Use…Api()</c>:", result, StringComparison.Ordinal);
         Assert.Contains("using Microsoft.AspNetCore.Builder;", result, StringComparison.Ordinal);
         Assert.DoesNotContain("HostOwnsPipeline", result, StringComparison.Ordinal);
     }

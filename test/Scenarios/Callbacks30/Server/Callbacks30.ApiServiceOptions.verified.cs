@@ -9,7 +9,7 @@ using System.CodeDom.Compiler;
 namespace Callbacks30.Generated;
 
 /// <summary>
-/// Options for configuring Callbacks30 API services.
+/// The options of the generated <c>Add…Api()</c>: a switch per registration it makes.
 /// </summary>
 /// <remarks>
 /// Note: the handlers (AddApiHandlersFrom{HandlerProject}) and the validators (AddApiValidatorsFrom{HandlerProject},

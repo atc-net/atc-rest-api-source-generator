@@ -10,7 +10,8 @@ using Microsoft.AspNetCore.Builder;
 namespace Overlays.Generated;
 
 /// <summary>
-/// Options for configuring Overlays API middleware pipeline.
+/// The options of the generated <c>Use…Api()</c>: a switch per middleware it adds, and
+/// <see cref="AfterErrorHandling"/> for the host's own middleware.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public class ApiMiddlewareOptions

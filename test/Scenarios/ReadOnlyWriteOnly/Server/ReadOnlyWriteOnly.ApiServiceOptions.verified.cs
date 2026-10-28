@@ -9,7 +9,7 @@ using System.CodeDom.Compiler;
 namespace ReadOnlyWriteOnly.Generated;
 
 /// <summary>
-/// Options for configuring ReadOnlyWriteOnly API services.
+/// The options of the generated <c>Add…Api()</c>: a switch per registration it makes.
 /// </summary>
 /// <remarks>
 /// Note: the handlers (AddApiHandlersFrom{HandlerProject}) and the validators (AddApiValidatorsFrom{HandlerProject},

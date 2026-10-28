@@ -16,25 +16,26 @@ using SecurityAtcExt.Generated.Reports.Handlers;
 namespace SecurityAtcExt.Generated.Extensions;
 
 /// <summary>
-/// Unified extension methods for configuring SecurityAtcExt API services.
+/// The service registration of the SecurityAtcExt API: <see cref="AddSecurityAtcExtApi"/>.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public static class UnifiedServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds all SecurityAtcExt API services with auto-detected features.
+    /// Adds the services the SecurityAtcExt API needs. Call it once; the handlers are registered next to it.
     /// </summary>
     /// <param name="services">The service collection.</param>
-    /// <param name="configure">Optional configuration for API service options.</param>
-    /// <returns>The service collection for method chaining.</returns>
+    /// <param name="configure">
+    /// Turn off a registration the host makes itself (each has a switch in <see cref="ApiServiceOptions"/>).
+    /// </param>
+    /// <returns>The service collection, for chaining.</returns>
     /// <remarks>
-    /// This method registers:
-    /// - RFC 9457 ProblemDetails (AddProblemDetails), unless turned off
-    /// 
-    /// Note: this registers no handler. Register the handlers - and the validators - next to it, with the methods
-    /// the handler project generates (named after it, e.g. Contoso.Api.Domain):
-    /// - services.AddApiHandlersFrom{HandlerProject}() - Handler implementations
-    /// - services.AddApiValidatorsFrom{HandlerProject}() - FluentValidation validators (generated when it has one)
+    /// <para>Registers:</para>
+    /// <para>• ProblemDetails (RFC 9457) for the errors raised outside the handlers</para>
+    /// <para>• JSON options: a polymorphic body's discriminator anywhere in the object</para>
+    /// <para>Registers no handler: add them next to it with the methods the handler project generates:</para>
+    /// <para>• <c>services.AddApiHandlersFrom{HandlerProject}()</c> - the handlers</para>
+    /// <para>• <c>services.AddApiValidatorsFrom{HandlerProject}()</c> - the validators</para>
     /// </remarks>
     public static IServiceCollection AddSecurityAtcExtApi(
         this IServiceCollection services,

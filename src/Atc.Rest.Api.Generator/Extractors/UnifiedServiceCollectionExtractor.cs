@@ -110,7 +110,7 @@ public static class UnifiedServiceCollectionExtractor
         builder.AppendLine($"namespace {projectName}.Generated.Extensions;");
         builder.AppendLine();
         builder.AppendLine("/// <summary>");
-        builder.AppendLine($"/// Unified extension methods for configuring {projectName} API services.");
+        builder.AppendLine($"/// The service registration of the {apiName} API: <see cref=\"Add{apiName}Api\"/>.");
         builder.AppendLine("/// </summary>");
         builder.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
         builder.AppendLine("public static class UnifiedServiceCollectionExtensions");
@@ -134,40 +134,57 @@ public static class UnifiedServiceCollectionExtractor
         ServerFeatures features)
     {
         builder.AppendLine(4, "/// <summary>");
-        builder.AppendLine(4, $"/// Adds all {projectName} API services with auto-detected features.");
+        builder.AppendLine(4, $"/// Adds the services the {apiName} API needs. Call it once; the handlers are registered next to it.");
         builder.AppendLine(4, "/// </summary>");
         builder.AppendLine(4, "/// <param name=\"services\">The service collection.</param>");
-        builder.AppendLine(4, "/// <param name=\"configure\">Optional configuration for API service options.</param>");
-        builder.AppendLine(4, "/// <returns>The service collection for method chaining.</returns>");
-        builder.AppendLine(4, "/// <remarks>");
-        builder.AppendLine(4, "/// This method registers:");
-        builder.AppendLine(4, "/// - RFC 9457 ProblemDetails (AddProblemDetails), unless turned off");
+        builder.AppendLine(4, "/// <param name=\"configure\">");
+        builder.AppendLine(4, "/// Turn off a registration the host makes itself (each has a switch in <see cref=\"ApiServiceOptions\"/>).");
+        builder.AppendLine(4, "/// </param>");
+        builder.AppendLine(4, "/// <returns>The service collection, for chaining.</returns>");
 
+        // What this method registers - a list, so a tooltip shows one per line
+        var registrations = new List<string>
+        {
+            "ProblemDetails (RFC 9457) for the errors raised outside the handlers",
+        };
+        if (features.HasXmlBodies)
+        {
+            registrations.Add("An XML problem writer, for a caller that prefers application/problem+xml");
+        }
+
+        registrations.Add(features.HasEnums
+            ? "JSON options: every generated enum on the wire as the specification writes it; a polymorphic body's discriminator anywhere in the object"
+            : "JSON options: a polymorphic body's discriminator anywhere in the object");
         if (features.HasRateLimiting)
         {
-            builder.AppendLine(4, "/// - Rate limiting policies (auto-detected)");
+            registrations.Add("Rate limiting policies (x-ratelimit-*)");
+        }
+
+        if (features.HasOutputCaching)
+        {
+            registrations.Add("Output cache policies (x-cache-*)");
         }
 
         if (features.HasVersioning)
         {
-            builder.AppendLine(4, "/// - API versioning (auto-detected)");
+            registrations.Add("API versioning (the marker's versioningStrategy)");
         }
 
         if (features.HasSecuritySchemes)
         {
-            builder.AppendLine(4, "/// - Security policies (auto-detected)");
+            registrations.Add("Authorization policies of the security schemes");
         }
 
-        builder.AppendLine(4, "/// ");
-        builder.AppendLine(4, "/// Note: this registers no handler. Register the handlers - and the validators - next to it, with the methods");
-        builder.AppendLine(4, "/// the handler project generates (named after it, e.g. Contoso.Api.Domain):");
-        builder.AppendLine(4, "/// - services.AddApiHandlersFrom{HandlerProject}() - Handler implementations");
-
-        if (features.HasValidation)
-        {
-            builder.AppendLine(4, "/// - services.AddApiValidatorsFrom{HandlerProject}() - FluentValidation validators (generated when it has one)");
-        }
-
+        builder.AppendLine(4, "/// <remarks>");
+        XmlDocCommentHelper.AppendParagraph(builder, 4, "Registers:");
+        XmlDocCommentHelper.AppendBulletList(builder, 4, registrations);
+        XmlDocCommentHelper.AppendParagraph(builder, 4, "Registers no handler: add them next to it with the methods the handler project generates:");
+        XmlDocCommentHelper.AppendBulletList(
+            builder,
+            4,
+            features.HasValidation
+                ? new[] { "<c>services.AddApiHandlersFrom{HandlerProject}()</c> - the handlers", "<c>services.AddApiValidatorsFrom{HandlerProject}()</c> - the validators" }
+                : new[] { "<c>services.AddApiHandlersFrom{HandlerProject}()</c> - the handlers" });
         builder.AppendLine(4, "/// </remarks>");
         builder.AppendLine(4, $"public static IServiceCollection Add{apiName}Api(");
         builder.AppendLine(8, "this IServiceCollection services,");

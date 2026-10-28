@@ -13,7 +13,8 @@ using SecurityBearerOnly.Generated.Endpoints;
 namespace SecurityBearerOnly.Generated.Extensions;
 
 /// <summary>
-/// Unified extension methods for configuring SecurityBearerOnly API middleware and endpoints.
+/// The host wiring of the SecurityBearerOnly API: <see cref="UseSecurityBearerOnlyApi"/> adds the middleware,
+/// <see cref="MapSecurityBearerOnlyApi"/> maps the endpoints.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public static class UnifiedWebApplicationExtensions
@@ -21,20 +22,24 @@ public static class UnifiedWebApplicationExtensions
     private const string UseApiMark = "SecurityBearerOnly.Generated.UseSecurityBearerOnlyApi";
 
     /// <summary>
-    /// Adds the middleware the SecurityBearerOnly API needs, in the recommended order. Call it before
-    /// <c>MapSecurityBearerOnlyApi()</c>.
+    /// Adds the middleware the SecurityBearerOnly API needs, in the recommended order. Call it before <see cref="MapSecurityBearerOnlyApi"/>.
     /// </summary>
-    /// <param name="app">The WebApplication to configure.</param>
-    /// <param name="configure">Optional configuration for API middleware options.</param>
-    /// <returns>The WebApplication for method chaining.</returns>
+    /// <param name="app">The web application.</param>
+    /// <param name="configure">
+    /// Turn off a middleware the host adds itself (each has a switch in <see cref="ApiMiddlewareOptions"/>), or add
+    /// the host's own middleware with <c>AfterErrorHandling</c>.
+    /// </param>
+    /// <returns>The web application, for chaining.</returns>
     /// <remarks>
-    /// This method adds, in this order:
-    /// - Global error handling middleware (first: it turns what anything after it throws into a ProblemDetails)
-    /// - Status code pages writing ProblemDetails for empty error responses (when ProblemDetails is registered)
-    /// - The host's own middleware from <c>AfterErrorHandling</c> (CORS, HSTS, HTTPS redirection, ...)
-    /// - Authentication and authorization middleware (auto-detected)
-    /// Each one is behind a switch in <see cref="ApiMiddlewareOptions"/>: turn off what the host adds itself. A host
-    /// that orders its whole pipeline does not call this method and adds what the list above names itself.
+    /// <para>Adds, in this order:</para>
+    /// <para>• Global error handler - first, so what anything after it throws becomes a ProblemDetails</para>
+    /// <para>• Status code pages - a ProblemDetails body for an error response that has none</para>
+    /// <para>• The host's own middleware from <c>AfterErrorHandling</c> (CORS, HSTS, HTTPS redirection)</para>
+    /// <para>• Authentication and authorization - the specification requires a signed-in caller</para>
+    /// <para>
+    /// Turn off what the host adds itself. A host that orders its whole pipeline itself does not call this method,
+    /// adds the middleware above itself and calls <c>MapSecurityBearerOnlyApi(requireUse: false)</c>.
+    /// </para>
     /// </remarks>
     public static WebApplication UseSecurityBearerOnlyApi(
         this WebApplication app,
@@ -80,15 +85,18 @@ public static class UnifiedWebApplicationExtensions
     }
 
     /// <summary>
-    /// Maps all SecurityBearerOnly API endpoints. Adds no middleware: call <c>UseSecurityBearerOnlyApi()</c> first.
+    /// Maps all endpoints of the SecurityBearerOnly API. Adds no middleware: call <see cref="UseSecurityBearerOnlyApi"/> first.
     /// </summary>
-    /// <param name="app">The WebApplication to map the endpoints on.</param>
+    /// <param name="app">The web application.</param>
     /// <param name="requireUse">
-    /// Throw when <c>UseSecurityBearerOnlyApi()</c> was not called first (default). A host that adds the middleware
-    /// <c>UseSecurityBearerOnlyApi()</c> lists itself passes false.
+    /// True (default): throw when <see cref="UseSecurityBearerOnlyApi"/> was not called first. False: the host adds the
+    /// middleware itself.
     /// </param>
-    /// <returns>The WebApplication for method chaining.</returns>
-    /// <exception cref="InvalidOperationException"><c>UseSecurityBearerOnlyApi()</c> was not called first and <paramref name="requireUse"/> is true.</exception>
+    /// <returns>The web application, for chaining.</returns>
+    /// <exception cref="InvalidOperationException"><see cref="UseSecurityBearerOnlyApi"/> was not called first and <paramref name="requireUse"/> is true.</exception>
+    /// <remarks>
+    /// <para>Until 3.1 this method also added the middleware; since 3.2 <see cref="UseSecurityBearerOnlyApi"/> does.</para>
+    /// </remarks>
     public static WebApplication MapSecurityBearerOnlyApi(
         this WebApplication app,
         bool requireUse = true)

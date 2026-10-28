@@ -12,7 +12,8 @@ using NonJsonContent.Generated.Endpoints;
 namespace NonJsonContent.Generated.Extensions;
 
 /// <summary>
-/// Unified extension methods for configuring NonJsonContent API middleware and endpoints.
+/// The host wiring of the NonJsonContent API: <see cref="UseNonJsonContentApi"/> adds the middleware,
+/// <see cref="MapNonJsonContentApi"/> maps the endpoints.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public static class UnifiedWebApplicationExtensions
@@ -20,19 +21,23 @@ public static class UnifiedWebApplicationExtensions
     private const string UseApiMark = "NonJsonContent.Generated.UseNonJsonContentApi";
 
     /// <summary>
-    /// Adds the middleware the NonJsonContent API needs, in the recommended order. Call it before
-    /// <c>MapNonJsonContentApi()</c>.
+    /// Adds the middleware the NonJsonContent API needs, in the recommended order. Call it before <see cref="MapNonJsonContentApi"/>.
     /// </summary>
-    /// <param name="app">The WebApplication to configure.</param>
-    /// <param name="configure">Optional configuration for API middleware options.</param>
-    /// <returns>The WebApplication for method chaining.</returns>
+    /// <param name="app">The web application.</param>
+    /// <param name="configure">
+    /// Turn off a middleware the host adds itself (each has a switch in <see cref="ApiMiddlewareOptions"/>), or add
+    /// the host's own middleware with <c>AfterErrorHandling</c>.
+    /// </param>
+    /// <returns>The web application, for chaining.</returns>
     /// <remarks>
-    /// This method adds, in this order:
-    /// - The framework's exception handler (a ProblemDetails 500 for an unhandled exception)
-    /// - Status code pages writing ProblemDetails for empty error responses (when ProblemDetails is registered)
-    /// - The host's own middleware from <c>AfterErrorHandling</c> (CORS, HSTS, HTTPS redirection, ...)
-    /// Each one is behind a switch in <see cref="ApiMiddlewareOptions"/>: turn off what the host adds itself. A host
-    /// that orders its whole pipeline does not call this method and adds what the list above names itself.
+    /// <para>Adds, in this order:</para>
+    /// <para>• Exception handler (outside Development) - a ProblemDetails 500 for an unhandled exception</para>
+    /// <para>• Status code pages - a ProblemDetails body for an error response that has none</para>
+    /// <para>• The host's own middleware from <c>AfterErrorHandling</c> (CORS, HSTS, HTTPS redirection)</para>
+    /// <para>
+    /// Turn off what the host adds itself. A host that orders its whole pipeline itself does not call this method,
+    /// adds the middleware above itself and calls <c>MapNonJsonContentApi(requireUse: false)</c>.
+    /// </para>
     /// </remarks>
     public static WebApplication UseNonJsonContentApi(
         this WebApplication app,
@@ -66,15 +71,18 @@ public static class UnifiedWebApplicationExtensions
     }
 
     /// <summary>
-    /// Maps all NonJsonContent API endpoints. Adds no middleware: call <c>UseNonJsonContentApi()</c> first.
+    /// Maps all endpoints of the NonJsonContent API. Adds no middleware: call <see cref="UseNonJsonContentApi"/> first.
     /// </summary>
-    /// <param name="app">The WebApplication to map the endpoints on.</param>
+    /// <param name="app">The web application.</param>
     /// <param name="requireUse">
-    /// Throw when <c>UseNonJsonContentApi()</c> was not called first (default). A host that adds the middleware
-    /// <c>UseNonJsonContentApi()</c> lists itself passes false.
+    /// True (default): throw when <see cref="UseNonJsonContentApi"/> was not called first. False: the host adds the
+    /// middleware itself.
     /// </param>
-    /// <returns>The WebApplication for method chaining.</returns>
-    /// <exception cref="InvalidOperationException"><c>UseNonJsonContentApi()</c> was not called first and <paramref name="requireUse"/> is true.</exception>
+    /// <returns>The web application, for chaining.</returns>
+    /// <exception cref="InvalidOperationException"><see cref="UseNonJsonContentApi"/> was not called first and <paramref name="requireUse"/> is true.</exception>
+    /// <remarks>
+    /// <para>Until 3.1 this method also added the middleware; since 3.2 <see cref="UseNonJsonContentApi"/> does.</para>
+    /// </remarks>
     public static WebApplication MapNonJsonContentApi(
         this WebApplication app,
         bool requireUse = true)

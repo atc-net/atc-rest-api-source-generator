@@ -63,7 +63,8 @@ public static class WebApplicationExtensionsExtractor
         builder.AppendLine($"namespace {projectName}.Generated.Extensions;");
         builder.AppendLine();
         builder.AppendLine("/// <summary>");
-        builder.AppendLine($"/// Unified extension methods for configuring {projectName} API middleware and endpoints.");
+        builder.AppendLine($"/// The host wiring of the {apiName} API: <see cref=\"Use{apiName}Api\"/> adds the middleware,");
+        builder.AppendLine($"/// <see cref=\"Map{apiName}Api\"/> maps the endpoints.");
         builder.AppendLine("/// </summary>");
         builder.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
         builder.AppendLine("public static class UnifiedWebApplicationExtensions");
@@ -93,35 +94,45 @@ public static class WebApplicationExtensionsExtractor
         bool useGlobalErrorHandler)
     {
         builder.AppendLine(4, "/// <summary>");
-        builder.AppendLine(4, $"/// Adds the middleware the {projectName} API needs, in the recommended order. Call it before");
-        builder.AppendLine(4, $"/// <c>Map{apiName}Api()</c>.");
+        builder.AppendLine(4, $"/// Adds the middleware the {apiName} API needs, in the recommended order. Call it before <see cref=\"Map{apiName}Api\"/>.");
         builder.AppendLine(4, "/// </summary>");
-        builder.AppendLine(4, "/// <param name=\"app\">The WebApplication to configure.</param>");
-        builder.AppendLine(4, "/// <param name=\"configure\">Optional configuration for API middleware options.</param>");
-        builder.AppendLine(4, "/// <returns>The WebApplication for method chaining.</returns>");
+        builder.AppendLine(4, "/// <param name=\"app\">The web application.</param>");
+        builder.AppendLine(4, "/// <param name=\"configure\">");
+        builder.AppendLine(4, "/// Turn off a middleware the host adds itself (each has a switch in <see cref=\"ApiMiddlewareOptions\"/>), or add");
+        builder.AppendLine(4, "/// the host's own middleware with <c>AfterErrorHandling</c>.");
+        builder.AppendLine(4, "/// </param>");
+        builder.AppendLine(4, "/// <returns>The web application, for chaining.</returns>");
 
-        // The middleware in the order this method adds it
-        builder.AppendLine(4, "/// <remarks>");
-        builder.AppendLine(4, "/// This method adds, in this order:");
-        builder.AppendLine(4, useGlobalErrorHandler
-            ? "/// - Global error handling middleware (first: it turns what anything after it throws into a ProblemDetails)"
-            : "/// - The framework's exception handler (a ProblemDetails 500 for an unhandled exception)");
-        builder.AppendLine(4, "/// - Status code pages writing ProblemDetails for empty error responses (when ProblemDetails is registered)");
-        builder.AppendLine(4, "/// - The host's own middleware from <c>AfterErrorHandling</c> (CORS, HSTS, HTTPS redirection, ...)");
-        var rateLimiter = features.HasRateLimiting ? "/// - Rate limiter middleware (auto-detected)" : null;
-        var authentication = features.RequiresAuthentication ? "/// - Authentication and authorization middleware (auto-detected)" : null;
-        foreach (var line in (features.LimiterNeedsUser ? new[] { authentication, rateLimiter } : new[] { rateLimiter, authentication }).OfType<string>())
+        // The middleware in the order this method adds it - a list, so a tooltip shows one per line
+        var middleware = new List<string>
         {
-            builder.AppendLine(4, line);
-        }
-
+            useGlobalErrorHandler
+                ? "Global error handler - first, so what anything after it throws becomes a ProblemDetails"
+                : "Exception handler (outside Development) - a ProblemDetails 500 for an unhandled exception",
+            "Status code pages - a ProblemDetails body for an error response that has none",
+            "The host's own middleware from <c>AfterErrorHandling</c> (CORS, HSTS, HTTPS redirection)",
+        };
+        var rateLimiter = features.HasRateLimiting
+            ? (features.LimiterNeedsUser
+                ? "Rate limiter - after authentication, as a policy partitions by user"
+                : "Rate limiter - the specification declares rate limits")
+            : null;
+        var authentication = features.RequiresAuthentication
+            ? "Authentication and authorization - the specification requires a signed-in caller"
+            : null;
+        middleware.AddRange((features.LimiterNeedsUser ? new[] { authentication, rateLimiter } : new[] { rateLimiter, authentication }).OfType<string>());
         if (features.HasOutputCaching)
         {
-            builder.AppendLine(4, "/// - Output cache middleware (auto-detected, after authentication)");
+            middleware.Add("Output cache - after authentication, so an authenticated caller's answer is not cached");
         }
 
-        builder.AppendLine(4, "/// Each one is behind a switch in <see cref=\"ApiMiddlewareOptions\"/>: turn off what the host adds itself. A host");
-        builder.AppendLine(4, "/// that orders its whole pipeline does not call this method and adds what the list above names itself.");
+        builder.AppendLine(4, "/// <remarks>");
+        XmlDocCommentHelper.AppendParagraph(builder, 4, "Adds, in this order:");
+        XmlDocCommentHelper.AppendBulletList(builder, 4, middleware);
+        builder.AppendLine(4, "/// <para>");
+        builder.AppendLine(4, "/// Turn off what the host adds itself. A host that orders its whole pipeline itself does not call this method,");
+        builder.AppendLine(4, $"/// adds the middleware above itself and calls <c>Map{apiName}Api(requireUse: false)</c>.");
+        builder.AppendLine(4, "/// </para>");
         builder.AppendLine(4, "/// </remarks>");
         builder.AppendLine(4, $"public static WebApplication Use{apiName}Api(");
         builder.AppendLine(8, "this WebApplication app,");
@@ -220,15 +231,18 @@ public static class WebApplicationExtensionsExtractor
         string apiName)
     {
         builder.AppendLine(4, "/// <summary>");
-        builder.AppendLine(4, $"/// Maps all {projectName} API endpoints. Adds no middleware: call <c>Use{apiName}Api()</c> first.");
+        builder.AppendLine(4, $"/// Maps all endpoints of the {apiName} API. Adds no middleware: call <see cref=\"Use{apiName}Api\"/> first.");
         builder.AppendLine(4, "/// </summary>");
-        builder.AppendLine(4, "/// <param name=\"app\">The WebApplication to map the endpoints on.</param>");
+        builder.AppendLine(4, "/// <param name=\"app\">The web application.</param>");
         builder.AppendLine(4, "/// <param name=\"requireUse\">");
-        builder.AppendLine(4, $"/// Throw when <c>Use{apiName}Api()</c> was not called first (default). A host that adds the middleware");
-        builder.AppendLine(4, $"/// <c>Use{apiName}Api()</c> lists itself passes false.");
+        builder.AppendLine(4, $"/// True (default): throw when <see cref=\"Use{apiName}Api\"/> was not called first. False: the host adds the");
+        builder.AppendLine(4, "/// middleware itself.");
         builder.AppendLine(4, "/// </param>");
-        builder.AppendLine(4, "/// <returns>The WebApplication for method chaining.</returns>");
-        builder.AppendLine(4, $"/// <exception cref=\"InvalidOperationException\"><c>Use{apiName}Api()</c> was not called first and <paramref name=\"requireUse\"/> is true.</exception>");
+        builder.AppendLine(4, "/// <returns>The web application, for chaining.</returns>");
+        builder.AppendLine(4, $"/// <exception cref=\"InvalidOperationException\"><see cref=\"Use{apiName}Api\"/> was not called first and <paramref name=\"requireUse\"/> is true.</exception>");
+        builder.AppendLine(4, "/// <remarks>");
+        XmlDocCommentHelper.AppendParagraph(builder, 4, $"Until 3.1 this method also added the middleware; since 3.2 <see cref=\"Use{apiName}Api\"/> does.");
+        builder.AppendLine(4, "/// </remarks>");
         builder.AppendLine(4, $"public static WebApplication Map{apiName}Api(");
         builder.AppendLine(8, "this WebApplication app,");
         builder.AppendLine(8, "bool requireUse = true)");
