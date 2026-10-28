@@ -254,13 +254,15 @@ public static class ResponseHeaderFactoryHelper
     /// <param name="registry">The type names the models were generated under (an enum header's type).</param>
     /// <param name="operationName">The operation's name in Pascal case: an inline enum header is its type (see <see cref="InlineEnumsOf"/>); text without it.</param>
     /// <param name="componentTypeNames">The C# names of the component schemas, which an inline enum's name gives way to.</param>
+    /// <param name="usage">The reachability of the document the models are generated from (the path-filtered one), which decides whether a model's readOnly / writeOnly property is required; <see langword="null"/>: the schema's own document.</param>
     /// <returns>Per header: its name, the property a result reads it through, the C# type of one value, whether it is an array, and how a value is read.</returns>
     public static List<DeclaredResponseHeader> DeclaredBy(
         OpenApiOperation? operation,
         TypeConflictRegistry? registry = null,
         string? operationName = null,
-        ISet<string>? componentTypeNames = null)
-        => DeclaredByResponses(operation?.Responses?.Values ?? Enumerable.Empty<IOpenApiResponse>(), registry, operationName, componentTypeNames);
+        ISet<string>? componentTypeNames = null,
+        SchemaUsageReachability? usage = null)
+        => DeclaredByResponses(operation?.Responses?.Values ?? Enumerable.Empty<IOpenApiResponse>(), registry, operationName, componentTypeNames, usage);
 
     /// <summary>
     /// The headers some responses declare, one per name, by the rules of <see cref="DeclaredBy"/>: what a result that
@@ -270,12 +272,14 @@ public static class ResponseHeaderFactoryHelper
     /// <param name="registry">The type names the models were generated under (an enum header's type).</param>
     /// <param name="operationName">The operation's name in Pascal case: an inline enum header is its type; text without it.</param>
     /// <param name="componentTypeNames">The C# names of the component schemas, which an inline enum's name gives way to.</param>
+    /// <param name="usage">The reachability of the document the models are generated from (the path-filtered one), which decides whether a model's readOnly / writeOnly property is required; <see langword="null"/>: the schema's own document.</param>
     /// <returns>Per header: its name, the property a result reads it through, the C# type of one value, whether it is an array, and how a value is read.</returns>
     public static List<DeclaredResponseHeader> DeclaredByResponses(
         IEnumerable<IOpenApiResponse?> responses,
         TypeConflictRegistry? registry = null,
         string? operationName = null,
-        ISet<string>? componentTypeNames = null)
+        ISet<string>? componentTypeNames = null,
+        SchemaUsageReachability? usage = null)
     {
         if (responses is null)
         {
@@ -295,7 +299,7 @@ public static class ResponseHeaderFactoryHelper
 
                 var inlineEnumTypeName = operationName is null ? null : InlineEnumTypeName(operationName, header.Key, componentTypeNames);
                 var (type, isArray, kind) = ValueOf(header.Value.Schema, registry, inlineEnumTypeName);
-                var fields = kind == ResponseHeaderValueKind.Model ? ObjectFieldsOf(header.Value.Schema, registry) : null;
+                var fields = kind == ResponseHeaderValueKind.Model ? ObjectFieldsOf(header.Value.Schema, registry, usage) : null;
                 var explode = kind == ResponseHeaderValueKind.Model && header.Value.Explode;
                 var index = headers.FindIndex(h => string.Equals(h.Name, header.Key, StringComparison.OrdinalIgnoreCase));
                 if (index >= 0)
@@ -696,7 +700,8 @@ public static class ResponseHeaderFactoryHelper
     // default (the model's parameter is then not nullable).
     private static List<ResponseHeaderField>? ObjectFieldsOf(
         IOpenApiSchema? schema,
-        TypeConflictRegistry? registry)
+        TypeConflictRegistry? registry,
+        SchemaUsageReachability? usage = null)
     {
         if (schema is not OpenApiSchemaReference { Target: OpenApiSchema target } reference ||
             reference.Reference.Id is not { Length: > 0 } id ||
@@ -739,10 +744,11 @@ public static class ResponseHeaderFactoryHelper
             }
 
             // A readOnly or writeOnly property is required here as it is in the model (SchemaExtractor): only when the
-            // model is used in the one direction the property is always there in
-            var usage = reference.Reference.HostDocument is { } document ? SchemaUsageReachability.For(document) : null;
+            // model is used in the one direction the property is always there in - in the document the models are
+            // generated from, which a path filter makes another than the schema's own
+            var directions = usage ?? (reference.Reference.HostDocument is { } document ? SchemaUsageReachability.For(document) : null);
             var isRequired = required.Contains(property.Key) &&
-                             SchemaUsageReachability.KeepsRequired(usage, id, property.Value);
+                             SchemaUsageReachability.KeepsRequired(directions, id, property.Value);
             var modelType = property.Value.ToCSharpTypeForModel(isRequired, registry).TrimEnd('?');
             var headerType = value.Kind == ResponseHeaderValueKind.Scalar ? ModelTypeOfScalar(value.Type) : value.Type;
             if (!string.Equals(modelType, headerType, StringComparison.Ordinal))

@@ -359,6 +359,21 @@ public static class PathSegmentHelper
             }
         }
 
+        // A model (or an enum) a response header of one segment carries, which another segment's operations use: the
+        // header's result and client read it, so it must be visible to both - shared. One no operation uses otherwise
+        // is shared already (unreferenced below), one only its own segment uses stays there.
+        foreach (var segment in GetUniquePathSegments(openApiDoc))
+        {
+            foreach (var schema in GetSchemasCarriedByResponseHeaders(openApiDoc, segment))
+            {
+                if (schemaSegmentMap.TryGetValue(schema, out var segments) &&
+                    !segments.Contains(segment))
+                {
+                    sharedSchemas.Add(schema);
+                }
+            }
+        }
+
         // Include schemas used only by webhooks (they don't belong to any path segment)
         var webhookSchemas = GetSchemasUsedByWebhooks(openApiDoc);
         foreach (var webhookSchema in webhookSchemas)
@@ -961,6 +976,48 @@ public static class PathSegmentHelper
         IOpenApiSchema schema)
         => PaginationTypeResolver.IsPaginationBaseType(name) ||
            (schema is OpenApiSchema actualSchema && SchemaExtractor.IsPaginationBaseSchema(actualSchema));
+
+    /// <summary>
+    /// The schemas the response headers of a segment's operations carry, with every schema they reference.
+    /// </summary>
+    private static HashSet<string> GetSchemasCarriedByResponseHeaders(
+        OpenApiDocument openApiDoc,
+        string pathSegment)
+    {
+        var schemaNames = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var (_, _, operation) in GetOperationsForSegment(openApiDoc, pathSegment))
+        {
+            foreach (var response in operation.Responses ?? new OpenApiResponses())
+            {
+                foreach (var header in response.Value?.Headers ?? new Dictionary<string, IOpenApiHeader>(StringComparer.Ordinal))
+                {
+                    CollectSchemaNames(header.Value?.Schema, schemaNames);
+                }
+            }
+        }
+
+        var pending = new Queue<string>(schemaNames);
+        while (pending.Count > 0)
+        {
+            if (openApiDoc.Components?.Schemas is null ||
+                !openApiDoc.Components.Schemas.TryGetValue(pending.Dequeue(), out var schema))
+            {
+                continue;
+            }
+
+            var referenced = new HashSet<string>(StringComparer.Ordinal);
+            CollectSchemaNames(schema, referenced);
+            foreach (var name in referenced)
+            {
+                if (schemaNames.Add(name))
+                {
+                    pending.Enqueue(name);
+                }
+            }
+        }
+
+        return schemaNames;
+    }
 
     private static void CollectSchemaNames(
         IOpenApiSchema? schema,

@@ -387,7 +387,7 @@ public static class EndpointPerOperationExtractor
             // The headers the responses declare: typed properties of the result. An enum a header declares inline is
             // a type next to the result's interface, which the result class imports too.
             var componentTypeNames = TypeConflictRegistry.ComponentTypeNamesOf(openApiDoc);
-            var declaredHeaders = ResponseHeaderFactoryHelper.DeclaredBy(operation, registry, operationName, componentTypeNames);
+            var declaredHeaders = ResponseHeaderFactoryHelper.DeclaredBy(operation, registry, operationName, componentTypeNames, SchemaUsageReachability.For(openApiDoc));
             var interfacesNamespace = NamespaceBuilder.ForEndpointInterfaces(projectName, pathSegment);
             foreach (var (typeName, schema) in ResponseHeaderFactoryHelper.InlineEnumsOf(operation, operationName, componentTypeNames))
             {

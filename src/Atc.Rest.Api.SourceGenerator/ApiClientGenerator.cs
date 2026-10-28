@@ -1109,7 +1109,7 @@ public class ApiClientGenerator : IIncrementalGenerator
 
                 var operationId = OperationIdHelper.Effective(operation.Value, operation.Key.ToString(), path.Key);
                 var operationName = operationId.ToPascalCaseForDotNet();
-                var headers = ResponseHeaderFactoryHelper.DeclaredBy(operation.Value, registry, operationName, componentTypeNames);
+                var headers = ResponseHeaderFactoryHelper.DeclaredBy(operation.Value, registry, operationName, componentTypeNames, SchemaUsageReachability.For(openApiDoc));
                 if (headers.Count == 0)
                 {
                     continue;
