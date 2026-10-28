@@ -6,16 +6,14 @@ namespace Atc.Rest.Api.Generator.Validators;
 /// requests and responses, so the property must be omittable where it does not apply (see
 /// <see cref="SchemaUsageReachability.KeepsRequired"/>). A schema no operation uses reports nothing - which direction it
 /// will be used in is unknown. Each property is reported on the schema that declares it (an inherited one on its base).
-/// The directions are those of the document the models are generated from: with the marker's <c>includePaths</c> /
-/// <c>excludePaths</c>, the path-filtered one.
+/// The directions are those of the document the models are generated from: the caller passes the one the marker's
+/// <c>includePaths</c> / <c>excludePaths</c> filtered.
 /// </summary>
 internal static class ReadOrWriteOnlyRequiredValidator
 {
     public static List<DiagnosticMessage> Validate(
         OpenApiDocument document,
-        string sourceFilePath,
-        IList<string>? includePaths = null,
-        IList<string>? excludePaths = null)
+        string sourceFilePath)
     {
         var diagnostics = new List<DiagnosticMessage>();
         if (document.Components?.Schemas is not { Count: > 0 } schemas)
@@ -23,7 +21,7 @@ internal static class ReadOrWriteOnlyRequiredValidator
             return diagnostics;
         }
 
-        var usage = SchemaUsageReachability.Compute(PathFilterHelper.WithFilteredPaths(document, includePaths, excludePaths));
+        var usage = SchemaUsageReachability.Compute(document);
         foreach (var entry in schemas)
         {
             var schemaName = entry.Key;

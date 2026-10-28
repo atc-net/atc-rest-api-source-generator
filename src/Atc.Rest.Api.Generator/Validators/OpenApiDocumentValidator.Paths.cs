@@ -101,16 +101,20 @@ public static partial class OpenApiDocumentValidator
     /// <summary>
     /// ATC_API_PTH001 for a path the reader left out of the document: one that does not start with <c>/</c>, which the
     /// reader reports only as "{name} is not a valid property at #/paths" among its own errors (shown under Standard
-    /// and Strict only). The operations under it would otherwise disappear without a word. Every strategy.
+    /// and Strict only). The operations under it would otherwise disappear without a word. Every strategy - for a path
+    /// the marker's <c>includePaths</c> / <c>excludePaths</c> keep.
     /// </summary>
     private static List<DiagnosticMessage> ValidatePathsTheReaderDropped(
         IList<OpenApiError> diagnosticErrors,
-        string sourceFilePath)
+        string sourceFilePath,
+        IList<string>? includePaths,
+        IList<string>? excludePaths)
     {
         var diagnostics = new List<DiagnosticMessage>();
         foreach (var error in diagnosticErrors)
         {
-            if (DroppedPath(error) is not { } path)
+            if (DroppedPath(error) is not { } path ||
+                PathFilterHelper.FilterPaths([path], includePaths, excludePaths).Count == 0)
             {
                 continue;
             }

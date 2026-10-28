@@ -16,7 +16,7 @@ public static class SpecificationPipeline
     /// <param name="content">The file's content, after the overlays.</param>
     /// <param name="strategy">The validation strategy.</param>
     /// <param name="parametersMustBind">Whether a parameter the server could not bind is an error (a server).</param>
-    /// <param name="includePaths">The marker's <c>includePaths</c>, by which the rules about generated models judge.</param>
+    /// <param name="includePaths">The marker's <c>includePaths</c>, by which the rules about paths, operations and the models judge.</param>
     /// <param name="excludePaths">The marker's <c>excludePaths</c>.</param>
     /// <returns>The document (none when it could not be parsed) and the diagnostics.</returns>
     public static SpecificationPipelineResult ParseAndValidate(
@@ -60,7 +60,7 @@ public static class SpecificationPipeline
     /// <param name="sources">The files' paths and texts, the base file first.</param>
     /// <param name="strategy">The validation strategy.</param>
     /// <param name="parametersMustBind">Whether a parameter the server could not bind is an error (a server).</param>
-    /// <param name="includePaths">The marker's <c>includePaths</c>, by which the rules about generated models judge.</param>
+    /// <param name="includePaths">The marker's <c>includePaths</c>, by which the rules about paths, operations and the models judge.</param>
     /// <param name="excludePaths">The marker's <c>excludePaths</c>.</param>
     /// <returns>The document and the diagnostics.</returns>
     public static SpecificationPipelineResult Validate(

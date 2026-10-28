@@ -18,7 +18,7 @@ internal static class SpecificationLoader
     /// <param name="overlays">The overlays applied to the file before it is parsed, in order.</param>
     /// <param name="parametersMustBind">Whether a parameter the server could not bind is an error (a server).</param>
     /// <param name="severities">The marker's rule severities.</param>
-    /// <param name="includePaths">The marker's <c>includePaths</c>, by which the rules about generated models judge.</param>
+    /// <param name="includePaths">The marker's <c>includePaths</c>, by which the rules about paths, operations and the models judge.</param>
     /// <param name="excludePaths">The marker's <c>excludePaths</c>.</param>
     /// <returns>The document, or <see langword="null"/> when it could not be parsed or has a validation error.</returns>
     public static OpenApiDocument? ParseAndValidate(
@@ -92,7 +92,7 @@ internal static class SpecificationLoader
     /// <param name="overlays">The overlays applied to the merged document, in order.</param>
     /// <param name="parametersMustBind">Whether a parameter the server could not bind is an error (a server).</param>
     /// <param name="severities">The marker's rule severities.</param>
-    /// <param name="includePaths">The marker's <c>includePaths</c>, by which the rules about generated models judge.</param>
+    /// <param name="includePaths">The marker's <c>includePaths</c>, by which the rules about paths, operations and the models judge.</param>
     /// <param name="excludePaths">The marker's <c>excludePaths</c>.</param>
     /// <returns>The merged document, or <see langword="null"/> when the merge failed or the result has a validation error.</returns>
     public static OpenApiDocument? MergeAndValidate(
