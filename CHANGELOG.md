@@ -3,6 +3,27 @@
 > ⬆️ **Upgrading from 2.x?** The entries below list the commits of each release. What to change in a project, and
 > why, is in the wiki: [Upgrading to v3](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Upgrading-to-v3).
 
+## [3.1.0](https://github.com/atc-net/atc-rest-api-source-generator/compare/v3.0.1...v3.1.0) (2026-10-28)
+
+
+### New features
+
+* **diagnostics:** an explicit 'required: []' in an OpenAPI 3.1+ schema says every property is optional on purpose and reports no ATC_API_SCH022 ([43dabb3](https://github.com/atc-net/atc-rest-api-source-generator/commit/43dabb314b0966407ca80dd45c124739ede5acdf))
+* **diagnostics:** ATC_API_SCH022 is a warning under every validation strategy, so a build shows the object schemas whose properties are all generated nullable ([74fcaac](https://github.com/atc-net/atc-rest-api-source-generator/commit/74fcaac1c3ec7361000dc43114b3ef542f4be09a))
+* **diagnostics:** ATC_API_SCH022's message says that a property added to 'required' moves ahead of the optional parameters in the record's constructor, so models are built with named arguments ([00c6464](https://github.com/atc-net/atc-rest-api-source-generator/commit/00c64649d80e881ddaab3a46621b3613bafbe4ca))
+* **diagnostics:** ATC_API_SCH029 names a required readOnly/writeOnly property generated optional ([2a844a8](https://github.com/atc-net/atc-rest-api-source-generator/commit/2a844a8e24631877658cc83a5b62e72891d195aa))
+* **diagnostics:** ATC_API_SRV002's message leads with the recommended fix - remove the 400's content, so it is a ProblemDetails and a handler's BadRequest text its detail ([69302a1](https://github.com/atc-net/atc-rest-api-source-generator/commit/69302a126c674b2534448714902d3d0c61a98c99))
+
+
+### Bug fixes
+
+* **diagnostics:** ATC_API_SCH029 judges the path-filtered document the models are generated from, so a schema used one way after includePaths/excludePaths no longer reports a required property the model keeps required ([2055cf8](https://github.com/atc-net/atc-rest-api-source-generator/commit/2055cf8a7b3ce56efcdb1c1f6b294fb2490798c9))
+* **diagnostics:** the rules about paths and operations judge only the operations includePaths/excludePaths keep, so a left-out operation reports nothing and an error there no longer stops generation ([b64905d](https://github.com/atc-net/atc-rest-api-source-generator/commit/b64905dda3183f9a368de05d0b8a775cb60d33f8))
+* **generator:** a response header that carries a model reads its required readOnly/writeOnly properties as the model is generated, and a header model another path segment uses compiles ([583c189](https://github.com/atc-net/atc-rest-api-source-generator/commit/583c189f0397b2e7b3e26aca9cc6db0f4c9f1da5))
+* **generator:** keep 'required' on readOnly/writeOnly properties when the schema is used in one direction only ([3a8adb7](https://github.com/atc-net/atc-rest-api-source-generator/commit/3a8adb759d26f2dbcf51dcaa3fb9e0e597b9767d))
+* **generator:** make AddApiRateLimiting idempotent so a host's own call next to Add{Project}Api no longer throws at startup ([e135d57](https://github.com/atc-net/atc-rest-api-source-generator/commit/e135d57894feb995d8f1275d8dee0f249ca96b94))
+* **generator:** the Add{Api}Api() XML problem-writer guard matches only an unkeyed IProblemDetailsWriter registration ([dffdf41](https://github.com/atc-net/atc-rest-api-source-generator/commit/dffdf4162b61c5f3cbe028866d2c13c728cdac32))
+
 ## [3.0.1](https://github.com/atc-net/atc-rest-api-source-generator/compare/v3.0.0...v3.0.1) (2026-10-27)
 
 
