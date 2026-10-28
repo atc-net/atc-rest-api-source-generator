@@ -277,7 +277,7 @@ public sealed class GenerateServerCommandTests : IDisposable
     }
 
     [Fact]
-    public async Task GenerateServer_TwoProjects_ProgramWiresProblemDetailsForEveryError()
+    public async Task GenerateServer_TwoProjects_ProgramWiresTheGeneratedAddUseAndMap()
     {
         var yamlPath = CliTestHelper.GetScenarioYamlPath("Demo");
         var repoRoot = Path.Combine(tempOutputDir, "TwoProjectsProblemDetails");
@@ -291,9 +291,9 @@ public sealed class GenerateServerCommandTests : IDisposable
         var cleanOutput = CliTestHelper.StripAnsiCodes(output);
         Assert.True(isSuccessful, $"Expected success but got failure. Output: {cleanOutput}");
         var program = await File.ReadAllTextAsync(Path.Combine(repoRoot, "src", "Contoso.Api", "Program.cs"), TestContext.Current.CancellationToken);
-        Assert.Contains("builder.Services.AddProblemDetails();", program, StringComparison.Ordinal);
-        Assert.Contains("app.UseExceptionHandler();", program, StringComparison.Ordinal);
-        Assert.Contains("app.UseStatusCodePages();", program, StringComparison.Ordinal);
+        Assert.Contains("builder.Services.AddContosoApi();", program, StringComparison.Ordinal);
+        Assert.Contains("app.UseContosoApi();", program, StringComparison.Ordinal);
+        Assert.Contains("app.MapContosoApi();", program, StringComparison.Ordinal);
     }
 
     [Fact]

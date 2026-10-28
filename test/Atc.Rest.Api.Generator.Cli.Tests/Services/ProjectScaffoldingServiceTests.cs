@@ -66,8 +66,13 @@ public sealed class ProjectScaffoldingServiceTests : IDisposable
         Assert.Contains("<PackageReference Include=\"Microsoft.OpenApi\" Version=\"2.*\" />", csprojContent, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// The scaffolded host is wired with the three generated calls - services, middleware, endpoints - not by hand:
+    /// AddDemoApi() registers ProblemDetails, UseDemoApi() the error handling and status code pages, MapDemoApi() the
+    /// endpoints. The OpenAPI UI is mapped between Use and Map.
+    /// </summary>
     [Fact]
-    public void GenerateHostProject_ProgramWiresProblemDetailsForEveryError()
+    public void GenerateHostProject_ProgramWiresTheGeneratedAddUseAndMap()
     {
         var result = sut.GenerateHostProject(
             tempSrcPath,
@@ -80,12 +85,21 @@ public sealed class ProjectScaffoldingServiceTests : IDisposable
 
         Assert.True(result);
         var program = File.ReadAllText(Path.Combine(tempSrcPath, "Demo.Api", "Program.cs"));
-        Assert.Contains("builder.Services.AddProblemDetails();", program, StringComparison.Ordinal);
-        var exceptionHandler = program.IndexOf("app.UseExceptionHandler();", StringComparison.Ordinal);
-        var statusCodePages = program.IndexOf("app.UseStatusCodePages();", StringComparison.Ordinal);
-        Assert.True(exceptionHandler > program.IndexOf("var app = builder.Build();", StringComparison.Ordinal), program);
-        Assert.True(statusCodePages > exceptionHandler, program);
-        Assert.True(statusCodePages < program.IndexOf("app.MapOpenApi();", StringComparison.Ordinal), program);
+        var add = program.IndexOf("builder.Services.AddDemoApi();", StringComparison.Ordinal);
+        var build = program.IndexOf("var app = builder.Build();", StringComparison.Ordinal);
+        var use = program.IndexOf("app.UseDemoApi();", StringComparison.Ordinal);
+        var openApi = program.IndexOf("app.MapOpenApi();", StringComparison.Ordinal);
+        var map = program.IndexOf("app.MapDemoApi();", StringComparison.Ordinal);
+        Assert.True(add >= 0 && add < build && build < use && use < openApi && openApi < map, program);
+
+        // The generated calls replace the hand wiring
+        foreach (var handWired in new[] { "AddProblemDetails()", "UseExceptionHandler()", "UseStatusCodePages()", "app.MapEndpoints()" })
+        {
+            Assert.DoesNotContain(handWired, program, StringComparison.Ordinal);
+        }
+
+        var globalUsings = File.ReadAllText(Path.Combine(tempSrcPath, "Demo.Api", "GlobalUsings.cs"));
+        Assert.Contains("global using Demo.Generated.Extensions;", globalUsings, StringComparison.Ordinal);
     }
 
     [Fact]

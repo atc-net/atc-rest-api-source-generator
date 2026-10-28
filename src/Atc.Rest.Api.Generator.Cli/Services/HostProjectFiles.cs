@@ -82,22 +82,20 @@ internal static class HostProjectFiles
             sb.AppendLine();
         }
 
-        sb.AppendLine("// RFC 9457 ProblemDetails for every error");
-        sb.AppendLine("builder.Services.AddProblemDetails();");
+        // The three generated calls: services, middleware, endpoints
+        var apiName = CasingHelper.GetApiName(baseName, apiName: null);
+        sb.AppendLine("// The generated API services: ProblemDetails for every error, the JSON options and the policies the");
+        sb.AppendLine("// specification declares");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"builder.Services.Add{apiName}Api();");
         sb.AppendLine();
         sb.AppendLine("// Register handler implementations from Domain project");
         sb.AppendLine("builder.Services.AddApiHandlersFromDomain();");
         sb.AppendLine();
         sb.AppendLine("var app = builder.Build();");
         sb.AppendLine();
-        sb.AppendLine("// Outside Development an unhandled exception is a 500 ProblemDetails, not an empty 500 (Development keeps the developer exception page)");
-        sb.AppendLine("if (!app.Environment.IsDevelopment())");
-        sb.AppendLine("{");
-        sb.AppendLine("    app.UseExceptionHandler();");
-        sb.AppendLine("}");
-        sb.AppendLine();
-        sb.AppendLine("// A ProblemDetails body for error responses that have none (first in the pipeline)");
-        sb.AppendLine("app.UseStatusCodePages();");
+        sb.AppendLine("// The generated middleware, in the recommended order: error handling, status code pages, and what the");
+        sb.AppendLine("// specification needs (authentication, rate limiting, ...)");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"app.Use{apiName}Api();");
         sb.AppendLine();
 
         // Generate UI mapping based on configuration
@@ -123,8 +121,8 @@ internal static class HostProjectFiles
             sb.AppendLine();
         }
 
-        sb.AppendLine("// Configure middleware and map all endpoints");
-        sb.AppendLine("app.MapEndpoints();");
+        sb.AppendLine("// Every endpoint of the API");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"app.Map{apiName}Api();");
         sb.AppendLine();
         sb.Append("await app.RunAsync();");
 
@@ -142,10 +140,10 @@ internal static class HostProjectFiles
         sb.Append(baseName);
         sb.AppendLine(";");
 
-        // Generated endpoints namespace
+        // The generated host extensions: Add{Api}Api(), Use{Api}Api(), Map{Api}Api()
         sb.Append("global using ");
         sb.Append(baseName);
-        sb.AppendLine(".Generated.Endpoints;");
+        sb.AppendLine(".Generated.Extensions;");
 
         // UI-specific namespaces
         if (hostUi == HostUiType.Scalar)
