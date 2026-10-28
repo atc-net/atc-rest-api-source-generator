@@ -392,7 +392,7 @@
         "string",
         "null"
       ],
-      "description": "The API's name in the generated host methods: Add{ApiName}Api(), Map{ApiName}Api(), Map{ApiName}Webhooks(), Add{ApiName}OpenIdConnectAuthentication(). Default: null - the namespace's last segment that names the API (a trailing Contracts, Api or Server is skipped: Contoso.IoT.Nexus.Api.Contracts gives AddNexusApi())."
+      "description": "The API's name in the generated host methods: Add{ApiName}Api(), Use{ApiName}Api(), Map{ApiName}Api(), Map{ApiName}Webhooks(), Add{ApiName}OpenIdConnectAuthentication(). Default: null - the namespace's last segment that names the API (a trailing Contracts, Api or Server is skipped: Contoso.IoT.Nexus.Api.Contracts gives AddNexusApi())."
     }
   },
   "additionalProperties": false

@@ -61,6 +61,8 @@ app.MapHub<NotificationHub>("/hubs/notifications");
 // ============================================
 // API MIDDLEWARE AND ENDPOINTS
 // ============================================
+// The generated middleware (error handling, status code pages, authentication), then every endpoint
+app.UseMultipartDemoApi();
 app.MapMultipartDemoApi();
 
 if (app.Environment.IsDevelopment())

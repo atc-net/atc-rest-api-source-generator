@@ -120,8 +120,11 @@ public class RoleSchemesRuntimeTests
         app.Urls.Add("http://127.0.0.1:0");
 
         appExtensions
-            .GetMethod("MapCamerasApi")!
+            .GetMethod("UseCamerasApi")!
             .Invoke(null, [app, null]);
+        appExtensions
+            .GetMethod("MapCamerasApi")!
+            .Invoke(null, [app, true]);
 
         await app.StartAsync(TestContext.Current.CancellationToken);
 

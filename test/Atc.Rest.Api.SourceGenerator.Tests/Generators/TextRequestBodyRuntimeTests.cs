@@ -211,8 +211,11 @@ public sealed class TextRequestBodyRuntimeTests
         app.Urls.Add("http://127.0.0.1:0");
 
         appExtensions
-            .GetMethod("MapNotesApi")!
+            .GetMethod("UseNotesApi")!
             .Invoke(null, [app, null]);
+        appExtensions
+            .GetMethod("MapNotesApi")!
+            .Invoke(null, [app, true]);
 
         await app.StartAsync(TestContext.Current.CancellationToken);
 

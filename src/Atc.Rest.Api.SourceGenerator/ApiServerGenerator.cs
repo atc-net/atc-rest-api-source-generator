@@ -1914,7 +1914,7 @@ public class ApiServerGenerator : IIncrementalGenerator
     }
 
     /// <summary>
-    /// Generates the unified Map{ProjectName}Api() WebApplication extension method.
+    /// Generates the WebApplication extension methods Use{Api}Api() and Map{Api}Api().
     /// </summary>
     private static void GenerateUnifiedWebApplicationExtensions(
         GeneratedSourceContext context,

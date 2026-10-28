@@ -1,7 +1,7 @@
 namespace Atc.Rest.Api.Generator.Models;
 
 /// <summary>
-/// What a server's specification uses, each found by one rule: the blocks the generated <c>AddApi</c>, <c>MapApi</c>
+/// What a server's specification uses, each found by one rule: the blocks the generated <c>AddApi</c>, <c>UseApi</c>
 /// and their options emit follow it.
 /// </summary>
 /// <param name="HasRateLimiting">An operation or the document declares a rate limit.</param>

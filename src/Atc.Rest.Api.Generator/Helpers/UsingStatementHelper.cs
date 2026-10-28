@@ -145,6 +145,7 @@ public static class UsingStatementHelper
 
         // Microsoft.AspNetCore.Builder
         ["WebApplication"] = NamespaceConstants.MicrosoftAspNetCoreBuilder,
+        ["IApplicationBuilder"] = NamespaceConstants.MicrosoftAspNetCoreBuilder,
         ["MapGroup("] = NamespaceConstants.MicrosoftAspNetCoreBuilder,
         ["MapGet("] = NamespaceConstants.MicrosoftAspNetCoreBuilder,
         ["MapPost("] = NamespaceConstants.MicrosoftAspNetCoreBuilder,

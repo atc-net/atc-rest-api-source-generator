@@ -93,7 +93,9 @@ internal sealed class XmlTestHost : IAsyncDisposable
         }
         else
         {
-            assembly.GetType("ErrorBodies.Generated.Extensions.UnifiedWebApplicationExtensions", throwOnError: true)!.GetMethod("MapErrorBodiesApi")!.Invoke(null, [webApp, null]);
+            var wiring = assembly.GetType("ErrorBodies.Generated.Extensions.UnifiedWebApplicationExtensions", throwOnError: true)!;
+            wiring.GetMethod("UseErrorBodiesApi")!.Invoke(null, [webApp, null]);
+            wiring.GetMethod("MapErrorBodiesApi")!.Invoke(null, [webApp, true]);
         }
 
         await webApp.StartAsync(TestContext.Current.CancellationToken);

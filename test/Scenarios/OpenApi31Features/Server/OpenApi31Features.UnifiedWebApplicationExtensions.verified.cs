@@ -17,8 +17,11 @@ namespace OpenApi31Features.Generated.Extensions;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public static class UnifiedWebApplicationExtensions
 {
+    private const string UseApiMark = "OpenApi31Features.Generated.UseOpenApi31FeaturesApi";
+
     /// <summary>
-    /// Configures OpenApi31Features API middleware and maps all endpoints.
+    /// Adds the middleware the OpenApi31Features API needs, in the recommended order. Call it before
+    /// <c>MapOpenApi31FeaturesApi()</c>.
     /// </summary>
     /// <param name="app">The WebApplication to configure.</param>
     /// <param name="configure">Optional configuration for API middleware options.</param>
@@ -27,23 +30,20 @@ public static class UnifiedWebApplicationExtensions
     /// This method adds, in this order:
     /// - The framework's exception handler (a ProblemDetails 500 for an unhandled exception)
     /// - Status code pages writing ProblemDetails for empty error responses (when ProblemDetails is registered)
-    /// - All API endpoints
-    /// A host that orders its own pipeline (HostOwnsPipeline = true) keeps its own error handler, status code pages
-    /// and authentication: this method then adds only the rest.
+    /// - The host's own middleware from <c>AfterErrorHandling</c> (CORS, HSTS, HTTPS redirection, ...)
+    /// Each one is behind a switch in <see cref="ApiMiddlewareOptions"/>: turn off what the host adds itself. A host
+    /// that orders its whole pipeline does not call this method and adds what the list above names itself.
     /// </remarks>
-    public static WebApplication MapOpenApi31FeaturesApi(
+    public static WebApplication UseOpenApi31FeaturesApi(
         this WebApplication app,
         Action<ApiMiddlewareOptions>? configure = null)
     {
         var options = new ApiMiddlewareOptions();
         configure?.Invoke(options);
 
-        // A host that orders its own pipeline has its own error handler, status code pages and authentication
-        var hostOwnsPipeline = options.HostOwnsPipeline;
-
         // An unhandled exception as a ProblemDetails 500 (needs AddProblemDetails; not in Development, where the
         // developer exception page shows it)
-        if (!hostOwnsPipeline && options.UseExceptionHandler &&
+        if (options.UseExceptionHandler &&
             !global::Microsoft.Extensions.Hosting.HostEnvironmentEnvExtensions.IsDevelopment(app.Environment) &&
             app.Services.GetService(typeof(global::Microsoft.AspNetCore.Http.IProblemDetailsService)) is not null)
         {
@@ -51,13 +51,44 @@ public static class UnifiedWebApplicationExtensions
         }
 
         // ProblemDetails body for error responses that have none (needs AddProblemDetails)
-        if (!hostOwnsPipeline && options.UseStatusCodePages &&
+        if (options.UseStatusCodePages &&
             app.Services.GetService(typeof(global::Microsoft.AspNetCore.Http.IProblemDetailsService)) is not null)
         {
             app.UseStatusCodePages();
         }
 
-        // Map all API endpoints
+        // The host's own middleware (CORS, HSTS, HTTPS redirection): inside the error handling, ahead of the rest
+        options.AfterErrorHandling?.Invoke(app);
+
+        ((global::Microsoft.AspNetCore.Builder.IApplicationBuilder)app).Properties[UseApiMark] = true;
+
+        return app;
+    }
+
+    /// <summary>
+    /// Maps all OpenApi31Features API endpoints. Adds no middleware: call <c>UseOpenApi31FeaturesApi()</c> first.
+    /// </summary>
+    /// <param name="app">The WebApplication to map the endpoints on.</param>
+    /// <param name="requireUse">
+    /// Throw when <c>UseOpenApi31FeaturesApi()</c> was not called first (default). A host that adds the middleware
+    /// <c>UseOpenApi31FeaturesApi()</c> lists itself passes false.
+    /// </param>
+    /// <returns>The WebApplication for method chaining.</returns>
+    /// <exception cref="InvalidOperationException"><c>UseOpenApi31FeaturesApi()</c> was not called first and <paramref name="requireUse"/> is true.</exception>
+    public static WebApplication MapOpenApi31FeaturesApi(
+        this WebApplication app,
+        bool requireUse = true)
+    {
+        // Until 3.1 this method also added the middleware: a host that still calls only it would lose its error
+        // handling without a compile error
+        if (requireUse && !((global::Microsoft.AspNetCore.Builder.IApplicationBuilder)app).Properties.ContainsKey(UseApiMark))
+        {
+            throw new InvalidOperationException(
+                "Call app.UseOpenApi31FeaturesApi() before app.MapOpenApi31FeaturesApi(): it adds the error handling, the status code pages " +
+                "and the rest of the middleware the endpoints rely on (since 3.2 MapOpenApi31FeaturesApi() maps only the endpoints). " +
+                "A host that adds that middleware itself calls app.MapOpenApi31FeaturesApi(requireUse: false).");
+        }
+
         app.MapEndpoints();
 
         return app;

@@ -120,8 +120,11 @@ public sealed class MalformedJsonBodyRuntimeTests
         app.Urls.Add("http://127.0.0.1:0");
 
         appExtensions
-            .GetMethod("MapItemsApi")!
+            .GetMethod("UseItemsApi")!
             .Invoke(null, [app, null]);
+        appExtensions
+            .GetMethod("MapItemsApi")!
+            .Invoke(null, [app, true]);
 
         await app.StartAsync(TestContext.Current.CancellationToken);
 

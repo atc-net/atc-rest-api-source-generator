@@ -90,8 +90,11 @@ public class SecurityBearerOnlyRuntimeTests
         app.Urls.Add("http://127.0.0.1:0");
 
         appExtensions
-            .GetMethod("MapSecurityBearerOnlyApi")!
+            .GetMethod("UseSecurityBearerOnlyApi")!
             .Invoke(null, [app, null]);
+        appExtensions
+            .GetMethod("MapSecurityBearerOnlyApi")!
+            .Invoke(null, [app, true]);
 
         await app.StartAsync(TestContext.Current.CancellationToken);
 
