@@ -11,7 +11,7 @@ public enum ProjectStructureType
     SingleProject = 0,
 
     /// <summary>
-    /// Host + Contracts in 1 project, Domain-Handlers in another project.
+    /// Host in 1 project, Contracts + Domain-Handlers in another project (the host references it).
     /// </summary>
     TwoProjects = 1,
 

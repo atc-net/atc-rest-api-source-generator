@@ -296,6 +296,47 @@ public sealed class GenerateServerCommandTests : IDisposable
         Assert.Contains("app.MapContosoApi();", program, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// Two projects build: the host references the domain project, which holds the contracts and the handlers (both
+    /// markers) and references nothing back. A host that held the contracts would reference the handlers' project
+    /// that references it - a cycle restore stops on (MSB4006).
+    /// </summary>
+    [Fact]
+    public async Task GenerateServer_TwoProjects_HostReferencesTheDomainProject_WhichHoldsTheContracts()
+    {
+        var yamlPath = CliTestHelper.GetScenarioYamlPath("Demo");
+        var repoRoot = Path.Combine(tempOutputDir, "TwoProjectsNoCycle");
+        var arguments = $"generate server -s \"{yamlPath}\" -o \"{repoRoot}\" -n Contoso --project-structure TwoProjects --no-coding-rules";
+
+        var (isSuccessful, output) = await ProcessHelper.Execute(
+            CliExeFile,
+            arguments,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.True(isSuccessful, $"Expected success but got failure. Output: {CliTestHelper.StripAnsiCodes(output)}");
+        var src = Path.Combine(repoRoot, "src");
+        Assert.Equal(["Contoso.Api", "Contoso.Domain"], Directory.GetDirectories(src).Select(Path.GetFileName).Order(StringComparer.Ordinal));
+
+        var host = await File.ReadAllTextAsync(Path.Combine(src, "Contoso.Api", "Contoso.Api.csproj"), TestContext.Current.CancellationToken);
+        Assert.Contains("<ProjectReference Include=\"..\\Contoso.Domain\\Contoso.Domain.csproj\" />", host, StringComparison.Ordinal);
+        Assert.Single(host.Split("<ProjectReference ").Skip(1));
+        Assert.False(File.Exists(Path.Combine(src, "Contoso.Api", ".atc-rest-api-server")));
+
+        var domain = await File.ReadAllTextAsync(Path.Combine(src, "Contoso.Domain", "Contoso.Domain.csproj"), TestContext.Current.CancellationToken);
+        Assert.DoesNotContain("<ProjectReference", domain, StringComparison.Ordinal);
+        Assert.Contains("<AdditionalFiles Include=\".atc-rest-api-server\" />", domain, StringComparison.Ordinal);
+        Assert.Contains("<AdditionalFiles Include=\".atc-rest-api-server-handlers\" />", domain, StringComparison.Ordinal);
+        Assert.True(File.Exists(Path.Combine(src, "Contoso.Domain", ".atc-rest-api-server")));
+        Assert.True(File.Exists(Path.Combine(src, "Contoso.Domain", ".atc-rest-api-server-handlers")));
+
+        // The marker the domain step adds sits in the list as the others do, and the list still closes on its own line
+        var domainLines = domain.Replace("\r\n", "\n", StringComparison.Ordinal);
+        Assert.Contains("\n    <AdditionalFiles Include=\".atc-rest-api-server-handlers\" />\n  </ItemGroup>\n", domainLines, StringComparison.Ordinal);
+
+        // The host's Program.cs needs the implicit usings (WebApplication), also without the coding rules' props
+        Assert.Contains("<ImplicitUsings>enable</ImplicitUsings>", host, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task GenerateServer_WithDomainProject_WritesDomainNamespaceToHandlersMarkerFile()
     {

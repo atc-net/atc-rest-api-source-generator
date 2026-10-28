@@ -115,29 +115,20 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
 
                 // Note: Directory.Build.props is created by atc-coding-rules-updater.ps1 script
 
-                // Step 3: Generate contracts project (or combined host+contracts for TwoProjects)
+                // Step 3: Generate contracts project (TwoProjects: the domain project, which holds the contracts too)
                 ctx.Status("Setting up contracts project...");
-                if (isTwoProjects)
+                if (!GenerateContractsProject(ctx, specPath, contractsOutputPath, contractsProjectName, outputPath, serverConfig, sourceGeneratorVersion))
                 {
-                    // TwoProjects: Combined host + contracts project
-                    if (!GenerateCombinedHostContractsProject(ctx, specPath, contractsOutputPath, contractsProjectName, domainProjectName, outputPath, serverConfig, scaffoldingConfig.TargetFramework, scaffoldingConfig.HostUi, scaffoldingConfig.HostUiMode, sourceGeneratorVersion))
-                    {
-                        return 1;
-                    }
-
-                    projectsCreated.Add(contractsProjectName);
+                    return 1;
                 }
-                else
-                {
-                    if (!GenerateContractsProject(ctx, specPath, contractsOutputPath, contractsProjectName, outputPath, serverConfig, sourceGeneratorVersion))
-                    {
-                        return 1;
-                    }
 
+                if (!isTwoProjects)
+                {
                     projectsCreated.Add(contractsProjectName);
                 }
 
-                // Step 4: Generate domain project (TwoProjects and ThreeProjects modes)
+                // Step 4: Generate domain project (TwoProjects and ThreeProjects modes; for TwoProjects it adds the
+                // handlers marker to the project step 3 wrote, which references no other project)
                 if (plan.HasSeparateDomain)
                 {
                     ctx.Status("Setting up domain project...");
@@ -149,8 +140,8 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
                     projectsCreated.Add(domainProjectName);
                 }
 
-                // Step 5: Generate host project (ThreeProjects mode only - TwoProjects has combined host+contracts)
-                if (isThreeProjects)
+                // Step 5: Generate host project (TwoProjects and ThreeProjects modes)
+                if (plan.HasSeparateDomain)
                 {
                     ctx.Status("Setting up API host project...");
                     if (!scaffoldingService.GenerateHostProject(
@@ -275,8 +266,8 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         }
         else if (plan.IsTwoProjects)
         {
-            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Host+Contracts project:[/] {plan.ContractsProjectName}");
-            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Domain project:[/] {plan.DomainProjectName}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Host project:[/] {plan.HostProjectName}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Contracts+Domain project:[/] {plan.DomainProjectName}");
         }
         else
         {
@@ -672,98 +663,6 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         return true;
     }
 
-    private static bool GenerateCombinedHostContractsProject(
-        StatusContext ctx,
-        string specPath,
-        string outputPath,
-        string projectName,
-        string domainProjectName,
-        string repositoryRoot,
-        ServerConfig config,
-        string targetFramework,
-        HostUiType hostUi,
-        HostUiModeType hostUiMode,
-        Version sourceGeneratorVersion)
-    {
-        // Validate output directory
-        if (!ScaffoldCommandSupport.ValidateOutputDirectory(outputPath, projectName))
-        {
-            return false;
-        }
-
-        // Create output directory if it doesn't exist
-        ctx.Status("Creating output directory...");
-        try
-        {
-            if (!Directory.Exists(outputPath))
-            {
-                TrackedFile.CreateDirectory(outputPath);
-                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created output directory: {outputPath}");
-            }
-        }
-        catch (Exception ex)
-        {
-            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Error creating output directory: {ex.Message}");
-            return false;
-        }
-
-        // Determine spec file strategy - no duplication!
-        ctx.Status("Configuring specification files...");
-        var specFiles = GetSpecificationFiles(specPath);
-        var (isInsideRepo, specBasePath) = DetermineSpecFileStrategy(specPath, repositoryRoot);
-
-        if (!isInsideRepo)
-        {
-            // Copy all specs to ScriptsAndSpecifications folder
-            if (!EnsureSpecsInRepository(specFiles, repositoryRoot))
-            {
-                return false;
-            }
-        }
-        else
-        {
-            var specFileName = Path.GetFileName(specPath);
-            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[dim]✓[/] Using existing specification: {specFileName}");
-        }
-
-        // Build list of relative spec paths for the project file
-        var relativeSpecPaths = specFiles
-            .Select(f => GetRelativeSpecPath(specBasePath, outputPath, Path.GetFileName(f)))
-            .ToList();
-
-        // The overlays go next to the specification and are listed in the marker, relative to it: the build applies them
-        if (PlaceOverlays(config.Overlays, specBasePath, outputPath) is not { } relativeOverlayPaths)
-        {
-            return false;
-        }
-
-        relativeSpecPaths.AddRange(relativeOverlayPaths);
-        config.Overlays = relativeOverlayPaths.Count > 0 ? relativeOverlayPaths : null;
-
-        // Create or update marker file with server config
-        ctx.Status("Creating contracts marker file...");
-        if (!CreateOrUpdateContractsMarkerFile(outputPath, config))
-        {
-            return false;
-        }
-
-        // Create or update combined host+contracts project file
-        ctx.Status("Creating project file...");
-        if (!CreateOrUpdateCombinedHostContractsProjectFile(outputPath, projectName, domainProjectName, relativeSpecPaths, targetFramework, hostUi, sourceGeneratorVersion))
-        {
-            return false;
-        }
-
-        // Create Program.cs
-        ctx.Status("Creating Program.cs...");
-        if (!CreateOrUpdateProgramFile(outputPath, projectName, hostUi, hostUiMode))
-        {
-            return false;
-        }
-
-        return true;
-    }
-
     /// <summary>
     /// The specification files: the base file, then its parts as the build finds them (any specification extension).
     /// </summary>
@@ -1119,147 +1018,6 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         return sb.ToString();
     }
 
-    private static bool CreateOrUpdateCombinedHostContractsProjectFile(
-        string outputPath,
-        string projectName,
-        string domainProjectName,
-        List<string> specFilePaths,
-        string targetFramework,
-        HostUiType hostUi,
-        Version sourceGeneratorVersion)
-    {
-        var csprojPath = Path.Combine(outputPath, $"{projectName}.csproj");
-
-        try
-        {
-            if (!File.Exists(csprojPath))
-            {
-                var csprojContent = GenerateCombinedHostContractsProjectFileContent(specFilePaths, domainProjectName, targetFramework, hostUi, sourceGeneratorVersion);
-                TrackedFile.WriteAllText(csprojPath, csprojContent);
-                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created project file: {projectName}.csproj");
-            }
-            else
-            {
-                var updated = UpdateProjectFileIfNeeded(csprojPath, specFilePaths, Constants.MarkerFile.Server);
-                if (updated)
-                {
-                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Updated project file: {projectName}.csproj");
-                }
-                else
-                {
-                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[dim]✓[/] Project file up to date: {projectName}.csproj");
-                }
-            }
-
-            return true;
-        }
-        catch (Exception ex)
-        {
-            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Error creating/updating project file: {ex.Message}");
-            return false;
-        }
-    }
-
-    private static string GenerateCombinedHostContractsProjectFileContent(
-        List<string> specFilePaths,
-        string domainProjectName,
-        string targetFramework,
-        HostUiType hostUi,
-        Version sourceGeneratorVersion)
-    {
-        var sb = new StringBuilder();
-        sb.AppendLine("<Project Sdk=\"Microsoft.NET.Sdk.Web\">");
-        sb.AppendLine();
-        sb.AppendLine(2, "<PropertyGroup>");
-        sb.AppendLine(4, $"<TargetFramework>{targetFramework}</TargetFramework>");
-        sb.AppendLine(2, "</PropertyGroup>");
-        sb.AppendLine();
-        sb.AppendLine(2, "<ItemGroup>");
-        sb.AppendLine(4, $"<ProjectReference Include=\"..\\{domainProjectName}\\{domainProjectName}.csproj\" />");
-        sb.AppendLine(2, "</ItemGroup>");
-        sb.AppendLine();
-        sb.AppendLine(2, "<ItemGroup>");
-        sb.AppendLine(4, $"<PackageReference Include=\"Atc.Rest.Api.SourceGenerator\" Version=\"{sourceGeneratorVersion}\" OutputItemType=\"Analyzer\" ReferenceOutputAssembly=\"false\" />");
-        sb.AppendLine(4, "<PackageReference Include=\"Microsoft.Extensions.Caching.Hybrid\" Version=\"10.3.0\" />");
-
-        if (hostUi != HostUiType.None)
-        {
-            sb.AppendLine(4, "<PackageReference Include=\"Microsoft.AspNetCore.OpenApi\" Version=\"10.*\" />");
-        }
-
-        switch (hostUi)
-        {
-            case HostUiType.Scalar:
-                sb.AppendLine(4, "<PackageReference Include=\"Scalar.AspNetCore\" Version=\"2.*\" />");
-                break;
-            case HostUiType.Swagger:
-                sb.AppendLine(4, "<PackageReference Include=\"Swashbuckle.AspNetCore.SwaggerUI\" Version=\"7.*\" />");
-                break;
-        }
-
-        sb.AppendLine(2, "</ItemGroup>");
-        sb.AppendLine();
-        sb.AppendLine(2, "<ItemGroup>");
-
-        foreach (var specPath in specFilePaths)
-        {
-            sb.AppendLine(4, $"<AdditionalFiles Include=\"{specPath}\" />");
-        }
-
-        sb.AppendLine(4, $"<AdditionalFiles Include=\"{Constants.MarkerFile.Server}\" />");
-        sb.AppendLine(2, "</ItemGroup>");
-        sb.AppendLine();
-        sb.Append("</Project>");
-
-        return sb.ToString();
-    }
-
-    private static bool CreateOrUpdateProgramFile(
-        string outputPath,
-        string projectName,
-        HostUiType hostUi,
-        HostUiModeType hostUiMode)
-    {
-        var programPath = Path.Combine(outputPath, "Program.cs");
-        var globalUsingsPath = Path.Combine(outputPath, "GlobalUsings.cs");
-
-        try
-        {
-            var baseName = ProjectNameHelper.ExtractSolutionName(projectName);
-
-            if (!File.Exists(programPath))
-            {
-                var programContent = HostProjectFiles.ProgramContent(baseName, hostUi, hostUiMode);
-                TrackedFile.WriteAllText(programPath, programContent);
-                AnsiConsole.MarkupLine("[green]✓[/] Created Program.cs");
-            }
-            else
-            {
-                AnsiConsole.MarkupLine("[dim]✓[/] Program.cs already exists");
-            }
-
-            HostProjectFiles.WriteLaunchSettings(outputPath, projectName, hostUi);
-
-            if (!File.Exists(globalUsingsPath))
-            {
-                var globalUsingsContent = HostProjectFiles.GlobalUsingsContent(baseName, hostUi);
-                TrackedFile.WriteAllText(globalUsingsPath, globalUsingsContent);
-                AnsiConsole.MarkupLine("[green]✓[/] Created GlobalUsings.cs");
-            }
-            else
-            {
-                AnsiConsole.MarkupLine("[dim]✓[/] GlobalUsings.cs already exists");
-            }
-
-            return true;
-        }
-        catch (Exception ex)
-        {
-            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Error creating Program.cs: {ex.Message}");
-            return false;
-        }
-    }
-
     private static bool UpdateProjectFileIfNeeded(
         string csprojPath,
         List<string> specFilePaths,
@@ -1282,27 +1040,15 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
 
         if (content.Contains("<AdditionalFiles", StringComparison.OrdinalIgnoreCase))
         {
-            // Add missing spec files
+            // Add missing spec files, then the marker - each a line of its own before the list's closing tag
             foreach (var specPath in missingSpecFiles)
             {
-                var insertPosition = content.LastIndexOf("</ItemGroup>", StringComparison.OrdinalIgnoreCase);
-                var additionalFilesPosition = content.LastIndexOf("<AdditionalFiles", insertPosition, StringComparison.OrdinalIgnoreCase);
-                if (insertPosition >= 0 && additionalFilesPosition >= 0)
-                {
-                    var yamlEntry = $"    <AdditionalFiles Include=\"{specPath}\" />\n";
-                    content = content.Insert(insertPosition, yamlEntry);
-                }
+                content = InsertAdditionalFile(content, specPath);
             }
 
             if (!hasMarkerInclude)
             {
-                var insertPosition = content.LastIndexOf("</ItemGroup>", StringComparison.OrdinalIgnoreCase);
-                var additionalFilesPosition = content.LastIndexOf("<AdditionalFiles", insertPosition, StringComparison.OrdinalIgnoreCase);
-                if (insertPosition >= 0 && additionalFilesPosition >= 0)
-                {
-                    var markerEntry = $"    <AdditionalFiles Include=\"{markerFileName}\" />\n";
-                    content = content.Insert(insertPosition, markerEntry);
-                }
+                content = InsertAdditionalFile(content, markerFileName);
             }
         }
         else
@@ -1338,5 +1084,26 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Inserts <c>&lt;AdditionalFiles Include="…" /&gt;</c> as a line of its own before the line of the last
+    /// <c>&lt;/ItemGroup&gt;</c> that follows an <c>AdditionalFiles</c> item, in the file's own line endings; the content
+    /// unchanged when there is no such list.
+    /// </summary>
+    private static string InsertAdditionalFile(
+        string content,
+        string include)
+    {
+        var closingTag = content.LastIndexOf("</ItemGroup>", StringComparison.OrdinalIgnoreCase);
+        if (closingTag < 0 ||
+            content.LastIndexOf("<AdditionalFiles", closingTag, StringComparison.OrdinalIgnoreCase) < 0)
+        {
+            return content;
+        }
+
+        var newLine = content.Contains("\r\n", StringComparison.Ordinal) ? "\r\n" : "\n";
+        var lineStart = content.LastIndexOf('\n', closingTag) + 1;
+        return content.Insert(lineStart, $"    <AdditionalFiles Include=\"{include}\" />{newLine}");
     }
 }

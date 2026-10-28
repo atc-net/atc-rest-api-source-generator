@@ -601,6 +601,9 @@ public sealed class ProjectScaffoldingService
         sb.AppendLine(2, "<PropertyGroup>");
         sb.AppendLine(4, $"<TargetFramework>{targetFramework}</TargetFramework>");
 
+        // Program.cs uses WebApplication & co. without usings - also without the coding rules' Directory.Build.props
+        sb.AppendLine(4, "<ImplicitUsings>enable</ImplicitUsings>");
+
         if (!string.IsNullOrWhiteSpace(hostNamespace))
         {
             sb.AppendLine(4, $"<RootNamespace>{hostNamespace}</RootNamespace>");
@@ -608,9 +611,14 @@ public sealed class ProjectScaffoldingService
 
         sb.AppendLine(2, "</PropertyGroup>");
         sb.AppendLine();
+
+        // Two projects keep the contracts in the domain project: one reference then
         sb.AppendLine(2, "<ItemGroup>");
-        sb.AppendLine(4, $"<ProjectReference Include=\"..\\{contractsProjectName}\\{contractsProjectName}.csproj\" />");
-        sb.AppendLine(4, $"<ProjectReference Include=\"..\\{domainProjectName}\\{domainProjectName}.csproj\" />");
+        foreach (var referenced in new[] { contractsProjectName, domainProjectName }.Distinct(StringComparer.Ordinal))
+        {
+            sb.AppendLine(4, $"<ProjectReference Include=\"..\\{referenced}\\{referenced}.csproj\" />");
+        }
+
         sb.AppendLine(2, "</ItemGroup>");
 
         if (hostUi != HostUiType.None)

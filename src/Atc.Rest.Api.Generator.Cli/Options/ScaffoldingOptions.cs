@@ -32,13 +32,13 @@ public sealed class ScaffoldingOptions
     public string TargetFramework { get; set; }
 
     /// <summary>
-    /// Override host project name (ThreeProjects mode only).
+    /// Override host project name (TwoProjects/ThreeProjects mode only).
     /// Default: null (auto-derived from base name).
     /// </summary>
     public string? HostProjectName { get; set; }
 
     /// <summary>
-    /// Override contracts project name.
+    /// Override contracts project name (SingleProject/ThreeProjects mode; TwoProjects keeps the contracts in the domain project).
     /// Default: null (auto-derived from base name).
     /// </summary>
     public string? ContractsProjectName { get; set; }

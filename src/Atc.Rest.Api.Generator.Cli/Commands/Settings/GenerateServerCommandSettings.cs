@@ -48,10 +48,10 @@ public sealed class GenerateServerCommandSettings : BaseGenerateCommandSettings
     public string? StubImplementation { get; init; }
 
     /// <summary>
-    /// Gets the project layout: <c>SingleProject</c>, <c>TwoProjects</c> (Host+Contracts, Domain) or <c>ThreeProjects</c> (default).
+    /// Gets the project layout: <c>SingleProject</c>, <c>TwoProjects</c> (Host, Contracts+Domain) or <c>ThreeProjects</c> (default).
     /// </summary>
     [CommandOption("--project-structure <TYPE>")]
-    [Description("Project structure: SingleProject (1 project), TwoProjects (Host+Contracts, Domain), or ThreeProjects (3 projects, default).")]
+    [Description("Project structure: SingleProject (1 project), TwoProjects (Host, Contracts+Domain), or ThreeProjects (3 projects, default).")]
     public string? ProjectStructure { get; init; }
 
     /// <summary>

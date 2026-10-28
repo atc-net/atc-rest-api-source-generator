@@ -69,14 +69,14 @@
             "string",
             "null"
           ],
-          "description": "Override host project name (ThreeProjects mode only). Default: null (auto-derived from base name)."
+          "description": "Override host project name (TwoProjects/ThreeProjects mode only). Default: null (auto-derived from base name)."
         },
         "contractsProjectName": {
           "type": [
             "string",
             "null"
           ],
-          "description": "Override contracts project name. Default: null (auto-derived from base name)."
+          "description": "Override contracts project name (SingleProject/ThreeProjects mode; TwoProjects keeps the contracts in the domain project). Default: null (auto-derived from base name)."
         },
         "domainProjectName": {
           "type": [
