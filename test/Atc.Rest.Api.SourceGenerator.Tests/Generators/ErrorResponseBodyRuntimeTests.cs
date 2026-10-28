@@ -2574,7 +2574,8 @@ public partial class ErrorResponseBodyRuntimeTests
         public List<ProbeCase> Cases { get; }
 
         /// <summary>
-        /// Generates, compiles and starts the server through the generated <c>Add/Map{Project}Api</c> - or, for the
+        /// Generates, compiles and starts the server through the generated <c>Add/Use/Map{Project}Api</c> - or, for
+        /// the
         /// plain host, through <c>MapEndpoints()</c> with the host wiring the documentation tells a project without
         /// <c>Atc.Rest.MinimalApi</c> to write itself (<c>AddProblemDetails</c>, <c>UseExceptionHandler</c>,
         /// <c>UseStatusCodePages</c>).
@@ -2585,18 +2586,28 @@ public partial class ErrorResponseBodyRuntimeTests
         /// </param>
         /// <param name="plainHost">
         /// Generate without <c>Atc.Rest.MinimalApi</c> (an empty marker, no reference: no ValidationFilter, no global
-        /// error handler). The host is wired by the generated <c>Add…Api()</c> / <c>Map…Api()</c> all the same.
+        /// error handler). The host is wired by the generated <c>Add…Api()</c> / <c>Use…Api()</c> /
+        /// <c>Map…Api()</c> all the same.
         /// </param>
         /// <param name="environment">The host environment: Production (the matrices) or Development.</param>
         /// <param name="switchedOff">
         /// Generate with <c>Atc.Rest.MinimalApi</c> but with the ValidationFilter and the global error handler switched
         /// off through the marker (<see cref="SwitchedOffServerMarker"/>).
         /// </param>
+        /// <param name="hostMiddleware">
+        /// Add a host middleware through <c>ApiMiddlewareOptions.AfterErrorHandling</c> that throws on
+        /// <c>/host-middleware/throws</c> and answers an empty 403 on <c>/host-middleware/forbids</c>.
+        /// </param>
+        /// <param name="callUse">Call the generated <c>Use{Project}Api()</c> before <c>Map{Project}Api()</c>.</param>
+        /// <param name="requireUse">The <c>requireUse</c> argument of <c>Map{Project}Api()</c>.</param>
         public static async Task<ErrorBodyHost> StartAsync(
             bool problemDetailsWiringOff = false,
             bool plainHost = false,
             string environment = "Production",
-            bool switchedOff = false)
+            bool switchedOff = false,
+            bool hostMiddleware = false,
+            bool callUse = true,
+            bool requireUse = true)
         {
             var sources = plainHost
                 ? Generate(new ApiServerGenerator(), ".atc-rest-api-server", "{}", includeMinimalApi: false)
@@ -2628,6 +2639,33 @@ public partial class ErrorResponseBodyRuntimeTests
                     """));
             }
 
+            if (hostMiddleware)
+            {
+                sources.Add(("RuntimeTestHostMiddleware.cs", """
+                    namespace ErrorBodies.RuntimeTest;
+
+                    public static class RuntimeTestHostMiddleware
+                    {
+                        public static void AddHostMiddleware(ErrorBodies.Generated.ApiMiddlewareOptions options)
+                            => options.AfterErrorHandling = app => Microsoft.AspNetCore.Builder.UseExtensions.Use(app, async (context, next) =>
+                            {
+                                if (context.Request.Path == "/host-middleware/throws")
+                                {
+                                    throw new System.InvalidOperationException("boom from host middleware");
+                                }
+
+                                if (context.Request.Path == "/host-middleware/forbids")
+                                {
+                                    context.Response.StatusCode = 403;
+                                    return;
+                                }
+
+                                await next(context);
+                            });
+                    }
+                    """));
+            }
+
             var assembly = CompilationVerificationHarness.EmitAndLoad(sources, includeMinimalApi: !plainHost);
             var registration = assembly.GetType("ErrorBodies.RuntimeTest.RuntimeTestRegistration", throwOnError: true)!;
 
@@ -2638,6 +2676,12 @@ public partial class ErrorResponseBodyRuntimeTests
                 var options = assembly.GetType("ErrorBodies.RuntimeTest.RuntimeTestOptions", throwOnError: true)!;
                 serviceOptions = ToAction(options.GetMethod("ServiceOptionsOff")!);
                 middlewareOptions = ToAction(options.GetMethod("MiddlewareOptionsOff")!);
+            }
+
+            if (hostMiddleware)
+            {
+                var options = assembly.GetType("ErrorBodies.RuntimeTest.RuntimeTestHostMiddleware", throwOnError: true)!;
+                middlewareOptions = ToAction(options.GetMethod("AddHostMiddleware")!);
             }
 
             var builder = WebApplication.CreateSlimBuilder(new WebApplicationOptions { EnvironmentName = environment });
@@ -2676,9 +2720,13 @@ public partial class ErrorResponseBodyRuntimeTests
             });
             webApp.Urls.Add("http://127.0.0.1:0");
 
-            assembly.GetType("ErrorBodies.Generated.Extensions.UnifiedWebApplicationExtensions", throwOnError: true)!
-                .GetMethod("MapErrorBodiesApi")!
-                .Invoke(null, [webApp, middlewareOptions]);
+            var wiring = assembly.GetType("ErrorBodies.Generated.Extensions.UnifiedWebApplicationExtensions", throwOnError: true)!;
+            if (callUse)
+            {
+                wiring.GetMethod("UseErrorBodiesApi")!.Invoke(null, [webApp, middlewareOptions]);
+            }
+
+            wiring.GetMethod("MapErrorBodiesApi")!.Invoke(null, [webApp, requireUse]);
 
             await webApp.StartAsync(TestContext.Current.CancellationToken);
 

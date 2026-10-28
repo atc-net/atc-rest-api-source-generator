@@ -167,8 +167,11 @@ public class SharedOutputCacheRuntimeTests
         app.Urls.Add("http://127.0.0.1:0");
 
         appExtensions
-            .GetMethod("MapFleetApi")!
+            .GetMethod("UseFleetApi")!
             .Invoke(null, [app, null]);
+        appExtensions
+            .GetMethod("MapFleetApi")!
+            .Invoke(null, [app, true]);
 
         await app.StartAsync(TestContext.Current.CancellationToken);
 

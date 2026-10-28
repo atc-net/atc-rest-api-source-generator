@@ -89,7 +89,7 @@ public class ApiOptionsExtractorTests
         Assert.Contains("namespace TestApi.Generated;", result, StringComparison.Ordinal);
         Assert.Contains("public class ApiMiddlewareOptions", result, StringComparison.Ordinal);
 
-        // A switch exists only when Map{Api}Api() reads it
+        // A switch exists only when Use{Api}Api() reads it
         Assert.DoesNotContain("UseRateLimiter", result, StringComparison.Ordinal);
         Assert.DoesNotContain("UseAuthentication", result, StringComparison.Ordinal);
         Assert.DoesNotContain("UseAuthorization", result, StringComparison.Ordinal);
@@ -143,14 +143,18 @@ public class ApiOptionsExtractorTests
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public void ExtractMiddlewareOptions_HostOwnsPipeline_IsOffByDefault(
+    public void ExtractMiddlewareOptions_HasTheAfterErrorHandlingHook_AndNoHostOwnsPipeline(
         bool useGlobalErrorHandler)
     {
         var document = OpenApiDocumentHelper.ParseYaml(PlainYaml);
 
         var result = ApiOptionsExtractor.ExtractMiddlewareOptions(document, "TestApi", useGlobalErrorHandler);
 
-        Assert.Contains("public bool HostOwnsPipeline { get; set; }", result, StringComparison.Ordinal);
+        // The host's own middleware (CORS, HSTS, ...) goes in at the generator's spot; a host that orders its whole
+        // pipeline does not call Use{Api}Api() at all, so there is no switch for that any more
+        Assert.Contains("public Action<IApplicationBuilder>? AfterErrorHandling { get; set; }", result, StringComparison.Ordinal);
+        Assert.Contains("using Microsoft.AspNetCore.Builder;", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("HostOwnsPipeline", result, StringComparison.Ordinal);
     }
 
     [Theory]

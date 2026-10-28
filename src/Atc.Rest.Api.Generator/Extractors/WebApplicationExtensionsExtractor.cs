@@ -1,13 +1,15 @@
 namespace Atc.Rest.Api.Generator.Extractors;
 
 /// <summary>
-/// Extracts parameters for WebApplication extension methods that configure middleware.
-/// Generates the unified Map{Api}Api() method: the middleware the specification calls for, then the endpoints.
+/// Generates the host wiring of a server: <c>Use{Api}Api()</c> adds the middleware the specification calls for, in the
+/// recommended order; <c>Map{Api}Api()</c> maps the endpoints and nothing else (ASP.NET's own Use/Map split). The
+/// endpoint method is not called <c>Map{Api}Endpoints()</c>: a path segment's own <c>Map{Segment}Endpoints()</c> would
+/// clash with it (an API <c>Pets</c> with a <c>/pets</c> path).
 /// </summary>
 public static class WebApplicationExtensionsExtractor
 {
     /// <summary>
-    /// Generates the unified Map{ProjectName}Api() extension method that combines middleware and endpoint mapping.
+    /// Generates the <c>Use{Api}Api()</c> and <c>Map{Api}Api()</c> extension methods.
     /// </summary>
     /// <param name="openApiDoc">The OpenAPI document for auto-detection.</param>
     /// <param name="projectName">The project name for namespace and method naming.</param>
@@ -28,7 +30,7 @@ public static class WebApplicationExtensionsExtractor
     }
 
     /// <summary>
-    /// Generates the complete file content for the unified Map{ProjectName}Api method.
+    /// Generates the complete file content of the WebApplication extension class.
     /// </summary>
     private static string GenerateUnifiedFileContent(
         string projectName,
@@ -40,13 +42,14 @@ public static class WebApplicationExtensionsExtractor
         var contentBuilder = new StringBuilder();
         contentBuilder.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
         contentBuilder.AppendLine("public static class UnifiedWebApplicationExtensions");
-        contentBuilder.AppendLine("public static WebApplication MapApi(this WebApplication app, Action<ApiMiddlewareOptions>? configure = null)");
+        contentBuilder.AppendLine("public static WebApplication UseApi(this WebApplication app, Action<ApiMiddlewareOptions>? configure = null)");
         contentBuilder.AppendLine("var options = new ApiMiddlewareOptions();");
         if (useGlobalErrorHandler)
         {
             contentBuilder.AppendLine("app.UseGlobalErrorHandler(options.ConfigureErrorHandling);");
         }
 
+        contentBuilder.AppendLine("throw new InvalidOperationException(");
         contentBuilder.AppendLine("app.MapEndpoints();");
         var content = contentBuilder.ToString();
 
@@ -66,8 +69,13 @@ public static class WebApplicationExtensionsExtractor
         builder.AppendLine("public static class UnifiedWebApplicationExtensions");
         builder.AppendLine("{");
 
-        // Generate Map{ProjectName}Api method
-        GenerateMapApiMethod(builder, projectName, apiName, features, useGlobalErrorHandler);
+        // The mark Use{Api}Api() leaves in the application's properties, for Map{Api}Api() to check
+        builder.AppendLine(4, $"private const string UseApiMark = \"{projectName}.Generated.Use{apiName}Api\";");
+        builder.AppendLine();
+
+        GenerateUseApiMethod(builder, projectName, apiName, features, useGlobalErrorHandler);
+        builder.AppendLine();
+        GenerateMapApiMethod(builder, projectName, apiName);
 
         builder.AppendLine("}");
 
@@ -75,9 +83,9 @@ public static class WebApplicationExtensionsExtractor
     }
 
     /// <summary>
-    /// Generates the Map{ProjectName}Api method.
+    /// Generates the Use{Api}Api method: the middleware, in the recommended order, each behind its own switch.
     /// </summary>
-    private static void GenerateMapApiMethod(
+    private static void GenerateUseApiMethod(
         StringBuilder builder,
         string projectName,
         string apiName,
@@ -85,7 +93,8 @@ public static class WebApplicationExtensionsExtractor
         bool useGlobalErrorHandler)
     {
         builder.AppendLine(4, "/// <summary>");
-        builder.AppendLine(4, $"/// Configures {projectName} API middleware and maps all endpoints.");
+        builder.AppendLine(4, $"/// Adds the middleware the {projectName} API needs, in the recommended order. Call it before");
+        builder.AppendLine(4, $"/// <c>Map{apiName}Api()</c>.");
         builder.AppendLine(4, "/// </summary>");
         builder.AppendLine(4, "/// <param name=\"app\">The WebApplication to configure.</param>");
         builder.AppendLine(4, "/// <param name=\"configure\">Optional configuration for API middleware options.</param>");
@@ -98,6 +107,7 @@ public static class WebApplicationExtensionsExtractor
             ? "/// - Global error handling middleware (first: it turns what anything after it throws into a ProblemDetails)"
             : "/// - The framework's exception handler (a ProblemDetails 500 for an unhandled exception)");
         builder.AppendLine(4, "/// - Status code pages writing ProblemDetails for empty error responses (when ProblemDetails is registered)");
+        builder.AppendLine(4, "/// - The host's own middleware from <c>AfterErrorHandling</c> (CORS, HSTS, HTTPS redirection, ...)");
         var rateLimiter = features.HasRateLimiting ? "/// - Rate limiter middleware (auto-detected)" : null;
         var authentication = features.RequiresAuthentication ? "/// - Authentication and authorization middleware (auto-detected)" : null;
         foreach (var line in (features.LimiterNeedsUser ? new[] { authentication, rateLimiter } : new[] { rateLimiter, authentication }).OfType<string>())
@@ -110,22 +120,15 @@ public static class WebApplicationExtensionsExtractor
             builder.AppendLine(4, "/// - Output cache middleware (auto-detected, after authentication)");
         }
 
-        builder.AppendLine(4, "/// - All API endpoints");
-        builder.AppendLine(4, "/// A host that orders its own pipeline (HostOwnsPipeline = true) keeps its own error handler, status code pages");
-        builder.AppendLine(4, "/// and authentication: this method then adds only the rest.");
+        builder.AppendLine(4, "/// Each one is behind a switch in <see cref=\"ApiMiddlewareOptions\"/>: turn off what the host adds itself. A host");
+        builder.AppendLine(4, "/// that orders its whole pipeline does not call this method and adds what the list above names itself.");
         builder.AppendLine(4, "/// </remarks>");
-        builder.AppendLine(4, $"public static WebApplication Map{apiName}Api(");
+        builder.AppendLine(4, $"public static WebApplication Use{apiName}Api(");
         builder.AppendLine(8, "this WebApplication app,");
         builder.AppendLine(8, "Action<ApiMiddlewareOptions>? configure = null)");
         builder.AppendLine(4, "{");
         builder.AppendLine(8, "var options = new ApiMiddlewareOptions();");
         builder.AppendLine(8, "configure?.Invoke(options);");
-
-        // A host that orders its own pipeline leaves every middleware it has a counterpart of to itself - also one a
-        // later version adds
-        builder.AppendLine();
-        builder.AppendLine(8, "// A host that orders its own pipeline has its own error handler, status code pages and authentication");
-        builder.AppendLine(8, "var hostOwnsPipeline = options.HostOwnsPipeline;");
 
         if (useGlobalErrorHandler)
         {
@@ -134,7 +137,7 @@ public static class WebApplicationExtensionsExtractor
             builder.AppendLine();
             builder.AppendLine(8, "// Global error handling middleware, first: it converts what anything after it throws (authentication, the");
             builder.AppendLine(8, "// rate limiter, the endpoints) to a ProblemDetails");
-            builder.AppendLine(8, "if (!hostOwnsPipeline && options.UseGlobalErrorHandler)");
+            builder.AppendLine(8, "if (options.UseGlobalErrorHandler)");
             builder.AppendLine(8, "{");
             builder.AppendLine(12, "app.UseGlobalErrorHandler(options.ConfigureErrorHandling);");
             builder.AppendLine(8, "}");
@@ -146,7 +149,7 @@ public static class WebApplicationExtensionsExtractor
             builder.AppendLine();
             builder.AppendLine(8, "// An unhandled exception as a ProblemDetails 500 (needs AddProblemDetails; not in Development, where the");
             builder.AppendLine(8, "// developer exception page shows it)");
-            builder.AppendLine(8, "if (!hostOwnsPipeline && options.UseExceptionHandler &&");
+            builder.AppendLine(8, "if (options.UseExceptionHandler &&");
             builder.AppendLine(8, "    !global::Microsoft.Extensions.Hosting.HostEnvironmentEnvExtensions.IsDevelopment(app.Environment) &&");
             builder.AppendLine(8, "    app.Services.GetService(typeof(global::Microsoft.AspNetCore.Http.IProblemDetailsService)) is not null)");
             builder.AppendLine(8, "{");
@@ -159,11 +162,17 @@ public static class WebApplicationExtensionsExtractor
         // UseStatusCodePages() writes text/plain.
         builder.AppendLine();
         builder.AppendLine(8, "// ProblemDetails body for error responses that have none (needs AddProblemDetails)");
-        builder.AppendLine(8, "if (!hostOwnsPipeline && options.UseStatusCodePages &&");
+        builder.AppendLine(8, "if (options.UseStatusCodePages &&");
         builder.AppendLine(8, "    app.Services.GetService(typeof(global::Microsoft.AspNetCore.Http.IProblemDetailsService)) is not null)");
         builder.AppendLine(8, "{");
         builder.AppendLine(12, "app.UseStatusCodePages();");
         builder.AppendLine(8, "}");
+
+        // The host's own middleware: inside the error handling (what it throws or answers empty is a ProblemDetails),
+        // ahead of the limiter, authentication and the output cache (CORS has to run before authentication)
+        builder.AppendLine();
+        builder.AppendLine(8, "// The host's own middleware (CORS, HSTS, HTTPS redirection): inside the error handling, ahead of the rest");
+        builder.AppendLine(8, "options.AfterErrorHandling?.Invoke(app);");
 
         // The rate limiter runs before authentication, so a rejected request costs no token validation -
         // unless a policy partitions by user: then the limiter needs the authenticated user, and the
@@ -194,9 +203,46 @@ public static class WebApplicationExtensionsExtractor
             builder.AppendLine(8, "}");
         }
 
-        // Map endpoints (always)
         builder.AppendLine();
-        builder.AppendLine(8, "// Map all API endpoints");
+        builder.AppendLine(8, "((global::Microsoft.AspNetCore.Builder.IApplicationBuilder)app).Properties[UseApiMark] = true;");
+        builder.AppendLine();
+        builder.AppendLine(8, "return app;");
+        builder.AppendLine(4, "}");
+    }
+
+    /// <summary>
+    /// Generates the Map{Api}Api method: the endpoints, no middleware. Until 3.1 the method of that name also added the
+    /// middleware, so it refuses to run without Use{Api}Api() first - unless the host orders its own pipeline.
+    /// </summary>
+    private static void GenerateMapApiMethod(
+        StringBuilder builder,
+        string projectName,
+        string apiName)
+    {
+        builder.AppendLine(4, "/// <summary>");
+        builder.AppendLine(4, $"/// Maps all {projectName} API endpoints. Adds no middleware: call <c>Use{apiName}Api()</c> first.");
+        builder.AppendLine(4, "/// </summary>");
+        builder.AppendLine(4, "/// <param name=\"app\">The WebApplication to map the endpoints on.</param>");
+        builder.AppendLine(4, "/// <param name=\"requireUse\">");
+        builder.AppendLine(4, $"/// Throw when <c>Use{apiName}Api()</c> was not called first (default). A host that adds the middleware");
+        builder.AppendLine(4, $"/// <c>Use{apiName}Api()</c> lists itself passes false.");
+        builder.AppendLine(4, "/// </param>");
+        builder.AppendLine(4, "/// <returns>The WebApplication for method chaining.</returns>");
+        builder.AppendLine(4, $"/// <exception cref=\"InvalidOperationException\"><c>Use{apiName}Api()</c> was not called first and <paramref name=\"requireUse\"/> is true.</exception>");
+        builder.AppendLine(4, $"public static WebApplication Map{apiName}Api(");
+        builder.AppendLine(8, "this WebApplication app,");
+        builder.AppendLine(8, "bool requireUse = true)");
+        builder.AppendLine(4, "{");
+        builder.AppendLine(8, "// Until 3.1 this method also added the middleware: a host that still calls only it would lose its error");
+        builder.AppendLine(8, "// handling without a compile error");
+        builder.AppendLine(8, "if (requireUse && !((global::Microsoft.AspNetCore.Builder.IApplicationBuilder)app).Properties.ContainsKey(UseApiMark))");
+        builder.AppendLine(8, "{");
+        builder.AppendLine(12, "throw new InvalidOperationException(");
+        builder.AppendLine(16, $"\"Call app.Use{apiName}Api() before app.Map{apiName}Api(): it adds the error handling, the status code pages \" +");
+        builder.AppendLine(16, $"\"and the rest of the middleware the endpoints rely on (since 3.2 Map{apiName}Api() maps only the endpoints). \" +");
+        builder.AppendLine(16, $"\"A host that adds that middleware itself calls app.Map{apiName}Api(requireUse: false).\");");
+        builder.AppendLine(8, "}");
+        builder.AppendLine();
         builder.AppendLine(8, "app.MapEndpoints();");
         builder.AppendLine();
         builder.AppendLine(8, "return app;");
@@ -232,7 +278,7 @@ public static class WebApplicationExtensionsExtractor
 
         builder.AppendLine();
         builder.AppendLine(8, "// Authentication and authorization middleware");
-        builder.AppendLine(8, "if (!hostOwnsPipeline && options.UseAuthentication)");
+        builder.AppendLine(8, "if (options.UseAuthentication)");
         builder.AppendLine(8, "{");
         builder.AppendLine(12, "app.UseAuthentication();");
         builder.AppendLine(12, "if (options.UseAuthorization)");
@@ -240,7 +286,7 @@ public static class WebApplicationExtensionsExtractor
         builder.AppendLine(16, "app.UseAuthorization();");
         builder.AppendLine(12, "}");
         builder.AppendLine(8, "}");
-        builder.AppendLine(8, "else if (!hostOwnsPipeline && options.UseAuthorization)");
+        builder.AppendLine(8, "else if (options.UseAuthorization)");
         builder.AppendLine(8, "{");
         builder.AppendLine(12, "app.UseAuthorization();");
         builder.AppendLine(8, "}");

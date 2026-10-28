@@ -25,15 +25,16 @@ public class UnifiedExtractorsNamingTests
 
     // ========== WebApplicationExtensionsExtractor.ExtractUnified ==========
     [Theory]
-    [InlineData("Contoso.Data.Provider.Cpms.Monta.Api", "MapMontaApi")]
-    [InlineData("MyCompany.Product.Api", "MapProductApi")]
-    [InlineData("Contoso.IoT.Nexus.Api.Contracts", "MapNexusApi")]
-    [InlineData("Showcase", "MapShowcaseApi")]
-    [InlineData("MyCompany.Product.WebApi", "MapWebApi")]
-    [InlineData("PetStoreFull", "MapPetStoreFullApi")]
-    public void ExtractUnified_GeneratesExpectedMapMethodName(
+    [InlineData("Contoso.Data.Provider.Cpms.Monta.Api", "UseMontaApi", "MapMontaApi")]
+    [InlineData("MyCompany.Product.Api", "UseProductApi", "MapProductApi")]
+    [InlineData("Contoso.IoT.Nexus.Api.Contracts", "UseNexusApi", "MapNexusApi")]
+    [InlineData("Showcase", "UseShowcaseApi", "MapShowcaseApi")]
+    [InlineData("MyCompany.Product.WebApi", "UseWebApi", "MapWebApi")]
+    [InlineData("PetStoreFull", "UsePetStoreFullApi", "MapPetStoreFullApi")]
+    public void ExtractUnified_GeneratesExpectedUseAndMapMethodNames(
         string projectName,
-        string expectedMethodName)
+        string expectedUseMethodName,
+        string expectedMapMethodName)
     {
         // Arrange
         var document = OpenApiDocumentHelper.ParseYaml(MinimalYaml);
@@ -43,7 +44,9 @@ public class UnifiedExtractorsNamingTests
         var result = WebApplicationExtensionsExtractor.ExtractUnified(document, projectName, config);
 
         // Assert
-        Assert.Contains(expectedMethodName + "(", result, StringComparison.Ordinal);
+        Assert.Contains(expectedUseMethodName + "(", result, StringComparison.Ordinal);
+        Assert.Contains(expectedMapMethodName + "(", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("UseApiApi", result, StringComparison.Ordinal);
         Assert.DoesNotContain("MapApiApi", result, StringComparison.Ordinal);
     }
 

@@ -107,8 +107,8 @@ public sealed class PackageInstallTests(PackedGeneratorFixture package) : IClass
 
     /// <summary>
     /// A server app on the generated code: handlers for the two operations, the generated <c>AddContosoApi()</c> /
-    /// <c>MapContosoApi()</c>, and calls to itself on a random port - a list, a create, and a create without the
-    /// required name.
+    /// <c>UseContosoApi()</c> / <c>MapContosoApi()</c>, and calls to itself on a random port - a list, a create,
+    /// and a create without the required name.
     /// </summary>
     private const string ServerProgramSource = """
         using System;
@@ -134,6 +134,7 @@ public sealed class PackageInstallTests(PackedGeneratorFixture package) : IClass
 
         var app = builder.Build();
         app.Urls.Add("http://127.0.0.1:0");
+        app.UseContosoApi();
         app.MapContosoApi();
         await app.StartAsync();
 

@@ -207,8 +207,11 @@ public sealed class StreamFirstItemRuntimeTests
         app.Urls.Add("http://127.0.0.1:0");
 
         appExtensions
-            .GetMethod("MapStreamsApi")!
+            .GetMethod("UseStreamsApi")!
             .Invoke(null, [app, null]);
+        appExtensions
+            .GetMethod("MapStreamsApi")!
+            .Invoke(null, [app, true]);
 
         await app.StartAsync(TestContext.Current.CancellationToken);
 

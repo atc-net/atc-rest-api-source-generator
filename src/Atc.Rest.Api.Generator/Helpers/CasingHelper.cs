@@ -458,7 +458,7 @@ public static class CasingHelper
     }
 
     /// <summary>
-    /// The name of the API in the server's generated host methods (<c>Add{Name}Api()</c>, <c>Map{Name}Api()</c>,
+    /// The name of the API in the server's generated host methods (<c>Add{Name}Api()</c>, <c>Use{Name}Api()</c>, <c>Map{Name}Api()</c>,
     /// <c>Map{Name}Webhooks()</c>, ...): the server marker's <c>apiName</c> when it has one, else the namespace's
     /// last segment that names the API - a trailing <c>Contracts</c>, <c>Api</c> or <c>Server</c> says nothing about
     /// it and is skipped. A trailing "Api" is taken off the name, as the method appends its own.

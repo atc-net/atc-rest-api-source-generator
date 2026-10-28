@@ -163,7 +163,7 @@ public class GetPetByIdHandler : IGetPetByIdHandler
 
 ### 6. Wire Up Program.cs
 
-The generator emits `Add{Project}Api()` and `Map{Project}Api()` (here for a project named `PetStore`). `{Project}` is the API's name: the namespace's last segment that names it - a trailing `Contracts`, `Api` or `Server` is skipped, so `Contoso.PetStore.Api.Contracts` gives `AddPetStoreApi()` - or the server marker's `apiName`:
+The generator emits `Add{Project}Api()` (services), `Use{Project}Api()` (middleware) and `Map{Project}Api()` (endpoints) - here for a project named `PetStore`. `{Project}` is the API's name: the namespace's last segment that names it - a trailing `Contracts`, `Api` or `Server` is skipped, so `Contoso.PetStore.Api.Contracts` gives `AddPetStoreApi()` - or the server marker's `apiName`:
 
 ```csharp
 var builder = WebApplication.CreateBuilder(args);
@@ -174,13 +174,14 @@ builder.Services.AddApiHandlersFromDomain();   // your handlers (domain project)
 
 var app = builder.Build();
 
+app.UsePetStoreApi();                          // global error handler, status-code pages, rate limiter, auth
 app.MapOpenApi();
-app.MapPetStoreApi();                          // status-code pages, auth, global error handler, every endpoint
+app.MapPetStoreApi();                    // every endpoint, no middleware
 
 app.Run();
 ```
 
-> 💡 Without `Atc.Rest.MinimalApi` the pair is generated too: `Map{Project}Api()` adds the framework's `UseExceptionHandler()` (outside Development) where the package's global error handler would stand. That host validates nothing and maps no exception to a status (the package's ValidationFilter and global error handler). A host that orders its own pipeline leaves its middleware to itself (`app.MapPetStoreApi(o => o.HostOwnsPipeline = true)`) - see [Working with Error Responses](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Error-Responses).
+> 💡 `Use{Project}Api()` adds each middleware in the recommended order and behind its own switch: turn off what the host adds itself (`o.UseGlobalErrorHandler = false`), and put the host's own middleware - CORS, HSTS, HTTPS redirection - in at the right spot with `o.AfterErrorHandling = app => app.UseCors()` (inside the error handling, before authentication). A host that orders its whole pipeline itself skips `Use{Project}Api()` and calls `Map{Project}Api(requireUse: false)`; without `requireUse: false`, `Map{Project}Api()` throws at startup when `Use{Project}Api()` did not run first (until 3.1 it added the middleware itself). Without `Atc.Rest.MinimalApi` the methods are generated too: `Use{Project}Api()` adds the framework's `UseExceptionHandler()` (outside Development) where the package's global error handler would stand. That host validates nothing and maps no exception to a status (the package's ValidationFilter and global error handler) - see [Working with Error Responses](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Error-Responses).
 
 ## 📋 Requirements
 

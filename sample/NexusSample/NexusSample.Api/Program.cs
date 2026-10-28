@@ -34,9 +34,10 @@ app
     .MapGet("/", () => Results.Redirect("/scalar/v1"))
     .ExcludeFromDescription();
 
-// The generated middleware and every endpoint: the exception handler (outside Development), status code pages, and
-// authentication + authorization - the specification declares its access with x-authorize-roles only, no security
-// scheme, and that counts as a secured API
+// The generated middleware: the exception handler (outside Development), status code pages, and authentication +
+// authorization - the specification declares its access with x-authorize-roles only, no security scheme, and that
+// counts as a secured API. Then every endpoint.
+app.UseNexusApi();
 app.MapNexusApi();
 
 // Map health check endpoints (/health, /health/live, /health/ready)

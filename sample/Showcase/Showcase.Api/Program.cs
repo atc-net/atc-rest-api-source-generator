@@ -82,9 +82,6 @@ builder.Services.AddSingleton<Showcase.Api.Domain.ApiHandlers.Streams.LivePriceF
 
 var app = builder.Build();
 
-// Enable CORS
-app.UseCors();
-
 // ============================================
 // AUDIT - what the specification marks
 // ============================================
@@ -106,18 +103,29 @@ app.Use(async (context, next) =>
     }
 });
 
-// Map SignalR hub for real-time notifications
-app.MapHub<NotificationHub>(NotificationsHubContract.Url);
-
 // ============================================
-// SHOWCASE API MIDDLEWARE AND ENDPOINTS - Simplified pipeline
+// SHOWCASE API MIDDLEWARE - the recommended pipeline
 // ============================================
-// Configures: rate limiter, auth, error handling, and maps all endpoints
+// UseShowcaseApi() adds, in this order: the global error handler, status code pages, the host's own middleware
+// (AfterErrorHandling - CORS here: inside the error handling, and before authentication as CORS has to be), the
+// rate limiter, authentication and authorization.
 // The end-to-end tests (test/Showcase.E2ETests) drive three apps at once against this API, from one IP address and
 // as the one demo identity: the per-minute limits of the specification (50 user requests, 10 uploads) would answer
 // a full run with 429s. That run sets Showcase__DisableRateLimiter=true; the policies stay registered either way.
 var disableRateLimiter = app.Configuration.GetValue<bool>("Showcase:DisableRateLimiter");
-app.MapShowcaseApi(options => options.UseRateLimiter = !disableRateLimiter);
+app.UseShowcaseApi(options =>
+{
+    options.UseRateLimiter = !disableRateLimiter;
+    options.AfterErrorHandling = pipeline => pipeline.UseCors();
+});
+
+// Map SignalR hub for real-time notifications
+app.MapHub<NotificationHub>(NotificationsHubContract.Url);
+
+// ============================================
+// SHOWCASE API ENDPOINTS
+// ============================================
+app.MapShowcaseApi();
 
 // Map webhook endpoints (receives external webhook calls)
 app.MapShowcaseWebhooks();

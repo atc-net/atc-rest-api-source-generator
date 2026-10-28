@@ -79,6 +79,7 @@ public static class ApiOptionsExtractor
         var contentBuilder = new StringBuilder();
         contentBuilder.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
         contentBuilder.AppendLine("public class ApiMiddlewareOptions");
+        contentBuilder.AppendLine("public Action<IApplicationBuilder>? AfterErrorHandling { get; set; }");
         if (useGlobalErrorHandler)
         {
             contentBuilder.AppendLine("public Action<GlobalErrorHandlingOptions>? ConfigureErrorHandling { get; set; }");
@@ -185,17 +186,16 @@ public static class ApiOptionsExtractor
         builder.AppendLine("public class ApiMiddlewareOptions");
         builder.AppendLine("{");
 
-        // HostOwnsPipeline - one switch for a host with a pipeline of its own
+        // The host's own middleware, at the spot the generator keeps for it
         builder.AppendLine(4, "/// <summary>");
-        builder.AppendLine(4, "/// The host orders its own pipeline: it adds the error handler, status code pages, authentication and");
-        builder.AppendLine(4, "/// authorization itself, before calling this method. When true, the method adds none of them (whatever their");
-        builder.AppendLine(4, "/// own switches say), nor any middleware of that kind a later version adds - only what the specification");
-        builder.AppendLine(4, "/// alone knows (the rate limiter, the output cache) and the endpoints. Default: false.");
+        builder.AppendLine(4, "/// The host's own middleware (CORS, HSTS, HTTPS redirection, ...), added right after the error handling and");
+        builder.AppendLine(4, "/// before the rate limiter, authentication and the output cache: what it throws or answers empty becomes a");
+        builder.AppendLine(4, "/// ProblemDetails, and CORS runs before authentication as it has to. Default: none.");
         builder.AppendLine(4, "/// </summary>");
-        builder.AppendLine(4, "public bool HostOwnsPipeline { get; set; }");
+        builder.AppendLine(4, "public Action<IApplicationBuilder>? AfterErrorHandling { get; set; }");
         builder.AppendLine();
 
-        // Each feature switch exists only when Map{Api}Api() reads it - when the specification declares the feature
+        // Each feature switch exists only when Use{Api}Api() reads it - when the specification declares the feature
         if (features.HasRateLimiting)
         {
             builder.AppendLine(4, "/// <summary>");

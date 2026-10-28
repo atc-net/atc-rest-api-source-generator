@@ -4,6 +4,7 @@
 
 using System;
 using System.CodeDom.Compiler;
+using Microsoft.AspNetCore.Builder;
 
 
 namespace ParameterSerialization.Generated;
@@ -15,12 +16,11 @@ namespace ParameterSerialization.Generated;
 public class ApiMiddlewareOptions
 {
     /// <summary>
-    /// The host orders its own pipeline: it adds the error handler, status code pages, authentication and
-    /// authorization itself, before calling this method. When true, the method adds none of them (whatever their
-    /// own switches say), nor any middleware of that kind a later version adds - only what the specification
-    /// alone knows (the rate limiter, the output cache) and the endpoints. Default: false.
+    /// The host's own middleware (CORS, HSTS, HTTPS redirection, ...), added right after the error handling and
+    /// before the rate limiter, authentication and the output cache: what it throws or answers empty becomes a
+    /// ProblemDetails, and CORS runs before authentication as it has to. Default: none.
     /// </summary>
-    public bool HostOwnsPipeline { get; set; }
+    public Action<IApplicationBuilder>? AfterErrorHandling { get; set; }
 
     /// <summary>
     /// Write a ProblemDetails body for error responses that have none (<c>UseStatusCodePages()</c>).
