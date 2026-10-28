@@ -107,7 +107,7 @@ public static class ApiOptionsExtractor
         ServerFeatures features)
     {
         builder.AppendLine("/// <summary>");
-        builder.AppendLine($"/// Options for configuring {projectName} API services.");
+        builder.AppendLine("/// The options of the generated <c>Add…Api()</c>: a switch per registration it makes.");
         builder.AppendLine("/// </summary>");
         builder.AppendLine("/// <remarks>");
         builder.AppendLine("/// Note: the handlers (AddApiHandlersFrom{HandlerProject}) and the validators (AddApiValidatorsFrom{HandlerProject},");
@@ -180,7 +180,8 @@ public static class ApiOptionsExtractor
         bool useGlobalErrorHandler)
     {
         builder.AppendLine("/// <summary>");
-        builder.AppendLine($"/// Options for configuring {projectName} API middleware pipeline.");
+        builder.AppendLine("/// The options of the generated <c>Use…Api()</c>: a switch per middleware it adds, and");
+        builder.AppendLine("/// <see cref=\"AfterErrorHandling\"/> for the host's own middleware.");
         builder.AppendLine("/// </summary>");
         builder.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
         builder.AppendLine("public class ApiMiddlewareOptions");

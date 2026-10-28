@@ -9,7 +9,7 @@ using System.CodeDom.Compiler;
 namespace NullableTypeArrays.Generated;
 
 /// <summary>
-/// Options for configuring NullableTypeArrays API services.
+/// The options of the generated <c>Add…Api()</c>: a switch per registration it makes.
 /// </summary>
 /// <remarks>
 /// Note: the handlers (AddApiHandlersFrom{HandlerProject}) and the validators (AddApiValidatorsFrom{HandlerProject},
