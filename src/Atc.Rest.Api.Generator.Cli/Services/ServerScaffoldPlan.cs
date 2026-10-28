@@ -8,8 +8,8 @@ namespace Atc.Rest.Api.Generator.Cli.Services;
 /// <param name="BaseName">The solution's name, from the project name.</param>
 /// <param name="RepositoryRoot">The repository root.</param>
 /// <param name="SourcePath">The repository's <c>src</c> folder.</param>
-/// <param name="HostProjectName">The API host project (the contracts project itself unless three projects).</param>
-/// <param name="ContractsProjectName">The contracts project.</param>
+/// <param name="HostProjectName">The API host project (the contracts project itself for a single project).</param>
+/// <param name="ContractsProjectName">The contracts project (the domain project itself for two projects).</param>
 /// <param name="DomainProjectName">The domain project (the contracts project itself for a single project).</param>
 /// <param name="ContractsOutputPath">The contracts project's folder.</param>
 /// <param name="DomainOutputPath">The domain project's folder.</param>
@@ -29,7 +29,7 @@ public sealed record ServerScaffoldPlan(
     string TestProjectName)
 {
     /// <summary>
-    /// Gets a value indicating whether the host and the contracts are one project beside the domain.
+    /// Gets a value indicating whether the server is the host and one project with the contracts and the handlers.
     /// </summary>
     public bool IsTwoProjects
         => Structure == ProjectStructureType.TwoProjects;
@@ -58,7 +58,7 @@ public sealed record ServerScaffoldPlan(
         => [.. (IsThreeProjects
                    ? new[] { HostProjectName, ContractsProjectName, DomainProjectName }
                    : IsTwoProjects
-                       ? new[] { ContractsProjectName, DomainProjectName }
+                       ? new[] { HostProjectName, DomainProjectName }
                        : new[] { ContractsProjectName })
                .Concat(AspireProjectName is null ? [] : [AspireProjectName])
                .Select(name => $"src/{name}/{name}.csproj")];
@@ -88,8 +88,10 @@ public sealed record ServerScaffoldPlan(
         var baseName = ProjectNameHelper.ExtractSolutionName(projectName);
         var sourcePath = Path.Combine(repositoryRoot, "src");
 
-        // SingleProject: {Name}.Api (all-in-one); TwoProjects: {Name}.Api (host+contracts), {Name}.Domain;
-        // ThreeProjects: {Name}.Api (host), {Name}.Api.Contracts, {Name}.Domain
+        // SingleProject: {Name}.Api (all-in-one); TwoProjects: {Name}.Api (host), {Name}.Domain (contracts + handlers);
+        // ThreeProjects: {Name}.Api (host), {Name}.Api.Contracts, {Name}.Domain. Two projects keep the contracts in the
+        // domain project: in the host they would form a cycle (the host references the handlers' project, which
+        // needs the contracts)
         var (contracts, host, domain) = scaffolding.ProjectStructure switch
         {
             ProjectStructureType.ThreeProjects => (
@@ -97,8 +99,8 @@ public sealed record ServerScaffoldPlan(
                 scaffolding.HostProjectName ?? $"{baseName}.Api",
                 scaffolding.DomainProjectName ?? $"{baseName}.Domain"),
             ProjectStructureType.TwoProjects => (
-                scaffolding.ContractsProjectName ?? $"{baseName}.Api",
-                scaffolding.ContractsProjectName ?? $"{baseName}.Api",
+                scaffolding.DomainProjectName ?? $"{baseName}.Domain",
+                scaffolding.HostProjectName ?? $"{baseName}.Api",
                 scaffolding.DomainProjectName ?? $"{baseName}.Domain"),
             _ => (
                 scaffolding.ContractsProjectName ?? $"{baseName}.Api",
@@ -106,6 +108,7 @@ public sealed record ServerScaffoldPlan(
                 scaffolding.ContractsProjectName ?? $"{baseName}.Api"),
         };
 
+        var domainPath = string.IsNullOrWhiteSpace(domainOutputPath) ? Path.Combine(sourcePath, domain) : Path.GetFullPath(domainOutputPath);
         return new ServerScaffoldPlan(
             scaffolding.ProjectStructure,
             baseName,
@@ -114,8 +117,8 @@ public sealed record ServerScaffoldPlan(
             host,
             contracts,
             domain,
-            Path.Combine(sourcePath, contracts),
-            string.IsNullOrWhiteSpace(domainOutputPath) ? Path.Combine(sourcePath, domain) : Path.GetFullPath(domainOutputPath),
+            scaffolding.ProjectStructure == ProjectStructureType.TwoProjects ? domainPath : Path.Combine(sourcePath, contracts),
+            domainPath,
             scaffolding.Aspire ? $"{baseName}.Aspire" : null,
             ProjectNameHelper.ExtractSolutionName(contracts) + ".Tests");
     }
