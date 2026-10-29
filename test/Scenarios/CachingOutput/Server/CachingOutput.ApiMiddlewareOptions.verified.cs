@@ -25,7 +25,8 @@ public class ApiMiddlewareOptions
 
     /// <summary>
     /// Add the output cache middleware (<c>UseOutputCache()</c>, after authentication: an authenticated
-    /// caller's answer is never cached).
+    /// caller's answer is never cached). A host that adds <c>UseOutputCache()</c> itself after <c>Use…Api()</c>
+    /// turns this off - a second output cache throws on every request; one it adds before is detected.
     /// Generated because the specification declares x-cache-type: output. Default: true.
     /// </summary>
     public bool UseOutputCache { get; set; } = true;

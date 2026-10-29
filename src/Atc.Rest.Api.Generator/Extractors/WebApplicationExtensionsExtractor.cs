@@ -74,9 +74,9 @@ public static class WebApplicationExtensionsExtractor
         builder.AppendLine(4, $"private const string UseApiMark = \"{projectName}.Generated.Use{apiName}Api\";");
         builder.AppendLine();
 
-        GenerateUseApiMethod(builder, projectName, apiName, features, useGlobalErrorHandler);
+        GenerateUseApiMethod(builder, apiName, features, useGlobalErrorHandler);
         builder.AppendLine();
-        GenerateMapApiMethod(builder, projectName, apiName);
+        GenerateMapApiMethod(builder, apiName);
 
         builder.AppendLine("}");
 
@@ -88,7 +88,6 @@ public static class WebApplicationExtensionsExtractor
     /// </summary>
     private static void GenerateUseApiMethod(
         StringBuilder builder,
-        string projectName,
         string apiName,
         ServerFeatures features,
         bool useGlobalErrorHandler)
@@ -205,7 +204,8 @@ public static class WebApplicationExtensionsExtractor
         {
             builder.AppendLine();
             builder.AppendLine(8, "// Output cache middleware (after authentication: an authenticated caller's answer is not cached). It");
-            builder.AppendLine(8, "// stands aside when the host added UseOutputCache() itself: a second one throws on every request.");
+            builder.AppendLine(8, "// stands aside when the host added UseOutputCache() before this method; a host that adds it after turns");
+            builder.AppendLine(8, "// UseOutputCache off - a second output cache throws on every request.");
             builder.AppendLine(8, "if (options.UseOutputCache)");
             builder.AppendLine(8, "{");
             builder.AppendLine(12, "app.UseWhen(");
@@ -227,7 +227,6 @@ public static class WebApplicationExtensionsExtractor
     /// </summary>
     private static void GenerateMapApiMethod(
         StringBuilder builder,
-        string projectName,
         string apiName)
     {
         builder.AppendLine(4, "/// <summary>");

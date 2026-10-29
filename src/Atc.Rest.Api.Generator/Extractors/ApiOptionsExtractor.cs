@@ -63,7 +63,7 @@ public static class ApiOptionsExtractor
         builder.AppendLine($"namespace {projectName}.Generated;");
         builder.AppendLine();
 
-        GenerateApiServiceOptions(builder, projectName, features);
+        GenerateApiServiceOptions(builder, features);
 
         return builder.ToString();
     }
@@ -93,7 +93,7 @@ public static class ApiOptionsExtractor
         builder.AppendLine($"namespace {projectName}.Generated;");
         builder.AppendLine();
 
-        GenerateApiMiddlewareOptions(builder, projectName, features, useGlobalErrorHandler);
+        GenerateApiMiddlewareOptions(builder, features, useGlobalErrorHandler);
 
         return builder.ToString();
     }
@@ -103,7 +103,6 @@ public static class ApiOptionsExtractor
     /// </summary>
     private static void GenerateApiServiceOptions(
         StringBuilder builder,
-        string projectName,
         ServerFeatures features)
     {
         builder.AppendLine("/// <summary>");
@@ -175,7 +174,6 @@ public static class ApiOptionsExtractor
     /// </summary>
     private static void GenerateApiMiddlewareOptions(
         StringBuilder builder,
-        string projectName,
         ServerFeatures features,
         bool useGlobalErrorHandler)
     {
@@ -211,7 +209,8 @@ public static class ApiOptionsExtractor
         {
             builder.AppendLine(4, "/// <summary>");
             builder.AppendLine(4, "/// Add the output cache middleware (<c>UseOutputCache()</c>, after authentication: an authenticated");
-            builder.AppendLine(4, "/// caller's answer is never cached).");
+            builder.AppendLine(4, "/// caller's answer is never cached). A host that adds <c>UseOutputCache()</c> itself after <c>Use…Api()</c>");
+            builder.AppendLine(4, "/// turns this off - a second output cache throws on every request; one it adds before is detected.");
             builder.AppendLine(4, "/// Generated because the specification declares x-cache-type: output. Default: true.");
             builder.AppendLine(4, "/// </summary>");
             builder.AppendLine(4, "public bool UseOutputCache { get; set; } = true;");
