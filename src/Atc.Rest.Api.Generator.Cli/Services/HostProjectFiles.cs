@@ -65,8 +65,17 @@ internal static class HostProjectFiles
             """;
     }
 
+    /// <summary>
+    /// The host's Program.cs on the generated <c>Add/Use/Map{Api}Api()</c> and the handler project's registration.
+    /// </summary>
+    /// <param name="apiName">The API's name in the generated methods (from the server's namespace or <c>apiName</c>).</param>
+    /// <param name="handlersMethodSuffix">The last term of the handler project's name: <c>AddApiHandlersFrom{suffix}()</c>.</param>
+    /// <param name="hostUi">The API documentation UI.</param>
+    /// <param name="hostUiMode">When the UI is mapped.</param>
+    /// <returns>The Program.cs content.</returns>
     public static string ProgramContent(
-        string baseName,
+        string apiName,
+        string handlersMethodSuffix,
         HostUiType hostUi,
         HostUiModeType hostUiMode)
     {
@@ -83,13 +92,12 @@ internal static class HostProjectFiles
         }
 
         // The three generated calls: services, middleware, endpoints
-        var apiName = CasingHelper.GetApiName(baseName, apiName: null);
         sb.AppendLine("// The generated API services: ProblemDetails for every error, the JSON options and the policies the");
         sb.AppendLine("// specification declares");
         sb.AppendLine(CultureInfo.InvariantCulture, $"builder.Services.Add{apiName}Api();");
         sb.AppendLine();
-        sb.AppendLine("// Register handler implementations from Domain project");
-        sb.AppendLine("builder.Services.AddApiHandlersFromDomain();");
+        sb.AppendLine("// Register handler implementations from the handler project");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"builder.Services.AddApiHandlersFrom{handlersMethodSuffix}();");
         sb.AppendLine();
         sb.AppendLine("var app = builder.Build();");
         sb.AppendLine();
@@ -129,20 +137,27 @@ internal static class HostProjectFiles
         return sb.ToString();
     }
 
+    /// <summary>
+    /// The host's global usings: the server's namespace (the handler registration is generated there) and its
+    /// <c>Generated.Extensions</c> (<c>Add/Use/Map{Api}Api()</c>).
+    /// </summary>
+    /// <param name="serverNamespace">The server marker's namespace.</param>
+    /// <param name="hostUi">The API documentation UI.</param>
+    /// <returns>The GlobalUsings.cs content.</returns>
     public static string GlobalUsingsContent(
-        string baseName,
+        string serverNamespace,
         HostUiType hostUi)
     {
         var sb = new StringBuilder();
 
-        // Root namespace for extension methods (from Domain project DI registration)
+        // The handler project's registration (AddApiHandlersFrom...) is generated in the server's namespace
         sb.Append("global using ");
-        sb.Append(baseName);
+        sb.Append(serverNamespace);
         sb.AppendLine(";");
 
         // The generated host extensions: Add{Api}Api(), Use{Api}Api(), Map{Api}Api()
         sb.Append("global using ");
-        sb.Append(baseName);
+        sb.Append(serverNamespace);
         sb.AppendLine(".Generated.Extensions;");
 
         // UI-specific namespaces

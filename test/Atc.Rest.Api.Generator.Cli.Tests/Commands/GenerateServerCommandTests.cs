@@ -337,6 +337,94 @@ public sealed class GenerateServerCommandTests : IDisposable
         Assert.Contains("<ImplicitUsings>enable</ImplicitUsings>", host, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// The host calls the methods the generator emits: named after the server's namespace (or apiName) and the domain
+    /// project, not after the host project - <c>--namespace Acme.Shop</c> gives AddShopApi(), and a domain project
+    /// <c>Contoso.Core</c> gives AddApiHandlersFromCore(), both in the Acme.Shop namespace.
+    /// </summary>
+    [Fact]
+    public async Task GenerateServer_WithANamespaceAndADomainName_ProgramCallsTheGeneratedMethods()
+    {
+        var yamlPath = CliTestHelper.GetScenarioYamlPath("Demo");
+        var repoRoot = Path.Combine(tempOutputDir, "NamespacedHost");
+        var arguments = $"generate server -s \"{yamlPath}\" -o \"{repoRoot}\" -n Contoso --namespace Acme.Shop --domain-project Contoso.Core --no-coding-rules";
+
+        var (isSuccessful, output) = await ProcessHelper.Execute(CliExeFile, arguments, cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.True(isSuccessful, $"Expected success but got failure. Output: {CliTestHelper.StripAnsiCodes(output)}");
+        var host = Path.Combine(repoRoot, "src", "Contoso.Api");
+        var program = await File.ReadAllTextAsync(Path.Combine(host, "Program.cs"), TestContext.Current.CancellationToken);
+        Assert.Contains("builder.Services.AddShopApi();", program, StringComparison.Ordinal);
+        Assert.Contains("builder.Services.AddApiHandlersFromCore();", program, StringComparison.Ordinal);
+        Assert.Contains("app.UseShopApi();", program, StringComparison.Ordinal);
+        Assert.Contains("app.MapShopApi();", program, StringComparison.Ordinal);
+        var globalUsings = await File.ReadAllTextAsync(Path.Combine(host, "GlobalUsings.cs"), TestContext.Current.CancellationToken);
+        Assert.Contains("global using Acme.Shop;", globalUsings, StringComparison.Ordinal);
+        Assert.Contains("global using Acme.Shop.Generated.Extensions;", globalUsings, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Two projects with a domain project of another name and folder: the solution and the test project keep the base
+    /// name, and every project reference and solution entry points at a project that is there.
+    /// </summary>
+    [Fact]
+    public async Task GenerateServer_TwoProjects_DomainElsewhere_ReferencesTheProjectsWhereTheyAre()
+    {
+        var yamlPath = CliTestHelper.GetScenarioYamlPath("Demo");
+        var repoRoot = Path.Combine(tempOutputDir, "TwoProjectsDomainElsewhere");
+        var domainFolder = Path.Combine(repoRoot, "lib", "Contoso.Core");
+        var arguments = $"generate server -s \"{yamlPath}\" -o \"{repoRoot}\" -n Contoso --project-structure TwoProjects --domain-project Contoso.Core --domain-output \"{domainFolder}\" --no-coding-rules";
+
+        var (isSuccessful, output) = await ProcessHelper.Execute(CliExeFile, arguments, cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.True(isSuccessful, $"Expected success but got failure. Output: {CliTestHelper.StripAnsiCodes(output)}");
+        Assert.True(File.Exists(Path.Combine(repoRoot, "Contoso.slnx")), string.Join(", ", Directory.GetFiles(repoRoot)));
+        Assert.True(File.Exists(Path.Combine(repoRoot, "test", "Contoso.Tests", "Contoso.Tests.csproj")));
+        Assert.True(File.Exists(Path.Combine(domainFolder, "Contoso.Core.csproj")));
+
+        foreach (var project in Directory.EnumerateFiles(repoRoot, "*.csproj", SearchOption.AllDirectories))
+        {
+            var content = await File.ReadAllTextAsync(project, TestContext.Current.CancellationToken);
+            foreach (Match reference in Regex.Matches(content, "<ProjectReference Include=\"([^\"]+)\"", RegexOptions.None, TimeSpan.FromSeconds(1)))
+            {
+                var target = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(project)!, reference.Groups[1].Value.Replace('\\', Path.DirectorySeparatorChar)));
+                Assert.True(File.Exists(target), $"{Path.GetFileName(project)} references {reference.Groups[1].Value}, which is not there");
+            }
+        }
+
+        var solution = await File.ReadAllTextAsync(Path.Combine(repoRoot, "Contoso.slnx"), TestContext.Current.CancellationToken);
+        foreach (Match entry in Regex.Matches(solution, "<Project Path=\"([^\"]+)\"", RegexOptions.None, TimeSpan.FromSeconds(1)))
+        {
+            Assert.True(File.Exists(Path.Combine(repoRoot, entry.Groups[1].Value.Replace('/', Path.DirectorySeparatorChar))), $"Contoso.slnx lists {entry.Groups[1].Value}, which is not there");
+        }
+    }
+
+    /// <summary>
+    /// Two projects put both markers in the domain project: an existing domain project that lists only the handlers
+    /// marker gets the server marker too (".atc-rest-api-server" is part of ".atc-rest-api-server-handlers", so it is
+    /// matched as a whole Include).
+    /// </summary>
+    [Fact]
+    public async Task GenerateServer_TwoProjects_ExistingDomainProject_GetsTheServerMarker()
+    {
+        var yamlPath = CliTestHelper.GetScenarioYamlPath("Demo");
+        var repoRoot = Path.Combine(tempOutputDir, "TwoProjectsExistingDomain");
+        var domainFolder = Path.Combine(repoRoot, "src", "Contoso.Domain");
+        Directory.CreateDirectory(domainFolder);
+        await File.WriteAllTextAsync(
+            Path.Combine(domainFolder, "Contoso.Domain.csproj"),
+            "<Project Sdk=\"Microsoft.NET.Sdk\">\n\n  <ItemGroup>\n    <AdditionalFiles Include=\".atc-rest-api-server-handlers\" />\n  </ItemGroup>\n\n</Project>",
+            TestContext.Current.CancellationToken);
+        var arguments = $"generate server -s \"{yamlPath}\" -o \"{repoRoot}\" -n Contoso --project-structure TwoProjects --no-coding-rules";
+
+        var (isSuccessful, output) = await ProcessHelper.Execute(CliExeFile, arguments, cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.True(isSuccessful, $"Expected success but got failure. Output: {CliTestHelper.StripAnsiCodes(output)}");
+        var domain = await File.ReadAllTextAsync(Path.Combine(domainFolder, "Contoso.Domain.csproj"), TestContext.Current.CancellationToken);
+        Assert.Contains("<AdditionalFiles Include=\".atc-rest-api-server\" />", domain, StringComparison.Ordinal);
+        Assert.Contains("<AdditionalFiles Include=\".atc-rest-api-server-handlers\" />", domain, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task GenerateServer_WithDomainProject_WritesDomainNamespaceToHandlersMarkerFile()
     {
