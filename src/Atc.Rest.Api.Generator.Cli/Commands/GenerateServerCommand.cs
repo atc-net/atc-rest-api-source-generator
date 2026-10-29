@@ -179,7 +179,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
                 // Step 6: Generate test project
                 ctx.Status("Setting up test project...");
                 var testPath = Path.Combine(outputPath, "test");
-                if (!scaffoldingService.GenerateTestProject(testPath, contractsProjectName, scaffoldingConfig.TargetFramework))
+                if (!scaffoldingService.GenerateTestProject(testPath, contractsProjectName, scaffoldingConfig.TargetFramework, scaffoldingConfig.NoCodingRules))
                 {
                     return 1;
                 }

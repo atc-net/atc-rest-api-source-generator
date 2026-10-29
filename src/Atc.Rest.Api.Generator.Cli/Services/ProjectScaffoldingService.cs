@@ -189,11 +189,16 @@ public sealed class ProjectScaffoldingService
     /// <param name="testPath">Path to the test directory.</param>
     /// <param name="projectName">Base project name (e.g., "Demo.Api").</param>
     /// <param name="targetFramework">Target framework (e.g., "net10.0").</param>
+    /// <param name="withoutCodingRules">
+    /// The coding rules are not added: no <c>test/Directory.Build.props</c> brings the target framework, the test
+    /// packages and the usings, so the project names them itself.
+    /// </param>
     /// <returns>True if successful, false otherwise.</returns>
     public bool GenerateTestProject(
         string testPath,
         string projectName,
-        string targetFramework)
+        string targetFramework,
+        bool withoutCodingRules = false)
     {
         var testProjectName = $"{ProjectNameHelper.ExtractSolutionName(projectName)}.Tests";
         var testProjectPath = Path.Combine(testPath, testProjectName);
@@ -208,7 +213,9 @@ public sealed class ProjectScaffoldingService
 
             if (!File.Exists(csprojPath))
             {
-                var csprojContent = GenerateTestProjectContent(projectName);
+                var csprojContent = withoutCodingRules
+                    ? GenerateStandaloneTestProjectContent(projectName, targetFramework)
+                    : GenerateTestProjectContent(projectName);
                 TrackedFile.WriteAllText(csprojPath, csprojContent);
                 AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created test project: {testProjectName}.csproj");
 
@@ -559,6 +566,43 @@ public sealed class ProjectScaffoldingService
                 <IsPackable>false</IsPackable>
                 <IsTestProject>true</IsTestProject>
               </PropertyGroup>
+
+              <ItemGroup>
+                <ProjectReference Include="..\..\src\{contractsProjectName}\{contractsProjectName}.csproj" />
+              </ItemGroup>
+
+            </Project>
+            """;
+
+    // Without the coding rules: the target framework, the test packages (as the coding rules' test props pin them) and
+    // the usings the sample test needs come from the project itself
+    private static string GenerateStandaloneTestProjectContent(
+        string contractsProjectName,
+        string targetFramework)
+        => $"""
+            <Project Sdk="Microsoft.NET.Sdk">
+
+              <PropertyGroup>
+                <TargetFramework>{targetFramework}</TargetFramework>
+                <ImplicitUsings>enable</ImplicitUsings>
+                <Nullable>enable</Nullable>
+                <OutputType>Exe</OutputType>
+                <IsPackable>false</IsPackable>
+                <IsTestProject>true</IsTestProject>
+              </PropertyGroup>
+
+              <ItemGroup>
+                <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
+                <PackageReference Include="xunit.v3" Version="4.0.2" />
+                <PackageReference Include="xunit.runner.visualstudio" Version="4.0.1">
+                  <PrivateAssets>all</PrivateAssets>
+                  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+                </PackageReference>
+              </ItemGroup>
+
+              <ItemGroup>
+                <Using Include="Xunit" />
+              </ItemGroup>
 
               <ItemGroup>
                 <ProjectReference Include="..\..\src\{contractsProjectName}\{contractsProjectName}.csproj" />

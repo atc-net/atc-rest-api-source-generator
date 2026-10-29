@@ -184,6 +184,31 @@ public sealed class ProjectScaffoldingServiceTests : IDisposable
         Assert.Contains("<ProjectReference Include=\"..\\..\\src\\Demo.Api.Contracts\\Demo.Api.Contracts.csproj\" />", csproj, StringComparison.Ordinal);
         var sampleTest = File.ReadAllText(Path.Combine(projectDir, "UnitTest1.cs"));
         Assert.Contains("public class UnitTest1", sampleTest, StringComparison.Ordinal);
+
+        // With the coding rules, test/Directory.Build.props brings the target framework, the packages and the usings
+        Assert.DoesNotContain("<TargetFramework>", csproj, StringComparison.Ordinal);
+        Assert.DoesNotContain("<PackageReference", csproj, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Without the coding rules no Directory.Build.props brings them: the test project names its target framework,
+    /// the test packages and the usings the sample test needs (<c>[Fact]</c>, <c>Assert</c>) itself.
+    /// </summary>
+    [Fact]
+    public void GenerateTestProject_WithoutCodingRules_StandsOnItsOwn()
+    {
+        var testPath = Path.Combine(tempSrcPath, "test");
+
+        var result = sut.GenerateTestProject(testPath, "Demo.Api.Contracts", "net10.0", withoutCodingRules: true);
+
+        Assert.True(result);
+        var csproj = File.ReadAllText(Path.Combine(testPath, "Demo.Tests", "Demo.Tests.csproj"));
+        Assert.Contains("<TargetFramework>net10.0</TargetFramework>", csproj, StringComparison.Ordinal);
+        Assert.Contains("<ImplicitUsings>enable</ImplicitUsings>", csproj, StringComparison.Ordinal);
+        Assert.Contains("<PackageReference Include=\"xunit.v3\"", csproj, StringComparison.Ordinal);
+        Assert.Contains("<PackageReference Include=\"Microsoft.NET.Test.Sdk\"", csproj, StringComparison.Ordinal);
+        Assert.Contains("<PackageReference Include=\"xunit.runner.visualstudio\"", csproj, StringComparison.Ordinal);
+        Assert.Contains("<Using Include=\"Xunit\" />", csproj, StringComparison.Ordinal);
     }
 
     [Fact]
