@@ -1476,7 +1476,7 @@ public class HttpClientExtractorTests
 
         var initializers = HttpClientExtractor.DefaultJsonSerializerOptionsInitializers(document, "Contoso");
 
-        Assert.Equal(polymorphic, initializers.Contains("AllowOutOfOrderMetadataProperties = true,"));
+        Assert.Equal(polymorphic, initializers.Contains("AllowOutOfOrderMetadataProperties = true,", StringComparer.Ordinal));
     }
 
     private const string TwoSegmentsYaml = """

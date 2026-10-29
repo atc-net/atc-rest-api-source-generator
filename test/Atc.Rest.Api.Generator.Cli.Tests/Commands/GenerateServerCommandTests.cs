@@ -315,7 +315,7 @@ public sealed class GenerateServerCommandTests : IDisposable
 
         Assert.True(isSuccessful, $"Expected success but got failure. Output: {CliTestHelper.StripAnsiCodes(output)}");
         var src = Path.Combine(repoRoot, "src");
-        Assert.Equal(["Contoso.Api", "Contoso.Domain"], Directory.GetDirectories(src).Select(Path.GetFileName).Order(StringComparer.Ordinal));
+        Assert.Equal(["Contoso.Api", "Contoso.Domain"], Directory.GetDirectories(src).Select(Path.GetFileName).Order(StringComparer.Ordinal), StringComparer.Ordinal);
 
         var host = await File.ReadAllTextAsync(Path.Combine(src, "Contoso.Api", "Contoso.Api.csproj"), TestContext.Current.CancellationToken);
         Assert.Contains("<ProjectReference Include=\"..\\Contoso.Domain\\Contoso.Domain.csproj\" />", host, StringComparison.Ordinal);
@@ -385,17 +385,17 @@ public sealed class GenerateServerCommandTests : IDisposable
         foreach (var project in Directory.EnumerateFiles(repoRoot, "*.csproj", SearchOption.AllDirectories))
         {
             var content = await File.ReadAllTextAsync(project, TestContext.Current.CancellationToken);
-            foreach (Match reference in Regex.Matches(content, "<ProjectReference Include=\"([^\"]+)\"", RegexOptions.None, TimeSpan.FromSeconds(1)))
+            foreach (Match reference in Regex.Matches(content, "<ProjectReference Include=\"(?<path>[^\"]+)\"", RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(1)))
             {
-                var target = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(project)!, reference.Groups[1].Value.Replace('\\', Path.DirectorySeparatorChar)));
-                Assert.True(File.Exists(target), $"{Path.GetFileName(project)} references {reference.Groups[1].Value}, which is not there");
+                var target = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(project)!, reference.Groups["path"].Value.Replace('\\', Path.DirectorySeparatorChar)));
+                Assert.True(File.Exists(target), $"{Path.GetFileName(project)} references {reference.Groups["path"].Value}, which is not there");
             }
         }
 
         var solution = await File.ReadAllTextAsync(Path.Combine(repoRoot, "Contoso.slnx"), TestContext.Current.CancellationToken);
-        foreach (Match entry in Regex.Matches(solution, "<Project Path=\"([^\"]+)\"", RegexOptions.None, TimeSpan.FromSeconds(1)))
+        foreach (Match entry in Regex.Matches(solution, "<Project Path=\"(?<path>[^\"]+)\"", RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(1)))
         {
-            Assert.True(File.Exists(Path.Combine(repoRoot, entry.Groups[1].Value.Replace('/', Path.DirectorySeparatorChar))), $"Contoso.slnx lists {entry.Groups[1].Value}, which is not there");
+            Assert.True(File.Exists(Path.Combine(repoRoot, entry.Groups["path"].Value.Replace('/', Path.DirectorySeparatorChar))), $"Contoso.slnx lists {entry.Groups["path"].Value}, which is not there");
         }
     }
 
