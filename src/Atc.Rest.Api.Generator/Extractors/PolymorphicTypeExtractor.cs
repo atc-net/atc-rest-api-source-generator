@@ -6,6 +6,15 @@ namespace Atc.Rest.Api.Generator.Extractors;
 public static class PolymorphicTypeExtractor
 {
     /// <summary>
+    /// Whether the document has a polymorphic (<c>oneOf</c>/<c>anyOf</c>) component schema - without building the
+    /// configurations <see cref="ExtractPolymorphicConfigs"/> builds.
+    /// </summary>
+    /// <param name="openApiDoc">The OpenAPI document.</param>
+    /// <returns><see langword="true"/> when a component schema has a polymorphic composition.</returns>
+    public static bool HasPolymorphicSchemas(OpenApiDocument openApiDoc)
+        => openApiDoc?.Components?.Schemas?.Values.Any(schema => schema is not OpenApiSchemaReference && schema.HasPolymorphicComposition) == true;
+
+    /// <summary>
     /// Extracts polymorphic configurations from all schemas in the OpenAPI document.
     /// </summary>
     /// <param name="openApiDoc">The OpenAPI document containing schema definitions.</param>

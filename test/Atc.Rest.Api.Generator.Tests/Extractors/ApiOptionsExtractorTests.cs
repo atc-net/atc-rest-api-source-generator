@@ -158,6 +158,33 @@ public class ApiOptionsExtractorTests
         Assert.DoesNotContain("HostOwnsPipeline", result, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// The generated output cache stands aside only for a host's own UseOutputCache() that runs before it: the switch
+    /// tells a host that adds its own after Use…Api() to turn the generated one off (two output caches throw).
+    /// </summary>
+    [Fact]
+    public void ExtractMiddlewareOptions_OutputCache_TellsAHostWithItsOwnToTurnItOff()
+    {
+        var document = OpenApiDocumentHelper.ParseYaml("""
+            openapi: 3.0.0
+            info: { title: T, version: 1.0.0 }
+            paths:
+              /products:
+                x-cache-type: output
+                x-cache-policy: products
+                get:
+                  operationId: listProducts
+                  responses:
+                    '200': { description: OK }
+            """);
+
+        var result = ApiOptionsExtractor.ExtractMiddlewareOptions(document, "TestApi");
+
+        Assert.Contains("public bool UseOutputCache { get; set; } = true;", result, StringComparison.Ordinal);
+        Assert.Contains("A host that adds <c>UseOutputCache()</c> itself after <c>Use…Api()</c>", result, StringComparison.Ordinal);
+        Assert.Contains("turns this off - a second output cache throws on every request", result, StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData(true)]
     [InlineData(false)]

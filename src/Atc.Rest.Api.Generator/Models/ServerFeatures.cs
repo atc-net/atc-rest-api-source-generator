@@ -55,6 +55,6 @@ public sealed record ServerFeatures(
             LimiterNeedsUser: hasRateLimiting && requiresAuthentication &&
                               RateLimitPoliciesExtractor.CollectPolicies(openApiDoc, config?.IncludeDeprecated ?? false)
                                   .Values.Any(p => p.Partition == RateLimitPartitionStrategy.User),
-            HasPolymorphicSchemas: PolymorphicTypeExtractor.ExtractPolymorphicConfigs(openApiDoc) is not null);
+            HasPolymorphicSchemas: PolymorphicTypeExtractor.HasPolymorphicSchemas(openApiDoc));
     }
 }

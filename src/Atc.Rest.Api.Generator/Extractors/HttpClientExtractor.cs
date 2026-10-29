@@ -20,7 +20,7 @@ public static partial class HttpClientExtractor
             "PropertyNameCaseInsensitive = true,",
 
             // A polymorphic response's discriminator may stand anywhere in the object - only where there is one
-            .. PolymorphicTypeExtractor.ExtractPolymorphicConfigs(openApiDoc) is not null
+            .. PolymorphicTypeExtractor.HasPolymorphicSchemas(openApiDoc)
                 ? new[] { "AllowOutOfOrderMetadataProperties = true," }
                 : [],
             .. EnumWireConverterExtractor.HasEnums(openApiDoc)

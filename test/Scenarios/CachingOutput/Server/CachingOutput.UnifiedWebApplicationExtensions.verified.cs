@@ -67,7 +67,8 @@ public static class UnifiedWebApplicationExtensions
         options.AfterErrorHandling?.Invoke(app);
 
         // Output cache middleware (after authentication: an authenticated caller's answer is not cached). It
-        // stands aside when the host added UseOutputCache() itself: a second one throws on every request.
+        // stands aside when the host added UseOutputCache() before this method; a host that adds it after turns
+        // UseOutputCache off - a second output cache throws on every request.
         if (options.UseOutputCache)
         {
             app.UseWhen(
