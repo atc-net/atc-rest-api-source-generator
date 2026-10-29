@@ -3,6 +3,30 @@
 > ⬆️ **Upgrading from 2.x?** The entries below list the commits of each release. What to change in a project, and
 > why, is in the wiki: [Upgrading to v3](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Upgrading-to-v3).
 
+## [3.2.0](https://github.com/atc-net/atc-rest-api-source-generator/compare/v3.1.0...v3.2.0) (2026-10-29)
+
+
+### New features
+
+* **cli:** generate server wires the host with the generated Add{Api}Api(), Use{Api}Api() and Map{Api}Api() ([7b62c43](https://github.com/atc-net/atc-rest-api-source-generator/commit/7b62c43f2b6e59f111db40a68faeb2b301941d67))
+* **generator:** split the host wiring into Use{Api}Api() for the middleware and Map{Api}Api() for the endpoints ([72e0474](https://github.com/atc-net/atc-rest-api-source-generator/commit/72e0474a039b0bf668c8e614be270ba709fcffc1))
+
+
+### Bug fixes
+
+* **cli:** generate server --no-coding-rules writes a test project that builds, and a test builds every project structure ([86bd4e3](https://github.com/atc-net/atc-rest-api-source-generator/commit/86bd4e3a0cb077e015fed3632bab2b95da20c9ca))
+* **cli:** generate server --project-structure TwoProjects writes a solution that builds: the host, plus one Domain project with the contracts and the handlers ([f79f97f](https://github.com/atc-net/atc-rest-api-source-generator/commit/f79f97fe7d0f017f32d35ca40bdb1cfe0428570c))
+* **cli:** generate server's host calls the methods the generator emits and every project is referenced where it is ([e1f1a2a](https://github.com/atc-net/atc-rest-api-source-generator/commit/e1f1a2abb53f4ab8261b2163090565b7896640e6))
+* **generator:** Map{Api}Api()'s tooltip, code comment and startup error describe how the wiring works, without earlier versions' history ([1d0006f](https://github.com/atc-net/atc-rest-api-source-generator/commit/1d0006fb8c433e8d2a938cc4ebd6c4829280bdf2))
+* **generator:** the host wiring methods' tooltips show one line per middleware and registration, name the API and link the companion method ([4ecd5b1](https://github.com/atc-net/atc-rest-api-source-generator/commit/4ecd5b1d6a5ec7c3c75122b0c6155daa48f8a378))
+* **generator:** the output cache switch tells a host with its own UseOutputCache() what to do, and the polymorphism check is cheap ([ee7a931](https://github.com/atc-net/atc-rest-api-source-generator/commit/ee7a93146e1da35fa393de030395c53261dc2f09))
+* **generator:** the server's and the client's JSON options allow a discriminator anywhere in the object only when the specification has a polymorphic schema ([9e46087](https://github.com/atc-net/atc-rest-api-source-generator/commit/9e46087b174396c396ad4ec5a74913f79e1dfb56))
+
+
+### Documentation
+
+* **report:** test-suite report from eb1c1ba6b - five suites green (15,045 passed, 5 skipped), Playwright 263 passed ([ad945e6](https://github.com/atc-net/atc-rest-api-source-generator/commit/ad945e6915cebae3b54218b6a95ef47a44521d3c))
+
 ## [3.1.0](https://github.com/atc-net/atc-rest-api-source-generator/compare/v3.0.1...v3.1.0) (2026-10-28)
 
 
