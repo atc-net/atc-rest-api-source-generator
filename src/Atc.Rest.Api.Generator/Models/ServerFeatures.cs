@@ -13,6 +13,7 @@ namespace Atc.Rest.Api.Generator.Models;
 /// <param name="HasEnums">An enum the generated wire converters handle.</param>
 /// <param name="HasOutputCaching">An operation or the document declares output caching.</param>
 /// <param name="LimiterNeedsUser">A rate limiter partitioned by user, which reads <c>HttpContext.User</c>: authentication runs before it.</param>
+/// <param name="HasPolymorphicSchemas">A polymorphic component schema (<c>oneOf</c>/<c>anyOf</c>): its discriminator may stand anywhere in a body (<c>AllowOutOfOrderMetadataProperties</c>).</param>
 public sealed record ServerFeatures(
     bool HasRateLimiting,
     bool HasValidation,
@@ -22,7 +23,8 @@ public sealed record ServerFeatures(
     bool HasXmlBodies,
     bool HasEnums,
     bool HasOutputCaching,
-    bool LimiterNeedsUser)
+    bool LimiterNeedsUser,
+    bool HasPolymorphicSchemas)
 {
     /// <summary>
     /// The features of a server's specification.
@@ -52,6 +54,7 @@ public sealed record ServerFeatures(
             HasOutputCaching: openApiDoc.HasOutputCaching(),
             LimiterNeedsUser: hasRateLimiting && requiresAuthentication &&
                               RateLimitPoliciesExtractor.CollectPolicies(openApiDoc, config?.IncludeDeprecated ?? false)
-                                  .Values.Any(p => p.Partition == RateLimitPartitionStrategy.User));
+                                  .Values.Any(p => p.Partition == RateLimitPartitionStrategy.User),
+            HasPolymorphicSchemas: PolymorphicTypeExtractor.ExtractPolymorphicConfigs(openApiDoc) is not null);
     }
 }

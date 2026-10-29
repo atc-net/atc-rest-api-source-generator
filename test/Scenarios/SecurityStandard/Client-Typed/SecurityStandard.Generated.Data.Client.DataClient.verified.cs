@@ -20,7 +20,6 @@ public sealed class DataClient : IDataClient
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
-        AllowOutOfOrderMetadataProperties = true,
         Converters = { new global::SecurityStandard.Generated.EnumWireConverterFactory() },
     };
 

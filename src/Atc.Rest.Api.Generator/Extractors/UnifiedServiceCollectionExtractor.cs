@@ -152,9 +152,18 @@ public static class UnifiedServiceCollectionExtractor
             registrations.Add("An XML problem writer, for a caller that prefers application/problem+xml");
         }
 
-        registrations.Add(features.HasEnums
-            ? "JSON options: every generated enum on the wire as the specification writes it; a polymorphic body's discriminator anywhere in the object"
-            : "JSON options: a polymorphic body's discriminator anywhere in the object");
+        var jsonOptions = new[]
+            {
+                features.HasEnums ? "every generated enum on the wire as the specification writes it" : null,
+                features.HasPolymorphicSchemas ? "a polymorphic body's discriminator anywhere in the object" : null,
+            }
+            .OfType<string>()
+            .ToList();
+        if (jsonOptions.Count > 0)
+        {
+            registrations.Add("JSON options: " + string.Join("; ", jsonOptions));
+        }
+
         if (features.HasRateLimiting)
         {
             registrations.Add("Rate limiting policies (x-ratelimit-*)");
@@ -218,21 +227,30 @@ public static class UnifiedServiceCollectionExtractor
         builder.AppendLine(12, "services.AddProblemDetails();");
         builder.AppendLine(8, "}");
 
-        // System.Text.Json reads a type discriminator only when it is the first property, unless told otherwise
-        builder.AppendLine();
-        builder.AppendLine(8, "// A polymorphic body's discriminator may stand anywhere in the object, not only first");
-        if (features.HasEnums)
+        // System.Text.Json reads a type discriminator only when it is the first property, unless told otherwise - only
+        // a specification with a polymorphic schema needs that
+        if (features.HasPolymorphicSchemas && features.HasEnums)
         {
             // Ahead of any enum converter the host registers: the specification decides how an enum is written
-            builder.AppendLine(8, "// Every generated enum on the wire as the specification writes it, whatever enum converter the host adds");
+            builder.AppendLine();
+            builder.AppendLine(8, "// A polymorphic body's discriminator may stand anywhere in the object, not only first, and every generated");
+            builder.AppendLine(8, "// enum is on the wire as the specification writes it, whatever enum converter the host adds");
             builder.AppendLine(8, "services.ConfigureHttpJsonOptions(o =>");
             builder.AppendLine(8, "{");
             builder.AppendLine(12, "o.SerializerOptions.AllowOutOfOrderMetadataProperties = true;");
             builder.AppendLine(12, $"o.SerializerOptions.Converters.Insert(0, new global::{projectName}.Generated.{EnumWireConverterExtractor.ClassName}());");
             builder.AppendLine(8, "});");
         }
-        else
+        else if (features.HasEnums)
         {
+            builder.AppendLine();
+            builder.AppendLine(8, "// Every generated enum on the wire as the specification writes it, whatever enum converter the host adds");
+            builder.AppendLine(8, $"services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Insert(0, new global::{projectName}.Generated.{EnumWireConverterExtractor.ClassName}()));");
+        }
+        else if (features.HasPolymorphicSchemas)
+        {
+            builder.AppendLine();
+            builder.AppendLine(8, "// A polymorphic body's discriminator may stand anywhere in the object, not only first");
             builder.AppendLine(8, "services.ConfigureHttpJsonOptions(o => o.SerializerOptions.AllowOutOfOrderMetadataProperties = true);");
         }
 

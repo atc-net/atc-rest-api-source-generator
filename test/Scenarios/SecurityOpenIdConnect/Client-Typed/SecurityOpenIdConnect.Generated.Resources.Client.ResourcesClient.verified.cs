@@ -21,7 +21,6 @@ public sealed class ResourcesClient : IResourcesClient
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
-        AllowOutOfOrderMetadataProperties = true,
     };
 
     private readonly HttpClient httpClient;

@@ -23,7 +23,6 @@ public sealed class StreamsClient : IStreamsClient
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
-        AllowOutOfOrderMetadataProperties = true,
     };
 
     private readonly HttpClient httpClient;

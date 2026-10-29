@@ -20,7 +20,6 @@ public sealed class TreeClient : ITreeClient
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
-        AllowOutOfOrderMetadataProperties = true,
     };
 
     private readonly HttpClient httpClient;

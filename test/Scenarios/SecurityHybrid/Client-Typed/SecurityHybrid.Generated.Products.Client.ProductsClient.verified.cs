@@ -21,7 +21,6 @@ public sealed class ProductsClient : IProductsClient
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
-        AllowOutOfOrderMetadataProperties = true,
         Converters = { new global::SecurityHybrid.Generated.EnumWireConverterFactory() },
     };
 

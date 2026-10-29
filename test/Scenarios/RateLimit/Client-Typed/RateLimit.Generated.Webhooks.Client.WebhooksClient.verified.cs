@@ -20,7 +20,6 @@ public sealed class WebhooksClient : IWebhooksClient
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
-        AllowOutOfOrderMetadataProperties = true,
     };
 
     private readonly HttpClient httpClient;

@@ -1431,6 +1431,54 @@ public class HttpClientExtractorTests
         Assert.DoesNotContain(initializers, i => i.Contains("new JsonStringEnumConverter()", StringComparison.Ordinal));
     }
 
+    // A polymorphic response's discriminator may stand anywhere in the object - only where the specification has one
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void DefaultJsonSerializerOptionsInitializers_AllowOutOfOrderMetadata_OnlyWithAPolymorphicSchema(
+        bool polymorphic)
+    {
+        var yaml = $$"""
+            openapi: 3.0.3
+            info: { title: T, version: 1.0.0 }
+            paths:
+              /shapes:
+                get:
+                  operationId: getShape
+                  responses:
+                    '200':
+                      description: OK
+                      content:
+                        application/json:
+                          schema: { $ref: '#/components/schemas/{{(polymorphic ? "Shape" : "Circle")}}' }
+            components:
+              schemas:
+                Circle:
+                  type: object
+                  required: [kind]
+                  properties:
+                    kind: { type: string }
+                Square:
+                  type: object
+                  required: [kind]
+                  properties:
+                    kind: { type: string }
+                Shape:
+                  oneOf:
+                    - $ref: '#/components/schemas/Circle'
+                    - $ref: '#/components/schemas/Square'
+                  discriminator:
+                    propertyName: kind
+            """;
+
+        // A spec without the oneOf has no polymorphic schema at all
+        var document = ParseYaml(polymorphic ? yaml : yaml[..yaml.IndexOf("    Shape:", StringComparison.Ordinal)])!;
+
+        var initializers = HttpClientExtractor.DefaultJsonSerializerOptionsInitializers(document, "Contoso");
+
+        Assert.Equal(polymorphic, initializers.Contains("AllowOutOfOrderMetadataProperties = true,"));
+    }
+
     private const string TwoSegmentsYaml = """
         openapi: 3.0.0
         info: { title: T, version: 1.0.0 }

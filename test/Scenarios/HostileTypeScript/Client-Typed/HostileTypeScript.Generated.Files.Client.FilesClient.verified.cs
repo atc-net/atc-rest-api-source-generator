@@ -20,7 +20,6 @@ public sealed class FilesClient : IFilesClient
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
-        AllowOutOfOrderMetadataProperties = true,
     };
 
     private readonly HttpClient httpClient;

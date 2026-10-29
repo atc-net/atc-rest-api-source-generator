@@ -23,7 +23,6 @@ public sealed class PersonsClient : IPersonsClient
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
-        AllowOutOfOrderMetadataProperties = true,
         Converters = { new global::ModelsAndProperties.Generated.EnumWireConverterFactory() },
     };
 

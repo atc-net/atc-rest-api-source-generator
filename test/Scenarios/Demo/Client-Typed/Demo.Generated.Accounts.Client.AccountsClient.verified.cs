@@ -24,7 +24,6 @@ public sealed class AccountsClient : IAccountsClient
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
-        AllowOutOfOrderMetadataProperties = true,
         Converters = { new global::Demo.Generated.EnumWireConverterFactory() },
     };
 

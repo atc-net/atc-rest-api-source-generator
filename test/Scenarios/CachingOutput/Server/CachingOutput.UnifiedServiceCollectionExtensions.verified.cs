@@ -30,7 +30,6 @@ public static class UnifiedServiceCollectionExtensions
     /// <remarks>
     /// <para>Registers:</para>
     /// <para>• ProblemDetails (RFC 9457) for the errors raised outside the handlers</para>
-    /// <para>• JSON options: a polymorphic body's discriminator anywhere in the object</para>
     /// <para>• Output cache policies (x-cache-*)</para>
     /// <para>Registers no handler: add them next to it with the methods the handler project generates:</para>
     /// <para>• <c>services.AddApiHandlersFrom{HandlerProject}()</c> - the handlers</para>
@@ -48,9 +47,6 @@ public static class UnifiedServiceCollectionExtensions
         {
             services.AddProblemDetails();
         }
-
-        // A polymorphic body's discriminator may stand anywhere in the object, not only first
-        services.ConfigureHttpJsonOptions(o => o.SerializerOptions.AllowOutOfOrderMetadataProperties = true);
 
         // Register the output cache policies from OpenAPI x-cache-* extensions
         if (options.UseOutputCaching)

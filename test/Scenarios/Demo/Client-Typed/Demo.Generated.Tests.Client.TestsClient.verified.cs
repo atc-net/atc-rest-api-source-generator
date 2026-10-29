@@ -20,7 +20,6 @@ public sealed class TestsClient : ITestsClient
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
-        AllowOutOfOrderMetadataProperties = true,
         Converters = { new global::Demo.Generated.EnumWireConverterFactory() },
     };
 

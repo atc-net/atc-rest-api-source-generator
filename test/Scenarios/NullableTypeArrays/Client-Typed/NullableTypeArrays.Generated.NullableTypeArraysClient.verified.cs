@@ -21,7 +21,6 @@ public sealed class NullableTypeArraysClient : INullableTypeArraysClient
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
-        AllowOutOfOrderMetadataProperties = true,
         Converters = { new global::NullableTypeArrays.Generated.EnumWireConverterFactory() },
     };
 
