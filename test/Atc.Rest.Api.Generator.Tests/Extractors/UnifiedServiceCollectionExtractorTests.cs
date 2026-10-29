@@ -49,6 +49,7 @@ public class UnifiedServiceCollectionExtractorTests
 
         // One paragraph per item with a typed bullet: Visual Studio's tooltip renders a <list> as one run-on line
         Assert.DoesNotContain("<list", result, StringComparison.Ordinal);
+
         // No "JSON options" item: this specification has neither an enum nor a polymorphic schema
         foreach (var item in new[] { "ProblemDetails", "application/problem+xml" })
         {
@@ -87,7 +88,9 @@ public class UnifiedServiceCollectionExtractorTests
     }
 
     // A spec with or without a polymorphic schema (a oneOf with a discriminator) and with or without an enum
-    private static string JsonOptionsYaml(bool polymorphic, bool enums)
+    private static string JsonOptionsYaml(
+        bool polymorphic,
+        bool enums)
         => $$"""
             openapi: 3.0.3
             info: { title: T, version: 1.0.0 }
