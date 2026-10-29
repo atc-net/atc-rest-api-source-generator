@@ -10,18 +10,21 @@ namespace Atc.Rest.Api.Generator.IntegrationTests;
 public sealed class ScaffoldedServerBuildTests(PackedGeneratorFixture package) : IClassFixture<PackedGeneratorFixture>
 {
     [Theory]
-    [InlineData("SingleProject")]
-    [InlineData("TwoProjects")]
-    [InlineData("ThreeProjects")]
+    [InlineData("SingleProject", "")]
+    [InlineData("TwoProjects", "")]
+    [InlineData("ThreeProjects", "")]
+    [InlineData("ThreeProjects", "--namespace Acme.Shop --domain-project Contoso.Core")]
+    [InlineData("TwoProjects", "--namespace Acme.Shop --domain-project Contoso.Core --domain-output lib/Contoso.Core")]
     public async Task GenerateServer_WritesASolutionThatBuilds(
-        string projectStructure)
+        string projectStructure,
+        string options)
     {
-        var output = package.NewDirectory($"scaffold-{projectStructure}");
+        var output = package.NewDirectory($"scaffold-{projectStructure}-{(uint)options.GetHashCode(StringComparison.Ordinal)}");
         var cli = Path.Combine(AppContext.BaseDirectory, "atc-rest-api-gen.dll");
         var specification = Path.Combine(AppContext.BaseDirectory, "Scenarios", "Demo", "Demo.yaml");
 
-        var scaffold = await PackedGeneratorFixture.RunDotnetAsync(
-            output,
+        string[] arguments =
+        [
             cli,
             "generate",
             "server",
@@ -33,7 +36,10 @@ public sealed class ScaffoldedServerBuildTests(PackedGeneratorFixture package) :
             "Contoso",
             "--project-structure",
             projectStructure,
-            "--no-coding-rules");
+            "--no-coding-rules",
+            .. options.Split(' ', StringSplitOptions.RemoveEmptyEntries),
+        ];
+        var scaffold = await PackedGeneratorFixture.RunDotnetAsync(output, arguments);
         Assert.True(scaffold.ExitCode == 0, $"generate server failed:\n{scaffold.Output}");
 
         // The scaffold references the generator version the CLI ships with: build against the packed one instead

@@ -193,15 +193,22 @@ public sealed class ProjectScaffoldingService
     /// The coding rules are not added: no <c>test/Directory.Build.props</c> brings the target framework, the test
     /// packages and the usings, so the project names them itself.
     /// </param>
+    /// <param name="testProjectName">The test project's name; <c>{base name of projectName}.Tests</c> when not set.</param>
+    /// <param name="projectPath">The tested project's folder; <c>{testPath}/../src/{projectName}</c> when not set.</param>
     /// <returns>True if successful, false otherwise.</returns>
     public bool GenerateTestProject(
         string testPath,
         string projectName,
         string targetFramework,
-        bool withoutCodingRules = false)
+        bool withoutCodingRules = false,
+        string? testProjectName = null,
+        string? projectPath = null)
     {
-        var testProjectName = $"{ProjectNameHelper.ExtractSolutionName(projectName)}.Tests";
+        testProjectName ??= $"{ProjectNameHelper.ExtractSolutionName(projectName)}.Tests";
         var testProjectPath = Path.Combine(testPath, testProjectName);
+        var reference = ToProjectReferencePath(
+            testProjectPath,
+            Path.Combine(projectPath ?? Path.Combine(testPath, "..", "src", projectName), $"{projectName}.csproj"));
         var csprojPath = Path.Combine(testProjectPath, $"{testProjectName}.csproj");
 
         try
@@ -214,8 +221,8 @@ public sealed class ProjectScaffoldingService
             if (!File.Exists(csprojPath))
             {
                 var csprojContent = withoutCodingRules
-                    ? GenerateStandaloneTestProjectContent(projectName, targetFramework)
-                    : GenerateTestProjectContent(projectName);
+                    ? GenerateStandaloneTestProjectContent(reference, targetFramework)
+                    : GenerateTestProjectContent(reference);
                 TrackedFile.WriteAllText(csprojPath, csprojContent);
                 AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created test project: {testProjectName}.csproj");
 
@@ -417,6 +424,13 @@ public sealed class ProjectScaffoldingService
     /// <param name="hostUi">API documentation UI type.</param>
     /// <param name="hostUiMode">When to enable the UI.</param>
     /// <param name="hostNamespace">The host project's root namespace; the project name when not set.</param>
+    /// <param name="serverNamespace">
+    /// The server marker's namespace, where the generated <c>Add/Use/Map{Api}Api()</c> and the handler registration
+    /// are; the host project's base name when not set.
+    /// </param>
+    /// <param name="apiName">The server marker's <c>apiName</c>, when it sets one.</param>
+    /// <param name="contractsProjectPath">The contracts project's folder; <c>{srcPath}/{contractsProjectName}</c> when not set.</param>
+    /// <param name="domainProjectPath">The domain project's folder; <c>{srcPath}/{domainProjectName}</c> when not set.</param>
     /// <returns>True if successful, false otherwise.</returns>
     public bool GenerateHostProject(
         string srcPath,
@@ -426,9 +440,26 @@ public sealed class ProjectScaffoldingService
         string targetFramework,
         HostUiType hostUi,
         HostUiModeType hostUiMode,
-        string? hostNamespace = null)
+        string? hostNamespace = null,
+        string? serverNamespace = null,
+        string? apiName = null,
+        string? contractsProjectPath = null,
+        string? domainProjectPath = null)
     {
         var hostProjectPath = Path.Combine(srcPath, hostProjectName);
+        var generatedNamespace = string.IsNullOrWhiteSpace(serverNamespace)
+            ? ProjectNameHelper.ExtractSolutionName(hostProjectName)
+            : serverNamespace;
+
+        // The contracts and the domain where they are (one reference when they are one project)
+        var references = new[]
+            {
+                Path.Combine(contractsProjectPath ?? Path.Combine(srcPath, contractsProjectName), $"{contractsProjectName}.csproj"),
+                Path.Combine(domainProjectPath ?? Path.Combine(srcPath, domainProjectName), $"{domainProjectName}.csproj"),
+            }
+            .Select(project => ToProjectReferencePath(hostProjectPath, project))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
         var csprojPath = Path.Combine(hostProjectPath, $"{hostProjectName}.csproj");
         var programPath = Path.Combine(hostProjectPath, "Program.cs");
 
@@ -445,8 +476,7 @@ public sealed class ProjectScaffoldingService
             if (!File.Exists(csprojPath))
             {
                 var csprojContent = GenerateHostProjectContent(
-                    contractsProjectName,
-                    domainProjectName,
+                    references,
                     targetFramework,
                     hostUi,
                     hostNamespace);
@@ -461,8 +491,11 @@ public sealed class ProjectScaffoldingService
             // Create Program.cs file
             if (!File.Exists(programPath))
             {
-                var baseName = ProjectNameHelper.ExtractSolutionName(hostProjectName);
-                var programContent = HostProjectFiles.ProgramContent(baseName, hostUi, hostUiMode);
+                var programContent = HostProjectFiles.ProgramContent(
+                    CasingHelper.GetApiName(generatedNamespace, apiName),
+                    domainProjectName.LastAssemblyNameTerm,
+                    hostUi,
+                    hostUiMode);
                 TrackedFile.WriteAllText(programPath, programContent);
                 AnsiConsole.MarkupLine("[green]✓[/] Created Program.cs");
             }
@@ -477,8 +510,7 @@ public sealed class ProjectScaffoldingService
             var globalUsingsPath = Path.Combine(hostProjectPath, "GlobalUsings.cs");
             if (!File.Exists(globalUsingsPath))
             {
-                var baseName = ProjectNameHelper.ExtractSolutionName(hostProjectName);
-                var globalUsingsContent = HostProjectFiles.GlobalUsingsContent(baseName, hostUi);
+                var globalUsingsContent = HostProjectFiles.GlobalUsingsContent(generatedNamespace, hostUi);
                 TrackedFile.WriteAllText(globalUsingsPath, globalUsingsContent);
                 AnsiConsole.MarkupLine("[green]✓[/] Created GlobalUsings.cs");
             }
@@ -556,8 +588,7 @@ public sealed class ProjectScaffoldingService
         }
     }
 
-    private static string GenerateTestProjectContent(
-        string contractsProjectName)
+    private static string GenerateTestProjectContent(string projectReference)
         => $"""
             <Project Sdk="Microsoft.NET.Sdk">
 
@@ -568,7 +599,7 @@ public sealed class ProjectScaffoldingService
               </PropertyGroup>
 
               <ItemGroup>
-                <ProjectReference Include="..\..\src\{contractsProjectName}\{contractsProjectName}.csproj" />
+                <ProjectReference Include="{projectReference}" />
               </ItemGroup>
 
             </Project>
@@ -577,7 +608,7 @@ public sealed class ProjectScaffoldingService
     // Without the coding rules: the target framework, the test packages (as the coding rules' test props pin them) and
     // the usings the sample test needs come from the project itself
     private static string GenerateStandaloneTestProjectContent(
-        string contractsProjectName,
+        string projectReference,
         string targetFramework)
         => $"""
             <Project Sdk="Microsoft.NET.Sdk">
@@ -592,9 +623,9 @@ public sealed class ProjectScaffoldingService
               </PropertyGroup>
 
               <ItemGroup>
-                <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
-                <PackageReference Include="xunit.v3" Version="4.0.2" />
-                <PackageReference Include="xunit.runner.visualstudio" Version="4.0.1">
+                <PackageReference Include="Microsoft.NET.Test.Sdk" Version="{PackageVersionDefaults.TestSdkVersion}" />
+                <PackageReference Include="xunit.v3" Version="{PackageVersionDefaults.XunitVersion}" />
+                <PackageReference Include="xunit.runner.visualstudio" Version="{PackageVersionDefaults.XunitRunnerVisualStudioVersion}">
                   <PrivateAssets>all</PrivateAssets>
                   <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
                 </PackageReference>
@@ -605,11 +636,17 @@ public sealed class ProjectScaffoldingService
               </ItemGroup>
 
               <ItemGroup>
-                <ProjectReference Include="..\..\src\{contractsProjectName}\{contractsProjectName}.csproj" />
+                <ProjectReference Include="{projectReference}" />
               </ItemGroup>
 
             </Project>
             """;
+
+    // A project reference from the folder of the referencing project, written with backslashes as project files are
+    private static string ToProjectReferencePath(
+        string fromProjectFolder,
+        string toProjectFile)
+        => Path.GetRelativePath(Path.GetFullPath(fromProjectFolder), Path.GetFullPath(toProjectFile)).Replace('/', '\\');
 
     private static string GenerateTestFileContent(string testProjectNamespace)
         => $$"""
@@ -633,8 +670,7 @@ public sealed class ProjectScaffoldingService
             """;
 
     private static string GenerateHostProjectContent(
-        string contractsProjectName,
-        string domainProjectName,
+        IReadOnlyList<string> projectReferences,
         string targetFramework,
         HostUiType hostUi,
         string? hostNamespace)
@@ -656,11 +692,10 @@ public sealed class ProjectScaffoldingService
         sb.AppendLine(2, "</PropertyGroup>");
         sb.AppendLine();
 
-        // Two projects keep the contracts in the domain project: one reference then
         sb.AppendLine(2, "<ItemGroup>");
-        foreach (var referenced in new[] { contractsProjectName, domainProjectName }.Distinct(StringComparer.Ordinal))
+        foreach (var reference in projectReferences)
         {
-            sb.AppendLine(4, $"<ProjectReference Include=\"..\\{referenced}\\{referenced}.csproj\" />");
+            sb.AppendLine(4, $"<ProjectReference Include=\"{reference}\" />");
         }
 
         sb.AppendLine(2, "</ItemGroup>");

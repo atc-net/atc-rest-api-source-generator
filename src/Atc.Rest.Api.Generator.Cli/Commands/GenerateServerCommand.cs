@@ -132,7 +132,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
                 if (plan.HasSeparateDomain)
                 {
                     ctx.Status("Setting up domain project...");
-                    if (!GenerateDomainProject(ctx, specPath, domainOutputPath, domainProjectName, contractsProjectName, outputPath, domainConfig, sourceGeneratorVersion))
+                    if (!GenerateDomainProject(ctx, specPath, domainOutputPath, domainProjectName, contractsProjectName, contractsOutputPath, outputPath, domainConfig, sourceGeneratorVersion))
                     {
                         return 1;
                     }
@@ -152,7 +152,11 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
                         scaffoldingConfig.TargetFramework,
                         scaffoldingConfig.HostUi,
                         scaffoldingConfig.HostUiMode,
-                        scaffoldingConfig.HostNamespace))
+                        scaffoldingConfig.HostNamespace,
+                        serverConfig.Namespace,
+                        serverConfig.ApiName,
+                        contractsOutputPath,
+                        domainOutputPath))
                     {
                         return 1;
                     }
@@ -179,14 +183,14 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
                 // Step 6: Generate test project
                 ctx.Status("Setting up test project...");
                 var testPath = Path.Combine(outputPath, "test");
-                if (!scaffoldingService.GenerateTestProject(testPath, contractsProjectName, scaffoldingConfig.TargetFramework, scaffoldingConfig.NoCodingRules))
+                if (!scaffoldingService.GenerateTestProject(testPath, contractsProjectName, scaffoldingConfig.TargetFramework, scaffoldingConfig.NoCodingRules, plan.TestProjectName, contractsOutputPath))
                 {
                     return 1;
                 }
 
                 // Step 7: Generate solution file
                 ctx.Status("Creating solution file...");
-                if (!scaffoldingService.GenerateSolutionFile(outputPath, contractsProjectName, [.. plan.SourceProjects], [.. plan.TestProjects]))
+                if (!scaffoldingService.GenerateSolutionFile(outputPath, plan.BaseName, [.. plan.SourceProjects], [.. plan.TestProjects]))
                 {
                     return 1;
                 }
@@ -587,6 +591,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         string outputPath,
         string projectName,
         string contractsProjectName,
+        string contractsOutputPath,
         string repositoryRoot,
         ServerDomainConfig config,
         Version sourceGeneratorVersion)
@@ -655,7 +660,12 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
 
         // Create or update project file with relative paths
         ctx.Status("Creating domain project file...");
-        if (!CreateOrUpdateDomainProjectFile(outputPath, projectName, contractsProjectName, relativeSpecPaths, sourceGeneratorVersion))
+
+        // The contracts where they are (two projects: this project itself, so no reference)
+        var contractsReference = string.Equals(contractsProjectName, projectName, StringComparison.Ordinal)
+            ? null
+            : Path.GetRelativePath(Path.GetFullPath(outputPath), Path.GetFullPath(Path.Combine(contractsOutputPath, $"{contractsProjectName}.csproj"))).Replace('/', '\\');
+        if (!CreateOrUpdateDomainProjectFile(outputPath, projectName, contractsReference, relativeSpecPaths, sourceGeneratorVersion))
         {
             return false;
         }
@@ -908,7 +918,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
     private static bool CreateOrUpdateDomainProjectFile(
         string outputPath,
         string projectName,
-        string contractsProjectName,
+        string? contractsReference,
         List<string> specFilePaths,
         Version sourceGeneratorVersion)
     {
@@ -918,7 +928,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         {
             if (!File.Exists(csprojPath))
             {
-                var csprojContent = GenerateDomainProjectFileContent(specFilePaths, contractsProjectName, sourceGeneratorVersion);
+                var csprojContent = GenerateDomainProjectFileContent(specFilePaths, contractsReference, sourceGeneratorVersion);
                 TrackedFile.WriteAllText(csprojPath, csprojContent);
                 AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created project file: {projectName}.csproj");
             }
@@ -981,7 +991,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
 
     private static string GenerateDomainProjectFileContent(
         List<string> specFilePaths,
-        string contractsProjectName,
+        string? contractsReference,
         Version sourceGeneratorVersion)
     {
         var sb = new StringBuilder();
@@ -995,10 +1005,14 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         sb.AppendLine(4, "<FrameworkReference Include=\"Microsoft.AspNetCore.App\" />");
         sb.AppendLine(2, "</ItemGroup>");
         sb.AppendLine();
-        sb.AppendLine(2, "<ItemGroup>");
-        sb.AppendLine(4, $"<ProjectReference Include=\"..\\{contractsProjectName}\\{contractsProjectName}.csproj\" />");
-        sb.AppendLine(2, "</ItemGroup>");
-        sb.AppendLine();
+        if (contractsReference is not null)
+        {
+            sb.AppendLine(2, "<ItemGroup>");
+            sb.AppendLine(4, $"<ProjectReference Include=\"{contractsReference}\" />");
+            sb.AppendLine(2, "</ItemGroup>");
+            sb.AppendLine();
+        }
+
         sb.AppendLine(2, "<ItemGroup>");
         sb.AppendLine(4, $"<PackageReference Include=\"Atc.Rest.Api.SourceGenerator\" Version=\"{sourceGeneratorVersion}\" OutputItemType=\"Analyzer\" ReferenceOutputAssembly=\"false\" />");
         sb.AppendLine(2, "</ItemGroup>");
@@ -1031,7 +1045,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             .Where(specPath => !content.Contains($"Include=\"{specPath}\"", StringComparison.OrdinalIgnoreCase))
             .ToList();
 
-        var hasMarkerInclude = content.Contains(markerFileName, StringComparison.OrdinalIgnoreCase);
+        var hasMarkerInclude = content.Contains($"Include=\"{markerFileName}\"", StringComparison.OrdinalIgnoreCase);
 
         if (missingSpecFiles.Count == 0 && hasMarkerInclude)
         {

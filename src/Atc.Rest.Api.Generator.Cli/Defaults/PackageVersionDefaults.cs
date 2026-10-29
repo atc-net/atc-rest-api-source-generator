@@ -26,6 +26,21 @@ internal static class PackageVersionDefaults
     public const string SignalRClientPackageId = "Microsoft.AspNetCore.SignalR.Client";
 
     /// <summary>
+    /// Microsoft.NET.Test.Sdk in a test project scaffolded without the coding rules (as their test props pin it).
+    /// </summary>
+    public const string TestSdkVersion = "18.11.0";
+
+    /// <summary>
+    /// xunit.v3 in a test project scaffolded without the coding rules (as their test props pin it).
+    /// </summary>
+    public const string XunitVersion = "4.0.2";
+
+    /// <summary>
+    /// xunit.runner.visualstudio in a test project scaffolded without the coding rules (as their test props pin it).
+    /// </summary>
+    public const string XunitRunnerVisualStudioVersion = "4.0.1";
+
+    /// <summary>
     /// Fallback version for Atc.Rest.Api.SourceGenerator when NuGet cannot be reached: the CLI's own version, since the
     /// CLI and the generator are released together.
     /// </summary>

@@ -56,12 +56,18 @@ public sealed record ServerScaffoldPlan(
     /// </summary>
     public IReadOnlyList<string> SourceProjects
         => [.. (IsThreeProjects
-                   ? new[] { HostProjectName, ContractsProjectName, DomainProjectName }
+                   ? new[] { (HostProjectName, HostOutputPath), (ContractsProjectName, ContractsOutputPath), (DomainProjectName, DomainOutputPath) }
                    : IsTwoProjects
-                       ? new[] { HostProjectName, DomainProjectName }
-                       : new[] { ContractsProjectName })
-               .Concat(AspireProjectName is null ? [] : [AspireProjectName])
-               .Select(name => $"src/{name}/{name}.csproj")];
+                       ? new[] { (HostProjectName, HostOutputPath), (DomainProjectName, DomainOutputPath) }
+                       : new[] { (ContractsProjectName, ContractsOutputPath) })
+               .Concat(AspireProjectName is null ? [] : [(AspireProjectName, Path.Combine(SourcePath, AspireProjectName))])
+               .Select(project => Path.GetRelativePath(RepositoryRoot, Path.Combine(project.Item2, $"{project.Item1}.csproj")).Replace('\\', '/'))];
+
+    /// <summary>
+    /// Gets the API host project's folder (the contracts project's for a single project).
+    /// </summary>
+    public string HostOutputPath
+        => HasSeparateDomain ? Path.Combine(SourcePath, HostProjectName) : ContractsOutputPath;
 
     /// <summary>
     /// Gets the solution's test projects.
@@ -120,6 +126,6 @@ public sealed record ServerScaffoldPlan(
             scaffolding.ProjectStructure == ProjectStructureType.TwoProjects ? domainPath : Path.Combine(sourcePath, contracts),
             domainPath,
             scaffolding.Aspire ? $"{baseName}.Aspire" : null,
-            ProjectNameHelper.ExtractSolutionName(contracts) + ".Tests");
+            baseName + ".Tests");
     }
 }
