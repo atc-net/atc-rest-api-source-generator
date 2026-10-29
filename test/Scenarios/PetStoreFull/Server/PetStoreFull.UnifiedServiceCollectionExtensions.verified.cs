@@ -33,7 +33,7 @@ public static class UnifiedServiceCollectionExtensions
     /// <para>Registers:</para>
     /// <para>• ProblemDetails (RFC 9457) for the errors raised outside the handlers</para>
     /// <para>• An XML problem writer, for a caller that prefers application/problem+xml</para>
-    /// <para>• JSON options: every generated enum on the wire as the specification writes it; a polymorphic body's discriminator anywhere in the object</para>
+    /// <para>• JSON options: every generated enum on the wire as the specification writes it</para>
     /// <para>• Authorization policies of the security schemes</para>
     /// <para>Registers no handler: add them next to it with the methods the handler project generates:</para>
     /// <para>• <c>services.AddApiHandlersFrom{HandlerProject}()</c> - the handlers</para>
@@ -58,13 +58,8 @@ public static class UnifiedServiceCollectionExtensions
             services.AddProblemDetails();
         }
 
-        // A polymorphic body's discriminator may stand anywhere in the object, not only first
         // Every generated enum on the wire as the specification writes it, whatever enum converter the host adds
-        services.ConfigureHttpJsonOptions(o =>
-        {
-            o.SerializerOptions.AllowOutOfOrderMetadataProperties = true;
-            o.SerializerOptions.Converters.Insert(0, new global::PetStoreFull.Generated.EnumWireConverterFactory());
-        });
+        services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Insert(0, new global::PetStoreFull.Generated.EnumWireConverterFactory()));
 
         // Register security policies from OpenAPI security schemes
         if (options.UseSecurity)

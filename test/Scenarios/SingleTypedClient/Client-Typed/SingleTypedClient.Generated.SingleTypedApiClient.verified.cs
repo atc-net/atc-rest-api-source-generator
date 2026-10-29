@@ -21,7 +21,6 @@ public sealed class SingleTypedApiClient : ISingleTypedApiClient
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
-        AllowOutOfOrderMetadataProperties = true,
         Converters = { new global::SingleTypedClient.Generated.EnumWireConverterFactory() },
     };
 

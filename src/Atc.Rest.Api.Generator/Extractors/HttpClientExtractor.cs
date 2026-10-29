@@ -18,7 +18,11 @@ public static partial class HttpClientExtractor
         [
             "PropertyNamingPolicy = JsonNamingPolicy.CamelCase,",
             "PropertyNameCaseInsensitive = true,",
-            "AllowOutOfOrderMetadataProperties = true,",
+
+            // A polymorphic response's discriminator may stand anywhere in the object - only where there is one
+            .. PolymorphicTypeExtractor.ExtractPolymorphicConfigs(openApiDoc) is not null
+                ? new[] { "AllowOutOfOrderMetadataProperties = true," }
+                : [],
             .. EnumWireConverterExtractor.HasEnums(openApiDoc)
                 ? new[] { $"Converters = {{ new global::{NamespaceBuilder.BuildBase(projectName)}.{EnumWireConverterExtractor.ClassName}() }}," }
                 : [],

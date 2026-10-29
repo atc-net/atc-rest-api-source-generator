@@ -21,7 +21,6 @@ public sealed class ValidationsClient : IValidationsClient
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
-        AllowOutOfOrderMetadataProperties = true,
         Converters = { new global::ModelsAndProperties.Generated.EnumWireConverterFactory() },
     };
 

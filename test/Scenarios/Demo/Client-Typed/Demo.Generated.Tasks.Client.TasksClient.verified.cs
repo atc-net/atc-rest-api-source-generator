@@ -22,7 +22,6 @@ public sealed class TasksClient : ITasksClient
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
-        AllowOutOfOrderMetadataProperties = true,
         Converters = { new global::Demo.Generated.EnumWireConverterFactory() },
     };
 

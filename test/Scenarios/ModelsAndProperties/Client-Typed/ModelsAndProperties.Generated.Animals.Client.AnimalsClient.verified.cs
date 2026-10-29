@@ -21,7 +21,6 @@ public sealed class AnimalsClient : IAnimalsClient
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
-        AllowOutOfOrderMetadataProperties = true,
         Converters = { new global::ModelsAndProperties.Generated.EnumWireConverterFactory() },
     };
 

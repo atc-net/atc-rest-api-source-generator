@@ -21,7 +21,6 @@ public sealed class SchemaSummaryFieldsClient : ISchemaSummaryFieldsClient
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
-        AllowOutOfOrderMetadataProperties = true,
         Converters = { new global::SchemaSummaryFields.Generated.EnumWireConverterFactory() },
     };
 

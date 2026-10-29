@@ -21,7 +21,6 @@ public sealed class MediaTypeParametersClient : IMediaTypeParametersClient
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
-        AllowOutOfOrderMetadataProperties = true,
     };
 
     private readonly HttpClient httpClient;

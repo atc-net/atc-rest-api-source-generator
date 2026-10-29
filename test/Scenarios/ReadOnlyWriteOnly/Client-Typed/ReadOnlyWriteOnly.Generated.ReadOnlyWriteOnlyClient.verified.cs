@@ -20,7 +20,6 @@ public sealed class ReadOnlyWriteOnlyClient : IReadOnlyWriteOnlyClient
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
-        AllowOutOfOrderMetadataProperties = true,
     };
 
     private readonly HttpClient httpClient;
