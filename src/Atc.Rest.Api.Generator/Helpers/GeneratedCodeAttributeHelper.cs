@@ -17,7 +17,7 @@ public static class GeneratedCodeAttributeHelper
     // property/event — NOT interface, enum, or delegate. Skip attaching it to those declarations.
     private static readonly string[] UnsupportedDeclarationTokens = ["interface", "enum", "delegate"];
 
-    private static readonly TimeSpan RegexTimeout = TimeSpan.FromSeconds(1);
+    private static readonly TimeSpan RegexTimeout = Regex.InfiniteMatchTimeout;
 
     private static readonly Regex CodeDomCompilerUsingRegex = new(
         @"(?<using>using System\.CodeDom\.Compiler;[ \t]*)(?<eol>\r?\n)",

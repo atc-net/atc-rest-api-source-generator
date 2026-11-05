@@ -746,7 +746,7 @@ public static class SchemaExtractor
     private static readonly System.Text.RegularExpressions.Regex UnclosedLineBreak = new(
         @"</?br\s*/?>",
         System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant,
-        TimeSpan.FromSeconds(1));
+        System.Text.RegularExpressions.Regex.InfiniteMatchTimeout);
 
     /// <summary>
     /// Makes a specification description fit for an XML doc comment: an HTML line break written the HTML way

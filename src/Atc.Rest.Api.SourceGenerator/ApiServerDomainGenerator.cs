@@ -9,7 +9,7 @@ namespace Atc.Rest.Api.SourceGenerator;
 [Generator(LanguageNames.CSharp)]
 public class ApiServerDomainGenerator : IIncrementalGenerator
 {
-    private static readonly Regex WhitespaceNormalizerRegex = new(@"\s+", RegexOptions.Compiled, TimeSpan.FromSeconds(1));
+    private static readonly Regex WhitespaceNormalizerRegex = new(@"\s+", RegexOptions.Compiled, Regex.InfiniteMatchTimeout);
 
     // The parameter list runs to its own closing parenthesis (balanced): a default value or an attribute argument
     // with parentheses of its own is part of it, not its end

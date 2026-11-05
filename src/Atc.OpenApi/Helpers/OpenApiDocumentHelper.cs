@@ -27,7 +27,7 @@ public static class OpenApiDocumentHelper
     private static readonly System.Text.RegularExpressions.Regex XmlNamespaceValue = new(
         @"(?<key>[""']?namespace[""']?[ \t]*:[ \t]*)(?<quote>[""']?)(?<value>[^""'\s,{}\[\]]+)\k<quote>",
         System.Text.RegularExpressions.RegexOptions.CultureInvariant,
-        TimeSpan.FromSeconds(1));
+        System.Text.RegularExpressions.Regex.InfiniteMatchTimeout);
 
     /// <summary>
     /// Clears the in-process parse cache.

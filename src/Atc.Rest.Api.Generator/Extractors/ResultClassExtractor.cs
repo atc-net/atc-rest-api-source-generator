@@ -968,7 +968,7 @@ public static class ResultClassExtractor
         var status = isDefault ? "statusCode" : code.ToString(CultureInfo.InvariantCulture);
         var doc = isDefault
             ? $"Default error response - {description}"
-            : $"{statusCode} {Regex.Replace(HttpStatusCodeHelper.ToEnumName(code), "(?<=[a-z])(?=[A-Z])", " ", RegexOptions.None, TimeSpan.FromSeconds(1))} - {description}";
+            : $"{statusCode} {Regex.Replace(HttpStatusCodeHelper.ToEnumName(code), "(?<=[a-z])(?=[A-Z])", " ", RegexOptions.None, Regex.InfiniteMatchTimeout)} - {description}";
         var isTooManyRequests = code == 429;
 
         // default: the status is a parameter (default 500), so "any other status" stays expressible.
