@@ -12,8 +12,8 @@ using Callbacks30.Generated.Endpoints;
 namespace Callbacks30.Generated.Extensions;
 
 /// <summary>
-/// The host wiring of the Callbacks30 API: <see cref="UseCallbacks30Api"/> adds the middleware,
-/// <see cref="MapCallbacks30Api"/> maps the endpoints.
+/// The host wiring of the Callbacks30 API: <see cref="UseCallbacks30ApiMiddleware"/> adds the middleware,
+/// <see cref="MapCallbacks30ApiEndpoints(WebApplication)"/> maps the endpoints.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public static class UnifiedWebApplicationExtensions
@@ -21,7 +21,8 @@ public static class UnifiedWebApplicationExtensions
     private const string UseApiMark = "Callbacks30.Generated.UseCallbacks30Api";
 
     /// <summary>
-    /// Adds the middleware the Callbacks30 API needs, in the recommended order. Call it before <see cref="MapCallbacks30Api"/>.
+    /// Adds the middleware the generated endpoints of the Callbacks30 API rely on, in the order listed below. It maps no
+    /// endpoint: call <see cref="MapCallbacks30ApiEndpoints(WebApplication)"/> after it.
     /// </summary>
     /// <param name="app">The web application.</param>
     /// <param name="configure">
@@ -36,10 +37,10 @@ public static class UnifiedWebApplicationExtensions
     /// <para>• The host's own middleware from <c>AfterErrorHandling</c> (CORS, HSTS, HTTPS redirection)</para>
     /// <para>
     /// Turn off what the host adds itself. A host that orders its whole pipeline itself does not call this method,
-    /// adds the middleware above itself and calls <c>MapCallbacks30Api(requireUse: false)</c>.
+    /// adds the middleware above itself and calls <c>MapCallbacks30ApiEndpoints(requireUse: false)</c>.
     /// </para>
     /// </remarks>
-    public static WebApplication UseCallbacks30Api(
+    public static WebApplication UseCallbacks30ApiMiddleware(
         this WebApplication app,
         Action<ApiMiddlewareOptions>? configure = null)
     {
@@ -71,33 +72,46 @@ public static class UnifiedWebApplicationExtensions
     }
 
     /// <summary>
-    /// Maps all endpoints of the Callbacks30 API. Call it after <see cref="UseCallbacks30Api"/>, which adds the middleware
-    /// the endpoints need (error handling, authentication, ...).
+    /// Maps every endpoint of the Callbacks30 API. It adds no middleware: call <see cref="UseCallbacks30ApiMiddleware"/> before
+    /// it.
     /// </summary>
     /// <param name="app">The web application.</param>
     /// <param name="requireUse">
-    /// <see langword="true"/> (default): throw at startup when <see cref="UseCallbacks30Api"/> was not called first.
+    /// <see langword="true"/>: throw at startup when <see cref="UseCallbacks30ApiMiddleware"/> was not called first.
     /// <see langword="false"/>: the host adds that middleware itself.
     /// </param>
     /// <returns>The web application, for chaining.</returns>
     /// <exception cref="InvalidOperationException">
-    /// <see cref="UseCallbacks30Api"/> was not called first, and <paramref name="requireUse"/> is <see langword="true"/>.
+    /// <see cref="UseCallbacks30ApiMiddleware"/> was not called first, and <paramref name="requireUse"/> is <see langword="true"/>.
     /// </exception>
-    public static WebApplication MapCallbacks30Api(
+    public static WebApplication MapCallbacks30ApiEndpoints(
         this WebApplication app,
-        bool requireUse = true)
+        bool requireUse)
     {
-        // The endpoints rely on the middleware Use…Api() adds: without it they would run without their error handling
+        // The endpoints rely on the middleware Use…ApiMiddleware() adds: without it they would run without their error handling
         if (requireUse && !((global::Microsoft.AspNetCore.Builder.IApplicationBuilder)app).Properties.ContainsKey(UseApiMark))
         {
             throw new InvalidOperationException(
-                "Call app.UseCallbacks30Api() before app.MapCallbacks30Api(): it adds the error handling, the status code pages " +
+                "Call app.UseCallbacks30ApiMiddleware() before app.MapCallbacks30ApiEndpoints(): it adds the error handling, the status code pages " +
                 "and the rest of the middleware the endpoints rely on. " +
-                "A host that adds that middleware itself calls app.MapCallbacks30Api(requireUse: false).");
+                "A host that adds that middleware itself calls app.MapCallbacks30ApiEndpoints(requireUse: false).");
         }
 
         app.MapEndpoints();
 
         return app;
     }
+
+    /// <summary>
+    /// Maps every endpoint of the Callbacks30 API. It adds no middleware: call <see cref="UseCallbacks30ApiMiddleware"/> before
+    /// it, or this method throws at startup.
+    /// </summary>
+    /// <param name="app">The web application.</param>
+    /// <returns>The web application, for chaining.</returns>
+    /// <exception cref="InvalidOperationException">
+    /// <see cref="UseCallbacks30ApiMiddleware"/> was not called first.
+    /// </exception>
+    public static WebApplication MapCallbacks30ApiEndpoints(
+        this WebApplication app)
+        => MapCallbacks30ApiEndpoints(app, requireUse: true);
 }

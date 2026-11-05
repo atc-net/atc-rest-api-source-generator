@@ -45,7 +45,7 @@ public class UnifiedServiceCollectionExtractorTests
         var lines = result.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
         Assert.DoesNotContain(lines, line => line.TrimStart().StartsWith("/// - ", StringComparison.Ordinal));
         Assert.DoesNotContain("TestApi API", result, StringComparison.Ordinal);
-        Assert.Contains("/// Adds the services the Test API needs.", result, StringComparison.Ordinal);
+        Assert.Contains("/// Registers the services the generated endpoints of the Test API rely on", result, StringComparison.Ordinal);
 
         // One paragraph per item with a typed bullet: Visual Studio's tooltip renders a <list> as one run-on line
         Assert.DoesNotContain("<list", result, StringComparison.Ordinal);
@@ -62,7 +62,7 @@ public class UnifiedServiceCollectionExtractorTests
     /// <summary>
     /// <c>AllowOutOfOrderMetadataProperties</c> lets a polymorphic body's discriminator stand anywhere in the object:
     /// it is set only when the specification has a polymorphic schema. The enum wire converter has a block of its own;
-    /// with neither, Add{Api}Api() configures no JSON options at all.
+    /// with neither, Add{Api}ApiServices() configures no JSON options at all.
     /// </summary>
     [Theory]
     [InlineData(false, false)]

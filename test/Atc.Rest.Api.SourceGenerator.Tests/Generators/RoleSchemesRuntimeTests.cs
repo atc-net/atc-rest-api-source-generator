@@ -113,17 +113,17 @@ public class RoleSchemesRuntimeTests
 
         builder.Services.AddScoped(handlerInterface, handlerType);
         serviceExtensions
-            .GetMethod("AddCamerasApi")!
+            .GetMethod("AddCamerasApiServices")!
             .Invoke(null, [builder.Services, null]);
 
         var app = builder.Build();
         app.Urls.Add("http://127.0.0.1:0");
 
         appExtensions
-            .GetMethod("UseCamerasApi")!
+            .GetMethod("UseCamerasApiMiddleware")!
             .Invoke(null, [app, null]);
         appExtensions
-            .GetMethod("MapCamerasApi")!
+            .GetMethod("MapCamerasApiEndpoints", [typeof(Microsoft.AspNetCore.Builder.WebApplication), typeof(bool)])!
             .Invoke(null, [app, true]);
 
         await app.StartAsync(TestContext.Current.CancellationToken);

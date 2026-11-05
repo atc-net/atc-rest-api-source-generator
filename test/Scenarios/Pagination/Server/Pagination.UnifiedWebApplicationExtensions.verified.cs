@@ -12,8 +12,8 @@ using Pagination.Generated.Endpoints;
 namespace Pagination.Generated.Extensions;
 
 /// <summary>
-/// The host wiring of the Pagination API: <see cref="UsePaginationApi"/> adds the middleware,
-/// <see cref="MapPaginationApi"/> maps the endpoints.
+/// The host wiring of the Pagination API: <see cref="UsePaginationApiMiddleware"/> adds the middleware,
+/// <see cref="MapPaginationApiEndpoints(WebApplication)"/> maps the endpoints.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public static class UnifiedWebApplicationExtensions
@@ -21,7 +21,8 @@ public static class UnifiedWebApplicationExtensions
     private const string UseApiMark = "Pagination.Generated.UsePaginationApi";
 
     /// <summary>
-    /// Adds the middleware the Pagination API needs, in the recommended order. Call it before <see cref="MapPaginationApi"/>.
+    /// Adds the middleware the generated endpoints of the Pagination API rely on, in the order listed below. It maps no
+    /// endpoint: call <see cref="MapPaginationApiEndpoints(WebApplication)"/> after it.
     /// </summary>
     /// <param name="app">The web application.</param>
     /// <param name="configure">
@@ -36,10 +37,10 @@ public static class UnifiedWebApplicationExtensions
     /// <para>• The host's own middleware from <c>AfterErrorHandling</c> (CORS, HSTS, HTTPS redirection)</para>
     /// <para>
     /// Turn off what the host adds itself. A host that orders its whole pipeline itself does not call this method,
-    /// adds the middleware above itself and calls <c>MapPaginationApi(requireUse: false)</c>.
+    /// adds the middleware above itself and calls <c>MapPaginationApiEndpoints(requireUse: false)</c>.
     /// </para>
     /// </remarks>
-    public static WebApplication UsePaginationApi(
+    public static WebApplication UsePaginationApiMiddleware(
         this WebApplication app,
         Action<ApiMiddlewareOptions>? configure = null)
     {
@@ -71,33 +72,46 @@ public static class UnifiedWebApplicationExtensions
     }
 
     /// <summary>
-    /// Maps all endpoints of the Pagination API. Call it after <see cref="UsePaginationApi"/>, which adds the middleware
-    /// the endpoints need (error handling, authentication, ...).
+    /// Maps every endpoint of the Pagination API. It adds no middleware: call <see cref="UsePaginationApiMiddleware"/> before
+    /// it.
     /// </summary>
     /// <param name="app">The web application.</param>
     /// <param name="requireUse">
-    /// <see langword="true"/> (default): throw at startup when <see cref="UsePaginationApi"/> was not called first.
+    /// <see langword="true"/>: throw at startup when <see cref="UsePaginationApiMiddleware"/> was not called first.
     /// <see langword="false"/>: the host adds that middleware itself.
     /// </param>
     /// <returns>The web application, for chaining.</returns>
     /// <exception cref="InvalidOperationException">
-    /// <see cref="UsePaginationApi"/> was not called first, and <paramref name="requireUse"/> is <see langword="true"/>.
+    /// <see cref="UsePaginationApiMiddleware"/> was not called first, and <paramref name="requireUse"/> is <see langword="true"/>.
     /// </exception>
-    public static WebApplication MapPaginationApi(
+    public static WebApplication MapPaginationApiEndpoints(
         this WebApplication app,
-        bool requireUse = true)
+        bool requireUse)
     {
-        // The endpoints rely on the middleware Use…Api() adds: without it they would run without their error handling
+        // The endpoints rely on the middleware Use…ApiMiddleware() adds: without it they would run without their error handling
         if (requireUse && !((global::Microsoft.AspNetCore.Builder.IApplicationBuilder)app).Properties.ContainsKey(UseApiMark))
         {
             throw new InvalidOperationException(
-                "Call app.UsePaginationApi() before app.MapPaginationApi(): it adds the error handling, the status code pages " +
+                "Call app.UsePaginationApiMiddleware() before app.MapPaginationApiEndpoints(): it adds the error handling, the status code pages " +
                 "and the rest of the middleware the endpoints rely on. " +
-                "A host that adds that middleware itself calls app.MapPaginationApi(requireUse: false).");
+                "A host that adds that middleware itself calls app.MapPaginationApiEndpoints(requireUse: false).");
         }
 
         app.MapEndpoints();
 
         return app;
     }
+
+    /// <summary>
+    /// Maps every endpoint of the Pagination API. It adds no middleware: call <see cref="UsePaginationApiMiddleware"/> before
+    /// it, or this method throws at startup.
+    /// </summary>
+    /// <param name="app">The web application.</param>
+    /// <returns>The web application, for chaining.</returns>
+    /// <exception cref="InvalidOperationException">
+    /// <see cref="UsePaginationApiMiddleware"/> was not called first.
+    /// </exception>
+    public static WebApplication MapPaginationApiEndpoints(
+        this WebApplication app)
+        => MapPaginationApiEndpoints(app, requireUse: true);
 }

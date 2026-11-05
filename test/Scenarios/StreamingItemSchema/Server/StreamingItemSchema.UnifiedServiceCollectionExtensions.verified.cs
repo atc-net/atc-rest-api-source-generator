@@ -17,13 +17,14 @@ using StreamingItemSchema.Generated.EventsSseNamed.Handlers;
 namespace StreamingItemSchema.Generated.Extensions;
 
 /// <summary>
-/// The service registration of the StreamingItemSchema API: <see cref="AddStreamingItemSchemaApi"/>.
+/// The service registration of the StreamingItemSchema API: <see cref="AddStreamingItemSchemaApiServices"/>.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public static class UnifiedServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds the services the StreamingItemSchema API needs. Call it once; the handlers are registered next to it.
+    /// Registers the services the generated endpoints of the StreamingItemSchema API rely on, chosen from the specification and
+    /// the marker file. It registers no handler and maps no endpoint.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configure">
@@ -37,7 +38,7 @@ public static class UnifiedServiceCollectionExtensions
     /// <para>• <c>services.AddApiHandlersFrom{HandlerProject}()</c> - the handlers</para>
     /// <para>• <c>services.AddApiValidatorsFrom{HandlerProject}()</c> - the validators</para>
     /// </remarks>
-    public static IServiceCollection AddStreamingItemSchemaApi(
+    public static IServiceCollection AddStreamingItemSchemaApiServices(
         this IServiceCollection services,
         Action<ApiServiceOptions>? configure = null)
     {

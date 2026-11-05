@@ -3,7 +3,7 @@ namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 /// <summary>
 /// A generated server on Kestrel (random port) with test handlers: the specification is generated, the handler source
 /// (which sees every generated namespace) is compiled with it, and the registration type's <c>Register(IServiceCollection)</c>
-/// adds the handlers before the generated <c>Add/Map{Project}Api</c>; <c>configure</c> adds middleware before the endpoints.
+/// adds the handlers before the generated <c>Add{Project}ApiServices/Map{Project}ApiEndpoints</c>; <c>configure</c> adds middleware before the endpoints.
 /// </summary>
 internal sealed class XmlTestHost : IAsyncDisposable
 {
@@ -28,7 +28,7 @@ internal sealed class XmlTestHost : IAsyncDisposable
     public Assembly Assembly { get; }
 
     /// <summary>
-    /// Generates, compiles and starts the server - through the generated <c>Add/Map{Project}Api</c>, or for the plain
+    /// Generates, compiles and starts the server - through the generated <c>Add{Project}ApiServices/Map{Project}ApiEndpoints</c>, or for the plain
     /// host (<paramref name="plainHost"/>: no <c>Atc.Rest.MinimalApi</c>) through <c>MapEndpoints()</c> with
     /// <c>AddProblemDetails</c>, <c>UseExceptionHandler</c> and <c>UseStatusCodePages</c> written by hand. With
     /// <paramref name="useRequestDelegateGenerator"/> the endpoints run through RDG's request delegates, as in a Native
@@ -74,7 +74,7 @@ internal sealed class XmlTestHost : IAsyncDisposable
         }
         else
         {
-            assembly.GetType("ErrorBodies.Generated.Extensions.UnifiedServiceCollectionExtensions", throwOnError: true)!.GetMethod("AddErrorBodiesApi")!.Invoke(null, [builder.Services, null]);
+            assembly.GetType("ErrorBodies.Generated.Extensions.UnifiedServiceCollectionExtensions", throwOnError: true)!.GetMethod("AddErrorBodiesApiServices")!.Invoke(null, [builder.Services, null]);
         }
 
         var webApp = builder.Build();
@@ -94,8 +94,8 @@ internal sealed class XmlTestHost : IAsyncDisposable
         else
         {
             var wiring = assembly.GetType("ErrorBodies.Generated.Extensions.UnifiedWebApplicationExtensions", throwOnError: true)!;
-            wiring.GetMethod("UseErrorBodiesApi")!.Invoke(null, [webApp, null]);
-            wiring.GetMethod("MapErrorBodiesApi")!.Invoke(null, [webApp, true]);
+            wiring.GetMethod("UseErrorBodiesApiMiddleware")!.Invoke(null, [webApp, null]);
+            wiring.GetMethod("MapErrorBodiesApiEndpoints", [typeof(Microsoft.AspNetCore.Builder.WebApplication), typeof(bool)])!.Invoke(null, [webApp, true]);
         }
 
         await webApp.StartAsync(TestContext.Current.CancellationToken);

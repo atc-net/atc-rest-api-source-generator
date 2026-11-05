@@ -12,8 +12,8 @@ using AsyncEnumerableHooks.Generated.Endpoints;
 namespace AsyncEnumerableHooks.Generated.Extensions;
 
 /// <summary>
-/// The host wiring of the AsyncEnumerableHooks API: <see cref="UseAsyncEnumerableHooksApi"/> adds the middleware,
-/// <see cref="MapAsyncEnumerableHooksApi"/> maps the endpoints.
+/// The host wiring of the AsyncEnumerableHooks API: <see cref="UseAsyncEnumerableHooksApiMiddleware"/> adds the middleware,
+/// <see cref="MapAsyncEnumerableHooksApiEndpoints(WebApplication)"/> maps the endpoints.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public static class UnifiedWebApplicationExtensions
@@ -21,7 +21,8 @@ public static class UnifiedWebApplicationExtensions
     private const string UseApiMark = "AsyncEnumerableHooks.Generated.UseAsyncEnumerableHooksApi";
 
     /// <summary>
-    /// Adds the middleware the AsyncEnumerableHooks API needs, in the recommended order. Call it before <see cref="MapAsyncEnumerableHooksApi"/>.
+    /// Adds the middleware the generated endpoints of the AsyncEnumerableHooks API rely on, in the order listed below. It maps no
+    /// endpoint: call <see cref="MapAsyncEnumerableHooksApiEndpoints(WebApplication)"/> after it.
     /// </summary>
     /// <param name="app">The web application.</param>
     /// <param name="configure">
@@ -36,10 +37,10 @@ public static class UnifiedWebApplicationExtensions
     /// <para>• The host's own middleware from <c>AfterErrorHandling</c> (CORS, HSTS, HTTPS redirection)</para>
     /// <para>
     /// Turn off what the host adds itself. A host that orders its whole pipeline itself does not call this method,
-    /// adds the middleware above itself and calls <c>MapAsyncEnumerableHooksApi(requireUse: false)</c>.
+    /// adds the middleware above itself and calls <c>MapAsyncEnumerableHooksApiEndpoints(requireUse: false)</c>.
     /// </para>
     /// </remarks>
-    public static WebApplication UseAsyncEnumerableHooksApi(
+    public static WebApplication UseAsyncEnumerableHooksApiMiddleware(
         this WebApplication app,
         Action<ApiMiddlewareOptions>? configure = null)
     {
@@ -71,33 +72,46 @@ public static class UnifiedWebApplicationExtensions
     }
 
     /// <summary>
-    /// Maps all endpoints of the AsyncEnumerableHooks API. Call it after <see cref="UseAsyncEnumerableHooksApi"/>, which adds the middleware
-    /// the endpoints need (error handling, authentication, ...).
+    /// Maps every endpoint of the AsyncEnumerableHooks API. It adds no middleware: call <see cref="UseAsyncEnumerableHooksApiMiddleware"/> before
+    /// it.
     /// </summary>
     /// <param name="app">The web application.</param>
     /// <param name="requireUse">
-    /// <see langword="true"/> (default): throw at startup when <see cref="UseAsyncEnumerableHooksApi"/> was not called first.
+    /// <see langword="true"/>: throw at startup when <see cref="UseAsyncEnumerableHooksApiMiddleware"/> was not called first.
     /// <see langword="false"/>: the host adds that middleware itself.
     /// </param>
     /// <returns>The web application, for chaining.</returns>
     /// <exception cref="InvalidOperationException">
-    /// <see cref="UseAsyncEnumerableHooksApi"/> was not called first, and <paramref name="requireUse"/> is <see langword="true"/>.
+    /// <see cref="UseAsyncEnumerableHooksApiMiddleware"/> was not called first, and <paramref name="requireUse"/> is <see langword="true"/>.
     /// </exception>
-    public static WebApplication MapAsyncEnumerableHooksApi(
+    public static WebApplication MapAsyncEnumerableHooksApiEndpoints(
         this WebApplication app,
-        bool requireUse = true)
+        bool requireUse)
     {
-        // The endpoints rely on the middleware Use…Api() adds: without it they would run without their error handling
+        // The endpoints rely on the middleware Use…ApiMiddleware() adds: without it they would run without their error handling
         if (requireUse && !((global::Microsoft.AspNetCore.Builder.IApplicationBuilder)app).Properties.ContainsKey(UseApiMark))
         {
             throw new InvalidOperationException(
-                "Call app.UseAsyncEnumerableHooksApi() before app.MapAsyncEnumerableHooksApi(): it adds the error handling, the status code pages " +
+                "Call app.UseAsyncEnumerableHooksApiMiddleware() before app.MapAsyncEnumerableHooksApiEndpoints(): it adds the error handling, the status code pages " +
                 "and the rest of the middleware the endpoints rely on. " +
-                "A host that adds that middleware itself calls app.MapAsyncEnumerableHooksApi(requireUse: false).");
+                "A host that adds that middleware itself calls app.MapAsyncEnumerableHooksApiEndpoints(requireUse: false).");
         }
 
         app.MapEndpoints();
 
         return app;
     }
+
+    /// <summary>
+    /// Maps every endpoint of the AsyncEnumerableHooks API. It adds no middleware: call <see cref="UseAsyncEnumerableHooksApiMiddleware"/> before
+    /// it, or this method throws at startup.
+    /// </summary>
+    /// <param name="app">The web application.</param>
+    /// <returns>The web application, for chaining.</returns>
+    /// <exception cref="InvalidOperationException">
+    /// <see cref="UseAsyncEnumerableHooksApiMiddleware"/> was not called first.
+    /// </exception>
+    public static WebApplication MapAsyncEnumerableHooksApiEndpoints(
+        this WebApplication app)
+        => MapAsyncEnumerableHooksApiEndpoints(app, requireUse: true);
 }

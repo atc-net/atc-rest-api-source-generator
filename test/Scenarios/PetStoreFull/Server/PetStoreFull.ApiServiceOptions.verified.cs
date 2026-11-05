@@ -9,7 +9,7 @@ using System.CodeDom.Compiler;
 namespace PetStoreFull.Generated;
 
 /// <summary>
-/// The options of the generated <c>Add…Api()</c>: a switch per registration it makes.
+/// The options of the generated <c>Add…ApiServices()</c>: a switch per registration it makes.
 /// </summary>
 /// <remarks>
 /// Note: the handlers (AddApiHandlersFrom{HandlerProject}) and the validators (AddApiValidatorsFrom{HandlerProject},

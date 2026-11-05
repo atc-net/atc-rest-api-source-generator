@@ -127,7 +127,7 @@ public static class RateLimitDependencyInjectionExtractor
     {
         var builder = new StringBuilder();
 
-        // Idempotent: Add{Project}Api() calls this, and a host may call it too - RateLimiterOptions throws on a
+        // Idempotent: Add{Project}ApiServices() calls this, and a host may call it too - RateLimiterOptions throws on a
         // policy name it already has, so a repeat call only forwards its configure
         builder.AppendLine(8, "// A repeat call (a host's own call beside the generated Add...Api()) adds no policy twice - it only applies its configure");
         builder.AppendLine(8, "if (services.Any(d => d.ServiceType == typeof(ApiRateLimitingMarker)))");

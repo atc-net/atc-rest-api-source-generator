@@ -12,8 +12,8 @@ using ValidationConstraints.Generated.Endpoints;
 namespace ValidationConstraints.Generated.Extensions;
 
 /// <summary>
-/// The host wiring of the ValidationConstraints API: <see cref="UseValidationConstraintsApi"/> adds the middleware,
-/// <see cref="MapValidationConstraintsApi"/> maps the endpoints.
+/// The host wiring of the ValidationConstraints API: <see cref="UseValidationConstraintsApiMiddleware"/> adds the middleware,
+/// <see cref="MapValidationConstraintsApiEndpoints(WebApplication)"/> maps the endpoints.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public static class UnifiedWebApplicationExtensions
@@ -21,7 +21,8 @@ public static class UnifiedWebApplicationExtensions
     private const string UseApiMark = "ValidationConstraints.Generated.UseValidationConstraintsApi";
 
     /// <summary>
-    /// Adds the middleware the ValidationConstraints API needs, in the recommended order. Call it before <see cref="MapValidationConstraintsApi"/>.
+    /// Adds the middleware the generated endpoints of the ValidationConstraints API rely on, in the order listed below. It maps no
+    /// endpoint: call <see cref="MapValidationConstraintsApiEndpoints(WebApplication)"/> after it.
     /// </summary>
     /// <param name="app">The web application.</param>
     /// <param name="configure">
@@ -36,10 +37,10 @@ public static class UnifiedWebApplicationExtensions
     /// <para>• The host's own middleware from <c>AfterErrorHandling</c> (CORS, HSTS, HTTPS redirection)</para>
     /// <para>
     /// Turn off what the host adds itself. A host that orders its whole pipeline itself does not call this method,
-    /// adds the middleware above itself and calls <c>MapValidationConstraintsApi(requireUse: false)</c>.
+    /// adds the middleware above itself and calls <c>MapValidationConstraintsApiEndpoints(requireUse: false)</c>.
     /// </para>
     /// </remarks>
-    public static WebApplication UseValidationConstraintsApi(
+    public static WebApplication UseValidationConstraintsApiMiddleware(
         this WebApplication app,
         Action<ApiMiddlewareOptions>? configure = null)
     {
@@ -71,33 +72,46 @@ public static class UnifiedWebApplicationExtensions
     }
 
     /// <summary>
-    /// Maps all endpoints of the ValidationConstraints API. Call it after <see cref="UseValidationConstraintsApi"/>, which adds the middleware
-    /// the endpoints need (error handling, authentication, ...).
+    /// Maps every endpoint of the ValidationConstraints API. It adds no middleware: call <see cref="UseValidationConstraintsApiMiddleware"/> before
+    /// it.
     /// </summary>
     /// <param name="app">The web application.</param>
     /// <param name="requireUse">
-    /// <see langword="true"/> (default): throw at startup when <see cref="UseValidationConstraintsApi"/> was not called first.
+    /// <see langword="true"/>: throw at startup when <see cref="UseValidationConstraintsApiMiddleware"/> was not called first.
     /// <see langword="false"/>: the host adds that middleware itself.
     /// </param>
     /// <returns>The web application, for chaining.</returns>
     /// <exception cref="InvalidOperationException">
-    /// <see cref="UseValidationConstraintsApi"/> was not called first, and <paramref name="requireUse"/> is <see langword="true"/>.
+    /// <see cref="UseValidationConstraintsApiMiddleware"/> was not called first, and <paramref name="requireUse"/> is <see langword="true"/>.
     /// </exception>
-    public static WebApplication MapValidationConstraintsApi(
+    public static WebApplication MapValidationConstraintsApiEndpoints(
         this WebApplication app,
-        bool requireUse = true)
+        bool requireUse)
     {
-        // The endpoints rely on the middleware Use…Api() adds: without it they would run without their error handling
+        // The endpoints rely on the middleware Use…ApiMiddleware() adds: without it they would run without their error handling
         if (requireUse && !((global::Microsoft.AspNetCore.Builder.IApplicationBuilder)app).Properties.ContainsKey(UseApiMark))
         {
             throw new InvalidOperationException(
-                "Call app.UseValidationConstraintsApi() before app.MapValidationConstraintsApi(): it adds the error handling, the status code pages " +
+                "Call app.UseValidationConstraintsApiMiddleware() before app.MapValidationConstraintsApiEndpoints(): it adds the error handling, the status code pages " +
                 "and the rest of the middleware the endpoints rely on. " +
-                "A host that adds that middleware itself calls app.MapValidationConstraintsApi(requireUse: false).");
+                "A host that adds that middleware itself calls app.MapValidationConstraintsApiEndpoints(requireUse: false).");
         }
 
         app.MapEndpoints();
 
         return app;
     }
+
+    /// <summary>
+    /// Maps every endpoint of the ValidationConstraints API. It adds no middleware: call <see cref="UseValidationConstraintsApiMiddleware"/> before
+    /// it, or this method throws at startup.
+    /// </summary>
+    /// <param name="app">The web application.</param>
+    /// <returns>The web application, for chaining.</returns>
+    /// <exception cref="InvalidOperationException">
+    /// <see cref="UseValidationConstraintsApiMiddleware"/> was not called first.
+    /// </exception>
+    public static WebApplication MapValidationConstraintsApiEndpoints(
+        this WebApplication app)
+        => MapValidationConstraintsApiEndpoints(app, requireUse: true);
 }

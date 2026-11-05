@@ -156,7 +156,7 @@ public sealed class EmptyEnumValueTests
                     includeMinimalApi: false,
                     Yaml));
 
-    // "Options": as the generated Add…Api() / client options are - the factory first, then a host-wide string converter.
+    // "Options": as the generated Add…ApiServices() / client options are - the factory first, then a host-wide string converter.
     // "Attribute": options of the host's own, where the enum's [JsonConverter] decides.
     private static JsonSerializerOptions OptionsFor(
         Assembly assembly,

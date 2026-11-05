@@ -12,8 +12,8 @@ using VersioningQueryString.Generated.Endpoints;
 namespace VersioningQueryString.Generated.Extensions;
 
 /// <summary>
-/// The host wiring of the VersioningQueryString API: <see cref="UseVersioningQueryStringApi"/> adds the middleware,
-/// <see cref="MapVersioningQueryStringApi"/> maps the endpoints.
+/// The host wiring of the VersioningQueryString API: <see cref="UseVersioningQueryStringApiMiddleware"/> adds the middleware,
+/// <see cref="MapVersioningQueryStringApiEndpoints(WebApplication)"/> maps the endpoints.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public static class UnifiedWebApplicationExtensions
@@ -21,7 +21,8 @@ public static class UnifiedWebApplicationExtensions
     private const string UseApiMark = "VersioningQueryString.Generated.UseVersioningQueryStringApi";
 
     /// <summary>
-    /// Adds the middleware the VersioningQueryString API needs, in the recommended order. Call it before <see cref="MapVersioningQueryStringApi"/>.
+    /// Adds the middleware the generated endpoints of the VersioningQueryString API rely on, in the order listed below. It maps no
+    /// endpoint: call <see cref="MapVersioningQueryStringApiEndpoints(WebApplication)"/> after it.
     /// </summary>
     /// <param name="app">The web application.</param>
     /// <param name="configure">
@@ -36,10 +37,10 @@ public static class UnifiedWebApplicationExtensions
     /// <para>• The host's own middleware from <c>AfterErrorHandling</c> (CORS, HSTS, HTTPS redirection)</para>
     /// <para>
     /// Turn off what the host adds itself. A host that orders its whole pipeline itself does not call this method,
-    /// adds the middleware above itself and calls <c>MapVersioningQueryStringApi(requireUse: false)</c>.
+    /// adds the middleware above itself and calls <c>MapVersioningQueryStringApiEndpoints(requireUse: false)</c>.
     /// </para>
     /// </remarks>
-    public static WebApplication UseVersioningQueryStringApi(
+    public static WebApplication UseVersioningQueryStringApiMiddleware(
         this WebApplication app,
         Action<ApiMiddlewareOptions>? configure = null)
     {
@@ -71,33 +72,46 @@ public static class UnifiedWebApplicationExtensions
     }
 
     /// <summary>
-    /// Maps all endpoints of the VersioningQueryString API. Call it after <see cref="UseVersioningQueryStringApi"/>, which adds the middleware
-    /// the endpoints need (error handling, authentication, ...).
+    /// Maps every endpoint of the VersioningQueryString API. It adds no middleware: call <see cref="UseVersioningQueryStringApiMiddleware"/> before
+    /// it.
     /// </summary>
     /// <param name="app">The web application.</param>
     /// <param name="requireUse">
-    /// <see langword="true"/> (default): throw at startup when <see cref="UseVersioningQueryStringApi"/> was not called first.
+    /// <see langword="true"/>: throw at startup when <see cref="UseVersioningQueryStringApiMiddleware"/> was not called first.
     /// <see langword="false"/>: the host adds that middleware itself.
     /// </param>
     /// <returns>The web application, for chaining.</returns>
     /// <exception cref="InvalidOperationException">
-    /// <see cref="UseVersioningQueryStringApi"/> was not called first, and <paramref name="requireUse"/> is <see langword="true"/>.
+    /// <see cref="UseVersioningQueryStringApiMiddleware"/> was not called first, and <paramref name="requireUse"/> is <see langword="true"/>.
     /// </exception>
-    public static WebApplication MapVersioningQueryStringApi(
+    public static WebApplication MapVersioningQueryStringApiEndpoints(
         this WebApplication app,
-        bool requireUse = true)
+        bool requireUse)
     {
-        // The endpoints rely on the middleware Use…Api() adds: without it they would run without their error handling
+        // The endpoints rely on the middleware Use…ApiMiddleware() adds: without it they would run without their error handling
         if (requireUse && !((global::Microsoft.AspNetCore.Builder.IApplicationBuilder)app).Properties.ContainsKey(UseApiMark))
         {
             throw new InvalidOperationException(
-                "Call app.UseVersioningQueryStringApi() before app.MapVersioningQueryStringApi(): it adds the error handling, the status code pages " +
+                "Call app.UseVersioningQueryStringApiMiddleware() before app.MapVersioningQueryStringApiEndpoints(): it adds the error handling, the status code pages " +
                 "and the rest of the middleware the endpoints rely on. " +
-                "A host that adds that middleware itself calls app.MapVersioningQueryStringApi(requireUse: false).");
+                "A host that adds that middleware itself calls app.MapVersioningQueryStringApiEndpoints(requireUse: false).");
         }
 
         app.MapEndpoints();
 
         return app;
     }
+
+    /// <summary>
+    /// Maps every endpoint of the VersioningQueryString API. It adds no middleware: call <see cref="UseVersioningQueryStringApiMiddleware"/> before
+    /// it, or this method throws at startup.
+    /// </summary>
+    /// <param name="app">The web application.</param>
+    /// <returns>The web application, for chaining.</returns>
+    /// <exception cref="InvalidOperationException">
+    /// <see cref="UseVersioningQueryStringApiMiddleware"/> was not called first.
+    /// </exception>
+    public static WebApplication MapVersioningQueryStringApiEndpoints(
+        this WebApplication app)
+        => MapVersioningQueryStringApiEndpoints(app, requireUse: true);
 }

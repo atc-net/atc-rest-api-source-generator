@@ -12,8 +12,8 @@ using SecurityHybrid.Generated.Endpoints;
 namespace SecurityHybrid.Generated.Extensions;
 
 /// <summary>
-/// The host wiring of the SecurityHybrid API: <see cref="UseSecurityHybridApi"/> adds the middleware,
-/// <see cref="MapSecurityHybridApi"/> maps the endpoints.
+/// The host wiring of the SecurityHybrid API: <see cref="UseSecurityHybridApiMiddleware"/> adds the middleware,
+/// <see cref="MapSecurityHybridApiEndpoints(WebApplication)"/> maps the endpoints.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public static class UnifiedWebApplicationExtensions
@@ -21,7 +21,8 @@ public static class UnifiedWebApplicationExtensions
     private const string UseApiMark = "SecurityHybrid.Generated.UseSecurityHybridApi";
 
     /// <summary>
-    /// Adds the middleware the SecurityHybrid API needs, in the recommended order. Call it before <see cref="MapSecurityHybridApi"/>.
+    /// Adds the middleware the generated endpoints of the SecurityHybrid API rely on, in the order listed below. It maps no
+    /// endpoint: call <see cref="MapSecurityHybridApiEndpoints(WebApplication)"/> after it.
     /// </summary>
     /// <param name="app">The web application.</param>
     /// <param name="configure">
@@ -37,10 +38,10 @@ public static class UnifiedWebApplicationExtensions
     /// <para>• Authentication and authorization - the specification requires a signed-in caller</para>
     /// <para>
     /// Turn off what the host adds itself. A host that orders its whole pipeline itself does not call this method,
-    /// adds the middleware above itself and calls <c>MapSecurityHybridApi(requireUse: false)</c>.
+    /// adds the middleware above itself and calls <c>MapSecurityHybridApiEndpoints(requireUse: false)</c>.
     /// </para>
     /// </remarks>
-    public static WebApplication UseSecurityHybridApi(
+    public static WebApplication UseSecurityHybridApiMiddleware(
         this WebApplication app,
         Action<ApiMiddlewareOptions>? configure = null)
     {
@@ -86,33 +87,46 @@ public static class UnifiedWebApplicationExtensions
     }
 
     /// <summary>
-    /// Maps all endpoints of the SecurityHybrid API. Call it after <see cref="UseSecurityHybridApi"/>, which adds the middleware
-    /// the endpoints need (error handling, authentication, ...).
+    /// Maps every endpoint of the SecurityHybrid API. It adds no middleware: call <see cref="UseSecurityHybridApiMiddleware"/> before
+    /// it.
     /// </summary>
     /// <param name="app">The web application.</param>
     /// <param name="requireUse">
-    /// <see langword="true"/> (default): throw at startup when <see cref="UseSecurityHybridApi"/> was not called first.
+    /// <see langword="true"/>: throw at startup when <see cref="UseSecurityHybridApiMiddleware"/> was not called first.
     /// <see langword="false"/>: the host adds that middleware itself.
     /// </param>
     /// <returns>The web application, for chaining.</returns>
     /// <exception cref="InvalidOperationException">
-    /// <see cref="UseSecurityHybridApi"/> was not called first, and <paramref name="requireUse"/> is <see langword="true"/>.
+    /// <see cref="UseSecurityHybridApiMiddleware"/> was not called first, and <paramref name="requireUse"/> is <see langword="true"/>.
     /// </exception>
-    public static WebApplication MapSecurityHybridApi(
+    public static WebApplication MapSecurityHybridApiEndpoints(
         this WebApplication app,
-        bool requireUse = true)
+        bool requireUse)
     {
-        // The endpoints rely on the middleware Use…Api() adds: without it they would run without their error handling
+        // The endpoints rely on the middleware Use…ApiMiddleware() adds: without it they would run without their error handling
         if (requireUse && !((global::Microsoft.AspNetCore.Builder.IApplicationBuilder)app).Properties.ContainsKey(UseApiMark))
         {
             throw new InvalidOperationException(
-                "Call app.UseSecurityHybridApi() before app.MapSecurityHybridApi(): it adds the error handling, the status code pages " +
+                "Call app.UseSecurityHybridApiMiddleware() before app.MapSecurityHybridApiEndpoints(): it adds the error handling, the status code pages " +
                 "and the rest of the middleware the endpoints rely on. " +
-                "A host that adds that middleware itself calls app.MapSecurityHybridApi(requireUse: false).");
+                "A host that adds that middleware itself calls app.MapSecurityHybridApiEndpoints(requireUse: false).");
         }
 
         app.MapEndpoints();
 
         return app;
     }
+
+    /// <summary>
+    /// Maps every endpoint of the SecurityHybrid API. It adds no middleware: call <see cref="UseSecurityHybridApiMiddleware"/> before
+    /// it, or this method throws at startup.
+    /// </summary>
+    /// <param name="app">The web application.</param>
+    /// <returns>The web application, for chaining.</returns>
+    /// <exception cref="InvalidOperationException">
+    /// <see cref="UseSecurityHybridApiMiddleware"/> was not called first.
+    /// </exception>
+    public static WebApplication MapSecurityHybridApiEndpoints(
+        this WebApplication app)
+        => MapSecurityHybridApiEndpoints(app, requireUse: true);
 }

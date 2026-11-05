@@ -2,7 +2,7 @@ namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 
 /// <summary>
 /// The generated <c>AddApiRateLimiting()</c> registers its policies once, however often it is called: the generated
-/// <c>Add{Project}Api()</c> calls it, and a host that still calls it itself (as it had to before) must not see the
+/// <c>Add{Project}ApiServices()</c> calls it, and a host that still calls it itself (as it had to before) must not see the
 /// policies added twice - <c>RateLimiterOptions</c> throws on a policy name it already has, and the host would never
 /// start. A repeat call still applies its own <c>configure</c>.
 /// </summary>
@@ -108,7 +108,7 @@ public sealed class RateLimitingRegistrationRuntimeTests
     private static void AddApi(IServiceCollection services)
         => Server.Value
             .GetType("ErrorBodies.Generated.Extensions.UnifiedServiceCollectionExtensions", throwOnError: true)!
-            .GetMethod("AddErrorBodiesApi")!
+            .GetMethod("AddErrorBodiesApiServices")!
             .Invoke(null, [services, null]);
 
     private static void AddApiRateLimiting(

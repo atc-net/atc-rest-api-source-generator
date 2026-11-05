@@ -1,8 +1,8 @@
 namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 
 /// <summary>
-/// The generated server features that only show at run time, through the generated <c>Add…Api()</c> and
-/// <c>Map…Api()</c>: an output-cache policy serves the second request from the cache, varies by its query key and never
+/// The generated server features that only show at run time, through the generated <c>Add…ApiServices()</c> and
+/// <c>Map…ApiEndpoints()</c>: an output-cache policy serves the second request from the cache, varies by its query key and never
 /// stores or serves an authenticated caller's answer; a webhook receiver (mapped by the documented
 /// <c>Map…Webhooks()</c>) receives its payload; a <c>head</c> operation answers HEAD with its header and no body.
 /// </summary>
@@ -228,7 +228,7 @@ public partial class ErrorResponseBodyRuntimeTests
                 .AddScheme<AuthenticationSchemeOptions, WhoCookieHandler>("Cookie", _ => { }),
             configureWithAssembly: MapWebhooks);
 
-    // The documented call: the receivers are not part of Map…Api() (webhooks are what the API sends)
+    // The documented call: the receivers are not part of Map…ApiEndpoints() (webhooks are what the API sends)
     private static void MapWebhooks(
         WebApplication app,
         Assembly assembly)

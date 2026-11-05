@@ -51,7 +51,7 @@ public class ApiOptionsExtractorTests
         Assert.Contains("namespace TestApi.Generated;", result, StringComparison.Ordinal);
         Assert.Contains("public class ApiServiceOptions", result, StringComparison.Ordinal);
 
-        // A switch exists only when Add{Api}Api() reads it: a switch nothing reads is a lie
+        // A switch exists only when Add{Api}ApiServices() reads it: a switch nothing reads is a lie
         Assert.DoesNotContain("UseRateLimiting", result, StringComparison.Ordinal);
         Assert.DoesNotContain("UseVersioning", result, StringComparison.Ordinal);
         Assert.DoesNotContain("UseSecurity", result, StringComparison.Ordinal);
@@ -72,7 +72,7 @@ public class ApiOptionsExtractorTests
         Assert.Contains("public bool UseRateLimiting { get; set; } = true;", result, StringComparison.Ordinal);
         Assert.Contains("public bool UseVersioning { get; set; } = true;", result, StringComparison.Ordinal);
         Assert.Contains("public bool UseSecurity { get; set; } = true;", result, StringComparison.Ordinal);
-        Assert.Contains("/// The options of the generated <c>Add…Api()</c>: a switch per registration it makes.", result, StringComparison.Ordinal);
+        Assert.Contains("/// The options of the generated <c>Add…ApiServices()</c>: a switch per registration it makes.", result, StringComparison.Ordinal);
 
         // The default is decided when the code is generated, not detected at run time: the comment says which
         Assert.DoesNotContain("Auto-detected", result, StringComparison.Ordinal);
@@ -89,7 +89,7 @@ public class ApiOptionsExtractorTests
         Assert.Contains("namespace TestApi.Generated;", result, StringComparison.Ordinal);
         Assert.Contains("public class ApiMiddlewareOptions", result, StringComparison.Ordinal);
 
-        // A switch exists only when Use{Api}Api() reads it
+        // A switch exists only when Use{Api}ApiMiddleware() reads it
         Assert.DoesNotContain("UseRateLimiter", result, StringComparison.Ordinal);
         Assert.DoesNotContain("UseAuthentication", result, StringComparison.Ordinal);
         Assert.DoesNotContain("UseAuthorization", result, StringComparison.Ordinal);
@@ -151,16 +151,16 @@ public class ApiOptionsExtractorTests
         var result = ApiOptionsExtractor.ExtractMiddlewareOptions(document, "TestApi", useGlobalErrorHandler);
 
         // The host's own middleware (CORS, HSTS, ...) goes in at the generator's spot; a host that orders its whole
-        // pipeline does not call Use{Api}Api() at all, so there is no switch for that any more
+        // pipeline does not call Use{Api}ApiMiddleware() at all, so there is no switch for that any more
         Assert.Contains("public Action<IApplicationBuilder>? AfterErrorHandling { get; set; }", result, StringComparison.Ordinal);
-        Assert.Contains("/// The options of the generated <c>Use…Api()</c>:", result, StringComparison.Ordinal);
+        Assert.Contains("/// The options of the generated <c>Use…ApiMiddleware()</c>:", result, StringComparison.Ordinal);
         Assert.Contains("using Microsoft.AspNetCore.Builder;", result, StringComparison.Ordinal);
         Assert.DoesNotContain("HostOwnsPipeline", result, StringComparison.Ordinal);
     }
 
     /// <summary>
     /// The generated output cache stands aside only for a host's own UseOutputCache() that runs before it: the switch
-    /// tells a host that adds its own after Use…Api() to turn the generated one off (two output caches throw).
+    /// tells a host that adds its own after Use…ApiMiddleware() to turn the generated one off (two output caches throw).
     /// </summary>
     [Fact]
     public void ExtractMiddlewareOptions_OutputCache_TellsAHostWithItsOwnToTurnItOff()
@@ -181,7 +181,7 @@ public class ApiOptionsExtractorTests
         var result = ApiOptionsExtractor.ExtractMiddlewareOptions(document, "TestApi");
 
         Assert.Contains("public bool UseOutputCache { get; set; } = true;", result, StringComparison.Ordinal);
-        Assert.Contains("A host that adds <c>UseOutputCache()</c> itself after <c>Use…Api()</c>", result, StringComparison.Ordinal);
+        Assert.Contains("A host that adds <c>UseOutputCache()</c> itself after <c>Use…ApiMiddleware()</c>", result, StringComparison.Ordinal);
         Assert.Contains("turns this off - a second output cache throws on every request", result, StringComparison.Ordinal);
     }
 

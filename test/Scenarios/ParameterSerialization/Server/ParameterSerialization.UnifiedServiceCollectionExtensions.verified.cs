@@ -12,13 +12,14 @@ using ParameterSerialization.Generated.Handlers;
 namespace ParameterSerialization.Generated.Extensions;
 
 /// <summary>
-/// The service registration of the ParameterSerialization API: <see cref="AddParameterSerializationApi"/>.
+/// The service registration of the ParameterSerialization API: <see cref="AddParameterSerializationApiServices"/>.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public static class UnifiedServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds the services the ParameterSerialization API needs. Call it once; the handlers are registered next to it.
+    /// Registers the services the generated endpoints of the ParameterSerialization API rely on, chosen from the specification and
+    /// the marker file. It registers no handler and maps no endpoint.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configure">
@@ -33,7 +34,7 @@ public static class UnifiedServiceCollectionExtensions
     /// <para>• <c>services.AddApiHandlersFrom{HandlerProject}()</c> - the handlers</para>
     /// <para>• <c>services.AddApiValidatorsFrom{HandlerProject}()</c> - the validators</para>
     /// </remarks>
-    public static IServiceCollection AddParameterSerializationApi(
+    public static IServiceCollection AddParameterSerializationApiServices(
         this IServiceCollection services,
         Action<ApiServiceOptions>? configure = null)
     {

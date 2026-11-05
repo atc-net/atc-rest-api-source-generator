@@ -163,25 +163,25 @@ public class GetPetByIdHandler : IGetPetByIdHandler
 
 ### 6. Wire Up Program.cs
 
-The generator emits `Add{Project}Api()` (services), `Use{Project}Api()` (middleware) and `Map{Project}Api()` (endpoints) - here for a project named `PetStore`. `{Project}` is the API's name: the namespace's last segment that names it - a trailing `Contracts`, `Api` or `Server` is skipped, so `Contoso.PetStore.Api.Contracts` gives `AddPetStoreApi()` - or the server marker's `apiName`:
+The generator emits `Add{Project}ApiServices()` (the services the endpoints rely on - no handlers), `Use{Project}ApiMiddleware()` (the middleware, no endpoints) and `Map{Project}ApiEndpoints()` (the endpoints, no middleware) - here for a project named `PetStore`. `{Project}` is the API's name: the namespace's last segment that names it - a trailing `Contracts`, `Api` or `Server` is skipped, so `Contoso.PetStore.Api.Contracts` gives `AddPetStoreApiServices()` - or the server marker's `apiName`.:
 
 ```csharp
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
-builder.Services.AddPetStoreApi();            // ProblemDetails, validation, the generated services
+builder.Services.AddPetStoreApiServices();     // ProblemDetails, validation, the generated services
 builder.Services.AddApiHandlersFromDomain();   // your handlers (domain project)
 
 var app = builder.Build();
 
-app.UsePetStoreApi();                          // global error handler, status-code pages, rate limiter, auth
+app.UsePetStoreApiMiddleware();                // global error handler, status-code pages, rate limiter, auth
 app.MapOpenApi();
-app.MapPetStoreApi();                    // every endpoint, no middleware
+app.MapPetStoreApiEndpoints();                 // every endpoint, no middleware
 
 app.Run();
 ```
 
-> 💡 `Use{Project}Api()` adds each middleware in the recommended order and behind its own switch: turn off what the host adds itself (`o.UseGlobalErrorHandler = false`), and put the host's own middleware - CORS, HSTS, HTTPS redirection - in at the right spot with `o.AfterErrorHandling = app => app.UseCors()` (inside the error handling, before authentication). A host that orders its whole pipeline itself skips `Use{Project}Api()` and calls `Map{Project}Api(requireUse: false)`; without `requireUse: false`, `Map{Project}Api()` throws at startup when `Use{Project}Api()` did not run first. Without `Atc.Rest.MinimalApi` the methods are generated too: `Use{Project}Api()` adds the framework's `UseExceptionHandler()` (outside Development) where the package's global error handler would stand. That host validates nothing and maps no exception to a status (the package's ValidationFilter and global error handler) - see [Working with Error Responses](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Error-Responses).
+> 💡 `Use{Project}ApiMiddleware()` adds each middleware in the recommended order and behind its own switch: turn off what the host adds itself (`o.UseGlobalErrorHandler = false`), and put the host's own middleware - CORS, HSTS, HTTPS redirection - in at the right spot with `o.AfterErrorHandling = app => app.UseCors()` (inside the error handling, before authentication). A host that orders its whole pipeline itself skips `Use{Project}ApiMiddleware()` and calls `Map{Project}ApiEndpoints(requireUse: false)`; without `requireUse: false`, `Map{Project}ApiEndpoints()` throws at startup when `Use{Project}ApiMiddleware()` did not run first. Without `Atc.Rest.MinimalApi` the methods are generated too: `Use{Project}ApiMiddleware()` adds the framework's `UseExceptionHandler()` (outside Development) where the package's global error handler would stand. That host validates nothing and maps no exception to a status (the package's ValidationFilter and global error handler) - see [Working with Error Responses](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Error-Responses).
 
 ## 📋 Requirements
 

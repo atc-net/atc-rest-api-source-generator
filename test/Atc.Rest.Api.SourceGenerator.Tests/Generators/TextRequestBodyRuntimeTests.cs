@@ -204,17 +204,17 @@ public sealed class TextRequestBodyRuntimeTests
             assembly.GetType("Notes.RuntimeTest.CreateNoteHandler", throwOnError: true)!);
 
         serviceExtensions
-            .GetMethod("AddNotesApi")!
+            .GetMethod("AddNotesApiServices")!
             .Invoke(null, [builder.Services, null]);
 
         var app = builder.Build();
         app.Urls.Add("http://127.0.0.1:0");
 
         appExtensions
-            .GetMethod("UseNotesApi")!
+            .GetMethod("UseNotesApiMiddleware")!
             .Invoke(null, [app, null]);
         appExtensions
-            .GetMethod("MapNotesApi")!
+            .GetMethod("MapNotesApiEndpoints", [typeof(Microsoft.AspNetCore.Builder.WebApplication), typeof(bool)])!
             .Invoke(null, [app, true]);
 
         await app.StartAsync(TestContext.Current.CancellationToken);

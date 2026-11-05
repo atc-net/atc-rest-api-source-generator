@@ -110,13 +110,12 @@ public static class UnifiedServiceCollectionExtractor
         builder.AppendLine($"namespace {projectName}.Generated.Extensions;");
         builder.AppendLine();
         builder.AppendLine("/// <summary>");
-        builder.AppendLine($"/// The service registration of the {apiName} API: <see cref=\"Add{apiName}Api\"/>.");
+        builder.AppendLine($"/// The service registration of the {apiName} API: <see cref=\"Add{apiName}ApiServices\"/>.");
         builder.AppendLine("/// </summary>");
         builder.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
         builder.AppendLine("public static class UnifiedServiceCollectionExtensions");
         builder.AppendLine("{");
 
-        // Generate Add{ProjectName}Api method
         GenerateAddApiMethod(builder, projectName, apiName, features);
 
         builder.AppendLine("}");
@@ -125,7 +124,7 @@ public static class UnifiedServiceCollectionExtractor
     }
 
     /// <summary>
-    /// Generates the Add{ProjectName}Api method.
+    /// Generates the Add{Api}ApiServices method.
     /// </summary>
     private static void GenerateAddApiMethod(
         StringBuilder builder,
@@ -134,7 +133,8 @@ public static class UnifiedServiceCollectionExtractor
         ServerFeatures features)
     {
         builder.AppendLine(4, "/// <summary>");
-        builder.AppendLine(4, $"/// Adds the services the {apiName} API needs. Call it once; the handlers are registered next to it.");
+        builder.AppendLine(4, $"/// Registers the services the generated endpoints of the {apiName} API rely on, chosen from the specification and");
+        builder.AppendLine(4, "/// the marker file. It registers no handler and maps no endpoint.");
         builder.AppendLine(4, "/// </summary>");
         builder.AppendLine(4, "/// <param name=\"services\">The service collection.</param>");
         builder.AppendLine(4, "/// <param name=\"configure\">");
@@ -195,7 +195,7 @@ public static class UnifiedServiceCollectionExtractor
                 ? new[] { "<c>services.AddApiHandlersFrom{HandlerProject}()</c> - the handlers", "<c>services.AddApiValidatorsFrom{HandlerProject}()</c> - the validators" }
                 : new[] { "<c>services.AddApiHandlersFrom{HandlerProject}()</c> - the handlers" });
         builder.AppendLine(4, "/// </remarks>");
-        builder.AppendLine(4, $"public static IServiceCollection Add{apiName}Api(");
+        builder.AppendLine(4, $"public static IServiceCollection Add{apiName}ApiServices(");
         builder.AppendLine(8, "this IServiceCollection services,");
         builder.AppendLine(8, "Action<ApiServiceOptions>? configure = null)");
         builder.AppendLine(4, "{");
@@ -265,7 +265,7 @@ public static class UnifiedServiceCollectionExtractor
             builder.AppendLine(8, "}");
         }
 
-        // Optional: output caching (Map…Api() adds the middleware)
+        // Optional: output caching (Use…ApiMiddleware() adds the middleware)
         if (features.HasOutputCaching)
         {
             builder.AppendLine();

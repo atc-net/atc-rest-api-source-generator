@@ -13,13 +13,14 @@ using ResponseRangesAndLinks.Generated.Orders.Handlers;
 namespace ResponseRangesAndLinks.Generated.Extensions;
 
 /// <summary>
-/// The service registration of the ResponseRangesAndLinks API: <see cref="AddResponseRangesAndLinksApi"/>.
+/// The service registration of the ResponseRangesAndLinks API: <see cref="AddResponseRangesAndLinksApiServices"/>.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public static class UnifiedServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds the services the ResponseRangesAndLinks API needs. Call it once; the handlers are registered next to it.
+    /// Registers the services the generated endpoints of the ResponseRangesAndLinks API rely on, chosen from the specification and
+    /// the marker file. It registers no handler and maps no endpoint.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configure">
@@ -33,7 +34,7 @@ public static class UnifiedServiceCollectionExtensions
     /// <para>• <c>services.AddApiHandlersFrom{HandlerProject}()</c> - the handlers</para>
     /// <para>• <c>services.AddApiValidatorsFrom{HandlerProject}()</c> - the validators</para>
     /// </remarks>
-    public static IServiceCollection AddResponseRangesAndLinksApi(
+    public static IServiceCollection AddResponseRangesAndLinksApiServices(
         this IServiceCollection services,
         Action<ApiServiceOptions>? configure = null)
     {
