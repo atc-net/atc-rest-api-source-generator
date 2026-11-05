@@ -3,6 +3,18 @@
 > ⬆️ **Upgrading from 2.x?** The entries below list the commits of each release. What to change in a project, and
 > why, is in the wiki: [Upgrading to v3](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Upgrading-to-v3).
 
+## [3.3.0](https://github.com/atc-net/atc-rest-api-source-generator/compare/v3.2.0...v3.3.0) (2026-11-05)
+
+
+### New features
+
+* **generator:** host methods named after what they do - Add{Api}ApiServices(), Use{Api}ApiMiddleware(), Map{Api}ApiEndpoints() ([c84eb51](https://github.com/atc-net/atc-rest-api-source-generator/commit/c84eb5127b9cf0447d81a050867d0d6f7a114a54))
+
+
+### Bug fixes
+
+* **generator:** a busy machine no longer cuts the generation short - the generator's own patterns (the implicit usings, the [ExcludeFromCodeCoverage] and #nullable rewrites, the enum and XML namespace scans) run with no time limit: a 1-second limit could pass on a large file under load, and the timeout ended the generation part way, with some files and an error; the patterns have no nested repetition, so their time grows with the text. A user's pattern keeps its limit. The tests fail with the generator's own message when it stops part way, and the integration tests pack the generator one at a time ([b07c5a5](https://github.com/atc-net/atc-rest-api-source-generator/commit/b07c5a5180ee8f90e196a93b11e4e88ccd01a638))
+
 ## [3.2.0](https://github.com/atc-net/atc-rest-api-source-generator/compare/v3.1.0...v3.2.0) (2026-10-29)
 
 
