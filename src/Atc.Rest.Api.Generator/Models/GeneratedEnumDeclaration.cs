@@ -12,7 +12,7 @@ public sealed record GeneratedEnumDeclaration(
     bool IsInteger,
     string? EmptyMember = null)
 {
-    private static readonly TimeSpan RegexTimeout = TimeSpan.FromSeconds(1);
+    private static readonly TimeSpan RegexTimeout = Regex.InfiniteMatchTimeout;
 
     // A generated file has one file-scoped namespace and top-level enum declarations
     private static readonly Regex NamespaceRegex = new(

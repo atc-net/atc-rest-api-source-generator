@@ -2328,7 +2328,7 @@ public static class EndpointPerOperationExtractor
     /// </summary>
     private static string StreamedResultText(string text)
     {
-        var timeout = TimeSpan.FromSeconds(5);
+        var timeout = Regex.InfiniteMatchTimeout;
         text = Regex.Replace(text, @"(?<![\w.])ContentObject\b", "ErrorObject", RegexOptions.None, timeout);
         text = Regex.Replace(text, @"(?<![\w.""])Content\b(?![""-])", "ErrorText", RegexOptions.None, timeout);
         return Regex.Replace(text, @"InvalidContentAccessException<.*?>\(", "InvalidContentAccessException(", RegexOptions.None, timeout);

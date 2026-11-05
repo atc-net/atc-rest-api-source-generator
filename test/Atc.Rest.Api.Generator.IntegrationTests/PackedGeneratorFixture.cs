@@ -8,6 +8,8 @@ public sealed class PackedGeneratorFixture : IAsyncLifetime
 {
     private static readonly TimeSpan CommandTimeout = TimeSpan.FromMinutes(10);
 
+    private static readonly SemaphoreSlim PackLock = new(1, 1);
+
     private readonly DirectoryInfo work = Directory.CreateTempSubdirectory("atc-package-install-");
 
     public string RepositoryRoot { get; } = FindRepositoryRoot();
@@ -24,17 +26,27 @@ public sealed class PackedGeneratorFixture : IAsyncLifetime
 
     public async ValueTask InitializeAsync()
     {
-        var pack = await RunDotnetAsync(
-            RepositoryRoot,
-            "pack",
-            Path.Combine(RepositoryRoot, "src", "Atc.Rest.Api.SourceGenerator", "Atc.Rest.Api.SourceGenerator.csproj"),
-            "-c",
-            "Release",
-            "-o",
-            Feed,
-            $"-p:Version={Version}",
-            "-p:UseSharedCompilation=false");
-        Assert.True(pack.ExitCode == 0, $"dotnet pack failed:\n{pack.Output}");
+        // One pack at a time: each test class that packs builds the same projects into the same bin and obj folders,
+        // and on Windows two at once fail on a file the other has open
+        await PackLock.WaitAsync(TestContext.Current.CancellationToken);
+        try
+        {
+            var pack = await RunDotnetAsync(
+                RepositoryRoot,
+                "pack",
+                Path.Combine(RepositoryRoot, "src", "Atc.Rest.Api.SourceGenerator", "Atc.Rest.Api.SourceGenerator.csproj"),
+                "-c",
+                "Release",
+                "-o",
+                Feed,
+                $"-p:Version={Version}",
+                "-p:UseSharedCompilation=false");
+            Assert.True(pack.ExitCode == 0, $"dotnet pack failed:\n{pack.Output}");
+        }
+        finally
+        {
+            PackLock.Release();
+        }
     }
 
     public ValueTask DisposeAsync()

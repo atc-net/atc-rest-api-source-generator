@@ -13,7 +13,7 @@ namespace Atc.Rest.Api.Generator.Overlays;
 /// </summary>
 public static class OverlayApplier
 {
-    private static readonly Regex SupportedVersion = new(@"^1\.(?<minor>[0-2])(\.\d+)?$", RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(1));
+    private static readonly Regex SupportedVersion = new(@"^1\.(?<minor>[0-2])(\.\d+)?$", RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture, Regex.InfiniteMatchTimeout);
 
     private static readonly HashSet<string> OverlayFields = new(StringComparer.Ordinal) { "overlay", "info", "actions", "extends", "$self", "components" };
     private static readonly HashSet<string> InfoFields = new(StringComparer.Ordinal) { "title", "version", "description" };

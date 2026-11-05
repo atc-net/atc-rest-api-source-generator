@@ -47,7 +47,7 @@ public static class ImplicitUsingsHelper
             + @"Contains|SequenceEqual|Zip|Reverse|Except|ExceptBy|Intersect|IntersectBy|Union|UnionBy|Cast|OfType|Prepend|Append|"
             + @"DefaultIfEmpty|ElementAt|ElementAtOrDefault|AsEnumerable|Chunk|Join|GroupJoin|Order|OrderDescending|Index|CountBy|AggregateBy)\s*[<(]|\bEnumerable\.|\bfrom\s+\w+\s+in\b",
             RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture,
-            TimeSpan.FromSeconds(1)),
+            Regex.InfiniteMatchTimeout),
         ["System.Net.Http"] = Words(
             [
                 "HttpClient", "IHttpClientFactory", "HttpMethod", "HttpRequestMessage", "HttpResponseMessage", "HttpContent",
@@ -132,11 +132,13 @@ public static class ImplicitUsingsHelper
         string content)
         => !UsedBy.TryGetValue(ns, out var pattern) || pattern.IsMatch(content);
 
+    // No time limit: these scan every generated file, and on a busy machine a limit can pass on a large one - the
+    // timeout would end the generation part way. The patterns have no nested repetition, so their time grows with the text
     private static Regex Words(string[] names)
         => new(
             @"\b(" + string.Join("|", names) + @")\b",
             RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture,
-            TimeSpan.FromSeconds(1));
+            Regex.InfiniteMatchTimeout);
 
     // Comments, preprocessor directives, blank lines and global usings come before the usings
     private static bool IsHeader(string line)

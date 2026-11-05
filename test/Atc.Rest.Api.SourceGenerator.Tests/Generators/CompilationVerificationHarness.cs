@@ -116,12 +116,37 @@ internal static class CompilationVerificationHarness
         driver = (CSharpGeneratorDriver)driver.RunGeneratorsAndUpdateCompilation(
             compilation, out _, out var generatorDiagnostics, CancellationToken.None);
 
+        ThrowOnGeneratorCrash(generatorDiagnostics);
+
         var result = driver.GetRunResult();
         var generatedSources = result.GeneratedTrees
             .Select(t => (t.FilePath, t.GetText().ToString()))
             .ToList();
 
         return (generatorDiagnostics, generatedSources);
+    }
+
+    /// <summary>
+    /// Fails with the generator's own message when a generator caught an exception: it then reports it and stops,
+    /// so only part of the files are generated - a test that went on would fail on a missing type or file instead.
+    /// </summary>
+    /// <param name="diagnostics">The diagnostics of the generator run.</param>
+    public static void ThrowOnGeneratorCrash(
+        IEnumerable<Diagnostic> diagnostics)
+    {
+        var crashes = diagnostics
+            .Where(d => d.Id is RuleIdentifiers.ServerGenerationError
+                or RuleIdentifiers.ClientGenerationError
+                or RuleIdentifiers.HandlerScaffoldGenerationError
+                or RuleIdentifiers.EndpointInjectionGenerationError)
+            .Select(d => $"{d.Id}: {d.GetMessage(CultureInfo.InvariantCulture)}")
+            .ToList();
+
+        if (crashes.Count > 0)
+        {
+            throw new InvalidOperationException(
+                "The generator stopped part way:\n  " + string.Join("\n  ", crashes));
+        }
     }
 
     /// <summary>

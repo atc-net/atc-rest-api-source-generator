@@ -1666,7 +1666,9 @@ public partial class ErrorResponseBodyRuntimeTests
             .AddAdditionalTexts(additionalTexts);
 
         driver = (CSharpGeneratorDriver)driver.RunGeneratorsAndUpdateCompilation(
-            compilation, out _, out _, CancellationToken.None);
+            compilation, out _, out var diagnostics, CancellationToken.None);
+
+        CompilationVerificationHarness.ThrowOnGeneratorCrash(diagnostics);
 
         return driver.GetRunResult().GeneratedTrees
             .Select(t => (t.FilePath, t.GetText().ToString()))
