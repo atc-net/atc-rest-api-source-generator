@@ -1,15 +1,20 @@
 namespace Atc.Rest.Api.Generator.Extractors;
 
 /// <summary>
-/// Generates the host wiring of a server: <c>Use{Api}Api()</c> adds the middleware the specification calls for, in the
-/// recommended order; <c>Map{Api}Api()</c> maps the endpoints and nothing else (ASP.NET's own Use/Map split). The
-/// endpoint method is not called <c>Map{Api}Endpoints()</c>: a path segment's own <c>Map{Segment}Endpoints()</c> would
-/// clash with it (an API <c>Pets</c> with a <c>/pets</c> path).
+/// Generates the host wiring of a server: <c>Use{Api}ApiMiddleware()</c> adds the middleware the specification calls
+/// for, in the recommended order; <c>Map{Api}ApiEndpoints()</c> maps the endpoints and nothing else (ASP.NET's own
+/// Use/Map split).
+/// <para>
+/// The endpoint method is not called <c>Map{Api}Endpoints()</c>: a path segment's own <c>Map{Segment}Endpoints()</c>
+/// would clash with it (an API <c>Pets</c> with a <c>/pets</c> path). A segment can still be named like the API
+/// (<c>/pets-api</c>), so <c>Map{Api}ApiEndpoints</c> is two overloads instead of one with an optional parameter: a
+/// host that imports both namespaces then gets an ambiguous call, a compile error, instead of the segment's method.
+/// </para>
 /// </summary>
 public static class WebApplicationExtensionsExtractor
 {
     /// <summary>
-    /// Generates the <c>Use{Api}Api()</c> and <c>Map{Api}Api()</c> extension methods.
+    /// Generates the <c>Use{Api}ApiMiddleware()</c> and <c>Map{Api}ApiEndpoints()</c> extension methods.
     /// </summary>
     /// <param name="openApiDoc">The OpenAPI document for auto-detection.</param>
     /// <param name="projectName">The project name for namespace and method naming.</param>
@@ -63,14 +68,14 @@ public static class WebApplicationExtensionsExtractor
         builder.AppendLine($"namespace {projectName}.Generated.Extensions;");
         builder.AppendLine();
         builder.AppendLine("/// <summary>");
-        builder.AppendLine($"/// The host wiring of the {apiName} API: <see cref=\"Use{apiName}Api\"/> adds the middleware,");
-        builder.AppendLine($"/// <see cref=\"Map{apiName}Api\"/> maps the endpoints.");
+        builder.AppendLine($"/// The host wiring of the {apiName} API: <see cref=\"Use{apiName}ApiMiddleware\"/> adds the middleware,");
+        builder.AppendLine($"/// <see cref=\"Map{apiName}ApiEndpoints(WebApplication)\"/> maps the endpoints.");
         builder.AppendLine("/// </summary>");
         builder.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
         builder.AppendLine("public static class UnifiedWebApplicationExtensions");
         builder.AppendLine("{");
 
-        // The mark Use{Api}Api() leaves in the application's properties, for Map{Api}Api() to check
+        // The mark Use{Api}ApiMiddleware() leaves in the application's properties, for Map{Api}ApiEndpoints() to check
         builder.AppendLine(4, $"private const string UseApiMark = \"{projectName}.Generated.Use{apiName}Api\";");
         builder.AppendLine();
 
@@ -84,7 +89,7 @@ public static class WebApplicationExtensionsExtractor
     }
 
     /// <summary>
-    /// Generates the Use{Api}Api method: the middleware, in the recommended order, each behind its own switch.
+    /// Generates the Use{Api}ApiMiddleware method: the middleware, in the recommended order, each behind its own switch.
     /// </summary>
     private static void GenerateUseApiMethod(
         StringBuilder builder,
@@ -93,7 +98,8 @@ public static class WebApplicationExtensionsExtractor
         bool useGlobalErrorHandler)
     {
         builder.AppendLine(4, "/// <summary>");
-        builder.AppendLine(4, $"/// Adds the middleware the {apiName} API needs, in the recommended order. Call it before <see cref=\"Map{apiName}Api\"/>.");
+        builder.AppendLine(4, $"/// Adds the middleware the generated endpoints of the {apiName} API rely on, in the order listed below. It maps no");
+        builder.AppendLine(4, $"/// endpoint: call <see cref=\"Map{apiName}ApiEndpoints(WebApplication)\"/> after it.");
         builder.AppendLine(4, "/// </summary>");
         builder.AppendLine(4, "/// <param name=\"app\">The web application.</param>");
         builder.AppendLine(4, "/// <param name=\"configure\">");
@@ -130,10 +136,10 @@ public static class WebApplicationExtensionsExtractor
         XmlDocCommentHelper.AppendBulletList(builder, 4, middleware);
         builder.AppendLine(4, "/// <para>");
         builder.AppendLine(4, "/// Turn off what the host adds itself. A host that orders its whole pipeline itself does not call this method,");
-        builder.AppendLine(4, $"/// adds the middleware above itself and calls <c>Map{apiName}Api(requireUse: false)</c>.");
+        builder.AppendLine(4, $"/// adds the middleware above itself and calls <c>Map{apiName}ApiEndpoints(requireUse: false)</c>.");
         builder.AppendLine(4, "/// </para>");
         builder.AppendLine(4, "/// </remarks>");
-        builder.AppendLine(4, $"public static WebApplication Use{apiName}Api(");
+        builder.AppendLine(4, $"public static WebApplication Use{apiName}ApiMiddleware(");
         builder.AppendLine(8, "this WebApplication app,");
         builder.AppendLine(8, "Action<ApiMiddlewareOptions>? configure = null)");
         builder.AppendLine(4, "{");
@@ -222,7 +228,8 @@ public static class WebApplicationExtensionsExtractor
     }
 
     /// <summary>
-    /// Generates the Map{Api}Api method: the endpoints, no middleware. It refuses to run without Use{Api}Api() first -
+    /// Generates the Map{Api}ApiEndpoints methods: the endpoints, no middleware. They refuse to run without
+    /// Use{Api}ApiMiddleware() first -
     /// unless the host orders its own pipeline - so a host never runs its endpoints without their error handling.
     /// </summary>
     private static void GenerateMapApiMethod(
@@ -230,35 +237,49 @@ public static class WebApplicationExtensionsExtractor
         string apiName)
     {
         builder.AppendLine(4, "/// <summary>");
-        builder.AppendLine(4, $"/// Maps all endpoints of the {apiName} API. Call it after <see cref=\"Use{apiName}Api\"/>, which adds the middleware");
-        builder.AppendLine(4, "/// the endpoints need (error handling, authentication, ...).");
+        builder.AppendLine(4, $"/// Maps every endpoint of the {apiName} API. It adds no middleware: call <see cref=\"Use{apiName}ApiMiddleware\"/> before");
+        builder.AppendLine(4, "/// it.");
         builder.AppendLine(4, "/// </summary>");
         builder.AppendLine(4, "/// <param name=\"app\">The web application.</param>");
         builder.AppendLine(4, "/// <param name=\"requireUse\">");
-        builder.AppendLine(4, $"/// <see langword=\"true\"/> (default): throw at startup when <see cref=\"Use{apiName}Api\"/> was not called first.");
+        builder.AppendLine(4, $"/// <see langword=\"true\"/>: throw at startup when <see cref=\"Use{apiName}ApiMiddleware\"/> was not called first.");
         builder.AppendLine(4, "/// <see langword=\"false\"/>: the host adds that middleware itself.");
         builder.AppendLine(4, "/// </param>");
         builder.AppendLine(4, "/// <returns>The web application, for chaining.</returns>");
         builder.AppendLine(4, "/// <exception cref=\"InvalidOperationException\">");
-        builder.AppendLine(4, $"/// <see cref=\"Use{apiName}Api\"/> was not called first, and <paramref name=\"requireUse\"/> is <see langword=\"true\"/>.");
+        builder.AppendLine(4, $"/// <see cref=\"Use{apiName}ApiMiddleware\"/> was not called first, and <paramref name=\"requireUse\"/> is <see langword=\"true\"/>.");
         builder.AppendLine(4, "/// </exception>");
-        builder.AppendLine(4, $"public static WebApplication Map{apiName}Api(");
+        builder.AppendLine(4, $"public static WebApplication Map{apiName}ApiEndpoints(");
         builder.AppendLine(8, "this WebApplication app,");
-        builder.AppendLine(8, "bool requireUse = true)");
+        builder.AppendLine(8, "bool requireUse)");
         builder.AppendLine(4, "{");
-        builder.AppendLine(8, "// The endpoints rely on the middleware Use…Api() adds: without it they would run without their error handling");
+        builder.AppendLine(8, "// The endpoints rely on the middleware Use…ApiMiddleware() adds: without it they would run without their error handling");
         builder.AppendLine(8, "if (requireUse && !((global::Microsoft.AspNetCore.Builder.IApplicationBuilder)app).Properties.ContainsKey(UseApiMark))");
         builder.AppendLine(8, "{");
         builder.AppendLine(12, "throw new InvalidOperationException(");
-        builder.AppendLine(16, $"\"Call app.Use{apiName}Api() before app.Map{apiName}Api(): it adds the error handling, the status code pages \" +");
+        builder.AppendLine(16, $"\"Call app.Use{apiName}ApiMiddleware() before app.Map{apiName}ApiEndpoints(): it adds the error handling, the status code pages \" +");
         builder.AppendLine(16, "\"and the rest of the middleware the endpoints rely on. \" +");
-        builder.AppendLine(16, $"\"A host that adds that middleware itself calls app.Map{apiName}Api(requireUse: false).\");");
+        builder.AppendLine(16, $"\"A host that adds that middleware itself calls app.Map{apiName}ApiEndpoints(requireUse: false).\");");
         builder.AppendLine(8, "}");
         builder.AppendLine();
         builder.AppendLine(8, "app.MapEndpoints();");
         builder.AppendLine();
         builder.AppendLine(8, "return app;");
         builder.AppendLine(4, "}");
+
+        builder.AppendLine();
+        builder.AppendLine(4, "/// <summary>");
+        builder.AppendLine(4, $"/// Maps every endpoint of the {apiName} API. It adds no middleware: call <see cref=\"Use{apiName}ApiMiddleware\"/> before");
+        builder.AppendLine(4, "/// it, or this method throws at startup.");
+        builder.AppendLine(4, "/// </summary>");
+        builder.AppendLine(4, "/// <param name=\"app\">The web application.</param>");
+        builder.AppendLine(4, "/// <returns>The web application, for chaining.</returns>");
+        builder.AppendLine(4, "/// <exception cref=\"InvalidOperationException\">");
+        builder.AppendLine(4, $"/// <see cref=\"Use{apiName}ApiMiddleware\"/> was not called first.");
+        builder.AppendLine(4, "/// </exception>");
+        builder.AppendLine(4, $"public static WebApplication Map{apiName}ApiEndpoints(");
+        builder.AppendLine(8, "this WebApplication app)");
+        builder.AppendLine(8, $"=> Map{apiName}ApiEndpoints(app, requireUse: true);");
     }
 
     private static void AppendRateLimiter(

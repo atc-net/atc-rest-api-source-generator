@@ -76,24 +76,24 @@ public class SecurityBearerOnlyRuntimeTests
 
         // What AddJwtBearer() does, minus token validation: a handler registered under
         // JwtBearerDefaults.AuthenticationScheme ("Bearer"). Deliberately no AddAuthorization() -
-        // the generated AddSecurityBearerOnlyApi() has to provide it.
+        // the generated AddSecurityBearerOnlyApiServices() has to provide it.
         builder.Services
             .AddAuthentication("Bearer")
             .AddScheme<AuthenticationSchemeOptions, DemoBearerHandler>("Bearer", _ => { });
 
         builder.Services.AddScoped(handlerInterface, handlerType);
         serviceExtensions
-            .GetMethod("AddSecurityBearerOnlyApi")!
+            .GetMethod("AddSecurityBearerOnlyApiServices")!
             .Invoke(null, [builder.Services, null]);
 
         var app = builder.Build();
         app.Urls.Add("http://127.0.0.1:0");
 
         appExtensions
-            .GetMethod("UseSecurityBearerOnlyApi")!
+            .GetMethod("UseSecurityBearerOnlyApiMiddleware")!
             .Invoke(null, [app, null]);
         appExtensions
-            .GetMethod("MapSecurityBearerOnlyApi")!
+            .GetMethod("MapSecurityBearerOnlyApiEndpoints", [typeof(Microsoft.AspNetCore.Builder.WebApplication), typeof(bool)])!
             .Invoke(null, [app, true]);
 
         await app.StartAsync(TestContext.Current.CancellationToken);

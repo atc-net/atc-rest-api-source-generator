@@ -14,13 +14,14 @@ using CircularSchemas.Generated.Tree.Handlers;
 namespace CircularSchemas.Generated.Extensions;
 
 /// <summary>
-/// The service registration of the CircularSchemas API: <see cref="AddCircularSchemasApi"/>.
+/// The service registration of the CircularSchemas API: <see cref="AddCircularSchemasApiServices"/>.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public static class UnifiedServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds the services the CircularSchemas API needs. Call it once; the handlers are registered next to it.
+    /// Registers the services the generated endpoints of the CircularSchemas API rely on, chosen from the specification and
+    /// the marker file. It registers no handler and maps no endpoint.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configure">
@@ -34,7 +35,7 @@ public static class UnifiedServiceCollectionExtensions
     /// <para>• <c>services.AddApiHandlersFrom{HandlerProject}()</c> - the handlers</para>
     /// <para>• <c>services.AddApiValidatorsFrom{HandlerProject}()</c> - the validators</para>
     /// </remarks>
-    public static IServiceCollection AddCircularSchemasApi(
+    public static IServiceCollection AddCircularSchemasApiServices(
         this IServiceCollection services,
         Action<ApiServiceOptions>? configure = null)
     {

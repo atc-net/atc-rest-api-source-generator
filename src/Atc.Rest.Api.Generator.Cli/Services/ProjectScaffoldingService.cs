@@ -425,7 +425,7 @@ public sealed class ProjectScaffoldingService
     /// <param name="hostUiMode">When to enable the UI.</param>
     /// <param name="hostNamespace">The host project's root namespace; the project name when not set.</param>
     /// <param name="serverNamespace">
-    /// The server marker's namespace, where the generated <c>Add/Use/Map{Api}Api()</c> and the handler registration
+    /// The server marker's namespace, where the generated <c>Add{Api}ApiServices()</c>, <c>Use{Api}ApiMiddleware()</c>, <c>Map{Api}ApiEndpoints()</c> and the handler registration
     /// are; the host project's base name when not set.
     /// </param>
     /// <param name="apiName">The server marker's <c>apiName</c>, when it sets one.</param>

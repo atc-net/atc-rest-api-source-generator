@@ -66,7 +66,7 @@ internal static class HostProjectFiles
     }
 
     /// <summary>
-    /// The host's Program.cs on the generated <c>Add/Use/Map{Api}Api()</c> and the handler project's registration.
+    /// The host's Program.cs on the generated <c>Add{Api}ApiServices()</c>, <c>Use{Api}ApiMiddleware()</c>, <c>Map{Api}ApiEndpoints()</c> and the handler project's registration.
     /// </summary>
     /// <param name="apiName">The API's name in the generated methods (from the server's namespace or <c>apiName</c>).</param>
     /// <param name="handlersMethodSuffix">The last term of the handler project's name: <c>AddApiHandlersFrom{suffix}()</c>.</param>
@@ -94,7 +94,7 @@ internal static class HostProjectFiles
         // The three generated calls: services, middleware, endpoints
         sb.AppendLine("// The generated API services: ProblemDetails for every error, the JSON options and the policies the");
         sb.AppendLine("// specification declares");
-        sb.AppendLine(CultureInfo.InvariantCulture, $"builder.Services.Add{apiName}Api();");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"builder.Services.Add{apiName}ApiServices();");
         sb.AppendLine();
         sb.AppendLine("// Register handler implementations from the handler project");
         sb.AppendLine(CultureInfo.InvariantCulture, $"builder.Services.AddApiHandlersFrom{handlersMethodSuffix}();");
@@ -103,7 +103,7 @@ internal static class HostProjectFiles
         sb.AppendLine();
         sb.AppendLine("// The generated middleware, in the recommended order: error handling, status code pages, and what the");
         sb.AppendLine("// specification needs (authentication, rate limiting, ...)");
-        sb.AppendLine(CultureInfo.InvariantCulture, $"app.Use{apiName}Api();");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"app.Use{apiName}ApiMiddleware();");
         sb.AppendLine();
 
         // Generate UI mapping based on configuration
@@ -130,7 +130,7 @@ internal static class HostProjectFiles
         }
 
         sb.AppendLine("// Every endpoint of the API");
-        sb.AppendLine(CultureInfo.InvariantCulture, $"app.Map{apiName}Api();");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"app.Map{apiName}ApiEndpoints();");
         sb.AppendLine();
         sb.Append("await app.RunAsync();");
 
@@ -139,7 +139,7 @@ internal static class HostProjectFiles
 
     /// <summary>
     /// The host's global usings: the server's namespace (the handler registration is generated there) and its
-    /// <c>Generated.Extensions</c> (<c>Add/Use/Map{Api}Api()</c>).
+    /// <c>Generated.Extensions</c> (<c>Add{Api}ApiServices()</c>, <c>Use{Api}ApiMiddleware()</c>, <c>Map{Api}ApiEndpoints()</c>).
     /// </summary>
     /// <param name="serverNamespace">The server marker's namespace.</param>
     /// <param name="hostUi">The API documentation UI.</param>
@@ -155,7 +155,7 @@ internal static class HostProjectFiles
         sb.Append(serverNamespace);
         sb.AppendLine(";");
 
-        // The generated host extensions: Add{Api}Api(), Use{Api}Api(), Map{Api}Api()
+        // The generated host extensions: Add{Api}ApiServices(), Use{Api}ApiMiddleware(), Map{Api}ApiEndpoints()
         sb.Append("global using ");
         sb.Append(serverNamespace);
         sb.AppendLine(".Generated.Extensions;");

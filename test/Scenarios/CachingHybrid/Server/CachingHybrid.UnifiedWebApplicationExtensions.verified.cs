@@ -12,8 +12,8 @@ using CachingHybrid.Generated.Endpoints;
 namespace CachingHybrid.Generated.Extensions;
 
 /// <summary>
-/// The host wiring of the CachingHybrid API: <see cref="UseCachingHybridApi"/> adds the middleware,
-/// <see cref="MapCachingHybridApi"/> maps the endpoints.
+/// The host wiring of the CachingHybrid API: <see cref="UseCachingHybridApiMiddleware"/> adds the middleware,
+/// <see cref="MapCachingHybridApiEndpoints(WebApplication)"/> maps the endpoints.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public static class UnifiedWebApplicationExtensions
@@ -21,7 +21,8 @@ public static class UnifiedWebApplicationExtensions
     private const string UseApiMark = "CachingHybrid.Generated.UseCachingHybridApi";
 
     /// <summary>
-    /// Adds the middleware the CachingHybrid API needs, in the recommended order. Call it before <see cref="MapCachingHybridApi"/>.
+    /// Adds the middleware the generated endpoints of the CachingHybrid API rely on, in the order listed below. It maps no
+    /// endpoint: call <see cref="MapCachingHybridApiEndpoints(WebApplication)"/> after it.
     /// </summary>
     /// <param name="app">The web application.</param>
     /// <param name="configure">
@@ -36,10 +37,10 @@ public static class UnifiedWebApplicationExtensions
     /// <para>• The host's own middleware from <c>AfterErrorHandling</c> (CORS, HSTS, HTTPS redirection)</para>
     /// <para>
     /// Turn off what the host adds itself. A host that orders its whole pipeline itself does not call this method,
-    /// adds the middleware above itself and calls <c>MapCachingHybridApi(requireUse: false)</c>.
+    /// adds the middleware above itself and calls <c>MapCachingHybridApiEndpoints(requireUse: false)</c>.
     /// </para>
     /// </remarks>
-    public static WebApplication UseCachingHybridApi(
+    public static WebApplication UseCachingHybridApiMiddleware(
         this WebApplication app,
         Action<ApiMiddlewareOptions>? configure = null)
     {
@@ -71,33 +72,46 @@ public static class UnifiedWebApplicationExtensions
     }
 
     /// <summary>
-    /// Maps all endpoints of the CachingHybrid API. Call it after <see cref="UseCachingHybridApi"/>, which adds the middleware
-    /// the endpoints need (error handling, authentication, ...).
+    /// Maps every endpoint of the CachingHybrid API. It adds no middleware: call <see cref="UseCachingHybridApiMiddleware"/> before
+    /// it.
     /// </summary>
     /// <param name="app">The web application.</param>
     /// <param name="requireUse">
-    /// <see langword="true"/> (default): throw at startup when <see cref="UseCachingHybridApi"/> was not called first.
+    /// <see langword="true"/>: throw at startup when <see cref="UseCachingHybridApiMiddleware"/> was not called first.
     /// <see langword="false"/>: the host adds that middleware itself.
     /// </param>
     /// <returns>The web application, for chaining.</returns>
     /// <exception cref="InvalidOperationException">
-    /// <see cref="UseCachingHybridApi"/> was not called first, and <paramref name="requireUse"/> is <see langword="true"/>.
+    /// <see cref="UseCachingHybridApiMiddleware"/> was not called first, and <paramref name="requireUse"/> is <see langword="true"/>.
     /// </exception>
-    public static WebApplication MapCachingHybridApi(
+    public static WebApplication MapCachingHybridApiEndpoints(
         this WebApplication app,
-        bool requireUse = true)
+        bool requireUse)
     {
-        // The endpoints rely on the middleware Use…Api() adds: without it they would run without their error handling
+        // The endpoints rely on the middleware Use…ApiMiddleware() adds: without it they would run without their error handling
         if (requireUse && !((global::Microsoft.AspNetCore.Builder.IApplicationBuilder)app).Properties.ContainsKey(UseApiMark))
         {
             throw new InvalidOperationException(
-                "Call app.UseCachingHybridApi() before app.MapCachingHybridApi(): it adds the error handling, the status code pages " +
+                "Call app.UseCachingHybridApiMiddleware() before app.MapCachingHybridApiEndpoints(): it adds the error handling, the status code pages " +
                 "and the rest of the middleware the endpoints rely on. " +
-                "A host that adds that middleware itself calls app.MapCachingHybridApi(requireUse: false).");
+                "A host that adds that middleware itself calls app.MapCachingHybridApiEndpoints(requireUse: false).");
         }
 
         app.MapEndpoints();
 
         return app;
     }
+
+    /// <summary>
+    /// Maps every endpoint of the CachingHybrid API. It adds no middleware: call <see cref="UseCachingHybridApiMiddleware"/> before
+    /// it, or this method throws at startup.
+    /// </summary>
+    /// <param name="app">The web application.</param>
+    /// <returns>The web application, for chaining.</returns>
+    /// <exception cref="InvalidOperationException">
+    /// <see cref="UseCachingHybridApiMiddleware"/> was not called first.
+    /// </exception>
+    public static WebApplication MapCachingHybridApiEndpoints(
+        this WebApplication app)
+        => MapCachingHybridApiEndpoints(app, requireUse: true);
 }

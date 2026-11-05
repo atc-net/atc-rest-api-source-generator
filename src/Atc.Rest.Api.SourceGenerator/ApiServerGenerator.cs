@@ -882,10 +882,10 @@ public class ApiServerGenerator : IIncrementalGenerator
         List<string> effectiveSegments,
         int operationCount)
     {
-        // Generate the simplified API surface: Add…Api() and Map…Api() with their options. Without
-        // Atc.Rest.MinimalApi too - then the framework's exception handler stands where the package's error handler
-        // would, and everything else the host wiring does (ProblemDetails, the enum converter, the output cache, the
-        // order of authentication and the rate limiter) is the same.
+        // Generate the simplified API surface: Add…ApiServices(), Use…ApiMiddleware() and Map…ApiEndpoints() with their
+        // options. Without Atc.Rest.MinimalApi too - then the framework's exception handler stands where the package's
+        // error handler would, and everything else the host wiring does (ProblemDetails, the enum converter, the output
+        // cache, the order of authentication and the rate limiter) is the same.
         GenerateApiOptions(generatedContext, openApiDoc, projectName, config, useGlobalErrorHandler);
 
         // The unified extensions register the handlers and map the endpoints: with no operations there are
@@ -1904,7 +1904,7 @@ public class ApiServerGenerator : IIncrementalGenerator
             $"{projectName}.UnifiedServiceCollectionExtensions.g.cs",
             generatedContent);
 
-        // The converter the Add…Api() above puts first in the JSON options, when there is an enum to write
+        // The converter the Add…ApiServices() above puts first in the JSON options, when there is an enum to write
         if (EnumWireConverterExtractor.HasEnums(openApiDoc))
         {
             context.AddGeneratedSource(
@@ -1914,7 +1914,7 @@ public class ApiServerGenerator : IIncrementalGenerator
     }
 
     /// <summary>
-    /// Generates the WebApplication extension methods Use{Api}Api() and Map{Api}Api().
+    /// Generates the WebApplication extension methods Use{Api}ApiMiddleware() and Map{Api}ApiEndpoints().
     /// </summary>
     private static void GenerateUnifiedWebApplicationExtensions(
         GeneratedSourceContext context,

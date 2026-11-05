@@ -2,7 +2,7 @@ namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 
 /// <summary>
 /// The host's own middleware, added through <c>ApiMiddlewareOptions.AfterErrorHandling</c>, runs inside the error
-/// handling <c>Use{Api}Api()</c> adds: what it throws is a ProblemDetails 500 and what it answers empty gets a
+/// handling <c>Use{Api}ApiMiddleware()</c> adds: what it throws is a ProblemDetails 500 and what it answers empty gets a
 /// ProblemDetails body - on the package's host and on the plain host alike.
 /// </summary>
 public partial class ErrorResponseBodyRuntimeTests
@@ -31,7 +31,7 @@ public partial class ErrorResponseBodyRuntimeTests
 
     /// <summary>
     /// Until 3.1 <c>Map{Api}Api()</c> also added the middleware: a host that still calls only it must not start
-    /// without its error handling - it fails at startup and names the call it misses.
+    /// without its error handling - it fails at startup and names the call it misses, by its current name.
     /// </summary>
     [Fact]
     public async Task MapApi_WithoutUseApi_FailsAtStartupAndNamesTheMissingCall()
@@ -39,13 +39,13 @@ public partial class ErrorResponseBodyRuntimeTests
         var exception = await Assert.ThrowsAnyAsync<Exception>(() => ErrorBodyHost.StartAsync(callUse: false));
 
         var invalidOperation = Assert.IsType<InvalidOperationException>(exception is TargetInvocationException { InnerException: { } inner } ? inner : exception);
-        Assert.Contains("app.UseErrorBodiesApi()", invalidOperation.Message, StringComparison.Ordinal);
+        Assert.Contains("app.UseErrorBodiesApiMiddleware()", invalidOperation.Message, StringComparison.Ordinal);
         Assert.Contains("requireUse: false", invalidOperation.Message, StringComparison.Ordinal);
     }
 
     /// <summary>
     /// A host that orders its whole pipeline itself says so with <c>requireUse: false</c>: it starts without
-    /// <c>Use{Api}Api()</c>, and the endpoints are mapped.
+    /// <c>Use{Api}ApiMiddleware()</c>, and the endpoints are mapped.
     /// </summary>
     [Fact]
     public async Task MapApi_WithoutUseApi_StartsWhenTheHostOrdersItsOwnPipeline()

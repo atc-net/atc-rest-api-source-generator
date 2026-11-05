@@ -291,9 +291,9 @@ public sealed class GenerateServerCommandTests : IDisposable
         var cleanOutput = CliTestHelper.StripAnsiCodes(output);
         Assert.True(isSuccessful, $"Expected success but got failure. Output: {cleanOutput}");
         var program = await File.ReadAllTextAsync(Path.Combine(repoRoot, "src", "Contoso.Api", "Program.cs"), TestContext.Current.CancellationToken);
-        Assert.Contains("builder.Services.AddContosoApi();", program, StringComparison.Ordinal);
-        Assert.Contains("app.UseContosoApi();", program, StringComparison.Ordinal);
-        Assert.Contains("app.MapContosoApi();", program, StringComparison.Ordinal);
+        Assert.Contains("builder.Services.AddContosoApiServices();", program, StringComparison.Ordinal);
+        Assert.Contains("app.UseContosoApiMiddleware();", program, StringComparison.Ordinal);
+        Assert.Contains("app.MapContosoApiEndpoints();", program, StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -339,7 +339,7 @@ public sealed class GenerateServerCommandTests : IDisposable
 
     /// <summary>
     /// The host calls the methods the generator emits: named after the server's namespace (or apiName) and the domain
-    /// project, not after the host project - <c>--namespace Acme.Shop</c> gives AddShopApi(), and a domain project
+    /// project, not after the host project - <c>--namespace Acme.Shop</c> gives AddShopApiServices(), and a domain project
     /// <c>Contoso.Core</c> gives AddApiHandlersFromCore(), both in the Acme.Shop namespace.
     /// </summary>
     [Fact]
@@ -354,10 +354,10 @@ public sealed class GenerateServerCommandTests : IDisposable
         Assert.True(isSuccessful, $"Expected success but got failure. Output: {CliTestHelper.StripAnsiCodes(output)}");
         var host = Path.Combine(repoRoot, "src", "Contoso.Api");
         var program = await File.ReadAllTextAsync(Path.Combine(host, "Program.cs"), TestContext.Current.CancellationToken);
-        Assert.Contains("builder.Services.AddShopApi();", program, StringComparison.Ordinal);
+        Assert.Contains("builder.Services.AddShopApiServices();", program, StringComparison.Ordinal);
         Assert.Contains("builder.Services.AddApiHandlersFromCore();", program, StringComparison.Ordinal);
-        Assert.Contains("app.UseShopApi();", program, StringComparison.Ordinal);
-        Assert.Contains("app.MapShopApi();", program, StringComparison.Ordinal);
+        Assert.Contains("app.UseShopApiMiddleware();", program, StringComparison.Ordinal);
+        Assert.Contains("app.MapShopApiEndpoints();", program, StringComparison.Ordinal);
         var globalUsings = await File.ReadAllTextAsync(Path.Combine(host, "GlobalUsings.cs"), TestContext.Current.CancellationToken);
         Assert.Contains("global using Acme.Shop;", globalUsings, StringComparison.Ordinal);
         Assert.Contains("global using Acme.Shop.Generated.Extensions;", globalUsings, StringComparison.Ordinal);

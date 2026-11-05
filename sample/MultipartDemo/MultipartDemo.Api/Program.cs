@@ -37,7 +37,7 @@ builder.Services.AddAuthenticationForMultipartDemoDemo();
 // ============================================
 // API SERVICES - Simplified registration
 // ============================================
-builder.Services.AddMultipartDemoApi();
+builder.Services.AddMultipartDemoApiServices();
 
 // Register handler implementations and validators from Domain project
 builder.Services.AddApiHandlersFromDomain();
@@ -62,8 +62,8 @@ app.MapHub<NotificationHub>("/hubs/notifications");
 // API MIDDLEWARE AND ENDPOINTS
 // ============================================
 // The generated middleware (error handling, status code pages, authentication), then every endpoint
-app.UseMultipartDemoApi();
-app.MapMultipartDemoApi();
+app.UseMultipartDemoApiMiddleware();
+app.MapMultipartDemoApiEndpoints();
 
 if (app.Environment.IsDevelopment())
 {

@@ -106,8 +106,8 @@ public sealed class PackageInstallTests(PackedGeneratorFixture package) : IClass
         """;
 
     /// <summary>
-    /// A server app on the generated code: handlers for the two operations, the generated <c>AddContosoApi()</c> /
-    /// <c>UseContosoApi()</c> / <c>MapContosoApi()</c>, and calls to itself on a random port - a list, a create,
+    /// A server app on the generated code: handlers for the two operations, the generated <c>AddContosoApiServices()</c> /
+    /// <c>UseContosoApiMiddleware()</c> / <c>MapContosoApiEndpoints()</c>, and calls to itself on a random port - a list, a create,
     /// and a create without the required name.
     /// </summary>
     private const string ServerProgramSource = """
@@ -130,12 +130,12 @@ public sealed class PackageInstallTests(PackedGeneratorFixture package) : IClass
         builder.Logging.ClearProviders();
         builder.Services.AddScoped<IListPetsHandler, ListPetsHandler>();
         builder.Services.AddScoped<ICreatePetHandler, CreatePetHandler>();
-        builder.Services.AddContosoApi();
+        builder.Services.AddContosoApiServices();
 
         var app = builder.Build();
         app.Urls.Add("http://127.0.0.1:0");
-        app.UseContosoApi();
-        app.MapContosoApi();
+        app.UseContosoApiMiddleware();
+        app.MapContosoApiEndpoints();
         await app.StartAsync();
 
         using var client = new HttpClient { BaseAddress = new Uri(app.Urls.First()) };
@@ -378,8 +378,8 @@ public sealed class PackageInstallTests(PackedGeneratorFixture package) : IClass
             Path.Combine(server, "Program.cs"),
             ServerProgramSource
                 .Replace(
-                    "builder.Services.AddContosoApi();",
-                    "builder.Services.AddContosoApi();\nbuilder.Services.AddValidation();",
+                    "builder.Services.AddContosoApiServices();",
+                    "builder.Services.AddContosoApiServices();\nbuilder.Services.AddValidation();",
                     StringComparison.Ordinal)
                 .Replace(
                     "await app.StopAsync();",

@@ -25,12 +25,12 @@ public class UnifiedExtractorsNamingTests
 
     // ========== WebApplicationExtensionsExtractor.ExtractUnified ==========
     [Theory]
-    [InlineData("Contoso.Data.Provider.Cpms.Monta.Api", "UseMontaApi", "MapMontaApi")]
-    [InlineData("MyCompany.Product.Api", "UseProductApi", "MapProductApi")]
-    [InlineData("Contoso.IoT.Nexus.Api.Contracts", "UseNexusApi", "MapNexusApi")]
-    [InlineData("Showcase", "UseShowcaseApi", "MapShowcaseApi")]
-    [InlineData("MyCompany.Product.WebApi", "UseWebApi", "MapWebApi")]
-    [InlineData("PetStoreFull", "UsePetStoreFullApi", "MapPetStoreFullApi")]
+    [InlineData("Contoso.Data.Provider.Cpms.Monta.Api", "UseMontaApiMiddleware", "MapMontaApiEndpoints")]
+    [InlineData("MyCompany.Product.Api", "UseProductApiMiddleware", "MapProductApiEndpoints")]
+    [InlineData("Contoso.IoT.Nexus.Api.Contracts", "UseNexusApiMiddleware", "MapNexusApiEndpoints")]
+    [InlineData("Showcase", "UseShowcaseApiMiddleware", "MapShowcaseApiEndpoints")]
+    [InlineData("MyCompany.Product.WebApi", "UseWebApiMiddleware", "MapWebApiEndpoints")]
+    [InlineData("PetStoreFull", "UsePetStoreFullApiMiddleware", "MapPetStoreFullApiEndpoints")]
     public void ExtractUnified_GeneratesExpectedUseAndMapMethodNames(
         string projectName,
         string expectedUseMethodName,
@@ -79,11 +79,11 @@ public class UnifiedExtractorsNamingTests
 
     // ========== UnifiedServiceCollectionExtractor.Extract ==========
     [Theory]
-    [InlineData("Contoso.Data.Provider.Cpms.Monta.Api", "AddMontaApi")]
-    [InlineData("MyCompany.Product.Api", "AddProductApi")]
-    [InlineData("Contoso.IoT.Nexus.Api.Contracts", "AddNexusApi")]
-    [InlineData("Showcase", "AddShowcaseApi")]
-    [InlineData("MyCompany.Product.WebApi", "AddWebApi")]
+    [InlineData("Contoso.Data.Provider.Cpms.Monta.Api", "AddMontaApiServices")]
+    [InlineData("MyCompany.Product.Api", "AddProductApiServices")]
+    [InlineData("Contoso.IoT.Nexus.Api.Contracts", "AddNexusApiServices")]
+    [InlineData("Showcase", "AddShowcaseApiServices")]
+    [InlineData("MyCompany.Product.WebApi", "AddWebApiServices")]
     public void Extract_GeneratesExpectedAddApiMethodName(
         string projectName,
         string expectedMethodName)

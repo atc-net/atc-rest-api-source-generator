@@ -2,7 +2,7 @@ namespace Atc.Rest.Api.Generator.Tests.Extractors;
 
 /// <summary>
 /// Tests for <see cref="SecurityDependencyInjectionExtractor"/>, and for its contract with
-/// <see cref="UnifiedServiceCollectionExtractor"/>: whatever the unified <c>Add{Project}Api()</c>
+/// <see cref="UnifiedServiceCollectionExtractor"/>: whatever the unified <c>Add{Project}ApiServices()</c>
 /// references from the <c>Generated.Security</c> namespace has to actually be generated.
 /// </summary>
 public class SecurityDependencyInjectionExtractorTests

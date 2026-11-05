@@ -1,7 +1,7 @@
 namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 
 /// <summary>
-/// The generated <c>Add{Project}Api()</c> of an API with XML bodies registers its <c>XmlProblemDetailsWriter</c> once,
+/// The generated <c>Add{Project}ApiServices()</c> of an API with XML bodies registers its <c>XmlProblemDetailsWriter</c> once,
 /// guarded by a look at the service collection. That look matches only an unkeyed <c>IProblemDetailsWriter</c>
 /// registration of the writer, and never reads <c>ServiceDescriptor.ImplementationType</c> of a keyed registration -
 /// Microsoft.Extensions.DependencyInjection.Abstractions 8.0.0 and 8.0.1 throw there.
@@ -109,7 +109,7 @@ public sealed class ProblemDetailsWriterRegistrationRuntimeTests
     private static void AddApi(IServiceCollection services)
         => Server.Value
             .GetType("XmlThings.Generated.Extensions.UnifiedServiceCollectionExtensions", throwOnError: true)!
-            .GetMethod("AddXmlThingsApi")!
+            .GetMethod("AddXmlThingsApiServices")!
             .Invoke(null, [services, null]);
 
     /// <summary>The unkeyed <c>IProblemDetailsWriter</c> registrations of the generated XML writer.</summary>

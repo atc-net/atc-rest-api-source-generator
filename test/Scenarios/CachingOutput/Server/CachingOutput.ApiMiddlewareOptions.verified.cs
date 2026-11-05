@@ -10,7 +10,7 @@ using Microsoft.AspNetCore.Builder;
 namespace CachingOutput.Generated;
 
 /// <summary>
-/// The options of the generated <c>Use…Api()</c>: a switch per middleware it adds, and
+/// The options of the generated <c>Use…ApiMiddleware()</c>: a switch per middleware it adds, and
 /// <see cref="AfterErrorHandling"/> for the host's own middleware.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
@@ -25,7 +25,7 @@ public class ApiMiddlewareOptions
 
     /// <summary>
     /// Add the output cache middleware (<c>UseOutputCache()</c>, after authentication: an authenticated
-    /// caller's answer is never cached). A host that adds <c>UseOutputCache()</c> itself after <c>Use…Api()</c>
+    /// caller's answer is never cached). A host that adds <c>UseOutputCache()</c> itself after <c>Use…ApiMiddleware()</c>
     /// turns this off - a second output cache throws on every request; one it adds before is detected.
     /// Generated because the specification declares x-cache-type: output. Default: true.
     /// </summary>

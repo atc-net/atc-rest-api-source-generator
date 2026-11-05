@@ -113,17 +113,17 @@ public sealed class MalformedJsonBodyRuntimeTests
             assembly.GetType("Items.RuntimeTest.CreateItemHandler", throwOnError: true)!);
 
         serviceExtensions
-            .GetMethod("AddItemsApi")!
+            .GetMethod("AddItemsApiServices")!
             .Invoke(null, [builder.Services, null]);
 
         var app = builder.Build();
         app.Urls.Add("http://127.0.0.1:0");
 
         appExtensions
-            .GetMethod("UseItemsApi")!
+            .GetMethod("UseItemsApiMiddleware")!
             .Invoke(null, [app, null]);
         appExtensions
-            .GetMethod("MapItemsApi")!
+            .GetMethod("MapItemsApiEndpoints", [typeof(Microsoft.AspNetCore.Builder.WebApplication), typeof(bool)])!
             .Invoke(null, [app, true]);
 
         await app.StartAsync(TestContext.Current.CancellationToken);

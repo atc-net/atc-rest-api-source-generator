@@ -6,7 +6,7 @@ namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 /// binding failures, unmatched routes, wrong methods, and handler results with an empty body.
 /// </summary>
 /// <remarks>
-/// Input for the decision whether the generated <c>Add{Project}Api()</c> / <c>Map{Project}Api()</c>
+/// Input for the decision whether the generated <c>Add{Project}ApiServices()</c> / <c>Map{Project}ApiEndpoints()</c>
 /// should wire these up.
 /// </remarks>
 public class ProblemDetailsHostWiringRuntimeTests

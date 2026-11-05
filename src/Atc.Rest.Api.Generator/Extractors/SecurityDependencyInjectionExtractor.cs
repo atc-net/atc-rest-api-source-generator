@@ -22,7 +22,7 @@ public static class SecurityDependencyInjectionExtractor
             throw new ArgumentNullException(nameof(openApiDoc));
         }
 
-        // The unified Add{Project}Api() references AddApiSecurityPolicies() whenever a scheme
+        // The unified Add{Project}ApiServices() references AddApiSecurityPolicies() whenever a scheme
         // exists, so the method has to exist then too - even with no policy to register.
         if (!openApiDoc.HasSecuritySchemes())
         {

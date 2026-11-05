@@ -200,17 +200,17 @@ public sealed class StreamFirstItemRuntimeTests
         }
 
         serviceExtensions
-            .GetMethod("AddStreamsApi")!
+            .GetMethod("AddStreamsApiServices")!
             .Invoke(null, [builder.Services, null]);
 
         var app = builder.Build();
         app.Urls.Add("http://127.0.0.1:0");
 
         appExtensions
-            .GetMethod("UseStreamsApi")!
+            .GetMethod("UseStreamsApiMiddleware")!
             .Invoke(null, [app, null]);
         appExtensions
-            .GetMethod("MapStreamsApi")!
+            .GetMethod("MapStreamsApiEndpoints", [typeof(Microsoft.AspNetCore.Builder.WebApplication), typeof(bool)])!
             .Invoke(null, [app, true]);
 
         await app.StartAsync(TestContext.Current.CancellationToken);

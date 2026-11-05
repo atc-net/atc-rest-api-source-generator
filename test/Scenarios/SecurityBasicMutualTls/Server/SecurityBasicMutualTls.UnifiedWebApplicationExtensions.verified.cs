@@ -12,8 +12,8 @@ using SecurityBasicMutualTls.Generated.Endpoints;
 namespace SecurityBasicMutualTls.Generated.Extensions;
 
 /// <summary>
-/// The host wiring of the SecurityBasicMutualTls API: <see cref="UseSecurityBasicMutualTlsApi"/> adds the middleware,
-/// <see cref="MapSecurityBasicMutualTlsApi"/> maps the endpoints.
+/// The host wiring of the SecurityBasicMutualTls API: <see cref="UseSecurityBasicMutualTlsApiMiddleware"/> adds the middleware,
+/// <see cref="MapSecurityBasicMutualTlsApiEndpoints(WebApplication)"/> maps the endpoints.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public static class UnifiedWebApplicationExtensions
@@ -21,7 +21,8 @@ public static class UnifiedWebApplicationExtensions
     private const string UseApiMark = "SecurityBasicMutualTls.Generated.UseSecurityBasicMutualTlsApi";
 
     /// <summary>
-    /// Adds the middleware the SecurityBasicMutualTls API needs, in the recommended order. Call it before <see cref="MapSecurityBasicMutualTlsApi"/>.
+    /// Adds the middleware the generated endpoints of the SecurityBasicMutualTls API rely on, in the order listed below. It maps no
+    /// endpoint: call <see cref="MapSecurityBasicMutualTlsApiEndpoints(WebApplication)"/> after it.
     /// </summary>
     /// <param name="app">The web application.</param>
     /// <param name="configure">
@@ -37,10 +38,10 @@ public static class UnifiedWebApplicationExtensions
     /// <para>• Authentication and authorization - the specification requires a signed-in caller</para>
     /// <para>
     /// Turn off what the host adds itself. A host that orders its whole pipeline itself does not call this method,
-    /// adds the middleware above itself and calls <c>MapSecurityBasicMutualTlsApi(requireUse: false)</c>.
+    /// adds the middleware above itself and calls <c>MapSecurityBasicMutualTlsApiEndpoints(requireUse: false)</c>.
     /// </para>
     /// </remarks>
-    public static WebApplication UseSecurityBasicMutualTlsApi(
+    public static WebApplication UseSecurityBasicMutualTlsApiMiddleware(
         this WebApplication app,
         Action<ApiMiddlewareOptions>? configure = null)
     {
@@ -86,33 +87,46 @@ public static class UnifiedWebApplicationExtensions
     }
 
     /// <summary>
-    /// Maps all endpoints of the SecurityBasicMutualTls API. Call it after <see cref="UseSecurityBasicMutualTlsApi"/>, which adds the middleware
-    /// the endpoints need (error handling, authentication, ...).
+    /// Maps every endpoint of the SecurityBasicMutualTls API. It adds no middleware: call <see cref="UseSecurityBasicMutualTlsApiMiddleware"/> before
+    /// it.
     /// </summary>
     /// <param name="app">The web application.</param>
     /// <param name="requireUse">
-    /// <see langword="true"/> (default): throw at startup when <see cref="UseSecurityBasicMutualTlsApi"/> was not called first.
+    /// <see langword="true"/>: throw at startup when <see cref="UseSecurityBasicMutualTlsApiMiddleware"/> was not called first.
     /// <see langword="false"/>: the host adds that middleware itself.
     /// </param>
     /// <returns>The web application, for chaining.</returns>
     /// <exception cref="InvalidOperationException">
-    /// <see cref="UseSecurityBasicMutualTlsApi"/> was not called first, and <paramref name="requireUse"/> is <see langword="true"/>.
+    /// <see cref="UseSecurityBasicMutualTlsApiMiddleware"/> was not called first, and <paramref name="requireUse"/> is <see langword="true"/>.
     /// </exception>
-    public static WebApplication MapSecurityBasicMutualTlsApi(
+    public static WebApplication MapSecurityBasicMutualTlsApiEndpoints(
         this WebApplication app,
-        bool requireUse = true)
+        bool requireUse)
     {
-        // The endpoints rely on the middleware Use…Api() adds: without it they would run without their error handling
+        // The endpoints rely on the middleware Use…ApiMiddleware() adds: without it they would run without their error handling
         if (requireUse && !((global::Microsoft.AspNetCore.Builder.IApplicationBuilder)app).Properties.ContainsKey(UseApiMark))
         {
             throw new InvalidOperationException(
-                "Call app.UseSecurityBasicMutualTlsApi() before app.MapSecurityBasicMutualTlsApi(): it adds the error handling, the status code pages " +
+                "Call app.UseSecurityBasicMutualTlsApiMiddleware() before app.MapSecurityBasicMutualTlsApiEndpoints(): it adds the error handling, the status code pages " +
                 "and the rest of the middleware the endpoints rely on. " +
-                "A host that adds that middleware itself calls app.MapSecurityBasicMutualTlsApi(requireUse: false).");
+                "A host that adds that middleware itself calls app.MapSecurityBasicMutualTlsApiEndpoints(requireUse: false).");
         }
 
         app.MapEndpoints();
 
         return app;
     }
+
+    /// <summary>
+    /// Maps every endpoint of the SecurityBasicMutualTls API. It adds no middleware: call <see cref="UseSecurityBasicMutualTlsApiMiddleware"/> before
+    /// it, or this method throws at startup.
+    /// </summary>
+    /// <param name="app">The web application.</param>
+    /// <returns>The web application, for chaining.</returns>
+    /// <exception cref="InvalidOperationException">
+    /// <see cref="UseSecurityBasicMutualTlsApiMiddleware"/> was not called first.
+    /// </exception>
+    public static WebApplication MapSecurityBasicMutualTlsApiEndpoints(
+        this WebApplication app)
+        => MapSecurityBasicMutualTlsApiEndpoints(app, requireUse: true);
 }

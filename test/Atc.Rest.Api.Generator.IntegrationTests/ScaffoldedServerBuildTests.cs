@@ -2,7 +2,7 @@ namespace Atc.Rest.Api.Generator.IntegrationTests;
 
 /// <summary>
 /// What <c>generate server</c> scaffolds builds: each project structure, written by the CLI, restored from the packed
-/// generator and built as a whole solution - the host's Program.cs on the generated <c>Add/Use/Map{Api}Api()</c>, the
+/// generator and built as a whole solution - the host's Program.cs on the generated <c>Add{Api}ApiServices(), Use{Api}ApiMiddleware(), Map{Api}ApiEndpoints()</c>, the
 /// project references (no cycle), and the test project. Without the coding rules (<c>--no-coding-rules</c>), so
 /// the scaffold has to stand on its own: no Directory.Build.props brings a target framework, usings or packages.
 /// </summary>

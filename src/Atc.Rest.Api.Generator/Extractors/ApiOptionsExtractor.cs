@@ -106,7 +106,7 @@ public static class ApiOptionsExtractor
         ServerFeatures features)
     {
         builder.AppendLine("/// <summary>");
-        builder.AppendLine("/// The options of the generated <c>Add…Api()</c>: a switch per registration it makes.");
+        builder.AppendLine("/// The options of the generated <c>Add…ApiServices()</c>: a switch per registration it makes.");
         builder.AppendLine("/// </summary>");
         builder.AppendLine("/// <remarks>");
         builder.AppendLine("/// Note: the handlers (AddApiHandlersFrom{HandlerProject}) and the validators (AddApiValidatorsFrom{HandlerProject},");
@@ -116,7 +116,7 @@ public static class ApiOptionsExtractor
         builder.AppendLine("public class ApiServiceOptions");
         builder.AppendLine("{");
 
-        // Each feature switch exists only when Add{Api}Api() reads it - when the specification (or the marker)
+        // Each feature switch exists only when Add{Api}ApiServices() reads it - when the specification (or the marker)
         // declares the feature. A switch nothing reads would say the feature can be turned on.
         if (features.HasRateLimiting)
         {
@@ -178,7 +178,7 @@ public static class ApiOptionsExtractor
         bool useGlobalErrorHandler)
     {
         builder.AppendLine("/// <summary>");
-        builder.AppendLine("/// The options of the generated <c>Use…Api()</c>: a switch per middleware it adds, and");
+        builder.AppendLine("/// The options of the generated <c>Use…ApiMiddleware()</c>: a switch per middleware it adds, and");
         builder.AppendLine("/// <see cref=\"AfterErrorHandling\"/> for the host's own middleware.");
         builder.AppendLine("/// </summary>");
         builder.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
@@ -194,7 +194,7 @@ public static class ApiOptionsExtractor
         builder.AppendLine(4, "public Action<IApplicationBuilder>? AfterErrorHandling { get; set; }");
         builder.AppendLine();
 
-        // Each feature switch exists only when Use{Api}Api() reads it - when the specification declares the feature
+        // Each feature switch exists only when Use{Api}ApiMiddleware() reads it - when the specification declares the feature
         if (features.HasRateLimiting)
         {
             builder.AppendLine(4, "/// <summary>");
@@ -209,7 +209,7 @@ public static class ApiOptionsExtractor
         {
             builder.AppendLine(4, "/// <summary>");
             builder.AppendLine(4, "/// Add the output cache middleware (<c>UseOutputCache()</c>, after authentication: an authenticated");
-            builder.AppendLine(4, "/// caller's answer is never cached). A host that adds <c>UseOutputCache()</c> itself after <c>Use…Api()</c>");
+            builder.AppendLine(4, "/// caller's answer is never cached). A host that adds <c>UseOutputCache()</c> itself after <c>Use…ApiMiddleware()</c>");
             builder.AppendLine(4, "/// turns this off - a second output cache throws on every request; one it adds before is detected.");
             builder.AppendLine(4, "/// Generated because the specification declares x-cache-type: output. Default: true.");
             builder.AppendLine(4, "/// </summary>");

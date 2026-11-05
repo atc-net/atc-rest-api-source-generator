@@ -2574,7 +2574,7 @@ public partial class ErrorResponseBodyRuntimeTests
         public List<ProbeCase> Cases { get; }
 
         /// <summary>
-        /// Generates, compiles and starts the server through the generated <c>Add/Use/Map{Project}Api</c> - or, for
+        /// Generates, compiles and starts the server through the generated <c>Add{Project}ApiServices, Use{Project}ApiMiddleware, Map{Project}ApiEndpoints</c> - or, for
         /// the
         /// plain host, through <c>MapEndpoints()</c> with the host wiring the documentation tells a project without
         /// <c>Atc.Rest.MinimalApi</c> to write itself (<c>AddProblemDetails</c>, <c>UseExceptionHandler</c>,
@@ -2586,8 +2586,8 @@ public partial class ErrorResponseBodyRuntimeTests
         /// </param>
         /// <param name="plainHost">
         /// Generate without <c>Atc.Rest.MinimalApi</c> (an empty marker, no reference: no ValidationFilter, no global
-        /// error handler). The host is wired by the generated <c>Add…Api()</c> / <c>Use…Api()</c> /
-        /// <c>Map…Api()</c> all the same.
+        /// error handler). The host is wired by the generated <c>Add…ApiServices()</c> / <c>Use…ApiMiddleware()</c> /
+        /// <c>Map…ApiEndpoints()</c> all the same.
         /// </param>
         /// <param name="environment">The host environment: Production (the matrices) or Development.</param>
         /// <param name="switchedOff">
@@ -2598,8 +2598,8 @@ public partial class ErrorResponseBodyRuntimeTests
         /// Add a host middleware through <c>ApiMiddlewareOptions.AfterErrorHandling</c> that throws on
         /// <c>/host-middleware/throws</c> and answers an empty 403 on <c>/host-middleware/forbids</c>.
         /// </param>
-        /// <param name="callUse">Call the generated <c>Use{Project}Api()</c> before <c>Map{Project}Api()</c>.</param>
-        /// <param name="requireUse">The <c>requireUse</c> argument of <c>Map{Project}Api()</c>.</param>
+        /// <param name="callUse">Call the generated <c>Use{Project}ApiMiddleware()</c> before <c>Map{Project}ApiEndpoints()</c>.</param>
+        /// <param name="requireUse">The <c>requireUse</c> argument of <c>Map{Project}ApiEndpoints()</c>.</param>
         public static async Task<ErrorBodyHost> StartAsync(
             bool problemDetailsWiringOff = false,
             bool plainHost = false,
@@ -2687,11 +2687,11 @@ public partial class ErrorResponseBodyRuntimeTests
             var builder = WebApplication.CreateSlimBuilder(new WebApplicationOptions { EnvironmentName = environment });
             builder.Logging.ClearProviders();
 
-            // The generated Add…Api() - with the package or without it (then no ValidationFilter and no global error
-            // handler: the framework's exception handler stands in, added by Map…Api())
+            // The generated Add…ApiServices() - with the package or without it (then no ValidationFilter and no global
+            // error handler: the framework's exception handler stands in, added by Use…ApiMiddleware())
             registration.GetMethod("Register")!.Invoke(null, [builder.Services]);
             assembly.GetType("ErrorBodies.Generated.Extensions.UnifiedServiceCollectionExtensions", throwOnError: true)!
-                .GetMethod("AddErrorBodiesApi")!
+                .GetMethod("AddErrorBodiesApiServices")!
                 .Invoke(null, [builder.Services, serviceOptions]);
 
             var webApp = builder.Build();
@@ -2723,10 +2723,10 @@ public partial class ErrorResponseBodyRuntimeTests
             var wiring = assembly.GetType("ErrorBodies.Generated.Extensions.UnifiedWebApplicationExtensions", throwOnError: true)!;
             if (callUse)
             {
-                wiring.GetMethod("UseErrorBodiesApi")!.Invoke(null, [webApp, middlewareOptions]);
+                wiring.GetMethod("UseErrorBodiesApiMiddleware")!.Invoke(null, [webApp, middlewareOptions]);
             }
 
-            wiring.GetMethod("MapErrorBodiesApi")!.Invoke(null, [webApp, requireUse]);
+            wiring.GetMethod("MapErrorBodiesApiEndpoints", [typeof(Microsoft.AspNetCore.Builder.WebApplication), typeof(bool)])!.Invoke(null, [webApp, requireUse]);
 
             await webApp.StartAsync(TestContext.Current.CancellationToken);
 

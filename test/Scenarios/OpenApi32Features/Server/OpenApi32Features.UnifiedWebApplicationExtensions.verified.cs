@@ -12,8 +12,8 @@ using OpenApi32Features.Generated.Endpoints;
 namespace OpenApi32Features.Generated.Extensions;
 
 /// <summary>
-/// The host wiring of the OpenApi32Features API: <see cref="UseOpenApi32FeaturesApi"/> adds the middleware,
-/// <see cref="MapOpenApi32FeaturesApi"/> maps the endpoints.
+/// The host wiring of the OpenApi32Features API: <see cref="UseOpenApi32FeaturesApiMiddleware"/> adds the middleware,
+/// <see cref="MapOpenApi32FeaturesApiEndpoints(WebApplication)"/> maps the endpoints.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public static class UnifiedWebApplicationExtensions
@@ -21,7 +21,8 @@ public static class UnifiedWebApplicationExtensions
     private const string UseApiMark = "OpenApi32Features.Generated.UseOpenApi32FeaturesApi";
 
     /// <summary>
-    /// Adds the middleware the OpenApi32Features API needs, in the recommended order. Call it before <see cref="MapOpenApi32FeaturesApi"/>.
+    /// Adds the middleware the generated endpoints of the OpenApi32Features API rely on, in the order listed below. It maps no
+    /// endpoint: call <see cref="MapOpenApi32FeaturesApiEndpoints(WebApplication)"/> after it.
     /// </summary>
     /// <param name="app">The web application.</param>
     /// <param name="configure">
@@ -36,10 +37,10 @@ public static class UnifiedWebApplicationExtensions
     /// <para>• The host's own middleware from <c>AfterErrorHandling</c> (CORS, HSTS, HTTPS redirection)</para>
     /// <para>
     /// Turn off what the host adds itself. A host that orders its whole pipeline itself does not call this method,
-    /// adds the middleware above itself and calls <c>MapOpenApi32FeaturesApi(requireUse: false)</c>.
+    /// adds the middleware above itself and calls <c>MapOpenApi32FeaturesApiEndpoints(requireUse: false)</c>.
     /// </para>
     /// </remarks>
-    public static WebApplication UseOpenApi32FeaturesApi(
+    public static WebApplication UseOpenApi32FeaturesApiMiddleware(
         this WebApplication app,
         Action<ApiMiddlewareOptions>? configure = null)
     {
@@ -71,33 +72,46 @@ public static class UnifiedWebApplicationExtensions
     }
 
     /// <summary>
-    /// Maps all endpoints of the OpenApi32Features API. Call it after <see cref="UseOpenApi32FeaturesApi"/>, which adds the middleware
-    /// the endpoints need (error handling, authentication, ...).
+    /// Maps every endpoint of the OpenApi32Features API. It adds no middleware: call <see cref="UseOpenApi32FeaturesApiMiddleware"/> before
+    /// it.
     /// </summary>
     /// <param name="app">The web application.</param>
     /// <param name="requireUse">
-    /// <see langword="true"/> (default): throw at startup when <see cref="UseOpenApi32FeaturesApi"/> was not called first.
+    /// <see langword="true"/>: throw at startup when <see cref="UseOpenApi32FeaturesApiMiddleware"/> was not called first.
     /// <see langword="false"/>: the host adds that middleware itself.
     /// </param>
     /// <returns>The web application, for chaining.</returns>
     /// <exception cref="InvalidOperationException">
-    /// <see cref="UseOpenApi32FeaturesApi"/> was not called first, and <paramref name="requireUse"/> is <see langword="true"/>.
+    /// <see cref="UseOpenApi32FeaturesApiMiddleware"/> was not called first, and <paramref name="requireUse"/> is <see langword="true"/>.
     /// </exception>
-    public static WebApplication MapOpenApi32FeaturesApi(
+    public static WebApplication MapOpenApi32FeaturesApiEndpoints(
         this WebApplication app,
-        bool requireUse = true)
+        bool requireUse)
     {
-        // The endpoints rely on the middleware Use…Api() adds: without it they would run without their error handling
+        // The endpoints rely on the middleware Use…ApiMiddleware() adds: without it they would run without their error handling
         if (requireUse && !((global::Microsoft.AspNetCore.Builder.IApplicationBuilder)app).Properties.ContainsKey(UseApiMark))
         {
             throw new InvalidOperationException(
-                "Call app.UseOpenApi32FeaturesApi() before app.MapOpenApi32FeaturesApi(): it adds the error handling, the status code pages " +
+                "Call app.UseOpenApi32FeaturesApiMiddleware() before app.MapOpenApi32FeaturesApiEndpoints(): it adds the error handling, the status code pages " +
                 "and the rest of the middleware the endpoints rely on. " +
-                "A host that adds that middleware itself calls app.MapOpenApi32FeaturesApi(requireUse: false).");
+                "A host that adds that middleware itself calls app.MapOpenApi32FeaturesApiEndpoints(requireUse: false).");
         }
 
         app.MapEndpoints();
 
         return app;
     }
+
+    /// <summary>
+    /// Maps every endpoint of the OpenApi32Features API. It adds no middleware: call <see cref="UseOpenApi32FeaturesApiMiddleware"/> before
+    /// it, or this method throws at startup.
+    /// </summary>
+    /// <param name="app">The web application.</param>
+    /// <returns>The web application, for chaining.</returns>
+    /// <exception cref="InvalidOperationException">
+    /// <see cref="UseOpenApi32FeaturesApiMiddleware"/> was not called first.
+    /// </exception>
+    public static WebApplication MapOpenApi32FeaturesApiEndpoints(
+        this WebApplication app)
+        => MapOpenApi32FeaturesApiEndpoints(app, requireUse: true);
 }

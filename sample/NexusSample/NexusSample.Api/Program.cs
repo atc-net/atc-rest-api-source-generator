@@ -5,7 +5,7 @@ builder.Services.AddOpenApi();
 
 // The generated API services: RFC 9457 ProblemDetails for every error, the enum converter, ... The name comes from
 // the marker's namespace, Contoso.Data.Nexus.Api.Contracts: a trailing Contracts / Api says nothing about the API
-builder.Services.AddNexusApi();
+builder.Services.AddNexusApiServices();
 
 // ============================================
 // AUTHENTICATION - JWT Bearer (Demo Mode)
@@ -37,8 +37,8 @@ app
 // The generated middleware: the exception handler (outside Development), status code pages, and authentication +
 // authorization - the specification declares its access with x-authorize-roles only, no security scheme, and that
 // counts as a secured API. Then every endpoint.
-app.UseNexusApi();
-app.MapNexusApi();
+app.UseNexusApiMiddleware();
+app.MapNexusApiEndpoints();
 
 // Map health check endpoints (/health, /health/live, /health/ready)
 app.MapHealthCheckEndpoints();

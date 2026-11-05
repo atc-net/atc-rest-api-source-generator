@@ -12,8 +12,8 @@ using VersioningUrlSegment.Generated.Endpoints;
 namespace VersioningUrlSegment.Generated.Extensions;
 
 /// <summary>
-/// The host wiring of the VersioningUrlSegment API: <see cref="UseVersioningUrlSegmentApi"/> adds the middleware,
-/// <see cref="MapVersioningUrlSegmentApi"/> maps the endpoints.
+/// The host wiring of the VersioningUrlSegment API: <see cref="UseVersioningUrlSegmentApiMiddleware"/> adds the middleware,
+/// <see cref="MapVersioningUrlSegmentApiEndpoints(WebApplication)"/> maps the endpoints.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public static class UnifiedWebApplicationExtensions
@@ -21,7 +21,8 @@ public static class UnifiedWebApplicationExtensions
     private const string UseApiMark = "VersioningUrlSegment.Generated.UseVersioningUrlSegmentApi";
 
     /// <summary>
-    /// Adds the middleware the VersioningUrlSegment API needs, in the recommended order. Call it before <see cref="MapVersioningUrlSegmentApi"/>.
+    /// Adds the middleware the generated endpoints of the VersioningUrlSegment API rely on, in the order listed below. It maps no
+    /// endpoint: call <see cref="MapVersioningUrlSegmentApiEndpoints(WebApplication)"/> after it.
     /// </summary>
     /// <param name="app">The web application.</param>
     /// <param name="configure">
@@ -36,10 +37,10 @@ public static class UnifiedWebApplicationExtensions
     /// <para>• The host's own middleware from <c>AfterErrorHandling</c> (CORS, HSTS, HTTPS redirection)</para>
     /// <para>
     /// Turn off what the host adds itself. A host that orders its whole pipeline itself does not call this method,
-    /// adds the middleware above itself and calls <c>MapVersioningUrlSegmentApi(requireUse: false)</c>.
+    /// adds the middleware above itself and calls <c>MapVersioningUrlSegmentApiEndpoints(requireUse: false)</c>.
     /// </para>
     /// </remarks>
-    public static WebApplication UseVersioningUrlSegmentApi(
+    public static WebApplication UseVersioningUrlSegmentApiMiddleware(
         this WebApplication app,
         Action<ApiMiddlewareOptions>? configure = null)
     {
@@ -71,33 +72,46 @@ public static class UnifiedWebApplicationExtensions
     }
 
     /// <summary>
-    /// Maps all endpoints of the VersioningUrlSegment API. Call it after <see cref="UseVersioningUrlSegmentApi"/>, which adds the middleware
-    /// the endpoints need (error handling, authentication, ...).
+    /// Maps every endpoint of the VersioningUrlSegment API. It adds no middleware: call <see cref="UseVersioningUrlSegmentApiMiddleware"/> before
+    /// it.
     /// </summary>
     /// <param name="app">The web application.</param>
     /// <param name="requireUse">
-    /// <see langword="true"/> (default): throw at startup when <see cref="UseVersioningUrlSegmentApi"/> was not called first.
+    /// <see langword="true"/>: throw at startup when <see cref="UseVersioningUrlSegmentApiMiddleware"/> was not called first.
     /// <see langword="false"/>: the host adds that middleware itself.
     /// </param>
     /// <returns>The web application, for chaining.</returns>
     /// <exception cref="InvalidOperationException">
-    /// <see cref="UseVersioningUrlSegmentApi"/> was not called first, and <paramref name="requireUse"/> is <see langword="true"/>.
+    /// <see cref="UseVersioningUrlSegmentApiMiddleware"/> was not called first, and <paramref name="requireUse"/> is <see langword="true"/>.
     /// </exception>
-    public static WebApplication MapVersioningUrlSegmentApi(
+    public static WebApplication MapVersioningUrlSegmentApiEndpoints(
         this WebApplication app,
-        bool requireUse = true)
+        bool requireUse)
     {
-        // The endpoints rely on the middleware Use…Api() adds: without it they would run without their error handling
+        // The endpoints rely on the middleware Use…ApiMiddleware() adds: without it they would run without their error handling
         if (requireUse && !((global::Microsoft.AspNetCore.Builder.IApplicationBuilder)app).Properties.ContainsKey(UseApiMark))
         {
             throw new InvalidOperationException(
-                "Call app.UseVersioningUrlSegmentApi() before app.MapVersioningUrlSegmentApi(): it adds the error handling, the status code pages " +
+                "Call app.UseVersioningUrlSegmentApiMiddleware() before app.MapVersioningUrlSegmentApiEndpoints(): it adds the error handling, the status code pages " +
                 "and the rest of the middleware the endpoints rely on. " +
-                "A host that adds that middleware itself calls app.MapVersioningUrlSegmentApi(requireUse: false).");
+                "A host that adds that middleware itself calls app.MapVersioningUrlSegmentApiEndpoints(requireUse: false).");
         }
 
         app.MapEndpoints();
 
         return app;
     }
+
+    /// <summary>
+    /// Maps every endpoint of the VersioningUrlSegment API. It adds no middleware: call <see cref="UseVersioningUrlSegmentApiMiddleware"/> before
+    /// it, or this method throws at startup.
+    /// </summary>
+    /// <param name="app">The web application.</param>
+    /// <returns>The web application, for chaining.</returns>
+    /// <exception cref="InvalidOperationException">
+    /// <see cref="UseVersioningUrlSegmentApiMiddleware"/> was not called first.
+    /// </exception>
+    public static WebApplication MapVersioningUrlSegmentApiEndpoints(
+        this WebApplication app)
+        => MapVersioningUrlSegmentApiEndpoints(app, requireUse: true);
 }

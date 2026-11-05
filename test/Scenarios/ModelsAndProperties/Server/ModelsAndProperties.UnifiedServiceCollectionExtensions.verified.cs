@@ -26,13 +26,14 @@ using ModelsAndProperties.Generated.Validations.Handlers;
 namespace ModelsAndProperties.Generated.Extensions;
 
 /// <summary>
-/// The service registration of the ModelsAndProperties API: <see cref="AddModelsAndPropertiesApi"/>.
+/// The service registration of the ModelsAndProperties API: <see cref="AddModelsAndPropertiesApiServices"/>.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public static class UnifiedServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds the services the ModelsAndProperties API needs. Call it once; the handlers are registered next to it.
+    /// Registers the services the generated endpoints of the ModelsAndProperties API rely on, chosen from the specification and
+    /// the marker file. It registers no handler and maps no endpoint.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configure">
@@ -47,7 +48,7 @@ public static class UnifiedServiceCollectionExtensions
     /// <para>• <c>services.AddApiHandlersFrom{HandlerProject}()</c> - the handlers</para>
     /// <para>• <c>services.AddApiValidatorsFrom{HandlerProject}()</c> - the validators</para>
     /// </remarks>
-    public static IServiceCollection AddModelsAndPropertiesApi(
+    public static IServiceCollection AddModelsAndPropertiesApiServices(
         this IServiceCollection services,
         Action<ApiServiceOptions>? configure = null)
     {

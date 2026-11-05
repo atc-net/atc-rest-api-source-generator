@@ -12,8 +12,8 @@ using VersioningHeader.Generated.Endpoints;
 namespace VersioningHeader.Generated.Extensions;
 
 /// <summary>
-/// The host wiring of the VersioningHeader API: <see cref="UseVersioningHeaderApi"/> adds the middleware,
-/// <see cref="MapVersioningHeaderApi"/> maps the endpoints.
+/// The host wiring of the VersioningHeader API: <see cref="UseVersioningHeaderApiMiddleware"/> adds the middleware,
+/// <see cref="MapVersioningHeaderApiEndpoints(WebApplication)"/> maps the endpoints.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public static class UnifiedWebApplicationExtensions
@@ -21,7 +21,8 @@ public static class UnifiedWebApplicationExtensions
     private const string UseApiMark = "VersioningHeader.Generated.UseVersioningHeaderApi";
 
     /// <summary>
-    /// Adds the middleware the VersioningHeader API needs, in the recommended order. Call it before <see cref="MapVersioningHeaderApi"/>.
+    /// Adds the middleware the generated endpoints of the VersioningHeader API rely on, in the order listed below. It maps no
+    /// endpoint: call <see cref="MapVersioningHeaderApiEndpoints(WebApplication)"/> after it.
     /// </summary>
     /// <param name="app">The web application.</param>
     /// <param name="configure">
@@ -36,10 +37,10 @@ public static class UnifiedWebApplicationExtensions
     /// <para>• The host's own middleware from <c>AfterErrorHandling</c> (CORS, HSTS, HTTPS redirection)</para>
     /// <para>
     /// Turn off what the host adds itself. A host that orders its whole pipeline itself does not call this method,
-    /// adds the middleware above itself and calls <c>MapVersioningHeaderApi(requireUse: false)</c>.
+    /// adds the middleware above itself and calls <c>MapVersioningHeaderApiEndpoints(requireUse: false)</c>.
     /// </para>
     /// </remarks>
-    public static WebApplication UseVersioningHeaderApi(
+    public static WebApplication UseVersioningHeaderApiMiddleware(
         this WebApplication app,
         Action<ApiMiddlewareOptions>? configure = null)
     {
@@ -71,33 +72,46 @@ public static class UnifiedWebApplicationExtensions
     }
 
     /// <summary>
-    /// Maps all endpoints of the VersioningHeader API. Call it after <see cref="UseVersioningHeaderApi"/>, which adds the middleware
-    /// the endpoints need (error handling, authentication, ...).
+    /// Maps every endpoint of the VersioningHeader API. It adds no middleware: call <see cref="UseVersioningHeaderApiMiddleware"/> before
+    /// it.
     /// </summary>
     /// <param name="app">The web application.</param>
     /// <param name="requireUse">
-    /// <see langword="true"/> (default): throw at startup when <see cref="UseVersioningHeaderApi"/> was not called first.
+    /// <see langword="true"/>: throw at startup when <see cref="UseVersioningHeaderApiMiddleware"/> was not called first.
     /// <see langword="false"/>: the host adds that middleware itself.
     /// </param>
     /// <returns>The web application, for chaining.</returns>
     /// <exception cref="InvalidOperationException">
-    /// <see cref="UseVersioningHeaderApi"/> was not called first, and <paramref name="requireUse"/> is <see langword="true"/>.
+    /// <see cref="UseVersioningHeaderApiMiddleware"/> was not called first, and <paramref name="requireUse"/> is <see langword="true"/>.
     /// </exception>
-    public static WebApplication MapVersioningHeaderApi(
+    public static WebApplication MapVersioningHeaderApiEndpoints(
         this WebApplication app,
-        bool requireUse = true)
+        bool requireUse)
     {
-        // The endpoints rely on the middleware Use…Api() adds: without it they would run without their error handling
+        // The endpoints rely on the middleware Use…ApiMiddleware() adds: without it they would run without their error handling
         if (requireUse && !((global::Microsoft.AspNetCore.Builder.IApplicationBuilder)app).Properties.ContainsKey(UseApiMark))
         {
             throw new InvalidOperationException(
-                "Call app.UseVersioningHeaderApi() before app.MapVersioningHeaderApi(): it adds the error handling, the status code pages " +
+                "Call app.UseVersioningHeaderApiMiddleware() before app.MapVersioningHeaderApiEndpoints(): it adds the error handling, the status code pages " +
                 "and the rest of the middleware the endpoints rely on. " +
-                "A host that adds that middleware itself calls app.MapVersioningHeaderApi(requireUse: false).");
+                "A host that adds that middleware itself calls app.MapVersioningHeaderApiEndpoints(requireUse: false).");
         }
 
         app.MapEndpoints();
 
         return app;
     }
+
+    /// <summary>
+    /// Maps every endpoint of the VersioningHeader API. It adds no middleware: call <see cref="UseVersioningHeaderApiMiddleware"/> before
+    /// it, or this method throws at startup.
+    /// </summary>
+    /// <param name="app">The web application.</param>
+    /// <returns>The web application, for chaining.</returns>
+    /// <exception cref="InvalidOperationException">
+    /// <see cref="UseVersioningHeaderApiMiddleware"/> was not called first.
+    /// </exception>
+    public static WebApplication MapVersioningHeaderApiEndpoints(
+        this WebApplication app)
+        => MapVersioningHeaderApiEndpoints(app, requireUse: true);
 }

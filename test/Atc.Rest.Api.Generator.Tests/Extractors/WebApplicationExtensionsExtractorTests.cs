@@ -1,8 +1,8 @@
 namespace Atc.Rest.Api.Generator.Tests.Extractors;
 
 /// <summary>
-/// Tests for the generated host wiring: <c>Use{Api}Api()</c> adds the middleware (in the order these tests pin),
-/// <c>Map{Api}Api()</c> maps the endpoints and nothing else.
+/// Tests for the generated host wiring: <c>Use{Api}ApiMiddleware()</c> adds the middleware (in the order these tests
+/// pin), <c>Map{Api}ApiEndpoints()</c> maps the endpoints and nothing else.
 /// </summary>
 public class WebApplicationExtensionsExtractorTests
 {
@@ -126,7 +126,7 @@ public class WebApplicationExtensionsExtractorTests
     /// The methods are named after the API, not after a trailing <c>Contracts</c> / <c>Api</c> segment - or as the
     /// marker's <c>apiName</c> says. <c>Map{Api}Endpoints()</c> would clash with a path segment's own
     /// <c>Map{Segment}Endpoints()</c> (an API <c>Pets</c> with a <c>/pets</c> path), so the endpoints go through
-    /// <c>Map{Api}Api()</c>.
+    /// <c>Map{Api}ApiEndpoints()</c>.
     /// </summary>
     [Theory]
     [InlineData("Contoso.IoT.Nexus.Api.Contracts", null, "Nexus")]
@@ -144,13 +144,13 @@ public class WebApplicationExtensionsExtractorTests
         var result = WebApplicationExtensionsExtractor.ExtractUnified(document, projectName, new ServerConfig { ApiName = apiName });
 
         // Assert
-        Assert.Contains($"public static WebApplication Use{expected}Api(", result, StringComparison.Ordinal);
-        Assert.Contains($"public static WebApplication Map{expected}Api(", result, StringComparison.Ordinal);
+        Assert.Contains($"public static WebApplication Use{expected}ApiMiddleware(", result, StringComparison.Ordinal);
+        Assert.Contains($"public static WebApplication Map{expected}ApiEndpoints(", result, StringComparison.Ordinal);
         Assert.DoesNotContain($"Map{expected}Endpoints(", result, StringComparison.Ordinal);
     }
 
     /// <summary>
-    /// <c>Use{Api}Api()</c> adds middleware and maps nothing; <c>Map{Api}Api()</c> maps the endpoints and adds no
+    /// <c>Use{Api}ApiMiddleware()</c> adds middleware and maps nothing; <c>Map{Api}ApiEndpoints()</c> maps the endpoints and adds no
     /// middleware - the split ASP.NET's own <c>Use…</c> / <c>Map…</c> methods follow.
     /// </summary>
     [Fact]
@@ -163,8 +163,8 @@ public class WebApplicationExtensionsExtractorTests
         var result = WebApplicationExtensionsExtractor.ExtractUnified(document, ProjectName, new ServerConfig());
 
         // Assert
-        var use = MethodBody(result, "public static WebApplication UseTestApi(");
-        var map = MethodBody(result, "public static WebApplication MapTestApi(");
+        var use = MethodBody(result, "public static WebApplication UseTestApiMiddleware(");
+        var map = MethodBody(result, "public static WebApplication MapTestApiEndpoints(");
         Assert.DoesNotContain("MapEndpoints()", use, StringComparison.Ordinal);
         Assert.Contains("app.UseAuthentication();", use, StringComparison.Ordinal);
         Assert.Contains("app.MapEndpoints();", map, StringComparison.Ordinal);
@@ -173,8 +173,8 @@ public class WebApplicationExtensionsExtractorTests
 
     /// <summary>
     /// Until 3.1 <c>Map{Api}Api()</c> also added the middleware. A host that still calls only it would lose its error
-    /// handling and status code pages without a compile error, so <c>Use{Api}Api()</c> leaves a mark and
-    /// <c>Map{Api}Api()</c> refuses to start without it - unless the host says it orders the pipeline itself
+    /// handling and status code pages without a compile error, so <c>Use{Api}ApiMiddleware()</c> leaves a mark and
+    /// <c>Map{Api}ApiEndpoints()</c> refuses to start without it - unless the host says it orders the pipeline itself
     /// (<c>requireUse: false</c>).
     /// </summary>
     [Fact]
@@ -188,13 +188,13 @@ public class WebApplicationExtensionsExtractorTests
 
         // Assert
         var normalized = result.Replace("\r\n", "\n", StringComparison.Ordinal);
-        Assert.Contains("    public static WebApplication MapTestApi(\n        this WebApplication app,\n        bool requireUse = true)", normalized, StringComparison.Ordinal);
-        var use = MethodBody(normalized, "public static WebApplication UseTestApi(");
-        var map = MethodBody(normalized, "public static WebApplication MapTestApi(");
+        Assert.Contains("    public static WebApplication MapTestApiEndpoints(\n        this WebApplication app,\n        bool requireUse)", normalized, StringComparison.Ordinal);
+        var use = MethodBody(normalized, "public static WebApplication UseTestApiMiddleware(");
+        var map = MethodBody(normalized, "public static WebApplication MapTestApiEndpoints(");
         Assert.Contains("Properties[UseApiMark] = true;", use, StringComparison.Ordinal);
         Assert.Contains("if (requireUse && !((global::Microsoft.AspNetCore.Builder.IApplicationBuilder)app).Properties.ContainsKey(UseApiMark))", map, StringComparison.Ordinal);
         Assert.Contains("throw new InvalidOperationException(", map, StringComparison.Ordinal);
-        Assert.Contains("app.UseTestApi()", map, StringComparison.Ordinal);
+        Assert.Contains("app.UseTestApiMiddleware()", map, StringComparison.Ordinal);
         Assert.Contains("requireUse: false", map, StringComparison.Ordinal);
     }
 
@@ -213,7 +213,7 @@ public class WebApplicationExtensionsExtractorTests
         var result = WebApplicationExtensionsExtractor.ExtractUnified(document, ProjectName, new ServerConfig());
 
         // Assert
-        var use = MethodBody(result, "public static WebApplication UseTestApi(");
+        var use = MethodBody(result, "public static WebApplication UseTestApiMiddleware(");
         var hook = use.IndexOf("options.AfterErrorHandling?.Invoke(app);", StringComparison.Ordinal);
         Assert.True(hook >= 0, use);
         foreach (var before in new[] { "app.UseGlobalErrorHandler(", "app.UseStatusCodePages();" })
@@ -255,9 +255,9 @@ public class WebApplicationExtensionsExtractorTests
     }
 
     /// <summary>
-    /// Each middleware <c>Use{Api}Api()</c> adds is behind its own switch, so a host turns off what it adds itself.
+    /// Each middleware <c>Use{Api}ApiMiddleware()</c> adds is behind its own switch, so a host turns off what it adds itself.
     /// There is no all-or-nothing <c>HostOwnsPipeline</c> any more: a host that orders its whole pipeline does not call
-    /// <c>Use{Api}Api()</c>.
+    /// <c>Use{Api}ApiMiddleware()</c>.
     /// </summary>
     [Fact]
     public void ExtractUnified_EveryMiddlewareIsBehindItsOwnSwitch()
@@ -316,9 +316,10 @@ public class WebApplicationExtensionsExtractorTests
         var lines = result.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
         Assert.DoesNotContain(lines, line => line.TrimStart().StartsWith("/// - ", StringComparison.Ordinal));
         Assert.DoesNotContain("TestApi API", result, StringComparison.Ordinal);
-        Assert.Contains("/// Adds the middleware the Test API needs, in the recommended order. Call it before <see cref=\"MapTestApi\"/>.", result, StringComparison.Ordinal);
-        Assert.Contains("/// Maps all endpoints of the Test API. Call it after <see cref=\"UseTestApi\"/>, which adds the middleware", result, StringComparison.Ordinal);
-        Assert.Contains("/// <see langword=\"true\"/> (default): throw at startup when <see cref=\"UseTestApi\"/> was not called first.", result, StringComparison.Ordinal);
+        Assert.Contains("/// Adds the middleware the generated endpoints of the Test API rely on, in the order listed below. It maps no", result, StringComparison.Ordinal);
+        Assert.Contains("/// endpoint: call <see cref=\"MapTestApiEndpoints(WebApplication)\"/> after it.", result, StringComparison.Ordinal);
+        Assert.Contains("/// Maps every endpoint of the Test API. It adds no middleware: call <see cref=\"UseTestApiMiddleware\"/> before", result, StringComparison.Ordinal);
+        Assert.Contains("/// <see langword=\"true\"/>: throw at startup when <see cref=\"UseTestApiMiddleware\"/> was not called first.", result, StringComparison.Ordinal);
         Assert.Contains("/// <see langword=\"false\"/>: the host adds that middleware itself.", result, StringComparison.Ordinal);
 
         // One paragraph per item with a typed bullet: Visual Studio's tooltip renders a <list> as one run-on line
@@ -330,7 +331,7 @@ public class WebApplicationExtensionsExtractorTests
 
         // A paragraph is one <para>…</para>: no text outside it (a tooltip would run it into the next line)
         var normalized = result.Replace("\r\n", "\n", StringComparison.Ordinal);
-        Assert.Contains("calls <c>MapTestApi(requireUse: false)</c>.\n    /// </para>", normalized, StringComparison.Ordinal);
+        Assert.Contains("calls <c>MapTestApiEndpoints(requireUse: false)</c>.\n    /// </para>", normalized, StringComparison.Ordinal);
         Assert.DoesNotContain(lines, line => line.Contains("<para>", StringComparison.Ordinal) && !line.Contains("</para>", StringComparison.Ordinal) && !line.TrimEnd().EndsWith("<para>", StringComparison.Ordinal));
     }
 

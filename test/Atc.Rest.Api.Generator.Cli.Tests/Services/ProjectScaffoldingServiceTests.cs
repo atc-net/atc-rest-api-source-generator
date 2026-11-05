@@ -68,8 +68,8 @@ public sealed class ProjectScaffoldingServiceTests : IDisposable
 
     /// <summary>
     /// The scaffolded host is wired with the three generated calls - services, middleware, endpoints - not by hand:
-    /// AddDemoApi() registers ProblemDetails, UseDemoApi() the error handling and status code pages, MapDemoApi() the
-    /// endpoints. The OpenAPI UI is mapped between Use and Map.
+    /// AddDemoApiServices() registers ProblemDetails, UseDemoApiMiddleware() the error handling and status code pages,
+    /// MapDemoApiEndpoints() the endpoints. The OpenAPI UI is mapped between Use and Map.
     /// </summary>
     [Fact]
     public void GenerateHostProject_ProgramWiresTheGeneratedAddUseAndMap()
@@ -85,11 +85,11 @@ public sealed class ProjectScaffoldingServiceTests : IDisposable
 
         Assert.True(result);
         var program = File.ReadAllText(Path.Combine(tempSrcPath, "Demo.Api", "Program.cs"));
-        var add = program.IndexOf("builder.Services.AddDemoApi();", StringComparison.Ordinal);
+        var add = program.IndexOf("builder.Services.AddDemoApiServices();", StringComparison.Ordinal);
         var build = program.IndexOf("var app = builder.Build();", StringComparison.Ordinal);
-        var use = program.IndexOf("app.UseDemoApi();", StringComparison.Ordinal);
+        var use = program.IndexOf("app.UseDemoApiMiddleware();", StringComparison.Ordinal);
         var openApi = program.IndexOf("app.MapOpenApi();", StringComparison.Ordinal);
-        var map = program.IndexOf("app.MapDemoApi();", StringComparison.Ordinal);
+        var map = program.IndexOf("app.MapDemoApiEndpoints();", StringComparison.Ordinal);
         Assert.True(add >= 0 && add < build && build < use && use < openApi && openApi < map, program);
 
         // The generated calls replace the hand wiring

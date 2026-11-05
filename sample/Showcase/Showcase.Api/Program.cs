@@ -56,7 +56,7 @@ builder.Services.AddAuthenticationForShowcaseDemo();
 // SHOWCASE API SERVICES - Simplified registration
 // ============================================
 // Registers rate limiting and security policies from OpenAPI spec
-builder.Services.AddShowcaseApi();
+builder.Services.AddShowcaseApiServices();
 
 // Register handler implementations and validators from Domain project
 builder.Services.AddApiHandlersFromDomain();
@@ -106,14 +106,14 @@ app.Use(async (context, next) =>
 // ============================================
 // SHOWCASE API MIDDLEWARE - the recommended pipeline
 // ============================================
-// UseShowcaseApi() adds, in this order: the global error handler, status code pages, the host's own middleware
-// (AfterErrorHandling - CORS here: inside the error handling, and before authentication as CORS has to be), the
-// rate limiter, authentication and authorization.
+// UseShowcaseApiMiddleware() adds, in this order: the global error handler, status code pages, the host's own
+// middleware (AfterErrorHandling - CORS here: inside the error handling, and before authentication as CORS has to
+// be), the rate limiter, authentication and authorization.
 // The end-to-end tests (test/Showcase.E2ETests) drive three apps at once against this API, from one IP address and
 // as the one demo identity: the per-minute limits of the specification (50 user requests, 10 uploads) would answer
 // a full run with 429s. That run sets Showcase__DisableRateLimiter=true; the policies stay registered either way.
 var disableRateLimiter = app.Configuration.GetValue<bool>("Showcase:DisableRateLimiter");
-app.UseShowcaseApi(options =>
+app.UseShowcaseApiMiddleware(options =>
 {
     options.UseRateLimiter = !disableRateLimiter;
     options.AfterErrorHandling = pipeline => pipeline.UseCors();
@@ -125,7 +125,7 @@ app.MapHub<NotificationHub>(NotificationsHubContract.Url);
 // ============================================
 // SHOWCASE API ENDPOINTS
 // ============================================
-app.MapShowcaseApi();
+app.MapShowcaseApiEndpoints();
 
 // Map webhook endpoints (receives external webhook calls)
 app.MapShowcaseWebhooks();

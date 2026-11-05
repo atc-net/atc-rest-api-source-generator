@@ -12,8 +12,8 @@ using SecurityStandard.Generated.Endpoints;
 namespace SecurityStandard.Generated.Extensions;
 
 /// <summary>
-/// The host wiring of the SecurityStandard API: <see cref="UseSecurityStandardApi"/> adds the middleware,
-/// <see cref="MapSecurityStandardApi"/> maps the endpoints.
+/// The host wiring of the SecurityStandard API: <see cref="UseSecurityStandardApiMiddleware"/> adds the middleware,
+/// <see cref="MapSecurityStandardApiEndpoints(WebApplication)"/> maps the endpoints.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public static class UnifiedWebApplicationExtensions
@@ -21,7 +21,8 @@ public static class UnifiedWebApplicationExtensions
     private const string UseApiMark = "SecurityStandard.Generated.UseSecurityStandardApi";
 
     /// <summary>
-    /// Adds the middleware the SecurityStandard API needs, in the recommended order. Call it before <see cref="MapSecurityStandardApi"/>.
+    /// Adds the middleware the generated endpoints of the SecurityStandard API rely on, in the order listed below. It maps no
+    /// endpoint: call <see cref="MapSecurityStandardApiEndpoints(WebApplication)"/> after it.
     /// </summary>
     /// <param name="app">The web application.</param>
     /// <param name="configure">
@@ -37,10 +38,10 @@ public static class UnifiedWebApplicationExtensions
     /// <para>• Authentication and authorization - the specification requires a signed-in caller</para>
     /// <para>
     /// Turn off what the host adds itself. A host that orders its whole pipeline itself does not call this method,
-    /// adds the middleware above itself and calls <c>MapSecurityStandardApi(requireUse: false)</c>.
+    /// adds the middleware above itself and calls <c>MapSecurityStandardApiEndpoints(requireUse: false)</c>.
     /// </para>
     /// </remarks>
-    public static WebApplication UseSecurityStandardApi(
+    public static WebApplication UseSecurityStandardApiMiddleware(
         this WebApplication app,
         Action<ApiMiddlewareOptions>? configure = null)
     {
@@ -86,33 +87,46 @@ public static class UnifiedWebApplicationExtensions
     }
 
     /// <summary>
-    /// Maps all endpoints of the SecurityStandard API. Call it after <see cref="UseSecurityStandardApi"/>, which adds the middleware
-    /// the endpoints need (error handling, authentication, ...).
+    /// Maps every endpoint of the SecurityStandard API. It adds no middleware: call <see cref="UseSecurityStandardApiMiddleware"/> before
+    /// it.
     /// </summary>
     /// <param name="app">The web application.</param>
     /// <param name="requireUse">
-    /// <see langword="true"/> (default): throw at startup when <see cref="UseSecurityStandardApi"/> was not called first.
+    /// <see langword="true"/>: throw at startup when <see cref="UseSecurityStandardApiMiddleware"/> was not called first.
     /// <see langword="false"/>: the host adds that middleware itself.
     /// </param>
     /// <returns>The web application, for chaining.</returns>
     /// <exception cref="InvalidOperationException">
-    /// <see cref="UseSecurityStandardApi"/> was not called first, and <paramref name="requireUse"/> is <see langword="true"/>.
+    /// <see cref="UseSecurityStandardApiMiddleware"/> was not called first, and <paramref name="requireUse"/> is <see langword="true"/>.
     /// </exception>
-    public static WebApplication MapSecurityStandardApi(
+    public static WebApplication MapSecurityStandardApiEndpoints(
         this WebApplication app,
-        bool requireUse = true)
+        bool requireUse)
     {
-        // The endpoints rely on the middleware Use…Api() adds: without it they would run without their error handling
+        // The endpoints rely on the middleware Use…ApiMiddleware() adds: without it they would run without their error handling
         if (requireUse && !((global::Microsoft.AspNetCore.Builder.IApplicationBuilder)app).Properties.ContainsKey(UseApiMark))
         {
             throw new InvalidOperationException(
-                "Call app.UseSecurityStandardApi() before app.MapSecurityStandardApi(): it adds the error handling, the status code pages " +
+                "Call app.UseSecurityStandardApiMiddleware() before app.MapSecurityStandardApiEndpoints(): it adds the error handling, the status code pages " +
                 "and the rest of the middleware the endpoints rely on. " +
-                "A host that adds that middleware itself calls app.MapSecurityStandardApi(requireUse: false).");
+                "A host that adds that middleware itself calls app.MapSecurityStandardApiEndpoints(requireUse: false).");
         }
 
         app.MapEndpoints();
 
         return app;
     }
+
+    /// <summary>
+    /// Maps every endpoint of the SecurityStandard API. It adds no middleware: call <see cref="UseSecurityStandardApiMiddleware"/> before
+    /// it, or this method throws at startup.
+    /// </summary>
+    /// <param name="app">The web application.</param>
+    /// <returns>The web application, for chaining.</returns>
+    /// <exception cref="InvalidOperationException">
+    /// <see cref="UseSecurityStandardApiMiddleware"/> was not called first.
+    /// </exception>
+    public static WebApplication MapSecurityStandardApiEndpoints(
+        this WebApplication app)
+        => MapSecurityStandardApiEndpoints(app, requireUse: true);
 }
