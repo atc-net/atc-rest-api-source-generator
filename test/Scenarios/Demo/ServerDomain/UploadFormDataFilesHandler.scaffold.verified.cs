@@ -8,7 +8,7 @@ public sealed class UploadFormDataFilesHandler : IUploadFormDataFilesHandler
     /// <summary>
     /// Executes the UploadFormDataFiles operation.
     /// </summary>
-    public System.Threading.Tasks.Task<UploadFormDataFilesResult> ExecuteAsync(
+    public global::System.Threading.Tasks.Task<UploadFormDataFilesResult> ExecuteAsync(
         UploadFormDataFilesParameters parameters,
         CancellationToken cancellationToken = default)
     {

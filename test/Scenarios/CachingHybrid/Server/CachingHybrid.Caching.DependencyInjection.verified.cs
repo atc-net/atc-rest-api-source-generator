@@ -105,7 +105,7 @@ public static class HybridCachingServiceCollectionExtensions
         IDictionary<string, string>? queryParams = null,
         IDictionary<string, string>? headers = null)
     {
-        var keyBuilder = new System.Text.StringBuilder();
+        var keyBuilder = new global::System.Text.StringBuilder();
 
         // Add key prefix if configured
         var prefix = GetKeyPrefix(policyName);

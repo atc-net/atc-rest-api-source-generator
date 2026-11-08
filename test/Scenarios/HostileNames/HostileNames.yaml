@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Hostile Names
-  description: Names a specification may legally carry and that must never break the generated code - schema names that are no C# identifier or not PascalCase, path segments that are numbers or dates, parameters that share a name across locations.
+  description: Names a specification may legally carry and that must never break the generated code - schema names that are no C# identifier or not PascalCase, path segments that are numbers or dates or named like a framework root namespace, parameters that share a name across locations.
   version: 1.0.0
 paths:
   /2010-04-01/accounts:
@@ -153,6 +153,54 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Company.Api.KeyPage'
+  /system/info:
+    get:
+      operationId: getSystemInfo
+      summary: A first path segment named like the System namespace, which the generated code qualifies framework types with.
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemInfo'
+  /microsoft/devices:
+    get:
+      operationId: listMicrosoftDevices
+      summary: A first path segment named like the Microsoft namespace.
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MicrosoftDevice'
+  /atc/items:
+    get:
+      operationId: listAtcItems
+      summary: A first path segment named like the Atc namespace.
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/movie'
+  /hostilenames/settings:
+    get:
+      operationId: getSettings
+      summary: A first path segment named like the API itself, which resolves into the root namespace beside the other segments.
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/movie'
 components:
   schemas:
     account_summary:
@@ -225,3 +273,20 @@ components:
       properties:
         level:
           type: integer
+    SystemInfo:
+      description: A model in the System segment, with an enum so the enum converter is generated.
+      type: object
+      required: [hostname, status]
+      properties:
+        hostname:
+          type: string
+        status:
+          type: string
+          enum: [on, off]
+    MicrosoftDevice:
+      description: A model in the Microsoft segment.
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string

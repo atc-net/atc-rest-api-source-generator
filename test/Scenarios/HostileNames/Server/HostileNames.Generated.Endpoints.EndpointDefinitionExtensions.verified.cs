@@ -36,9 +36,51 @@ public static class EndpointDefinitionExtensions
     /// <returns>
     /// The web application for method chaining.
     /// </returns>
+    public static WebApplication MapAtcEndpoints(this WebApplication app)
+    {
+        new AtcEndpointDefinition().DefineEndpoints(app);
+
+        return app;
+    }
+
+    /// <summary>
+    /// Maps all API endpoints from the generated endpoint definitions.
+    /// </summary>
+    /// <param name="app">The web application.</param>
+    /// <returns>
+    /// The web application for method chaining.
+    /// </returns>
+    public static WebApplication MapApiEndpoints(this WebApplication app)
+    {
+        new HostilenamesEndpointDefinition().DefineEndpoints(app);
+
+        return app;
+    }
+
+    /// <summary>
+    /// Maps all API endpoints from the generated endpoint definitions.
+    /// </summary>
+    /// <param name="app">The web application.</param>
+    /// <returns>
+    /// The web application for method chaining.
+    /// </returns>
     public static WebApplication MapKeysEndpoints(this WebApplication app)
     {
         new KeysEndpointDefinition().DefineEndpoints(app);
+
+        return app;
+    }
+
+    /// <summary>
+    /// Maps all API endpoints from the generated endpoint definitions.
+    /// </summary>
+    /// <param name="app">The web application.</param>
+    /// <returns>
+    /// The web application for method chaining.
+    /// </returns>
+    public static WebApplication MapMicrosoftEndpoints(this WebApplication app)
+    {
+        new MicrosoftEndpointDefinition().DefineEndpoints(app);
 
         return app;
     }
@@ -109,6 +151,20 @@ public static class EndpointDefinitionExtensions
     public static WebApplication MapStreamsEndpoints(this WebApplication app)
     {
         new StreamsEndpointDefinition().DefineEndpoints(app);
+
+        return app;
+    }
+
+    /// <summary>
+    /// Maps all API endpoints from the generated endpoint definitions.
+    /// </summary>
+    /// <param name="app">The web application.</param>
+    /// <returns>
+    /// The web application for method chaining.
+    /// </returns>
+    public static WebApplication MapSystemEndpoints(this WebApplication app)
+    {
+        new SystemEndpointDefinition().DefineEndpoints(app);
 
         return app;
     }

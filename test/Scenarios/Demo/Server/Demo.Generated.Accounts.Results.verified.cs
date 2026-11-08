@@ -73,7 +73,7 @@ public sealed class ListAccountsResult : IResult, INestedHttpResult, IStatusCode
     public static implicit operator ListAccountsResult(Account[] response)
         => Ok(response.ToList());
 
-    public System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
+    public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
 
     /// <summary>
@@ -147,7 +147,7 @@ public sealed class CreateAccountResult : IResult, INestedHttpResult, IStatusCod
     public static CreateAccountResult Conflict(string? message = null)
         => new(TypedResults.Problem(detail: message, statusCode: 409));
 
-    public System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
+    public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
 
     /// <summary>
@@ -219,7 +219,7 @@ public sealed class GetAccountByIdResult : IResult, INestedHttpResult, IStatusCo
     public static GetAccountByIdResult NotFound(string? message = null)
         => new(TypedResults.Problem(detail: message, statusCode: 404));
 
-    public System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
+    public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
 
     /// <summary>
@@ -288,7 +288,7 @@ public sealed class DeleteAccountByIdResult : IResult, INestedHttpResult, IStatu
     public static DeleteAccountByIdResult NotFound(string? message = null)
         => new(TypedResults.Problem(detail: message, statusCode: 404));
 
-    public System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
+    public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
 
     /// <summary>
@@ -360,7 +360,7 @@ public sealed class UpdateAccountByIdResult : IResult, INestedHttpResult, IStatu
     public static UpdateAccountByIdResult NotFound(string? message = null)
         => new(TypedResults.Problem(detail: message, statusCode: 404));
 
-    public System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
+    public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
 
     /// <summary>
@@ -426,7 +426,7 @@ public sealed class ListPaginatedAccountsResult : IResult, INestedHttpResult, IS
     public static implicit operator ListPaginatedAccountsResult(PaginatedResult<Account> response)
         => Ok(response);
 
-    public System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
+    public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
 
     /// <summary>
@@ -489,7 +489,7 @@ public sealed class ListAsyncEnumerableAccountsResult : IResult, INestedHttpResu
     public static ListAsyncEnumerableAccountsResult Ok(IAsyncEnumerable<Account> response)
         => new(new Demo.Generated.Streaming.JsonArrayResult<Account>(response));
 
-    public System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
+    public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
 
     /// <summary>

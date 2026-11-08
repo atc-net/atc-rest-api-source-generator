@@ -109,8 +109,8 @@ public class BuiltInErrorContractNamesTests
         BuiltInErrorContractNames.AppendFrameworkAliases(sb, ["ValidationProblemDetails", "ProblemDetails"]);
 
         var expected =
-            "using ProblemDetails = Microsoft.AspNetCore.Mvc.ProblemDetails;" + Environment.NewLine +
-            "using ValidationProblemDetails = Microsoft.AspNetCore.Mvc.ValidationProblemDetails;" + Environment.NewLine;
+            "using ProblemDetails = global::Microsoft.AspNetCore.Mvc.ProblemDetails;" + Environment.NewLine +
+            "using ValidationProblemDetails = global::Microsoft.AspNetCore.Mvc.ValidationProblemDetails;" + Environment.NewLine;
         Assert.Equal(expected, sb.ToString());
     }
 

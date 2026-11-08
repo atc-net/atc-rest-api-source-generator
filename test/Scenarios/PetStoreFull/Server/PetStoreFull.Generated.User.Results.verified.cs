@@ -224,7 +224,7 @@ public sealed class LoginUserResult : IResult, INestedHttpResult, IStatusCodeHtt
     /// <summary>
     /// 400 Bad Request - Invalid username/password supplied.
     /// </summary>
-    [System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
+    [global::System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
     public static LoginUserResult BadRequest(ValidationProblemDetails? errors = null)
         => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.Problem(ProblemWithStatus.Of(errors, 400)));
 
@@ -382,7 +382,7 @@ public sealed class GetUserByNameResult : IResult, INestedHttpResult, IStatusCod
     /// <summary>
     /// 400 Bad Request - Invalid username supplied.
     /// </summary>
-    [System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
+    [global::System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
     public static GetUserByNameResult BadRequest(ValidationProblemDetails? errors = null)
         => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.Problem(ProblemWithStatus.Of(errors, 400)));
 
@@ -472,7 +472,7 @@ public sealed class UpdateUserResult : IResult, INestedHttpResult, IStatusCodeHt
     /// <summary>
     /// 400 Bad Request - bad request.
     /// </summary>
-    [System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
+    [global::System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
     public static UpdateUserResult BadRequest(ValidationProblemDetails? errors = null)
         => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.Problem(ProblemWithStatus.Of(errors, 400)));
 
@@ -562,7 +562,7 @@ public sealed class DeleteUserResult : IResult, INestedHttpResult, IStatusCodeHt
     /// <summary>
     /// 400 Bad Request - Invalid username supplied.
     /// </summary>
-    [System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
+    [global::System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
     public static DeleteUserResult BadRequest(ValidationProblemDetails? errors = null)
         => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.Problem(ProblemWithStatus.Of(errors, 400)));
 

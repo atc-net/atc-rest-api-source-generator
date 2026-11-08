@@ -187,7 +187,7 @@ public sealed class ListUsersParametersRoleJsonConverter : JsonConverter<ListUse
     private static ListUsersParametersRole FromNumber(ref Utf8JsonReader reader)
         => reader.TryGetInt32(out var position) && position >= 0 && position < ListUsersParametersRole.KnownValues.Count
             ? ListUsersParametersRole.KnownValues[position]
-            : new ListUsersParametersRole(System.Text.Encoding.UTF8.GetString(reader.HasValueSequence ? System.Buffers.BuffersExtensions.ToArray(reader.ValueSequence) : reader.ValueSpan.ToArray()));
+            : new ListUsersParametersRole(global::System.Text.Encoding.UTF8.GetString(reader.HasValueSequence ? global::System.Buffers.BuffersExtensions.ToArray(reader.ValueSequence) : reader.ValueSpan.ToArray()));
 }
 
 /// <summary>

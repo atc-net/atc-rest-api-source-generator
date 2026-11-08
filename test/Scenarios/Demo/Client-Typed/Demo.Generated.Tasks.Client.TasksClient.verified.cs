@@ -43,7 +43,7 @@ public sealed class TasksClient : ITasksClient
         this.jsonSerializerOptions = jsonSerializerOptions;
     }
 
-    public async System.Threading.Tasks.Task<List<Demo.Generated.Tasks.Models.Task>> ListTasksAsync(
+    public async global::System.Threading.Tasks.Task<List<Demo.Generated.Tasks.Models.Task>> ListTasksAsync(
         ListTasksParameters parameters,
         CancellationToken cancellationToken = default)
     {
@@ -73,7 +73,7 @@ public sealed class TasksClient : ITasksClient
         return JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<List<Demo.Generated.Tasks.Models.Task>>())!;
     }
 
-    public async System.Threading.Tasks.Task<Demo.Generated.Tasks.Models.Task> CreateTaskAsync(
+    public async global::System.Threading.Tasks.Task<Demo.Generated.Tasks.Models.Task> CreateTaskAsync(
         CreateTaskParameters parameters,
         CancellationToken cancellationToken = default)
     {
@@ -92,7 +92,7 @@ public sealed class TasksClient : ITasksClient
         return JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<Demo.Generated.Tasks.Models.Task>())!;
     }
 
-    public async System.Threading.Tasks.Task<Demo.Generated.Tasks.Models.Task> GetTaskByIdAsync(
+    public async global::System.Threading.Tasks.Task<Demo.Generated.Tasks.Models.Task> GetTaskByIdAsync(
         GetTaskByIdParameters parameters,
         CancellationToken cancellationToken = default)
     {
@@ -110,7 +110,7 @@ public sealed class TasksClient : ITasksClient
         return JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<Demo.Generated.Tasks.Models.Task>())!;
     }
 
-    public async System.Threading.Tasks.Task DeleteTaskByIdAsync(
+    public async global::System.Threading.Tasks.Task DeleteTaskByIdAsync(
         DeleteTaskByIdParameters parameters,
         CancellationToken cancellationToken = default)
     {
@@ -121,7 +121,7 @@ public sealed class TasksClient : ITasksClient
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
     }
 
-    public async System.Threading.Tasks.Task<Demo.Generated.Tasks.Models.Task> UpdateTaskByIdAsync(
+    public async global::System.Threading.Tasks.Task<Demo.Generated.Tasks.Models.Task> UpdateTaskByIdAsync(
         UpdateTaskByIdParameters parameters,
         CancellationToken cancellationToken = default)
     {
@@ -140,7 +140,7 @@ public sealed class TasksClient : ITasksClient
         return JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<Demo.Generated.Tasks.Models.Task>())!;
     }
 
-    private static async System.Threading.Tasks.Task EnsureSuccessAsync(
+    private static async global::System.Threading.Tasks.Task EnsureSuccessAsync(
         HttpResponseMessage response,
         CancellationToken cancellationToken)
     {
@@ -159,16 +159,16 @@ public sealed class TasksClient : ITasksClient
             errorLength += errorRead;
         }
 
-        var errorEncoding = System.Text.Encoding.UTF8;
+        var errorEncoding = global::System.Text.Encoding.UTF8;
         if (response.Content.Headers.ContentType?.CharSet is { Length: > 0 } errorCharset)
         {
             try
             {
-                errorEncoding = System.Text.Encoding.GetEncoding(errorCharset.Trim('"'));
+                errorEncoding = global::System.Text.Encoding.GetEncoding(errorCharset.Trim('"'));
             }
-            catch (System.ArgumentException)
+            catch (global::System.ArgumentException)
             {
-                errorEncoding = System.Text.Encoding.UTF8;
+                errorEncoding = global::System.Text.Encoding.UTF8;
             }
         }
 

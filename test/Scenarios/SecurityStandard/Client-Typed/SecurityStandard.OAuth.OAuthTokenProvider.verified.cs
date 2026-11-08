@@ -127,16 +127,16 @@ public sealed class OAuthTokenProvider : IOAuthTokenProvider, IDisposable
         CancellationToken cancellationToken)
     {
         using var stream = await content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-        using var document = await System.Text.Json.JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        using var document = await global::System.Text.Json.JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
         var root = document.RootElement;
-        if (root.ValueKind == System.Text.Json.JsonValueKind.Null)
+        if (root.ValueKind == global::System.Text.Json.JsonValueKind.Null)
         {
             return null;
         }
 
-        if (root.ValueKind != System.Text.Json.JsonValueKind.Object)
+        if (root.ValueKind != global::System.Text.Json.JsonValueKind.Object)
         {
-            throw new System.Text.Json.JsonException("The token response is no JSON object.");
+            throw new global::System.Text.Json.JsonException("The token response is no JSON object.");
         }
 
         var token = new OAuthTokenResponse();
@@ -165,20 +165,20 @@ public sealed class OAuthTokenProvider : IOAuthTokenProvider, IDisposable
 
         return token;
 
-        static string? Text(System.Text.Json.JsonElement value)
+        static string? Text(global::System.Text.Json.JsonElement value)
             => value.ValueKind switch
             {
-                System.Text.Json.JsonValueKind.String => value.GetString(),
-                System.Text.Json.JsonValueKind.Null => null,
-                _ => throw new System.Text.Json.JsonException($"A token response member is a {value.ValueKind}, not a string."),
+                global::System.Text.Json.JsonValueKind.String => value.GetString(),
+                global::System.Text.Json.JsonValueKind.Null => null,
+                _ => throw new global::System.Text.Json.JsonException($"A token response member is a {value.ValueKind}, not a string."),
             };
 
-        static int Seconds(System.Text.Json.JsonElement value)
+        static int Seconds(global::System.Text.Json.JsonElement value)
             => value.ValueKind switch
             {
-                System.Text.Json.JsonValueKind.Number when value.TryGetInt32(out var seconds) => seconds,
-                System.Text.Json.JsonValueKind.String when int.TryParse(value.GetString(), System.Globalization.NumberStyles.AllowLeadingSign, System.Globalization.CultureInfo.InvariantCulture, out var seconds) => seconds,
-                _ => throw new System.Text.Json.JsonException("The token response's expires_in is no whole number."),
+                global::System.Text.Json.JsonValueKind.Number when value.TryGetInt32(out var seconds) => seconds,
+                global::System.Text.Json.JsonValueKind.String when int.TryParse(value.GetString(), global::System.Globalization.NumberStyles.AllowLeadingSign, global::System.Globalization.CultureInfo.InvariantCulture, out var seconds) => seconds,
+                _ => throw new global::System.Text.Json.JsonException("The token response's expires_in is no whole number."),
             };
     }
 

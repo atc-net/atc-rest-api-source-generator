@@ -52,7 +52,7 @@ public sealed class NotificationsClient : INotificationsClient
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
     }
 
-    private static async System.Threading.Tasks.Task EnsureSuccessAsync(
+    private static async global::System.Threading.Tasks.Task EnsureSuccessAsync(
         HttpResponseMessage response,
         CancellationToken cancellationToken)
     {
@@ -71,16 +71,16 @@ public sealed class NotificationsClient : INotificationsClient
             errorLength += errorRead;
         }
 
-        var errorEncoding = System.Text.Encoding.UTF8;
+        var errorEncoding = global::System.Text.Encoding.UTF8;
         if (response.Content.Headers.ContentType?.CharSet is { Length: > 0 } errorCharset)
         {
             try
             {
-                errorEncoding = System.Text.Encoding.GetEncoding(errorCharset.Trim('"'));
+                errorEncoding = global::System.Text.Encoding.GetEncoding(errorCharset.Trim('"'));
             }
-            catch (System.ArgumentException)
+            catch (global::System.ArgumentException)
             {
-                errorEncoding = System.Text.Encoding.UTF8;
+                errorEncoding = global::System.Text.Encoding.UTF8;
             }
         }
 

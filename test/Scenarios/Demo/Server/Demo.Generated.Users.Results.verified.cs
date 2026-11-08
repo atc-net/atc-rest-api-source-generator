@@ -73,7 +73,7 @@ public sealed class ListUsersResult : IResult, INestedHttpResult, IStatusCodeHtt
     public static implicit operator ListUsersResult(User[] response)
         => Ok(response.ToList());
 
-    public System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
+    public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
 
     /// <summary>
@@ -144,7 +144,7 @@ public sealed class CreateUserResult : IResult, INestedHttpResult, IStatusCodeHt
     /// <summary>
     /// 400 Bad Request - Validation error.
     /// </summary>
-    [System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
+    [global::System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
     public static CreateUserResult BadRequest(ValidationProblemDetails? errors = null)
         => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.Problem(ProblemWithStatus.Of(errors, 400)));
 
@@ -160,7 +160,7 @@ public sealed class CreateUserResult : IResult, INestedHttpResult, IStatusCodeHt
     public static CreateUserResult Conflict(string? message = null)
         => new(TypedResults.Problem(detail: message, statusCode: 409));
 
-    public System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
+    public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
 
     /// <summary>
@@ -232,7 +232,7 @@ public sealed class GetUserByIdResult : IResult, INestedHttpResult, IStatusCodeH
     public static GetUserByIdResult NotFound(string? message = null)
         => new(TypedResults.Problem(detail: message, statusCode: 404));
 
-    public System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
+    public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
 
     /// <summary>
@@ -301,7 +301,7 @@ public sealed class UpdateUserByIdResult : IResult, INestedHttpResult, IStatusCo
     /// <summary>
     /// 400 Bad Request - Validation error.
     /// </summary>
-    [System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
+    [global::System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
     public static UpdateUserByIdResult BadRequest(ValidationProblemDetails? errors = null)
         => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.Problem(ProblemWithStatus.Of(errors, 400)));
 
@@ -323,7 +323,7 @@ public sealed class UpdateUserByIdResult : IResult, INestedHttpResult, IStatusCo
     public static UpdateUserByIdResult Conflict(string? message = null)
         => new(TypedResults.Problem(detail: message, statusCode: 409));
 
-    public System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
+    public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
 
     /// <summary>
@@ -392,7 +392,7 @@ public sealed class DeleteUserByIdResult : IResult, INestedHttpResult, IStatusCo
     public static DeleteUserByIdResult NotFound(string? message = null)
         => new(TypedResults.Problem(detail: message, statusCode: 404));
 
-    public System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
+    public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
 
     /// <summary>

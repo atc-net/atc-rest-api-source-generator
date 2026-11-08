@@ -328,6 +328,8 @@ internal static class CompilationVerificationHarness
                 TestContext.Current.CancellationToken))
             .ToList();
 
+        trees.AddRange(CreateFrameworkRootDecoys(trees, parseOptions));
+
         return CSharpCompilation.Create(
             "GeneratedCodeCompileTest",
             trees,
@@ -335,6 +337,51 @@ internal static class CompilationVerificationHarness
             new CSharpCompilationOptions(
                 OutputKind.DynamicallyLinkedLibrary,
                 nullableContextOptions: NullableContextOptions.Enable));
+    }
+
+    /// <summary>
+    /// The root namespaces generated code names types under. A path segment can carry the same name (<c>/system</c>
+    /// gives <c>{Root}.Generated.System</c>), and inside <c>{Root}.Generated</c> that namespace hides the framework's,
+    /// so generated code must write them <c>global::</c>-qualified.
+    /// </summary>
+    private static readonly string[] FrameworkRootNamespaces = ["System", "Microsoft", "Atc"];
+
+    /// <summary>
+    /// Declares <c>N.System</c>, <c>N.Microsoft</c> and <c>N.Atc</c> for every namespace <c>N</c> the generated files
+    /// declare, the way a path segment named like one does. Every scenario then fails to compile on a framework type
+    /// the generated code names without <c>global::</c>, whatever its own path segments are.
+    /// </summary>
+    private static IEnumerable<SyntaxTree> CreateFrameworkRootDecoys(
+        IEnumerable<SyntaxTree> trees,
+        CSharpParseOptions parseOptions)
+    {
+        var namespaces = trees
+            .Where(t => t.FilePath.EndsWith(".g.cs", StringComparison.Ordinal))
+            .SelectMany(t => t.GetRoot().DescendantNodes().OfType<BaseNamespaceDeclarationSyntax>())
+            .Select(n => n.Name.ToString())
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(n => n, StringComparer.Ordinal)
+            .ToList();
+
+        if (namespaces.Count == 0)
+        {
+            yield break;
+        }
+
+        var source = new StringBuilder();
+        foreach (var ns in namespaces)
+        {
+            foreach (var root in FrameworkRootNamespaces)
+            {
+                source.Append("namespace ").Append(ns).Append('.').Append(root)
+                    .AppendLine(" { internal static class FrameworkRootDecoy { } }");
+            }
+        }
+
+        yield return CSharpSyntaxTree.ParseText(
+            SourceText.From(source.ToString(), Encoding.UTF8),
+            parseOptions,
+            path: "FrameworkRootDecoys.cs");
     }
 
     /// <summary>

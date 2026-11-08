@@ -8,7 +8,7 @@ public sealed class UploadMultiFilesAsFormDataHandler : IUploadMultiFilesAsFormD
     /// <summary>
     /// Executes the UploadMultiFilesAsFormData operation.
     /// </summary>
-    public System.Threading.Tasks.Task<UploadMultiFilesAsFormDataResult> ExecuteAsync(
+    public global::System.Threading.Tasks.Task<UploadMultiFilesAsFormDataResult> ExecuteAsync(
         UploadMultiFilesAsFormDataParameters parameters,
         CancellationToken cancellationToken = default)
     {

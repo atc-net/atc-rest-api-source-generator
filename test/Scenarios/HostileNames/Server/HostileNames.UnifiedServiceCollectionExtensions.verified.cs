@@ -8,12 +8,16 @@ using Microsoft.Extensions.DependencyInjection;
 
 using HostileNames.Generated;
 using HostileNames.Generated.Accounts.Handlers;
+using HostileNames.Generated.Atc.Handlers;
+using HostileNames.Generated.Handlers;
 using HostileNames.Generated.Keys.Handlers;
+using HostileNames.Generated.Microsoft.Handlers;
 using HostileNames.Generated.Movies.Handlers;
 using HostileNames.Generated.Pets.Handlers;
 using HostileNames.Generated.Profiles.Handlers;
 using HostileNames.Generated.Repos.Handlers;
 using HostileNames.Generated.Streams.Handlers;
+using HostileNames.Generated.System.Handlers;
 using HostileNames.Generated.Things.Handlers;
 
 namespace HostileNames.Generated.Extensions;
@@ -36,6 +40,7 @@ public static class UnifiedServiceCollectionExtensions
     /// <remarks>
     /// <para>Registers:</para>
     /// <para>• ProblemDetails (RFC 9457) for the errors raised outside the handlers</para>
+    /// <para>• JSON options: every generated enum on the wire as the specification writes it</para>
     /// <para>Registers no handler: add them next to it with the methods the handler project generates:</para>
     /// <para>• <c>services.AddApiHandlersFrom{HandlerProject}()</c> - the handlers</para>
     /// <para>• <c>services.AddApiValidatorsFrom{HandlerProject}()</c> - the validators</para>
@@ -52,6 +57,9 @@ public static class UnifiedServiceCollectionExtensions
         {
             services.AddProblemDetails();
         }
+
+        // Every generated enum on the wire as the specification writes it, whatever enum converter the host adds
+        services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Insert(0, new global::HostileNames.Generated.EnumWireConverterFactory()));
 
         return services;
     }

@@ -951,7 +951,7 @@ public static partial class HttpClientExtractor
         string requestAccess)
         => IsPlainJson(operation)
             ? $"jsonSerializerOptions.ToJsonContent({requestAccess})"
-            : $"jsonSerializerOptions.ToJsonContent({requestAccess}, new System.Net.Http.Headers.MediaTypeHeaderValue(\"{operation.GetJsonRequestBodyMediaType()}\"))";
+            : $"jsonSerializerOptions.ToJsonContent({requestAccess}, new global::System.Net.Http.Headers.MediaTypeHeaderValue(\"{operation.GetJsonRequestBodyMediaType()}\"))";
 
     /// <summary>
     /// Emits the send for an operation: the verb helper call (<c>GetAsync</c>, <c>PostAsJsonAsync</c>, ...) as

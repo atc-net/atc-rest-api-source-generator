@@ -1669,7 +1669,7 @@ using Microsoft.AspNetCore.Builder;
                         .Where(b => b.Kind == ResponseBodyKind.Binary)
                         .Select(b => $"\"{b.MediaType}\"")
                         .DefaultIfEmpty($"\"{fileMediaType}\"");
-                    builder.Append($"    .Produces({statusCodeExpression}, typeof(System.IO.Stream), {string.Join(", ", downloadMediaTypes)})");
+                    builder.Append($"    .Produces({statusCodeExpression}, typeof(global::System.IO.Stream), {string.Join(", ", downloadMediaTypes)})");
                 }
                 else if (string.IsNullOrEmpty(contentType) &&
                          operation.IsStreamingResponse() &&

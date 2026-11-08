@@ -19,27 +19,27 @@ namespace Demo.Generated.Accounts.Client;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public interface IAccountsClient
 {
-    System.Threading.Tasks.Task<List<Account>> ListAccountsAsync(
+    global::System.Threading.Tasks.Task<List<Account>> ListAccountsAsync(
         ListAccountsParameters parameters,
         CancellationToken cancellationToken = default);
 
-    System.Threading.Tasks.Task<Account> CreateAccountAsync(
+    global::System.Threading.Tasks.Task<Account> CreateAccountAsync(
         CreateAccountParameters parameters,
         CancellationToken cancellationToken = default);
 
-    System.Threading.Tasks.Task<Account> GetAccountByIdAsync(
+    global::System.Threading.Tasks.Task<Account> GetAccountByIdAsync(
         GetAccountByIdParameters parameters,
         CancellationToken cancellationToken = default);
 
-    System.Threading.Tasks.Task DeleteAccountByIdAsync(
+    global::System.Threading.Tasks.Task DeleteAccountByIdAsync(
         DeleteAccountByIdParameters parameters,
         CancellationToken cancellationToken = default);
 
-    System.Threading.Tasks.Task<Account> UpdateAccountByIdAsync(
+    global::System.Threading.Tasks.Task<Account> UpdateAccountByIdAsync(
         UpdateAccountByIdParameters parameters,
         CancellationToken cancellationToken = default);
 
-    System.Threading.Tasks.Task<PaginatedResult<Account>> ListPaginatedAccountsAsync(
+    global::System.Threading.Tasks.Task<PaginatedResult<Account>> ListPaginatedAccountsAsync(
         ListPaginatedAccountsParameters parameters,
         CancellationToken cancellationToken = default);
 

@@ -12,7 +12,7 @@ using System.Text.Json;
 namespace SecurityOpenIdConnect.Generated;
 
 /// <summary>
-/// Reads and writes through the <see cref="System.Text.Json.Serialization.Metadata.JsonTypeInfo"/> the
+/// Reads and writes through the <see cref="global::System.Text.Json.Serialization.Metadata.JsonTypeInfo"/> the
 /// serializer options resolve: from a <c>JsonSerializerContext</c> added to them, else - where
 /// reflection-based serialization is enabled - by reflection.
 /// </summary>
@@ -26,7 +26,7 @@ internal static class GeneratedJsonOptions
     /// the reflection resolver when they have none (only where reflection-based serialization is enabled)
     /// and become read-only, as the serializer does with them on first use - so the metadata is cached.
     /// </summary>
-    public static System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> TypeInfo<T>(this JsonSerializerOptions options)
+    public static global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> TypeInfo<T>(this JsonSerializerOptions options)
     {
         if (!options.IsReadOnly)
         {
@@ -40,7 +40,7 @@ internal static class GeneratedJsonOptions
             }
         }
 
-        return (System.Text.Json.Serialization.Metadata.JsonTypeInfo<T>)options.GetTypeInfo(typeof(T));
+        return (global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<T>)options.GetTypeInfo(typeof(T));
     }
 
     /// <summary>
@@ -54,8 +54,8 @@ internal static class GeneratedJsonOptions
     // (JsonSerializerIsReflectionEnabledByDefault), and the trimmer removes this branch by that feature switch
     [UnconditionalSuppressMessage("Trimming", "IL2026:RequiresUnreferencedCode", Justification = "Only where reflection-based serialization is enabled; trimmed away by its feature switch.")]
     [UnconditionalSuppressMessage("AOT", "IL3050:RequiresDynamicCode", Justification = "Only where reflection-based serialization is enabled; trimmed away by its feature switch.")]
-    private static System.Text.Json.Serialization.Metadata.IJsonTypeInfoResolver DefaultResolver()
+    private static global::System.Text.Json.Serialization.Metadata.IJsonTypeInfoResolver DefaultResolver()
         => JsonSerializer.IsReflectionEnabledByDefault
-            ? new System.Text.Json.Serialization.Metadata.DefaultJsonTypeInfoResolver()
-            : System.Text.Json.Serialization.Metadata.JsonTypeInfoResolver.Combine();
+            ? new global::System.Text.Json.Serialization.Metadata.DefaultJsonTypeInfoResolver()
+            : global::System.Text.Json.Serialization.Metadata.JsonTypeInfoResolver.Combine();
 }

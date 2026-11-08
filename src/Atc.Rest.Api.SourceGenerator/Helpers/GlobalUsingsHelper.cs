@@ -165,6 +165,10 @@ internal static class DomainGlobalUsingsHelper
             requiredUsings.Add("global using Microsoft.Extensions.Logging;");
         }
 
+        // Beside other segments, a segment that resolved away has "{root}.Generated" to itself; it is the empty one
+        var hasNamedSegments = pathSegments.Exists(s => !string.IsNullOrEmpty(s));
+        var generatedRoot = $"{rootNamespace}.Generated";
+
         // Use discovered interface namespaces if available
         if (discoveredInterfaceNamespaces.Count > 0)
         {
@@ -180,8 +184,10 @@ internal static class DomainGlobalUsingsHelper
 
                     // Extract segment name from namespace to check if it has parameters/results
                     var segments = baseNs.Split('.');
-                    var segmentName = segments.Length > 0 ? segments[segments.Length - 1] : string.Empty;
-                    var namespaces = PathSegmentHelper.GetPathSegmentNamespaces(openApiDoc, segmentName);
+                    var segmentName = string.Equals(baseNs, generatedRoot, StringComparison.Ordinal) || segments.Length == 0
+                        ? string.Empty
+                        : segments[segments.Length - 1];
+                    var namespaces = NamespacesOf(openApiDoc, rootNamespace, segmentName, hasNamedSegments);
 
                     if (namespaces.HasParameters)
                     {
@@ -204,7 +210,7 @@ internal static class DomainGlobalUsingsHelper
 
             foreach (var segment in sortedSegments)
             {
-                var namespaces = PathSegmentHelper.GetPathSegmentNamespaces(openApiDoc, segment);
+                var namespaces = NamespacesOf(openApiDoc, rootNamespace, segment, hasNamedSegments);
 
                 // Add conditional segment usings (exclude Models for domain handlers)
                 foreach (var usingDirective in PathSegmentHelper.GetSegmentUsings(
@@ -216,6 +222,35 @@ internal static class DomainGlobalUsingsHelper
         }
 
         return requiredUsings;
+    }
+
+    /// <summary>
+    /// The namespaces a segment's operations have. The empty segment is "{root}.Generated": the whole document when it
+    /// is the only one, and otherwise the segments that resolved away into it (one named like the API) - not the
+    /// other segments, whose parameters live in their own namespaces.
+    /// </summary>
+    private static PathSegmentNamespaces NamespacesOf(
+        OpenApiDocument openApiDoc,
+        string rootNamespace,
+        string segment,
+        bool hasNamedSegments)
+    {
+        if (!string.IsNullOrEmpty(segment) || !hasNamedSegments)
+        {
+            return PathSegmentHelper.GetPathSegmentNamespaces(openApiDoc, segment);
+        }
+
+        var resolvedAway = PathSegmentHelper
+            .GetUniquePathSegments(openApiDoc)
+            .Where(s => PathSegmentHelper.ResolveEffectivePathSegment(openApiDoc, rootNamespace, s) is null)
+            .Select(s => PathSegmentHelper.GetPathSegmentNamespaces(openApiDoc, s))
+            .ToList();
+
+        return new PathSegmentNamespaces(
+            HasHandlers: resolvedAway.Exists(n => n.HasHandlers),
+            HasResults: resolvedAway.Exists(n => n.HasResults),
+            HasParameters: resolvedAway.Exists(n => n.HasParameters),
+            HasModels: resolvedAway.Exists(n => n.HasModels));
     }
 
     /// <summary>

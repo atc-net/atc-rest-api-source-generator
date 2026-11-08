@@ -8,7 +8,7 @@ public sealed class CreateTestItemWithModelHandler : ICreateTestItemWithModelHan
     /// <summary>
     /// Executes the CreateTestItemWithModel operation.
     /// </summary>
-    public System.Threading.Tasks.Task<CreateTestItemWithModelResult> ExecuteAsync(
+    public global::System.Threading.Tasks.Task<CreateTestItemWithModelResult> ExecuteAsync(
         CreateTestItemWithModelParameters parameters,
         CancellationToken cancellationToken = default)
     {

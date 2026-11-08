@@ -3,6 +3,7 @@
 #pragma warning disable CS1591
 
 using System;
+using System.Linq;
 using System.CodeDom.Compiler;
 using Atc.Rest.Client.Options;
 using Microsoft.Extensions.DependencyInjection;
@@ -35,6 +36,15 @@ public static class EndpointsServiceCollectionExtensions
     {
         // Ensure Atc.Rest.Client core services are registered (IHttpMessageFactory, IContractSerializer)
         services.AddAtcRestClientCore();
+
+        // Every generated enum on the wire as the specification writes it
+        services.ConfigureAtcRestClientJsonOptions(options =>
+        {
+            if (!global::System.Linq.Enumerable.Any(options.Converters, converter => converter is global::HostileNames.Generated.EnumWireConverterFactory))
+            {
+                options.Converters.Insert(0, new global::HostileNames.Generated.EnumWireConverterFactory());
+            }
+        });
 
         if (configureJsonSerializerOptions is not null)
         {

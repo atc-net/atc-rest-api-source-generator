@@ -17,23 +17,23 @@ namespace Demo.Generated.Files.Client;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public interface IFilesClient
 {
-    System.Threading.Tasks.Task<DownloadedFile> GetFileByIdAsync(
+    global::System.Threading.Tasks.Task<DownloadedFile> GetFileByIdAsync(
         GetFileByIdParameters parameters,
         CancellationToken cancellationToken = default);
 
-    System.Threading.Tasks.Task UploadFormDataFileAsync(
+    global::System.Threading.Tasks.Task UploadFormDataFileAsync(
         UploadFormDataFileParameters parameters,
         CancellationToken cancellationToken = default);
 
-    System.Threading.Tasks.Task UploadFormDataFilesAsync(
+    global::System.Threading.Tasks.Task UploadFormDataFilesAsync(
         UploadFormDataFilesParameters parameters,
         CancellationToken cancellationToken = default);
 
-    System.Threading.Tasks.Task UploadSingleFileAsFormDataAsync(
+    global::System.Threading.Tasks.Task UploadSingleFileAsFormDataAsync(
         UploadSingleFileAsFormDataParameters parameters,
         CancellationToken cancellationToken = default);
 
-    System.Threading.Tasks.Task UploadMultiFilesAsFormDataAsync(
+    global::System.Threading.Tasks.Task UploadMultiFilesAsFormDataAsync(
         UploadMultiFilesAsFormDataParameters parameters,
         CancellationToken cancellationToken = default);
 }

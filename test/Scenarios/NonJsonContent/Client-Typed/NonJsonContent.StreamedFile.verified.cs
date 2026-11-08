@@ -17,13 +17,13 @@ namespace NonJsonContent.Generated;
 /// file - it owns the response, which stays open until then.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class StreamedFile : System.IDisposable, System.IAsyncDisposable
+public sealed class StreamedFile : global::System.IDisposable, global::System.IAsyncDisposable
 {
-    private readonly System.Net.Http.HttpResponseMessage response;
+    private readonly global::System.Net.Http.HttpResponseMessage response;
 
     private StreamedFile(
-        System.Net.Http.HttpResponseMessage response,
-        System.IO.Stream content)
+        global::System.Net.Http.HttpResponseMessage response,
+        global::System.IO.Stream content)
     {
         this.response = response;
         Content = content;
@@ -36,7 +36,7 @@ public sealed class StreamedFile : System.IDisposable, System.IAsyncDisposable
     /// <summary>
     /// Gets the file's content, read as it arrives.
     /// </summary>
-    public System.IO.Stream Content { get; }
+    public global::System.IO.Stream Content { get; }
 
     /// <summary>
     /// Gets the media type (<c>Content-Type</c>), e.g. <c>application/zip</c>.
@@ -57,11 +57,11 @@ public sealed class StreamedFile : System.IDisposable, System.IAsyncDisposable
     /// Takes over a successful HTTP response read as far as its headers: its content stream and the Content-Type and
     /// Content-Disposition headers.
     /// </summary>
-    public static async System.Threading.Tasks.Task<StreamedFile> FromHttpResponseAsync(
-        System.Net.Http.HttpResponseMessage response,
-        System.Threading.CancellationToken cancellationToken = default)
+    public static async global::System.Threading.Tasks.Task<StreamedFile> FromHttpResponseAsync(
+        global::System.Net.Http.HttpResponseMessage response,
+        global::System.Threading.CancellationToken cancellationToken = default)
     {
-        System.ArgumentNullException.ThrowIfNull(response);
+        global::System.ArgumentNullException.ThrowIfNull(response);
         var content = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
         return new StreamedFile(response, content);
     }
@@ -74,7 +74,7 @@ public sealed class StreamedFile : System.IDisposable, System.IAsyncDisposable
     }
 
     /// <inheritdoc />
-    public async System.Threading.Tasks.ValueTask DisposeAsync()
+    public async global::System.Threading.Tasks.ValueTask DisposeAsync()
     {
         await Content.DisposeAsync().ConfigureAwait(false);
         response.Dispose();

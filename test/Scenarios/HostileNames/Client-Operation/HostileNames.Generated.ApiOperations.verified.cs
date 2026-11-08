@@ -63,4 +63,24 @@ public static class ApiOperations
     /// <c>GET /keys</c>: Lists API keys - an acronym-cased schema name and a dotted one.
     /// </summary>
     public const string ListApiKeys = "ListApiKeys";
+
+    /// <summary>
+    /// <c>GET /system/info</c>: A first path segment named like the System namespace, which the generated code qualifies framework types with.
+    /// </summary>
+    public const string GetSystemInfo = "GetSystemInfo";
+
+    /// <summary>
+    /// <c>GET /microsoft/devices</c>: A first path segment named like the Microsoft namespace.
+    /// </summary>
+    public const string ListMicrosoftDevices = "ListMicrosoftDevices";
+
+    /// <summary>
+    /// <c>GET /atc/items</c>: A first path segment named like the Atc namespace.
+    /// </summary>
+    public const string ListAtcItems = "ListAtcItems";
+
+    /// <summary>
+    /// <c>GET /hostilenames/settings</c>: A first path segment named like the API itself, which resolves into the root namespace beside the other segments.
+    /// </summary>
+    public const string GetSettings = "GetSettings";
 }

@@ -71,7 +71,7 @@ public static class ProblemDetailsFactory
     /// Reads the field errors of a validation problem (its <c>errors</c>) from the raw response body - a body read
     /// as a declared model that cannot hold them; <see langword="null"/> when the body has none.
     /// </summary>
-    public static System.Collections.Generic.Dictionary<string, string[]>? ValidationErrorsFromContent(string? content)
+    public static global::System.Collections.Generic.Dictionary<string, string[]>? ValidationErrorsFromContent(string? content)
         => (TryRead(content, validation: true) as ValidationProblemDetails)?.Errors;
 
     /// <summary>
@@ -87,7 +87,7 @@ public static class ProblemDetailsFactory
             return model!;
         }
 
-        throw new System.InvalidOperationException($"The error body cannot be read as {typeof(T).Name}; it is in Content.");
+        throw new global::System.InvalidOperationException($"The error body cannot be read as {typeof(T).Name}; it is in Content.");
     }
 
     private static bool TryReadAny<T>(string? content, out T? value)
@@ -97,7 +97,7 @@ public static class ProblemDetailsFactory
         // The lenient read is reflection-based: the consumer's error model through options of its own, which the
         // app's JsonSerializerContext does not reach. A trimmed or Native AOT app (reflection-based serialization off)
         // reads the error model as Atc.Rest.Client does, from the app's context, or keeps the raw body in Content.
-        if (!System.Text.Json.JsonSerializer.IsReflectionEnabledByDefault || string.IsNullOrWhiteSpace(content))
+        if (!global::System.Text.Json.JsonSerializer.IsReflectionEnabledByDefault || string.IsNullOrWhiteSpace(content))
         {
             return false;
         }
@@ -107,7 +107,7 @@ public static class ProblemDetailsFactory
             value = DeserializeLeniently<T>(content!);
             return value is not null;
         }
-        catch (System.Text.Json.JsonException)
+        catch (global::System.Text.Json.JsonException)
         {
             return false;
         }
@@ -115,10 +115,10 @@ public static class ProblemDetailsFactory
 
     // Only called where reflection-based serialization is enabled: a trimmed or Native AOT app has it off
     // (JsonSerializerIsReflectionEnabledByDefault), and the trimmer removes the call by that feature switch
-    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2026:RequiresUnreferencedCode", Justification = "Only where reflection-based serialization is enabled; trimmed away by its feature switch.")]
-    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("AOT", "IL3050:RequiresDynamicCode", Justification = "Only where reflection-based serialization is enabled; trimmed away by its feature switch.")]
+    [global::System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2026:RequiresUnreferencedCode", Justification = "Only where reflection-based serialization is enabled; trimmed away by its feature switch.")]
+    [global::System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("AOT", "IL3050:RequiresDynamicCode", Justification = "Only where reflection-based serialization is enabled; trimmed away by its feature switch.")]
     private static T? DeserializeLeniently<T>(string content)
-        => System.Text.Json.JsonSerializer.Deserialize<T>(content, LenientOptions);
+        => global::System.Text.Json.JsonSerializer.Deserialize<T>(content, LenientOptions);
 
     /// <summary>
     /// An <c>application/problem+xml</c> error body (RFC 9457 Appendix B) read into the typed ProblemDetails - a
@@ -127,33 +127,33 @@ public static class ProblemDetailsFactory
     public static global::Atc.Rest.Client.EndpointResponse WithXmlProblemBody(global::Atc.Rest.Client.EndpointResponse response)
     {
         var isProblemXml = response.Headers.Any(h =>
-            string.Equals(h.Key, "Content-Type", System.StringComparison.OrdinalIgnoreCase) &&
-            h.Value.Any(v => v.TrimStart().StartsWith("application/problem+xml", System.StringComparison.OrdinalIgnoreCase)));
+            string.Equals(h.Key, "Content-Type", global::System.StringComparison.OrdinalIgnoreCase) &&
+            h.Value.Any(v => v.TrimStart().StartsWith("application/problem+xml", global::System.StringComparison.OrdinalIgnoreCase)));
         if (response.IsSuccess || !isProblemXml || string.IsNullOrWhiteSpace(response.Content))
         {
             return response;
         }
 
-        System.Xml.Linq.XElement root;
+        global::System.Xml.Linq.XElement root;
         try
         {
             root = XmlModelSupport.Parse(response.Content);
         }
-        catch (System.Xml.XmlException)
+        catch (global::System.Xml.XmlException)
         {
             return response;
         }
 
         string? Member(string name)
             => root.Elements().FirstOrDefault(e => e.Name.LocalName == name)?.Value;
-        static string Key(System.Xml.Linq.XElement element)
-            => element.Name.LocalName == "_" ? string.Empty : System.Xml.XmlConvert.DecodeName(element.Name.LocalName)!;
+        static string Key(global::System.Xml.Linq.XElement element)
+            => element.Name.LocalName == "_" ? string.Empty : global::System.Xml.XmlConvert.DecodeName(element.Name.LocalName)!;
 
-        int? status = int.TryParse(Member("status"), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var code) ? code : null;
+        int? status = int.TryParse(Member("status"), global::System.Globalization.NumberStyles.Integer, global::System.Globalization.CultureInfo.InvariantCulture, out var code) ? code : null;
         var members = new[] { "type", "title", "status", "detail", "instance", "errors" };
         var extensions = root.Elements()
             .Where(e => !members.Contains(e.Name.LocalName))
-            .ToDictionary(Key, e => JsonString(e.HasElements ? e.ToString() : e.Value), System.StringComparer.Ordinal);
+            .ToDictionary(Key, e => JsonString(e.HasElements ? e.ToString() : e.Value), global::System.StringComparer.Ordinal);
         var errors = root.Elements().FirstOrDefault(e => e.Name.LocalName == "errors");
         ProblemDetails problem = errors is null
             ? new ProblemDetails(Member("type"), Member("title"), status, Member("detail"), Member("instance"))
@@ -163,23 +163,23 @@ public static class ProblemDetailsFactory
                 status,
                 Member("detail"),
                 Member("instance"),
-                errors.Elements().ToDictionary(Key, e => e.HasElements ? e.Elements().Select(i => i.Value).ToArray() : new[] { e.Value }, System.StringComparer.Ordinal));
+                errors.Elements().ToDictionary(Key, e => e.HasElements ? e.Elements().Select(i => i.Value).ToArray() : new[] { e.Value }, global::System.StringComparer.Ordinal));
         problem = problem with { Extensions = extensions.Count > 0 ? extensions : null };
         return new global::Atc.Rest.Client.EndpointResponse(response.IsSuccess, response.StatusCode, response.Content, problem, response.Headers);
     }
 
     // The text as a JSON string, escaped as the serializer writes one
-    private static System.Text.Json.JsonElement JsonString(string value)
+    private static global::System.Text.Json.JsonElement JsonString(string value)
     {
-        using var document = System.Text.Json.JsonDocument.Parse("\"" + System.Text.Json.JsonEncodedText.Encode(value) + "\"");
+        using var document = global::System.Text.Json.JsonDocument.Parse("\"" + global::System.Text.Json.JsonEncodedText.Encode(value) + "\"");
         return document.RootElement.Clone();
     }
 
-    private static readonly System.Text.Json.JsonSerializerOptions LenientOptions = CreateLenientOptions();
+    private static readonly global::System.Text.Json.JsonSerializerOptions LenientOptions = CreateLenientOptions();
 
-    private static System.Text.Json.JsonSerializerOptions CreateLenientOptions()
+    private static global::System.Text.Json.JsonSerializerOptions CreateLenientOptions()
     {
-        var options = new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web);
+        var options = new global::System.Text.Json.JsonSerializerOptions(global::System.Text.Json.JsonSerializerDefaults.Web);
         options.Converters.Add(new LenientStringConverter());
         return options;
     }
@@ -193,11 +193,11 @@ public static class ProblemDetailsFactory
 
         try
         {
-            using var document = System.Text.Json.JsonDocument.Parse(content);
+            using var document = global::System.Text.Json.JsonDocument.Parse(content);
             string? type = null, title = null, detail = null, instance = null;
             int? status = null;
-            System.Collections.Generic.Dictionary<string, string[]>? errors = null;
-            System.Collections.Generic.Dictionary<string, System.Text.Json.JsonElement>? extensions = null;
+            global::System.Collections.Generic.Dictionary<string, string[]>? errors = null;
+            global::System.Collections.Generic.Dictionary<string, global::System.Text.Json.JsonElement>? extensions = null;
             foreach (var member in document.RootElement.EnumerateObject())
             {
                 // Upper-cased as an ordinal case-insensitive comparison does
@@ -222,7 +222,7 @@ public static class ProblemDetailsFactory
                         errors = Errors(member.Value);
                         break;
                     default:
-                        (extensions ??= new System.Collections.Generic.Dictionary<string, System.Text.Json.JsonElement>(System.StringComparer.Ordinal))[member.Name] = member.Value.Clone();
+                        (extensions ??= new global::System.Collections.Generic.Dictionary<string, global::System.Text.Json.JsonElement>(global::System.StringComparer.Ordinal))[member.Name] = member.Value.Clone();
                         break;
                 }
             }
@@ -231,48 +231,48 @@ public static class ProblemDetailsFactory
                 ? new ValidationProblemDetails(type, title, status, detail, instance, errors) { Extensions = extensions }
                 : new ProblemDetails(type, title, status, detail, instance) { Extensions = extensions };
         }
-        catch (System.Text.Json.JsonException)
+        catch (global::System.Text.Json.JsonException)
         {
             return null;
         }
 
-        static string? Text(System.Text.Json.JsonElement value)
+        static string? Text(global::System.Text.Json.JsonElement value)
             => value.ValueKind switch
             {
-                System.Text.Json.JsonValueKind.String => value.GetString(),
-                System.Text.Json.JsonValueKind.Null => null,
-                _ => throw new System.Text.Json.JsonException(),
+                global::System.Text.Json.JsonValueKind.String => value.GetString(),
+                global::System.Text.Json.JsonValueKind.Null => null,
+                _ => throw new global::System.Text.Json.JsonException(),
             };
 
-        static int? Status(System.Text.Json.JsonElement value)
+        static int? Status(global::System.Text.Json.JsonElement value)
             => value.ValueKind switch
             {
-                System.Text.Json.JsonValueKind.Number when value.TryGetInt32(out var number) => number,
-                System.Text.Json.JsonValueKind.String when int.TryParse(value.GetString(), System.Globalization.NumberStyles.AllowLeadingSign, System.Globalization.CultureInfo.InvariantCulture, out var number) => number,
-                System.Text.Json.JsonValueKind.Null => null,
-                _ => throw new System.Text.Json.JsonException(),
+                global::System.Text.Json.JsonValueKind.Number when value.TryGetInt32(out var number) => number,
+                global::System.Text.Json.JsonValueKind.String when int.TryParse(value.GetString(), global::System.Globalization.NumberStyles.AllowLeadingSign, global::System.Globalization.CultureInfo.InvariantCulture, out var number) => number,
+                global::System.Text.Json.JsonValueKind.Null => null,
+                _ => throw new global::System.Text.Json.JsonException(),
             };
 
-        static System.Collections.Generic.Dictionary<string, string[]>? Errors(System.Text.Json.JsonElement value)
+        static global::System.Collections.Generic.Dictionary<string, string[]>? Errors(global::System.Text.Json.JsonElement value)
         {
-            if (value.ValueKind == System.Text.Json.JsonValueKind.Null)
+            if (value.ValueKind == global::System.Text.Json.JsonValueKind.Null)
             {
                 return null;
             }
 
-            if (value.ValueKind != System.Text.Json.JsonValueKind.Object)
+            if (value.ValueKind != global::System.Text.Json.JsonValueKind.Object)
             {
-                throw new System.Text.Json.JsonException();
+                throw new global::System.Text.Json.JsonException();
             }
 
-            var errors = new System.Collections.Generic.Dictionary<string, string[]>(System.StringComparer.Ordinal);
+            var errors = new global::System.Collections.Generic.Dictionary<string, string[]>(global::System.StringComparer.Ordinal);
             foreach (var field in value.EnumerateObject())
             {
                 errors[field.Name] = field.Value.ValueKind switch
                 {
-                    System.Text.Json.JsonValueKind.Array => field.Value.EnumerateArray().Select(item => Text(item)!).ToArray(),
-                    System.Text.Json.JsonValueKind.Null => null!,
-                    _ => throw new System.Text.Json.JsonException(),
+                    global::System.Text.Json.JsonValueKind.Array => field.Value.EnumerateArray().Select(item => Text(item)!).ToArray(),
+                    global::System.Text.Json.JsonValueKind.Null => null!,
+                    _ => throw new global::System.Text.Json.JsonException(),
                 };
             }
 
@@ -295,10 +295,10 @@ public static class ProblemDetailsFactory
         {
             try
             {
-                using var document = System.Text.Json.JsonDocument.Parse(trimmed);
+                using var document = global::System.Text.Json.JsonDocument.Parse(trimmed);
                 return document.RootElement.GetString();
             }
-            catch (System.Text.Json.JsonException)
+            catch (global::System.Text.Json.JsonException)
             {
                 // Not a JSON string after all: keep the text as it is.
             }
@@ -358,20 +358,20 @@ public static class ProblemDetailsFactory
         511 => "Network Authentication Required",
         >= 500 => "Server Error",
         >= 400 => "Client Error",
-        _ => ((int)statusCode).ToString(System.Globalization.CultureInfo.InvariantCulture),
+        _ => ((int)statusCode).ToString(global::System.Globalization.CultureInfo.InvariantCulture),
     };
 
     /// <summary>
     /// Reads any JSON value into a string property: a string as its value, anything else as its JSON text.
     /// </summary>
-    private sealed class LenientStringConverter : System.Text.Json.Serialization.JsonConverter<string>
+    private sealed class LenientStringConverter : global::System.Text.Json.Serialization.JsonConverter<string>
     {
-        public override string? Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
-            => reader.TokenType == System.Text.Json.JsonTokenType.String
+        public override string? Read(ref global::System.Text.Json.Utf8JsonReader reader, global::System.Type typeToConvert, global::System.Text.Json.JsonSerializerOptions options)
+            => reader.TokenType == global::System.Text.Json.JsonTokenType.String
                 ? reader.GetString()
-                : System.Text.Json.JsonDocument.ParseValue(ref reader).RootElement.GetRawText();
+                : global::System.Text.Json.JsonDocument.ParseValue(ref reader).RootElement.GetRawText();
 
-        public override void Write(System.Text.Json.Utf8JsonWriter writer, string value, System.Text.Json.JsonSerializerOptions options)
+        public override void Write(global::System.Text.Json.Utf8JsonWriter writer, string value, global::System.Text.Json.JsonSerializerOptions options)
             => writer.WriteStringValue(value);
     }
 }

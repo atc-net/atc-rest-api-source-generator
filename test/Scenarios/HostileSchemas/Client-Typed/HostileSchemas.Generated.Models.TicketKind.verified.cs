@@ -167,7 +167,7 @@ public sealed class TicketKindJsonConverter : JsonConverter<TicketKind>
     private static TicketKind FromNumber(ref Utf8JsonReader reader)
         => reader.TryGetInt32(out var position) && position >= 0 && position < TicketKind.KnownValues.Count
             ? TicketKind.KnownValues[position]
-            : new TicketKind(System.Text.Encoding.UTF8.GetString(reader.HasValueSequence ? System.Buffers.BuffersExtensions.ToArray(reader.ValueSequence) : reader.ValueSpan.ToArray()));
+            : new TicketKind(global::System.Text.Encoding.UTF8.GetString(reader.HasValueSequence ? global::System.Buffers.BuffersExtensions.ToArray(reader.ValueSequence) : reader.ValueSpan.ToArray()));
 }
 
 /// <summary>

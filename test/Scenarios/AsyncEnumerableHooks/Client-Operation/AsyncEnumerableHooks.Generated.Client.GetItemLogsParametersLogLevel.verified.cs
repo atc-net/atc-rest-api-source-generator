@@ -187,7 +187,7 @@ public sealed class GetItemLogsParametersLogLevelJsonConverter : JsonConverter<G
     private static GetItemLogsParametersLogLevel FromNumber(ref Utf8JsonReader reader)
         => reader.TryGetInt32(out var position) && position >= 0 && position < GetItemLogsParametersLogLevel.KnownValues.Count
             ? GetItemLogsParametersLogLevel.KnownValues[position]
-            : new GetItemLogsParametersLogLevel(System.Text.Encoding.UTF8.GetString(reader.HasValueSequence ? System.Buffers.BuffersExtensions.ToArray(reader.ValueSequence) : reader.ValueSpan.ToArray()));
+            : new GetItemLogsParametersLogLevel(global::System.Text.Encoding.UTF8.GetString(reader.HasValueSequence ? global::System.Buffers.BuffersExtensions.ToArray(reader.ValueSequence) : reader.ValueSpan.ToArray()));
 }
 
 /// <summary>

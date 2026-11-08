@@ -69,7 +69,7 @@ public sealed class ResponseMetadataTests
         var sources = ErrorResponseBodyRuntimeTests.Generate(new ApiServerGenerator(), ".atc-rest-api-server", ErrorResponseBodyRuntimeTests.ServerMarker, includeMinimalApi: true, Yaml);
         var endpoints = string.Join(Environment.NewLine, sources.Where(s => s.HintName.Contains("EndpointDefinition", StringComparison.Ordinal)).Select(s => s.Source));
 
-        Assert.Contains(".Produces(StatusCodes.Status200OK, typeof(System.IO.Stream), \"application/pdf\", \"image/png\", \"image/jpeg\")", endpoints, StringComparison.Ordinal);
+        Assert.Contains(".Produces(StatusCodes.Status200OK, typeof(global::System.IO.Stream), \"application/pdf\", \"image/png\", \"image/jpeg\")", endpoints, StringComparison.Ordinal);
         Assert.Contains(".Produces<Event>(StatusCodes.Status200OK, \"text/event-stream\")", endpoints, StringComparison.Ordinal);
         Assert.Contains(".Produces<List<Event>>()", endpoints, StringComparison.Ordinal);
         Assert.Empty(CompilationVerificationHarness.CompileGeneratedSources(sources, includeMinimalApi: true));

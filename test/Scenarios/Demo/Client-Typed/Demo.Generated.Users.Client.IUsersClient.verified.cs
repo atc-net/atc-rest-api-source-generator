@@ -17,23 +17,23 @@ namespace Demo.Generated.Users.Client;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public interface IUsersClient
 {
-    System.Threading.Tasks.Task<List<User>> ListUsersAsync(
+    global::System.Threading.Tasks.Task<List<User>> ListUsersAsync(
         ListUsersParameters parameters,
         CancellationToken cancellationToken = default);
 
-    System.Threading.Tasks.Task<User> CreateUserAsync(
+    global::System.Threading.Tasks.Task<User> CreateUserAsync(
         CreateUserParameters parameters,
         CancellationToken cancellationToken = default);
 
-    System.Threading.Tasks.Task<User> GetUserByIdAsync(
+    global::System.Threading.Tasks.Task<User> GetUserByIdAsync(
         GetUserByIdParameters parameters,
         CancellationToken cancellationToken = default);
 
-    System.Threading.Tasks.Task<User> UpdateUserByIdAsync(
+    global::System.Threading.Tasks.Task<User> UpdateUserByIdAsync(
         UpdateUserByIdParameters parameters,
         CancellationToken cancellationToken = default);
 
-    System.Threading.Tasks.Task DeleteUserByIdAsync(
+    global::System.Threading.Tasks.Task DeleteUserByIdAsync(
         DeleteUserByIdParameters parameters,
         CancellationToken cancellationToken = default);
 }

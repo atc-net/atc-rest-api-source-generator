@@ -43,7 +43,7 @@ public sealed class FilesClient : IFilesClient
         this.jsonSerializerOptions = jsonSerializerOptions;
     }
 
-    public async System.Threading.Tasks.Task<DownloadedFile> GetFileByIdAsync(
+    public async global::System.Threading.Tasks.Task<DownloadedFile> GetFileByIdAsync(
         GetFileByIdParameters parameters,
         CancellationToken cancellationToken = default)
     {
@@ -55,7 +55,7 @@ public sealed class FilesClient : IFilesClient
         return await DownloadedFile.FromHttpResponseAsync(response, cancellationToken).ConfigureAwait(false);
     }
 
-    public async System.Threading.Tasks.Task UploadFormDataFileAsync(
+    public async global::System.Threading.Tasks.Task UploadFormDataFileAsync(
         UploadFormDataFileParameters parameters,
         CancellationToken cancellationToken = default)
     {
@@ -94,7 +94,7 @@ public sealed class FilesClient : IFilesClient
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
     }
 
-    public async System.Threading.Tasks.Task UploadFormDataFilesAsync(
+    public async global::System.Threading.Tasks.Task UploadFormDataFilesAsync(
         UploadFormDataFilesParameters parameters,
         CancellationToken cancellationToken = default)
     {
@@ -123,7 +123,7 @@ public sealed class FilesClient : IFilesClient
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
     }
 
-    public async System.Threading.Tasks.Task UploadSingleFileAsFormDataAsync(
+    public async global::System.Threading.Tasks.Task UploadSingleFileAsFormDataAsync(
         UploadSingleFileAsFormDataParameters parameters,
         CancellationToken cancellationToken = default)
     {
@@ -139,7 +139,7 @@ public sealed class FilesClient : IFilesClient
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
     }
 
-    public async System.Threading.Tasks.Task UploadMultiFilesAsFormDataAsync(
+    public async global::System.Threading.Tasks.Task UploadMultiFilesAsFormDataAsync(
         UploadMultiFilesAsFormDataParameters parameters,
         CancellationToken cancellationToken = default)
     {
@@ -167,7 +167,7 @@ public sealed class FilesClient : IFilesClient
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
     }
 
-    private static async System.Threading.Tasks.Task EnsureSuccessAsync(
+    private static async global::System.Threading.Tasks.Task EnsureSuccessAsync(
         HttpResponseMessage response,
         CancellationToken cancellationToken)
     {
@@ -186,16 +186,16 @@ public sealed class FilesClient : IFilesClient
             errorLength += errorRead;
         }
 
-        var errorEncoding = System.Text.Encoding.UTF8;
+        var errorEncoding = global::System.Text.Encoding.UTF8;
         if (response.Content.Headers.ContentType?.CharSet is { Length: > 0 } errorCharset)
         {
             try
             {
-                errorEncoding = System.Text.Encoding.GetEncoding(errorCharset.Trim('"'));
+                errorEncoding = global::System.Text.Encoding.GetEncoding(errorCharset.Trim('"'));
             }
-            catch (System.ArgumentException)
+            catch (global::System.ArgumentException)
             {
-                errorEncoding = System.Text.Encoding.UTF8;
+                errorEncoding = global::System.Text.Encoding.UTF8;
             }
         }
 

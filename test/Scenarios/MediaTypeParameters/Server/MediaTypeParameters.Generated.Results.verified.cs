@@ -211,7 +211,7 @@ public sealed class GetPetResult : IResult, INestedHttpResult, IStatusCodeHttpRe
     /// <summary>
     /// 404 Not Found - Not found.
     /// </summary>
-    [System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
+    [global::System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
     public static GetPetResult NotFound(string? message = null)
         => new(TypedResults.Problem(detail: message, statusCode: 404));
 

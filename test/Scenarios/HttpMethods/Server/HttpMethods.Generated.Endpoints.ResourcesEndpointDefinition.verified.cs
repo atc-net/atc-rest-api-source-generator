@@ -72,7 +72,7 @@ public sealed class ResourcesEndpointDefinition : IEndpointDefinition
             .MapMethods("/", new[] { "TRACE" }, TraceResources)
             .WithName(global::HttpMethods.Generated.ApiOperations.TraceResources)
             .WithSummary("The request as the server received it")
-            .Produces(StatusCodes.Status200OK, typeof(System.IO.Stream), "message/http")
+            .Produces(StatusCodes.Status200OK, typeof(global::System.IO.Stream), "message/http")
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 

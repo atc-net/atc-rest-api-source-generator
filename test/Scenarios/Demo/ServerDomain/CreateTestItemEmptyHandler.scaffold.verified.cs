@@ -8,7 +8,7 @@ public sealed class CreateTestItemEmptyHandler : ICreateTestItemEmptyHandler
     /// <summary>
     /// Executes the CreateTestItemEmpty operation.
     /// </summary>
-    public System.Threading.Tasks.Task<CreateTestItemEmptyResult> ExecuteAsync(
+    public global::System.Threading.Tasks.Task<CreateTestItemEmptyResult> ExecuteAsync(
         CreateTestItemEmptyParameters parameters,
         CancellationToken cancellationToken = default)
     {

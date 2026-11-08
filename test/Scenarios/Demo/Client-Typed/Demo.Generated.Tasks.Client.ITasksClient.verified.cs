@@ -17,23 +17,23 @@ namespace Demo.Generated.Tasks.Client;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public interface ITasksClient
 {
-    System.Threading.Tasks.Task<List<Demo.Generated.Tasks.Models.Task>> ListTasksAsync(
+    global::System.Threading.Tasks.Task<List<Demo.Generated.Tasks.Models.Task>> ListTasksAsync(
         ListTasksParameters parameters,
         CancellationToken cancellationToken = default);
 
-    System.Threading.Tasks.Task<Demo.Generated.Tasks.Models.Task> CreateTaskAsync(
+    global::System.Threading.Tasks.Task<Demo.Generated.Tasks.Models.Task> CreateTaskAsync(
         CreateTaskParameters parameters,
         CancellationToken cancellationToken = default);
 
-    System.Threading.Tasks.Task<Demo.Generated.Tasks.Models.Task> GetTaskByIdAsync(
+    global::System.Threading.Tasks.Task<Demo.Generated.Tasks.Models.Task> GetTaskByIdAsync(
         GetTaskByIdParameters parameters,
         CancellationToken cancellationToken = default);
 
-    System.Threading.Tasks.Task DeleteTaskByIdAsync(
+    global::System.Threading.Tasks.Task DeleteTaskByIdAsync(
         DeleteTaskByIdParameters parameters,
         CancellationToken cancellationToken = default);
 
-    System.Threading.Tasks.Task<Demo.Generated.Tasks.Models.Task> UpdateTaskByIdAsync(
+    global::System.Threading.Tasks.Task<Demo.Generated.Tasks.Models.Task> UpdateTaskByIdAsync(
         UpdateTaskByIdParameters parameters,
         CancellationToken cancellationToken = default);
 }

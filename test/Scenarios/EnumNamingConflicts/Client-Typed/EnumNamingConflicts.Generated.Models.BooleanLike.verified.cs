@@ -180,7 +180,7 @@ public sealed class BooleanLikeJsonConverter : JsonConverter<BooleanLike>
     private static BooleanLike FromNumber(ref Utf8JsonReader reader)
         => reader.TryGetInt32(out var position) && position >= 0 && position < BooleanLike.KnownValues.Count
             ? BooleanLike.KnownValues[position]
-            : new BooleanLike(System.Text.Encoding.UTF8.GetString(reader.HasValueSequence ? System.Buffers.BuffersExtensions.ToArray(reader.ValueSequence) : reader.ValueSpan.ToArray()));
+            : new BooleanLike(global::System.Text.Encoding.UTF8.GetString(reader.HasValueSequence ? global::System.Buffers.BuffersExtensions.ToArray(reader.ValueSequence) : reader.ValueSpan.ToArray()));
 }
 
 /// <summary>

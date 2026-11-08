@@ -43,7 +43,7 @@ public sealed class UsersClient : IUsersClient
         this.jsonSerializerOptions = jsonSerializerOptions;
     }
 
-    public async System.Threading.Tasks.Task<List<User>> ListUsersAsync(
+    public async global::System.Threading.Tasks.Task<List<User>> ListUsersAsync(
         ListUsersParameters parameters,
         CancellationToken cancellationToken = default)
     {
@@ -93,7 +93,7 @@ public sealed class UsersClient : IUsersClient
         return JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<List<User>>())!;
     }
 
-    public async System.Threading.Tasks.Task<User> CreateUserAsync(
+    public async global::System.Threading.Tasks.Task<User> CreateUserAsync(
         CreateUserParameters parameters,
         CancellationToken cancellationToken = default)
     {
@@ -112,7 +112,7 @@ public sealed class UsersClient : IUsersClient
         return JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<User>())!;
     }
 
-    public async System.Threading.Tasks.Task<User> GetUserByIdAsync(
+    public async global::System.Threading.Tasks.Task<User> GetUserByIdAsync(
         GetUserByIdParameters parameters,
         CancellationToken cancellationToken = default)
     {
@@ -130,7 +130,7 @@ public sealed class UsersClient : IUsersClient
         return JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<User>())!;
     }
 
-    public async System.Threading.Tasks.Task<User> UpdateUserByIdAsync(
+    public async global::System.Threading.Tasks.Task<User> UpdateUserByIdAsync(
         UpdateUserByIdParameters parameters,
         CancellationToken cancellationToken = default)
     {
@@ -149,7 +149,7 @@ public sealed class UsersClient : IUsersClient
         return JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<User>())!;
     }
 
-    public async System.Threading.Tasks.Task DeleteUserByIdAsync(
+    public async global::System.Threading.Tasks.Task DeleteUserByIdAsync(
         DeleteUserByIdParameters parameters,
         CancellationToken cancellationToken = default)
     {
@@ -160,7 +160,7 @@ public sealed class UsersClient : IUsersClient
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
     }
 
-    private static async System.Threading.Tasks.Task EnsureSuccessAsync(
+    private static async global::System.Threading.Tasks.Task EnsureSuccessAsync(
         HttpResponseMessage response,
         CancellationToken cancellationToken)
     {
@@ -179,16 +179,16 @@ public sealed class UsersClient : IUsersClient
             errorLength += errorRead;
         }
 
-        var errorEncoding = System.Text.Encoding.UTF8;
+        var errorEncoding = global::System.Text.Encoding.UTF8;
         if (response.Content.Headers.ContentType?.CharSet is { Length: > 0 } errorCharset)
         {
             try
             {
-                errorEncoding = System.Text.Encoding.GetEncoding(errorCharset.Trim('"'));
+                errorEncoding = global::System.Text.Encoding.GetEncoding(errorCharset.Trim('"'));
             }
-            catch (System.ArgumentException)
+            catch (global::System.ArgumentException)
             {
-                errorEncoding = System.Text.Encoding.UTF8;
+                errorEncoding = global::System.Text.Encoding.UTF8;
             }
         }
 

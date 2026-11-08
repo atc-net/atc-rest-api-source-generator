@@ -30,9 +30,9 @@ public sealed record DownloadedFile(
     /// <summary>
     /// Reads the file from a successful HTTP response: its bytes and the Content-Type and Content-Disposition headers.
     /// </summary>
-    public static async System.Threading.Tasks.Task<DownloadedFile> FromHttpResponseAsync(
-        System.Net.Http.HttpResponseMessage response,
-        System.Threading.CancellationToken cancellationToken = default)
+    public static async global::System.Threading.Tasks.Task<DownloadedFile> FromHttpResponseAsync(
+        global::System.Net.Http.HttpResponseMessage response,
+        global::System.Threading.CancellationToken cancellationToken = default)
     {
         var content = await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
         return FromHeaders(content, response.Content.Headers);
@@ -43,40 +43,40 @@ public sealed record DownloadedFile(
     /// type), and the Content-Type and Content-Disposition headers.
     /// </summary>
     public static DownloadedFile FromResponse(global::Atc.Rest.Client.EndpointResponse response)
-        => FromHeaders(response.ContentObject as byte[] ?? System.Text.Encoding.UTF8.GetBytes(response.Content ?? string.Empty), response.Headers);
+        => FromHeaders(response.ContentObject as byte[] ?? global::System.Text.Encoding.UTF8.GetBytes(response.Content ?? string.Empty), response.Headers);
 
     /// <summary>
     /// Whether a response's body is a file: its Content-Type is neither JSON nor XML (a model's).
     /// </summary>
     public static bool IsFileResponse(global::Atc.Rest.Client.EndpointResponse response)
-        => IsFileMediaType(FromHeaders(System.Array.Empty<byte>(), response.Headers).ContentType);
+        => IsFileMediaType(FromHeaders(global::System.Array.Empty<byte>(), response.Headers).ContentType);
 
     /// <summary>
     /// Whether a body of this media type is a file rather than a model: neither JSON nor XML.
     /// </summary>
     public static bool IsFileMediaType(string? mediaType)
         => !string.IsNullOrEmpty(mediaType) &&
-           !string.Equals(mediaType, "application/json", System.StringComparison.OrdinalIgnoreCase) &&
-           !mediaType!.EndsWith("+json", System.StringComparison.OrdinalIgnoreCase) &&
-           !string.Equals(mediaType, "application/xml", System.StringComparison.OrdinalIgnoreCase) &&
-           !string.Equals(mediaType, "text/xml", System.StringComparison.OrdinalIgnoreCase) &&
-           !mediaType.EndsWith("+xml", System.StringComparison.OrdinalIgnoreCase);
+           !string.Equals(mediaType, "application/json", global::System.StringComparison.OrdinalIgnoreCase) &&
+           !mediaType!.EndsWith("+json", global::System.StringComparison.OrdinalIgnoreCase) &&
+           !string.Equals(mediaType, "application/xml", global::System.StringComparison.OrdinalIgnoreCase) &&
+           !string.Equals(mediaType, "text/xml", global::System.StringComparison.OrdinalIgnoreCase) &&
+           !mediaType.EndsWith("+xml", global::System.StringComparison.OrdinalIgnoreCase);
 
     private static DownloadedFile FromHeaders(
         byte[] content,
-        System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string, System.Collections.Generic.IEnumerable<string>>> headers)
+        global::System.Collections.Generic.IEnumerable<global::System.Collections.Generic.KeyValuePair<string, global::System.Collections.Generic.IEnumerable<string>>> headers)
     {
         string? contentType = null;
         string? fileName = null;
         foreach (var header in headers)
         {
             var value = string.Join(",", header.Value);
-            if (string.Equals(header.Key, "Content-Type", System.StringComparison.OrdinalIgnoreCase) &&
+            if (string.Equals(header.Key, "Content-Type", global::System.StringComparison.OrdinalIgnoreCase) &&
                 MediaTypeHeaderValue.TryParse(value, out var mediaType))
             {
                 contentType = mediaType.MediaType;
             }
-            else if (string.Equals(header.Key, "Content-Disposition", System.StringComparison.OrdinalIgnoreCase) &&
+            else if (string.Equals(header.Key, "Content-Disposition", global::System.StringComparison.OrdinalIgnoreCase) &&
                      ContentDispositionHeaderValue.TryParse(value, out var disposition))
             {
                 fileName = SafeFileName((disposition.FileNameStar ?? disposition.FileName)?.Trim('"'));

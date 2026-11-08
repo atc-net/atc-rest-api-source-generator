@@ -991,7 +991,7 @@ public static class ResultClassExtractor
             // argument keeps resolving to the 2.x shape, as it did in 2.x, instead of being ambiguous.
             var hasProblemOverload = shape.IsDeclared && code is not (400 or 500 or 504);
             IList<AttributeParameters>? legacyShapeAttributes = hasProblemOverload
-                ? [new AttributeParameters("System.Runtime.CompilerServices.OverloadResolutionPriority", "1")]
+                ? [new AttributeParameters("global::System.Runtime.CompilerServices.OverloadResolutionPriority", "1")]
                 : null;
 
             if (code == 400)
@@ -1005,7 +1005,7 @@ public static class ResultClassExtractor
                     name,
                     [CreateParameter(errorsType, "errors", nullable: true, isReference: true, defaultValue: "null")],
                     $"new(errors is null ? TypedResults.Problem(statusCode: 400) : {fromErrors})",
-                    [new AttributeParameters("System.Runtime.CompilerServices.OverloadResolutionPriority", "1")]));
+                    [new AttributeParameters("global::System.Runtime.CompilerServices.OverloadResolutionPriority", "1")]));
 
                 // A request refused for a reason that is no field error, as NotFound("…") says it. No default, so
                 // BadRequest() and BadRequest(null) stay the 2.x shape above.
@@ -1757,11 +1757,11 @@ public static class ResultClassExtractor
 
         return statusCode switch
         {
-            301 => Method("System.Uri", "location", "new(new LocationHttpResult(TypedResults.StatusCode(301), location.OriginalString))"),
-            302 => Method("System.Uri", "location", "new(new LocationHttpResult(TypedResults.StatusCode(302), location.OriginalString))"),
-            303 => Method("System.Uri", "location", "new(new LocationHttpResult(TypedResults.StatusCode(303), location.OriginalString))"),
-            307 => Method("System.Uri", "location", "new(new LocationHttpResult(TypedResults.StatusCode(307), location.OriginalString))"),
-            308 => Method("System.Uri", "location", "new(new LocationHttpResult(TypedResults.StatusCode(308), location.OriginalString))"),
+            301 => Method("global::System.Uri", "location", "new(new LocationHttpResult(TypedResults.StatusCode(301), location.OriginalString))"),
+            302 => Method("global::System.Uri", "location", "new(new LocationHttpResult(TypedResults.StatusCode(302), location.OriginalString))"),
+            303 => Method("global::System.Uri", "location", "new(new LocationHttpResult(TypedResults.StatusCode(303), location.OriginalString))"),
+            307 => Method("global::System.Uri", "location", "new(new LocationHttpResult(TypedResults.StatusCode(307), location.OriginalString))"),
+            308 => Method("global::System.Uri", "location", "new(new LocationHttpResult(TypedResults.StatusCode(308), location.OriginalString))"),
             205 or 304 => Method(null, string.Empty, $"new(TypedResults.StatusCode({status}))"),
             _ when isTextResponse && textResponseMediaType is not null =>
                 Method("string", "content", $"new(TypedResults.Text(content, \"{textResponseMediaType}\", statusCode: {status}))"),

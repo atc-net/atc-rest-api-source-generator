@@ -14,7 +14,7 @@ public class SystemTypeConflictResolverTests
     {
         var resolver = new SystemTypeConflictResolver(["Task", "Pet"]);
         var result = resolver.EnsureFullNamespaceIfNeeded("Task");
-        Assert.Equal("System.Threading.Tasks.Task", result);
+        Assert.Equal("global::System.Threading.Tasks.Task", result);
     }
 
     [Fact]
@@ -34,14 +34,14 @@ public class SystemTypeConflictResolverTests
     }
 
     [Theory]
-    [InlineData("Action", "System.Action")]
-    [InlineData("Exception", "System.Exception")]
-    [InlineData("Guid", "System.Guid")]
-    [InlineData("DateTime", "System.DateTime")]
-    [InlineData("Uri", "System.Uri")]
-    [InlineData("Version", "System.Version")]
-    [InlineData("Stream", "System.IO.Stream")]
-    [InlineData("Path", "System.IO.Path")]
+    [InlineData("Action", "global::System.Action")]
+    [InlineData("Exception", "global::System.Exception")]
+    [InlineData("Guid", "global::System.Guid")]
+    [InlineData("DateTime", "global::System.DateTime")]
+    [InlineData("Uri", "global::System.Uri")]
+    [InlineData("Version", "global::System.Version")]
+    [InlineData("Stream", "global::System.IO.Stream")]
+    [InlineData("Path", "global::System.IO.Path")]
     public void EnsureFullNamespaceIfNeeded_VariousConflicts_ReturnsExpectedFullName(
         string modelName,
         string expectedFullName)
@@ -126,9 +126,13 @@ public class SystemTypeConflictResolverTests
         Assert.True(resolver.HasConflict(name));
         Assert.EndsWith("." + name, fullName, StringComparison.Ordinal);
 
+        // global::-qualified, so a namespace named like System cannot hide it
+        Assert.StartsWith("global::", fullName, StringComparison.Ordinal);
+        var metadataName = fullName["global::".Length..];
+
         // The framework the generated code compiles against: an open generic (Func) is named with its arity
-        var types = PlatformCompilation.Value.GetTypesByMetadataName(fullName)
-            .Concat(PlatformCompilation.Value.GetTypesByMetadataName(fullName + "`1"));
+        var types = PlatformCompilation.Value.GetTypesByMetadataName(metadataName)
+            .Concat(PlatformCompilation.Value.GetTypesByMetadataName(metadataName + "`1"));
         Assert.Contains(types, t => t.DeclaredAccessibility == Microsoft.CodeAnalysis.Accessibility.Public);
     }
 }

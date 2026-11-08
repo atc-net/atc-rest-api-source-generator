@@ -72,13 +72,14 @@ public sealed class SystemTypeConflictResolver
     /// </summary>
     /// <param name="typeName">The type name to check (e.g., "Task").</param>
     /// <returns>
-    /// The fully qualified type name if there's a conflict (e.g., "System.Threading.Tasks.Task"),
+    /// The <c>global::</c>-qualified type name if there's a conflict (e.g., "global::System.Threading.Tasks.Task") - a
+    /// path segment can be named <c>System</c> too, and then a partly qualified name would resolve to it,
     /// otherwise the original type name.
     /// </returns>
     /// <example>
     /// <code>
     /// // If "Task" model exists in OpenAPI spec:
-    /// resolver.EnsureFullNamespaceIfNeeded("Task") // Returns "System.Threading.Tasks.Task"
+    /// resolver.EnsureFullNamespaceIfNeeded("Task") // Returns "global::System.Threading.Tasks.Task"
     ///
     /// // If no "Task" model exists:
     /// resolver.EnsureFullNamespaceIfNeeded("Task") // Returns "Task"
@@ -89,7 +90,7 @@ public sealed class SystemTypeConflictResolver
         if (conflictingModelNames.Contains(typeName) &&
             ReservedSystemTypes.TryGetValue(typeName, out var fullName))
         {
-            return fullName;
+            return "global::" + fullName;
         }
 
         return typeName;

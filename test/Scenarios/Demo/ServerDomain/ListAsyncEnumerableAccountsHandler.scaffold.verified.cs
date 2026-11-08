@@ -8,7 +8,7 @@ public sealed class ListAsyncEnumerableAccountsHandler : IListAsyncEnumerableAcc
     /// <summary>
     /// Executes the ListAsyncEnumerableAccounts operation.
     /// </summary>
-    public System.Threading.Tasks.Task<ListAsyncEnumerableAccountsResult> ExecuteAsync(
+    public global::System.Threading.Tasks.Task<ListAsyncEnumerableAccountsResult> ExecuteAsync(
         CancellationToken cancellationToken = default)
     {
         // TODO: Implement listAsyncEnumerableAccounts logic

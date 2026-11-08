@@ -99,7 +99,7 @@ public sealed class SharedOutputCachePolicy : IOutputCachePolicy
         // Only a 200 without a cookie is stored: an error, or an answer that sets a cookie, is not every caller's
         var response = context.HttpContext.Response;
         if (response.StatusCode != StatusCodes.Status200OK ||
-            !Microsoft.Extensions.Primitives.StringValues.IsNullOrEmpty(response.Headers.SetCookie))
+            !global::Microsoft.Extensions.Primitives.StringValues.IsNullOrEmpty(response.Headers.SetCookie))
         {
             context.AllowCacheStorage = false;
         }

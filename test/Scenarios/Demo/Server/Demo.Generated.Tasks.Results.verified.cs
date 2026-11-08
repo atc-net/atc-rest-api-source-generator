@@ -73,7 +73,7 @@ public sealed class ListTasksResult : IResult, INestedHttpResult, IStatusCodeHtt
     public static implicit operator ListTasksResult(Demo.Generated.Tasks.Models.Task[] response)
         => Ok(response.ToList());
 
-    public System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
+    public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
 
     /// <summary>
@@ -147,7 +147,7 @@ public sealed class CreateTaskResult : IResult, INestedHttpResult, IStatusCodeHt
     public static CreateTaskResult Conflict(string? message = null)
         => new(TypedResults.Problem(detail: message, statusCode: 409));
 
-    public System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
+    public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
 
     /// <summary>
@@ -219,7 +219,7 @@ public sealed class GetTaskByIdResult : IResult, INestedHttpResult, IStatusCodeH
     public static GetTaskByIdResult NotFound(string? message = null)
         => new(TypedResults.Problem(detail: message, statusCode: 404));
 
-    public System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
+    public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
 
     /// <summary>
@@ -288,7 +288,7 @@ public sealed class DeleteTaskByIdResult : IResult, INestedHttpResult, IStatusCo
     public static DeleteTaskByIdResult NotFound(string? message = null)
         => new(TypedResults.Problem(detail: message, statusCode: 404));
 
-    public System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
+    public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
 
     /// <summary>
@@ -360,7 +360,7 @@ public sealed class UpdateTaskByIdResult : IResult, INestedHttpResult, IStatusCo
     public static UpdateTaskByIdResult NotFound(string? message = null)
         => new(TypedResults.Problem(detail: message, statusCode: 404));
 
-    public System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
+    public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
 
     /// <summary>

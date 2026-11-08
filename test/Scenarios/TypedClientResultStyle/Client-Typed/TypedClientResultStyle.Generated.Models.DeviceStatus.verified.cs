@@ -167,7 +167,7 @@ public sealed class DeviceStatusJsonConverter : JsonConverter<DeviceStatus>
     private static DeviceStatus FromNumber(ref Utf8JsonReader reader)
         => reader.TryGetInt32(out var position) && position >= 0 && position < DeviceStatus.KnownValues.Count
             ? DeviceStatus.KnownValues[position]
-            : new DeviceStatus(System.Text.Encoding.UTF8.GetString(reader.HasValueSequence ? System.Buffers.BuffersExtensions.ToArray(reader.ValueSequence) : reader.ValueSpan.ToArray()));
+            : new DeviceStatus(global::System.Text.Encoding.UTF8.GetString(reader.HasValueSequence ? global::System.Buffers.BuffersExtensions.ToArray(reader.ValueSequence) : reader.ValueSpan.ToArray()));
 }
 
 /// <summary>

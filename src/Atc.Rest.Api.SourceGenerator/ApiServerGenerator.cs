@@ -2065,7 +2065,7 @@ public class ApiServerGenerator : IIncrementalGenerator
                         : throw new FormatException($"'{s}' is not a list of {typeof(T).Name} values.");
 
                 /// <inheritdoc />
-                public static bool TryParse(string? s, IFormatProvider? provider, [System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out ParsableList<T> result)
+                public static bool TryParse(string? s, IFormatProvider? provider, [global::System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out ParsableList<T> result)
                 {
                     // No value is no list: a binder that parses before it looks (the Request Delegate Generator) then
                     // binds null, as one that looks first (RequestDelegateFactory) does
@@ -2089,7 +2089,7 @@ public class ApiServerGenerator : IIncrementalGenerator
             /// member has (see EnumMembers).
             /// </summary>
             [GeneratedCode("{{GeneratorInfo.Name}}", "{{GeneratorInfo.Version}}")]
-            public sealed class ParsableEnumList<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicFields)] T> : List<T>, IParsable<ParsableEnumList<T>>
+            public sealed class ParsableEnumList<[global::System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(global::System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicFields)] T> : List<T>, IParsable<ParsableEnumList<T>>
                 where T : struct, Enum
             {
                 private static readonly EnumMembers Members = EnumMembers.Of<T>();
@@ -2101,7 +2101,7 @@ public class ApiServerGenerator : IIncrementalGenerator
                         : throw new FormatException($"'{s}' is not a list of {typeof(T).Name} values.");
 
                 /// <inheritdoc />
-                public static bool TryParse(string? s, IFormatProvider? provider, [System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out ParsableEnumList<T> result)
+                public static bool TryParse(string? s, IFormatProvider? provider, [global::System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out ParsableEnumList<T> result)
                 {
                     // No value is no list: a binder that parses before it looks (the Request Delegate Generator) then
                     // binds null, as one that looks first (RequestDelegateFactory) does

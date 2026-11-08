@@ -72,6 +72,42 @@ public sealed class HandlerSignatureRewriteTests : IDisposable
         Assert.Equal(1, CountOf(rewritten, "ListPetsParameters parameters"));
     }
 
+    /// <summary>
+    /// A handler that qualifies <c>Task</c> keeps its own form; otherwise the expected form is used, which is
+    /// <c>global::</c>-qualified when a model is named <c>Task</c>. The qualification is never written twice.
+    /// </summary>
+    [Theory]
+    [InlineData("", "Task<", "Task<", "Task<")]
+    [InlineData("", "System.Threading.Tasks.Task<", "Task<", "System.Threading.Tasks.Task<")]
+    [InlineData("", "global::System.Threading.Tasks.Task<", "Task<", "global::System.Threading.Tasks.Task<")]
+    [InlineData("", "Task<", "global::System.Threading.Tasks.Task<", "global::System.Threading.Tasks.Task<")]
+    [InlineData("", "System.Threading.Tasks.Task<", "global::System.Threading.Tasks.Task<", "System.Threading.Tasks.Task<")]
+    [InlineData("async ", "global::System.Threading.Tasks.Task<", "global::System.Threading.Tasks.Task<", "global::System.Threading.Tasks.Task<")]
+    [InlineData("async ", "Task<", "global::System.Threading.Tasks.Task<", "global::System.Threading.Tasks.Task<")]
+    public void TheHandlersTask_IsKept_AndTheExpectedOneUsedOtherwise(
+        string modifier,
+        string handlerTask,
+        string expectedTask,
+        string rewrittenTask)
+    {
+        var path = Path.Combine(directory, "ListPetsHandler.cs");
+        var original =
+            "public sealed class ListPetsHandler : IListPetsHandler\n{\n" +
+            $"    public {modifier}{handlerTask}ListPetsResult> ExecuteAsync(\n" +
+            "        CancellationToken cancellationToken = default)\n" +
+            "        => throw new NotImplementedException();\n}\n";
+        File.WriteAllText(path, original, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+
+        ApiServerDomainGenerator.UpdateHandlerSignatureIfNeeded(
+            path,
+            ExpectedSignature.Replace("public Task<", "public " + expectedTask, StringComparison.Ordinal));
+
+        var rewritten = File.ReadAllText(path);
+        Assert.Contains($"public {modifier}{rewrittenTask}ListPetsResult> ExecuteAsync(\n        ListPetsParameters parameters,", rewritten, StringComparison.Ordinal);
+        Assert.DoesNotContain("Tasks.System.", rewritten, StringComparison.Ordinal);
+        Assert.DoesNotContain("global::global::", rewritten, StringComparison.Ordinal);
+    }
+
     private static int CountOf(
         string text,
         string value)

@@ -8,7 +8,7 @@ public sealed class UploadSingleFileAsFormDataHandler : IUploadSingleFileAsFormD
     /// <summary>
     /// Executes the UploadSingleFileAsFormData operation.
     /// </summary>
-    public System.Threading.Tasks.Task<UploadSingleFileAsFormDataResult> ExecuteAsync(
+    public global::System.Threading.Tasks.Task<UploadSingleFileAsFormDataResult> ExecuteAsync(
         UploadSingleFileAsFormDataParameters parameters,
         CancellationToken cancellationToken = default)
     {

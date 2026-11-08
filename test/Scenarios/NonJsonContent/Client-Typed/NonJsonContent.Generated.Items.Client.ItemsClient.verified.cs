@@ -143,14 +143,14 @@ public sealed class ItemsClient : IItemsClient
         var url = $"items/{Uri.EscapeDataString(parameters.ItemId)}";
 
         using var requestMessage = new HttpRequestMessage(HttpMethod.Patch, url);
-        requestMessage.Content = jsonSerializerOptions.ToJsonContent(parameters.Request, new System.Net.Http.Headers.MediaTypeHeaderValue("application/merge-patch+json"));
+        requestMessage.Content = jsonSerializerOptions.ToJsonContent(parameters.Request, new global::System.Net.Http.Headers.MediaTypeHeaderValue("application/merge-patch+json"));
         global::NonJsonContent.Generated.ApiRequest.Stamp(requestMessage, global::NonJsonContent.Generated.ApiOperations.PatchItem);
 
         using var response = await httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
     }
 
-    private static async System.Threading.Tasks.Task EnsureSuccessAsync(
+    private static async global::System.Threading.Tasks.Task EnsureSuccessAsync(
         HttpResponseMessage response,
         CancellationToken cancellationToken)
     {
@@ -169,16 +169,16 @@ public sealed class ItemsClient : IItemsClient
             errorLength += errorRead;
         }
 
-        var errorEncoding = System.Text.Encoding.UTF8;
+        var errorEncoding = global::System.Text.Encoding.UTF8;
         if (response.Content.Headers.ContentType?.CharSet is { Length: > 0 } errorCharset)
         {
             try
             {
-                errorEncoding = System.Text.Encoding.GetEncoding(errorCharset.Trim('"'));
+                errorEncoding = global::System.Text.Encoding.GetEncoding(errorCharset.Trim('"'));
             }
-            catch (System.ArgumentException)
+            catch (global::System.ArgumentException)
             {
-                errorEncoding = System.Text.Encoding.UTF8;
+                errorEncoding = global::System.Text.Encoding.UTF8;
             }
         }
 

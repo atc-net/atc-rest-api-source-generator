@@ -8,7 +8,7 @@ public sealed class GetTaskByIdHandler : IGetTaskByIdHandler
     /// <summary>
     /// Executes the GetTaskById operation.
     /// </summary>
-    public System.Threading.Tasks.Task<GetTaskByIdResult> ExecuteAsync(
+    public global::System.Threading.Tasks.Task<GetTaskByIdResult> ExecuteAsync(
         GetTaskByIdParameters parameters,
         CancellationToken cancellationToken = default)
     {

@@ -8,7 +8,7 @@ public sealed class ListUsersHandler : IListUsersHandler
     /// <summary>
     /// Executes the ListUsers operation.
     /// </summary>
-    public System.Threading.Tasks.Task<ListUsersResult> ExecuteAsync(
+    public global::System.Threading.Tasks.Task<ListUsersResult> ExecuteAsync(
         ListUsersParameters parameters,
         CancellationToken cancellationToken = default)
     {

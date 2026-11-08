@@ -41,7 +41,7 @@ public sealed class TestsClient : ITestsClient
         this.jsonSerializerOptions = jsonSerializerOptions;
     }
 
-    public async System.Threading.Tasks.Task<TestItem> CreateTestItemWithModelAsync(
+    public async global::System.Threading.Tasks.Task<TestItem> CreateTestItemWithModelAsync(
         CreateTestItemWithModelParameters parameters,
         CancellationToken cancellationToken = default)
     {
@@ -60,7 +60,7 @@ public sealed class TestsClient : ITestsClient
         return JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<TestItem>())!;
     }
 
-    public async System.Threading.Tasks.Task<Uri> CreateTestItemWithLocationHeaderAsync(
+    public async global::System.Threading.Tasks.Task<Uri> CreateTestItemWithLocationHeaderAsync(
         CreateTestItemWithLocationHeaderParameters parameters,
         CancellationToken cancellationToken = default)
     {
@@ -73,7 +73,7 @@ public sealed class TestsClient : ITestsClient
         return response.Headers.Location!;
     }
 
-    public async System.Threading.Tasks.Task<Uri> CreateTestItemWithLocationInBodyAsync(
+    public async global::System.Threading.Tasks.Task<Uri> CreateTestItemWithLocationInBodyAsync(
         CreateTestItemWithLocationInBodyParameters parameters,
         CancellationToken cancellationToken = default)
     {
@@ -92,7 +92,7 @@ public sealed class TestsClient : ITestsClient
         return JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<Uri>())!;
     }
 
-    public async System.Threading.Tasks.Task CreateTestItemEmptyAsync(
+    public async global::System.Threading.Tasks.Task CreateTestItemEmptyAsync(
         CreateTestItemEmptyParameters parameters,
         CancellationToken cancellationToken = default)
     {
@@ -104,7 +104,7 @@ public sealed class TestsClient : ITestsClient
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
     }
 
-    private static async System.Threading.Tasks.Task EnsureSuccessAsync(
+    private static async global::System.Threading.Tasks.Task EnsureSuccessAsync(
         HttpResponseMessage response,
         CancellationToken cancellationToken)
     {
@@ -123,16 +123,16 @@ public sealed class TestsClient : ITestsClient
             errorLength += errorRead;
         }
 
-        var errorEncoding = System.Text.Encoding.UTF8;
+        var errorEncoding = global::System.Text.Encoding.UTF8;
         if (response.Content.Headers.ContentType?.CharSet is { Length: > 0 } errorCharset)
         {
             try
             {
-                errorEncoding = System.Text.Encoding.GetEncoding(errorCharset.Trim('"'));
+                errorEncoding = global::System.Text.Encoding.GetEncoding(errorCharset.Trim('"'));
             }
-            catch (System.ArgumentException)
+            catch (global::System.ArgumentException)
             {
-                errorEncoding = System.Text.Encoding.UTF8;
+                errorEncoding = global::System.Text.Encoding.UTF8;
             }
         }
 

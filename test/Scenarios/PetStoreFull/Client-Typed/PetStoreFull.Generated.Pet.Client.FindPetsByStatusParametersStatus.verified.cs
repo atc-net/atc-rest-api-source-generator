@@ -177,7 +177,7 @@ public sealed class FindPetsByStatusParametersStatusJsonConverter : JsonConverte
     private static FindPetsByStatusParametersStatus FromNumber(ref Utf8JsonReader reader)
         => reader.TryGetInt32(out var position) && position >= 0 && position < FindPetsByStatusParametersStatus.KnownValues.Count
             ? FindPetsByStatusParametersStatus.KnownValues[position]
-            : new FindPetsByStatusParametersStatus(System.Text.Encoding.UTF8.GetString(reader.HasValueSequence ? System.Buffers.BuffersExtensions.ToArray(reader.ValueSequence) : reader.ValueSpan.ToArray()));
+            : new FindPetsByStatusParametersStatus(global::System.Text.Encoding.UTF8.GetString(reader.HasValueSequence ? global::System.Buffers.BuffersExtensions.ToArray(reader.ValueSequence) : reader.ValueSpan.ToArray()));
 }
 
 /// <summary>

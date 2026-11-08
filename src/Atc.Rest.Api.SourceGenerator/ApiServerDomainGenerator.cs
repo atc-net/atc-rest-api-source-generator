@@ -9,12 +9,16 @@ namespace Atc.Rest.Api.SourceGenerator;
 [Generator(LanguageNames.CSharp)]
 public class ApiServerDomainGenerator : IIncrementalGenerator
 {
+    private const string QualifiedTask = "System.Threading.Tasks.Task<";
+
+    private const string GlobalQualifiedTask = "global::" + QualifiedTask;
+
     private static readonly Regex WhitespaceNormalizerRegex = new(@"\s+", RegexOptions.Compiled, Regex.InfiniteMatchTimeout);
 
     // The parameter list runs to its own closing parenthesis (balanced): a default value or an attribute argument
     // with parentheses of its own is part of it, not its end
     private static readonly Regex ExecuteAsyncSignatureRegex = new(
-        @"public\s+(?:async\s+)?(?:System\.Threading\.Tasks\.)?Task<\w+Result>\s+ExecuteAsync\s*\((?:[^()]|(?<open>\()|(?<-open>\)))*(?(open)(?!))\)",
+        @"public\s+(?:async\s+)?(?:(?:global::)?System\.Threading\.Tasks\.)?Task<\w+Result>\s+ExecuteAsync\s*\((?:[^()]|(?<open>\()|(?<-open>\)))*(?(open)(?!))\)",
         RegexOptions.Singleline | RegexOptions.Compiled | RegexOptions.ExplicitCapture,
         TimeSpan.FromSeconds(1));
 
@@ -172,20 +176,17 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
             // Check if async modifier is present in current signature
             var hasAsync = currentSignature.Contains("async ");
 
-            // Check if fully qualified Task name is used
-            var hasFullyQualifiedTask = currentSignature.Contains("System.Threading.Tasks.Task<");
+            // A handler that qualifies Task keeps its own form (System.Threading.Tasks.Task or the global:: one); otherwise
+            // the expected form is used, which is qualified when a model is named Task
+            var expectedTask = ExpectedTaskForm(expectedSignature);
+            var task = currentSignature.Contains(GlobalQualifiedTask)
+                ? GlobalQualifiedTask
+                : currentSignature.Contains(QualifiedTask)
+                    ? QualifiedTask
+                    : expectedTask;
 
-            // Build the replacement signature, preserving async and fully qualified Task if present
-            var replacementSignature = expectedSignature;
-            if (hasAsync)
-            {
-                replacementSignature = replacementSignature.Replace("public Task<", "public async Task<");
-            }
-
-            if (hasFullyQualifiedTask)
-            {
-                replacementSignature = replacementSignature.Replace("Task<", "System.Threading.Tasks.Task<");
-            }
+            // Build the replacement signature, preserving async and the handler's Task
+            var replacementSignature = expectedSignature.Replace("public " + expectedTask, "public " + (hasAsync ? "async " : string.Empty) + task);
 
             // Compare normalized signatures
             if (NormalizeSignature(currentSignature) == NormalizeSignature(replacementSignature))
@@ -208,6 +209,13 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
             // Regex took too long, skip update
         }
     }
+
+    private static string ExpectedTaskForm(string expectedSignature)
+        => expectedSignature.Contains("public " + GlobalQualifiedTask)
+            ? GlobalQualifiedTask
+            : expectedSignature.Contains("public " + QualifiedTask)
+                ? QualifiedTask
+                : "Task<";
 
     private static void GenerateHandlerScaffoldsFromDocument(
         SourceProductionContext context,

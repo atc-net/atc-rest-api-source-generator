@@ -163,7 +163,7 @@ public partial class GetOrderByIdEndpointResult : EndpointResponse, IGetOrderByI
                         ? ProblemDetailsFactory.FromContent(HttpStatusCode.GatewayTimeout, Content)
                         : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.GatewayTimeout, "GatewayTimeoutContent");
 
-    public System.Collections.Generic.Dictionary<string, string[]>? BadRequestValidationErrors
+    public global::System.Collections.Generic.Dictionary<string, string[]>? BadRequestValidationErrors
         => IsBadRequest ? ProblemDetailsFactory.ValidationErrorsFromContent(Content) : null;
 
     public ProblemDetails? Problem

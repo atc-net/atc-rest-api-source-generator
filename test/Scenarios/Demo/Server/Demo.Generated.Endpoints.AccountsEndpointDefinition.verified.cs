@@ -108,7 +108,7 @@ public sealed class AccountsEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }
 
-    internal async System.Threading.Tasks.Task<IResult> ListAccounts(
+    internal async global::System.Threading.Tasks.Task<IResult> ListAccounts(
         [FromServices] IListAccountsHandler handler,
         [AsParameters] ListAccountsParameters parameters,
         CancellationToken cancellationToken)
@@ -117,7 +117,7 @@ public sealed class AccountsEndpointDefinition : IEndpointDefinition
                 cancellationToken))
             .Result;
 
-    internal async System.Threading.Tasks.Task<IResult> CreateAccount(
+    internal async global::System.Threading.Tasks.Task<IResult> CreateAccount(
         [FromServices] ICreateAccountHandler handler,
         [AsParameters] CreateAccountParameters parameters,
         CancellationToken cancellationToken)
@@ -126,7 +126,7 @@ public sealed class AccountsEndpointDefinition : IEndpointDefinition
                 cancellationToken))
             .Result;
 
-    internal async System.Threading.Tasks.Task<IResult> GetAccountById(
+    internal async global::System.Threading.Tasks.Task<IResult> GetAccountById(
         [FromServices] IGetAccountByIdHandler handler,
         [AsParameters] GetAccountByIdParameters parameters,
         CancellationToken cancellationToken)
@@ -135,7 +135,7 @@ public sealed class AccountsEndpointDefinition : IEndpointDefinition
                 cancellationToken))
             .Result;
 
-    internal async System.Threading.Tasks.Task<IResult> DeleteAccountById(
+    internal async global::System.Threading.Tasks.Task<IResult> DeleteAccountById(
         [FromServices] IDeleteAccountByIdHandler handler,
         [AsParameters] DeleteAccountByIdParameters parameters,
         CancellationToken cancellationToken)
@@ -144,7 +144,7 @@ public sealed class AccountsEndpointDefinition : IEndpointDefinition
                 cancellationToken))
             .Result;
 
-    internal async System.Threading.Tasks.Task<IResult> UpdateAccountById(
+    internal async global::System.Threading.Tasks.Task<IResult> UpdateAccountById(
         [FromServices] IUpdateAccountByIdHandler handler,
         [AsParameters] UpdateAccountByIdParameters parameters,
         CancellationToken cancellationToken)
@@ -153,7 +153,7 @@ public sealed class AccountsEndpointDefinition : IEndpointDefinition
                 cancellationToken))
             .Result;
 
-    internal async System.Threading.Tasks.Task<IResult> ListPaginatedAccounts(
+    internal async global::System.Threading.Tasks.Task<IResult> ListPaginatedAccounts(
         [FromServices] IListPaginatedAccountsHandler handler,
         [AsParameters] ListPaginatedAccountsParameters parameters,
         CancellationToken cancellationToken)
@@ -162,7 +162,7 @@ public sealed class AccountsEndpointDefinition : IEndpointDefinition
                 cancellationToken))
             .Result;
 
-    internal async System.Threading.Tasks.Task<IResult> ListAsyncEnumerableAccounts(
+    internal async global::System.Threading.Tasks.Task<IResult> ListAsyncEnumerableAccounts(
         [FromServices] IListAsyncEnumerableAccountsHandler handler,
         CancellationToken cancellationToken)
         => (await handler.ExecuteAsync(

@@ -6,13 +6,18 @@ using System;
 using System.CodeDom.Compiler;
 using Atc.Rest.Client.Options;
 using Microsoft.Extensions.DependencyInjection;
+using HostileNames.Generated.Endpoints;
+using HostileNames.Generated.Endpoints.Interfaces;
 using HostileNames.Generated.Accounts;
+using HostileNames.Generated.Atc;
 using HostileNames.Generated.Keys;
+using HostileNames.Generated.Microsoft;
 using HostileNames.Generated.Movies;
 using HostileNames.Generated.Pets;
 using HostileNames.Generated.Profiles;
 using HostileNames.Generated.Repos;
 using HostileNames.Generated.Streams;
+using HostileNames.Generated.System;
 using HostileNames.Generated.Things;
 
 namespace HostileNames.Generated;
@@ -34,13 +39,17 @@ public static class HostileNamesEndpointsServiceCollectionExtensions
         global::System.Action<global::System.Text.Json.JsonSerializerOptions>? configureJsonSerializerOptions = null)
     {
         services.AddAccountsEndpoints();
+        services.AddAtcEndpoints();
         services.AddKeysEndpoints();
+        services.AddMicrosoftEndpoints();
         services.AddMoviesEndpoints();
         services.AddPetsEndpoints();
         services.AddProfilesEndpoints();
         services.AddReposEndpoints();
         services.AddStreamsEndpoints();
+        services.AddSystemEndpoints();
         services.AddThingsEndpoints();
+        services.AddTransient<IGetSettingsEndpoint, GetSettingsEndpoint>();
 
         if (configureJsonSerializerOptions is not null)
         {

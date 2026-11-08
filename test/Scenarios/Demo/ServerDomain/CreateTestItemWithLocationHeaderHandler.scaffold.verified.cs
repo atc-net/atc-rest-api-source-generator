@@ -8,7 +8,7 @@ public sealed class CreateTestItemWithLocationHeaderHandler : ICreateTestItemWit
     /// <summary>
     /// Executes the CreateTestItemWithLocationHeader operation.
     /// </summary>
-    public System.Threading.Tasks.Task<CreateTestItemWithLocationHeaderResult> ExecuteAsync(
+    public global::System.Threading.Tasks.Task<CreateTestItemWithLocationHeaderResult> ExecuteAsync(
         CreateTestItemWithLocationHeaderParameters parameters,
         CancellationToken cancellationToken = default)
     {

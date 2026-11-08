@@ -137,7 +137,7 @@ public sealed record WireParameter(string In, string Name, Func<string, bool>? P
             writer.WriteEndObject();
         }
 
-        return System.Text.Encoding.UTF8.GetString(buffer.ToArray());
+        return global::System.Text.Encoding.UTF8.GetString(buffer.ToArray());
     }
 
     /// <summary>
@@ -223,8 +223,8 @@ public sealed class EnumMembers
     public static EnumMembers Of<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields)] T>()
         where T : struct, Enum
     {
-        var isInteger = typeof(T).GetCustomAttribute<System.Text.Json.Serialization.JsonConverterAttribute>()?.ConverterType is { IsGenericType: true } converter &&
-                        converter.GetGenericTypeDefinition() == typeof(System.Text.Json.Serialization.JsonNumberEnumConverter<>);
+        var isInteger = typeof(T).GetCustomAttribute<global::System.Text.Json.Serialization.JsonConverterAttribute>()?.ConverterType is { IsGenericType: true } converter &&
+                        converter.GetGenericTypeDefinition() == typeof(global::System.Text.Json.Serialization.JsonNumberEnumConverter<>);
         var members = new List<(string Name, string WireValue)>();
         foreach (var field in typeof(T).GetFields(BindingFlags.Public | BindingFlags.Static))
         {
@@ -239,7 +239,7 @@ public sealed class EnumMembers
     /// <summary>
     /// The member name a value names, if it names one.
     /// </summary>
-    public bool TryGetValue(string value, [System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out string member)
+    public bool TryGetValue(string value, [global::System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out string member)
     {
         if (exact.TryGetValue(value, out member))
         {
@@ -525,7 +525,7 @@ public static class WireBindingExtensions
                 {
                     value = readPart(part, options);
                 }
-                catch (Exception ex) when (ex is JsonException or System.Xml.XmlException or FormatException or InvalidOperationException)
+                catch (Exception ex) when (ex is JsonException or global::System.Xml.XmlException or FormatException or InvalidOperationException)
                 {
                     invalid = true;
                     break;
@@ -650,7 +650,7 @@ public static class WireBindingExtensions
         collected = null;
         Dictionary<string, string[]>? errors = null;
         var missing = new List<string>();
-        var pairs = new System.Text.StringBuilder();
+        var pairs = new global::System.Text.StringBuilder();
         var sent = false;
         foreach (var (property, required) in properties)
         {

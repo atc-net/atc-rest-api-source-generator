@@ -22,12 +22,16 @@ public static class EndpointMappingExtensions
     public static WebApplication MapEndpoints(this WebApplication app)
     {
         app.MapAccountsEndpoints();
+        app.MapApiEndpoints();
+        app.MapAtcEndpoints();
         app.MapKeysEndpoints();
+        app.MapMicrosoftEndpoints();
         app.MapMoviesEndpoints();
         app.MapPetsEndpoints();
         app.MapProfilesEndpoints();
         app.MapReposEndpoints();
         app.MapStreamsEndpoints();
+        app.MapSystemEndpoints();
         app.MapThingsEndpoints();
 
         return app;

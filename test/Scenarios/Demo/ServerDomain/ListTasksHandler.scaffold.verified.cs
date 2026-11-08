@@ -8,7 +8,7 @@ public sealed class ListTasksHandler : IListTasksHandler
     /// <summary>
     /// Executes the ListTasks operation.
     /// </summary>
-    public System.Threading.Tasks.Task<ListTasksResult> ExecuteAsync(
+    public global::System.Threading.Tasks.Task<ListTasksResult> ExecuteAsync(
         ListTasksParameters parameters,
         CancellationToken cancellationToken = default)
     {
