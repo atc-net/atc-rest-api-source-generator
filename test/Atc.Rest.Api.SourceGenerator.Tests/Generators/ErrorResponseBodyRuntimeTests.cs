@@ -1533,7 +1533,7 @@ public partial class ErrorResponseBodyRuntimeTests
         }
 
         // The statuses below 400 that are final responses do get theirs - e.g. a redirect takes its location.
-        Assert.Contains("public static GetStatus303Result SeeOther(System.Uri location)", server, StringComparison.Ordinal);
+        Assert.Contains("public static GetStatus303Result SeeOther(global::System.Uri location)", server, StringComparison.Ordinal);
         Assert.Contains("public static GetStatus206Result PartialContent(Item response)", server, StringComparison.Ordinal);
         Assert.Contains("public bool IsNotModified", client, StringComparison.Ordinal);
     }
@@ -2944,7 +2944,7 @@ public partial class ErrorResponseBodyRuntimeTests
 
             var argument = overload.ParameterType switch
             {
-                "System.Uri" => $"new System.Uri(\"{RedirectTarget}\", System.UriKind.Relative)",
+                "global::System.Uri" => $"new System.Uri(\"{RedirectTarget}\", System.UriKind.Relative)",
                 "string" => $"\"{status} message from handler\"",
                 "ValidationProblemDetails" => "new ValidationProblemDetails(new System.Collections.Generic.Dictionary<string, string[]> { [\"reason\"] = [\"reason rejected by handler\"] })",
                 "ProblemDetails" => $"new ProblemDetails {{ Title = \"{name}\", Status = {status}, Detail = \"{status} problem from handler\" }}",

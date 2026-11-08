@@ -20,7 +20,7 @@ namespace Demo.Generated.Files.Handlers;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public interface IGetFileByIdHandler
 {
-    System.Threading.Tasks.Task<GetFileByIdResult> ExecuteAsync(
+    global::System.Threading.Tasks.Task<GetFileByIdResult> ExecuteAsync(
         GetFileByIdParameters parameters,
         CancellationToken cancellationToken = default);
 }
@@ -31,7 +31,7 @@ public interface IGetFileByIdHandler
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public interface IUploadFormDataFileHandler
 {
-    System.Threading.Tasks.Task<UploadFormDataFileResult> ExecuteAsync(
+    global::System.Threading.Tasks.Task<UploadFormDataFileResult> ExecuteAsync(
         UploadFormDataFileParameters parameters,
         CancellationToken cancellationToken = default);
 }
@@ -42,7 +42,7 @@ public interface IUploadFormDataFileHandler
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public interface IUploadFormDataFilesHandler
 {
-    System.Threading.Tasks.Task<UploadFormDataFilesResult> ExecuteAsync(
+    global::System.Threading.Tasks.Task<UploadFormDataFilesResult> ExecuteAsync(
         UploadFormDataFilesParameters parameters,
         CancellationToken cancellationToken = default);
 }
@@ -53,7 +53,7 @@ public interface IUploadFormDataFilesHandler
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public interface IUploadSingleFileAsFormDataHandler
 {
-    System.Threading.Tasks.Task<UploadSingleFileAsFormDataResult> ExecuteAsync(
+    global::System.Threading.Tasks.Task<UploadSingleFileAsFormDataResult> ExecuteAsync(
         UploadSingleFileAsFormDataParameters parameters,
         CancellationToken cancellationToken = default);
 }
@@ -64,7 +64,7 @@ public interface IUploadSingleFileAsFormDataHandler
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public interface IUploadMultiFilesAsFormDataHandler
 {
-    System.Threading.Tasks.Task<UploadMultiFilesAsFormDataResult> ExecuteAsync(
+    global::System.Threading.Tasks.Task<UploadMultiFilesAsFormDataResult> ExecuteAsync(
         UploadMultiFilesAsFormDataParameters parameters,
         CancellationToken cancellationToken = default);
 }

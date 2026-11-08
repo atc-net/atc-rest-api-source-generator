@@ -20,7 +20,7 @@ namespace Demo.Generated.Users.Handlers;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public interface IListUsersHandler
 {
-    System.Threading.Tasks.Task<ListUsersResult> ExecuteAsync(
+    global::System.Threading.Tasks.Task<ListUsersResult> ExecuteAsync(
         ListUsersParameters parameters,
         CancellationToken cancellationToken = default);
 }
@@ -31,7 +31,7 @@ public interface IListUsersHandler
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public interface ICreateUserHandler
 {
-    System.Threading.Tasks.Task<CreateUserResult> ExecuteAsync(
+    global::System.Threading.Tasks.Task<CreateUserResult> ExecuteAsync(
         CreateUserParameters parameters,
         CancellationToken cancellationToken = default);
 }
@@ -42,7 +42,7 @@ public interface ICreateUserHandler
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public interface IGetUserByIdHandler
 {
-    System.Threading.Tasks.Task<GetUserByIdResult> ExecuteAsync(
+    global::System.Threading.Tasks.Task<GetUserByIdResult> ExecuteAsync(
         GetUserByIdParameters parameters,
         CancellationToken cancellationToken = default);
 }
@@ -53,7 +53,7 @@ public interface IGetUserByIdHandler
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public interface IUpdateUserByIdHandler
 {
-    System.Threading.Tasks.Task<UpdateUserByIdResult> ExecuteAsync(
+    global::System.Threading.Tasks.Task<UpdateUserByIdResult> ExecuteAsync(
         UpdateUserByIdParameters parameters,
         CancellationToken cancellationToken = default);
 }
@@ -64,7 +64,7 @@ public interface IUpdateUserByIdHandler
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public interface IDeleteUserByIdHandler
 {
-    System.Threading.Tasks.Task<DeleteUserByIdResult> ExecuteAsync(
+    global::System.Threading.Tasks.Task<DeleteUserByIdResult> ExecuteAsync(
         DeleteUserByIdParameters parameters,
         CancellationToken cancellationToken = default);
 }

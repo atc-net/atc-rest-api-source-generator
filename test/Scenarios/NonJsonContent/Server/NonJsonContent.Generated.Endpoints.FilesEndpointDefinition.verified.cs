@@ -35,7 +35,7 @@ public sealed class FilesEndpointDefinition : IEndpointDefinition
             .MapGet("{fileId}", DownloadFile)
             .WithName(global::NonJsonContent.Generated.ApiOperations.DownloadFile)
             .WithSummary("Download a binary file (the C# clients hand over the open stream)")
-            .Produces(StatusCodes.Status200OK, typeof(System.IO.Stream), "application/octet-stream")
+            .Produces(StatusCodes.Status200OK, typeof(global::System.IO.Stream), "application/octet-stream")
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)

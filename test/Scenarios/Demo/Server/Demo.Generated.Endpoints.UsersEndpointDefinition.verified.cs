@@ -91,7 +91,7 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
             .WithWireBinding(DeleteUserByIdParametersWire.Parameters, requireParameters: true);
     }
 
-    internal async System.Threading.Tasks.Task<IResult> ListUsers(
+    internal async global::System.Threading.Tasks.Task<IResult> ListUsers(
         [FromServices] IListUsersHandler handler,
         [AsParameters] ListUsersParameters parameters,
         CancellationToken cancellationToken)
@@ -100,7 +100,7 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
                 cancellationToken))
             .Result;
 
-    internal async System.Threading.Tasks.Task<IResult> CreateUser(
+    internal async global::System.Threading.Tasks.Task<IResult> CreateUser(
         [FromServices] ICreateUserHandler handler,
         [AsParameters] CreateUserParameters parameters,
         CancellationToken cancellationToken)
@@ -109,7 +109,7 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
                 cancellationToken))
             .Result;
 
-    internal async System.Threading.Tasks.Task<IResult> GetUserById(
+    internal async global::System.Threading.Tasks.Task<IResult> GetUserById(
         [FromServices] IGetUserByIdHandler handler,
         [AsParameters] GetUserByIdParameters parameters,
         CancellationToken cancellationToken)
@@ -118,7 +118,7 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
                 cancellationToken))
             .Result;
 
-    internal async System.Threading.Tasks.Task<IResult> UpdateUserById(
+    internal async global::System.Threading.Tasks.Task<IResult> UpdateUserById(
         [FromServices] IUpdateUserByIdHandler handler,
         [AsParameters] UpdateUserByIdParameters parameters,
         CancellationToken cancellationToken)
@@ -127,7 +127,7 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
                 cancellationToken))
             .Result;
 
-    internal async System.Threading.Tasks.Task<IResult> DeleteUserById(
+    internal async global::System.Threading.Tasks.Task<IResult> DeleteUserById(
         [FromServices] IDeleteUserByIdHandler handler,
         [AsParameters] DeleteUserByIdParameters parameters,
         CancellationToken cancellationToken)

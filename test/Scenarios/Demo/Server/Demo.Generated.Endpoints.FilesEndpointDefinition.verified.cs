@@ -38,7 +38,7 @@ public sealed class FilesEndpointDefinition : IEndpointDefinition
             .MapGet("{id}", GetFileById)
             .WithName(global::Demo.Generated.ApiOperations.GetFileById)
             .WithSummary("Get File By Id")
-            .Produces(StatusCodes.Status200OK, typeof(System.IO.Stream), "application/octet-stream")
+            .Produces(StatusCodes.Status200OK, typeof(global::System.IO.Stream), "application/octet-stream")
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
@@ -92,7 +92,7 @@ public sealed class FilesEndpointDefinition : IEndpointDefinition
             .DisableAntiforgery();
     }
 
-    internal async System.Threading.Tasks.Task<IResult> GetFileById(
+    internal async global::System.Threading.Tasks.Task<IResult> GetFileById(
         [FromServices] IGetFileByIdHandler handler,
         [AsParameters] GetFileByIdParameters parameters,
         CancellationToken cancellationToken)
@@ -101,7 +101,7 @@ public sealed class FilesEndpointDefinition : IEndpointDefinition
                 cancellationToken))
             .Result;
 
-    internal async System.Threading.Tasks.Task<IResult> UploadFormDataFile(
+    internal async global::System.Threading.Tasks.Task<IResult> UploadFormDataFile(
         [FromServices] IUploadFormDataFileHandler handler,
         [FromForm(Name = "itemName")] string? itemName,
         [FromForm(Name = "file")] IFormFile? file,
@@ -116,7 +116,7 @@ public sealed class FilesEndpointDefinition : IEndpointDefinition
             .Result;
     }
 
-    internal async System.Threading.Tasks.Task<IResult> UploadFormDataFiles(
+    internal async global::System.Threading.Tasks.Task<IResult> UploadFormDataFiles(
         [FromServices] IUploadFormDataFilesHandler handler,
         [FromForm] IFormFileCollection? files,
         CancellationToken cancellationToken)
@@ -129,7 +129,7 @@ public sealed class FilesEndpointDefinition : IEndpointDefinition
             .Result;
     }
 
-    internal async System.Threading.Tasks.Task<IResult> UploadSingleFileAsFormData(
+    internal async global::System.Threading.Tasks.Task<IResult> UploadSingleFileAsFormData(
         [FromServices] IUploadSingleFileAsFormDataHandler handler,
         [AsParameters] UploadSingleFileAsFormDataParameters parameters,
         CancellationToken cancellationToken)
@@ -138,7 +138,7 @@ public sealed class FilesEndpointDefinition : IEndpointDefinition
                 cancellationToken))
             .Result;
 
-    internal async System.Threading.Tasks.Task<IResult> UploadMultiFilesAsFormData(
+    internal async global::System.Threading.Tasks.Task<IResult> UploadMultiFilesAsFormData(
         [FromServices] IUploadMultiFilesAsFormDataHandler handler,
         [AsParameters] UploadMultiFilesAsFormDataParameters parameters,
         CancellationToken cancellationToken)

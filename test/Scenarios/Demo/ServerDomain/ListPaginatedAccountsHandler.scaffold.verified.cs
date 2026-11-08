@@ -8,7 +8,7 @@ public sealed class ListPaginatedAccountsHandler : IListPaginatedAccountsHandler
     /// <summary>
     /// Executes the ListPaginatedAccounts operation.
     /// </summary>
-    public System.Threading.Tasks.Task<ListPaginatedAccountsResult> ExecuteAsync(
+    public global::System.Threading.Tasks.Task<ListPaginatedAccountsResult> ExecuteAsync(
         ListPaginatedAccountsParameters parameters,
         CancellationToken cancellationToken = default)
     {

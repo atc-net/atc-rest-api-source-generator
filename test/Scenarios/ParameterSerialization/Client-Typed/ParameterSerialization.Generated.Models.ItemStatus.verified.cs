@@ -167,7 +167,7 @@ public sealed class ItemStatusJsonConverter : JsonConverter<ItemStatus>
     private static ItemStatus FromNumber(ref Utf8JsonReader reader)
         => reader.TryGetInt32(out var position) && position >= 0 && position < ItemStatus.KnownValues.Count
             ? ItemStatus.KnownValues[position]
-            : new ItemStatus(System.Text.Encoding.UTF8.GetString(reader.HasValueSequence ? System.Buffers.BuffersExtensions.ToArray(reader.ValueSequence) : reader.ValueSpan.ToArray()));
+            : new ItemStatus(global::System.Text.Encoding.UTF8.GetString(reader.HasValueSequence ? global::System.Buffers.BuffersExtensions.ToArray(reader.ValueSequence) : reader.ValueSpan.ToArray()));
 }
 
 /// <summary>

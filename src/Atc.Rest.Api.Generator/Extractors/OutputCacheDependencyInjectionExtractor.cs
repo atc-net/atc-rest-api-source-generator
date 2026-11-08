@@ -153,7 +153,7 @@ public static class OutputCacheDependencyInjectionExtractor
         builder.AppendLine(8, "// Only a 200 without a cookie is stored: an error, or an answer that sets a cookie, is not every caller's");
         builder.AppendLine(8, "var response = context.HttpContext.Response;");
         builder.AppendLine(8, "if (response.StatusCode != StatusCodes.Status200OK ||");
-        builder.AppendLine(8, "    !Microsoft.Extensions.Primitives.StringValues.IsNullOrEmpty(response.Headers.SetCookie))");
+        builder.AppendLine(8, "    !global::Microsoft.Extensions.Primitives.StringValues.IsNullOrEmpty(response.Headers.SetCookie))");
         builder.AppendLine(8, "{");
         builder.AppendLine(12, "context.AllowCacheStorage = false;");
         builder.AppendLine(8, "}");

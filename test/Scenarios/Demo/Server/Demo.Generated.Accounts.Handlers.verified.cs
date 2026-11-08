@@ -20,7 +20,7 @@ namespace Demo.Generated.Accounts.Handlers;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public interface IListAccountsHandler
 {
-    System.Threading.Tasks.Task<ListAccountsResult> ExecuteAsync(
+    global::System.Threading.Tasks.Task<ListAccountsResult> ExecuteAsync(
         ListAccountsParameters parameters,
         CancellationToken cancellationToken = default);
 }
@@ -31,7 +31,7 @@ public interface IListAccountsHandler
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public interface ICreateAccountHandler
 {
-    System.Threading.Tasks.Task<CreateAccountResult> ExecuteAsync(
+    global::System.Threading.Tasks.Task<CreateAccountResult> ExecuteAsync(
         CreateAccountParameters parameters,
         CancellationToken cancellationToken = default);
 }
@@ -42,7 +42,7 @@ public interface ICreateAccountHandler
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public interface IGetAccountByIdHandler
 {
-    System.Threading.Tasks.Task<GetAccountByIdResult> ExecuteAsync(
+    global::System.Threading.Tasks.Task<GetAccountByIdResult> ExecuteAsync(
         GetAccountByIdParameters parameters,
         CancellationToken cancellationToken = default);
 }
@@ -53,7 +53,7 @@ public interface IGetAccountByIdHandler
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public interface IDeleteAccountByIdHandler
 {
-    System.Threading.Tasks.Task<DeleteAccountByIdResult> ExecuteAsync(
+    global::System.Threading.Tasks.Task<DeleteAccountByIdResult> ExecuteAsync(
         DeleteAccountByIdParameters parameters,
         CancellationToken cancellationToken = default);
 }
@@ -64,7 +64,7 @@ public interface IDeleteAccountByIdHandler
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public interface IUpdateAccountByIdHandler
 {
-    System.Threading.Tasks.Task<UpdateAccountByIdResult> ExecuteAsync(
+    global::System.Threading.Tasks.Task<UpdateAccountByIdResult> ExecuteAsync(
         UpdateAccountByIdParameters parameters,
         CancellationToken cancellationToken = default);
 }
@@ -75,7 +75,7 @@ public interface IUpdateAccountByIdHandler
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public interface IListPaginatedAccountsHandler
 {
-    System.Threading.Tasks.Task<ListPaginatedAccountsResult> ExecuteAsync(
+    global::System.Threading.Tasks.Task<ListPaginatedAccountsResult> ExecuteAsync(
         ListPaginatedAccountsParameters parameters,
         CancellationToken cancellationToken = default);
 }
@@ -86,5 +86,5 @@ public interface IListPaginatedAccountsHandler
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public interface IListAsyncEnumerableAccountsHandler
 {
-    System.Threading.Tasks.Task<ListAsyncEnumerableAccountsResult> ExecuteAsync(CancellationToken cancellationToken = default);
+    global::System.Threading.Tasks.Task<ListAsyncEnumerableAccountsResult> ExecuteAsync(CancellationToken cancellationToken = default);
 }

@@ -8,7 +8,7 @@ public sealed class DeleteAccountByIdHandler : IDeleteAccountByIdHandler
     /// <summary>
     /// Executes the DeleteAccountById operation.
     /// </summary>
-    public System.Threading.Tasks.Task<DeleteAccountByIdResult> ExecuteAsync(
+    public global::System.Threading.Tasks.Task<DeleteAccountByIdResult> ExecuteAsync(
         DeleteAccountByIdParameters parameters,
         CancellationToken cancellationToken = default)
     {

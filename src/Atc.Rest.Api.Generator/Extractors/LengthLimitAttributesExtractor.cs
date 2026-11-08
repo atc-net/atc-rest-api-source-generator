@@ -300,7 +300,7 @@ public static class LengthLimitAttributesExtractor
                      => value switch
                      {
                          Uri uri => uri.IsAbsoluteUri,
-                         IEnumerable<Uri?> uris => System.Linq.Enumerable.All(uris, item => item is null || item.IsAbsoluteUri),
+                         IEnumerable<Uri?> uris => global::System.Linq.Enumerable.All(uris, item => item is null || item.IsAbsoluteUri),
                          _ => true,
                      };
              }

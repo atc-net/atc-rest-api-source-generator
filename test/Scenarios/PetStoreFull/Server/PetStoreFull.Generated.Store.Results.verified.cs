@@ -144,7 +144,7 @@ public sealed class PlaceOrderResult : IResult, INestedHttpResult, IStatusCodeHt
     /// <summary>
     /// 400 Bad Request - Invalid input.
     /// </summary>
-    [System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
+    [global::System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
     public static PlaceOrderResult BadRequest(ValidationProblemDetails? errors = null)
         => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.Problem(ProblemWithStatus.Of(errors, 400)));
 
@@ -237,7 +237,7 @@ public sealed class GetOrderByIdResult : IResult, INestedHttpResult, IStatusCode
     /// <summary>
     /// 400 Bad Request - Invalid ID supplied.
     /// </summary>
-    [System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
+    [global::System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
     public static GetOrderByIdResult BadRequest(ValidationProblemDetails? errors = null)
         => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.Problem(ProblemWithStatus.Of(errors, 400)));
 
@@ -327,7 +327,7 @@ public sealed class DeleteOrderResult : IResult, INestedHttpResult, IStatusCodeH
     /// <summary>
     /// 400 Bad Request - Invalid ID supplied.
     /// </summary>
-    [System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
+    [global::System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
     public static DeleteOrderResult BadRequest(ValidationProblemDetails? errors = null)
         => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.Problem(ProblemWithStatus.Of(errors, 400)));
 

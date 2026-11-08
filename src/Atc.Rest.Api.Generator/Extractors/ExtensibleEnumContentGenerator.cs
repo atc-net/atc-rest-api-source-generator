@@ -335,7 +335,7 @@ public static class ExtensibleEnumContentGenerator
         sb.AppendLine($"    private static {name} FromNumber(ref Utf8JsonReader reader)");
         sb.AppendLine($"        => reader.TryGetInt32(out var position) && position >= 0 && position < {name}.KnownValues.Count");
         sb.AppendLine($"            ? {name}.KnownValues[position]");
-        sb.AppendLine($"            : new {name}(System.Text.Encoding.UTF8.GetString(reader.HasValueSequence ? System.Buffers.BuffersExtensions.ToArray(reader.ValueSequence) : reader.ValueSpan.ToArray()));");
+        sb.AppendLine($"            : new {name}(global::System.Text.Encoding.UTF8.GetString(reader.HasValueSequence ? global::System.Buffers.BuffersExtensions.ToArray(reader.ValueSequence) : reader.ValueSpan.ToArray()));");
         sb.AppendLine("}");
     }
 

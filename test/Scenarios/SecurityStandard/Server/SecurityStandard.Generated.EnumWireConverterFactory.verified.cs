@@ -58,8 +58,8 @@ public sealed class EnumValueReadingConverter<T> : JsonConverter<T>
 {
     private readonly JsonConverter<T> wire;
     private readonly T? empty;
-    private readonly System.Collections.Generic.Dictionary<string, T> exact = new(StringComparer.Ordinal);
-    private readonly System.Collections.Generic.Dictionary<string, T?> ignoringCase = new(StringComparer.OrdinalIgnoreCase);
+    private readonly global::System.Collections.Generic.Dictionary<string, T> exact = new(StringComparer.Ordinal);
+    private readonly global::System.Collections.Generic.Dictionary<string, T?> ignoringCase = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Initializes a new instance of the <see cref="EnumValueReadingConverter{T}"/> class.
@@ -79,7 +79,7 @@ public sealed class EnumValueReadingConverter<T> : JsonConverter<T>
 
         var names = Enum.GetNames<T>();
         var values = Enum.GetValues<T>();
-        var texts = new System.Collections.Generic.List<(string Text, T Value)>();
+        var texts = new global::System.Collections.Generic.List<(string Text, T Value)>();
         for (var i = 0; i < values.Length; i++)
         {
             texts.Add((IsEmpty(values[i]) ? string.Empty : ValueOf(values[i], options), values[i]));
@@ -152,7 +152,7 @@ public sealed class EnumValueReadingConverter<T> : JsonConverter<T>
     }
 
     private bool IsEmpty(T value)
-        => empty is { } member && System.Collections.Generic.EqualityComparer<T>.Default.Equals(member, value);
+        => empty is { } member && global::System.Collections.Generic.EqualityComparer<T>.Default.Equals(member, value);
 
     private T Find(string text)
         => exact.TryGetValue(text, out var value)
@@ -165,7 +165,7 @@ public sealed class EnumValueReadingConverter<T> : JsonConverter<T>
         T value,
         JsonSerializerOptions options)
     {
-        using var buffer = new System.IO.MemoryStream();
+        using var buffer = new global::System.IO.MemoryStream();
         using (var writer = new Utf8JsonWriter(buffer))
         {
             wire.Write(writer, value, options);

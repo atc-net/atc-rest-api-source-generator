@@ -281,7 +281,7 @@ public static class ServerSentEventResume
                 {
                     if (error is not null)
                     {
-                        System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(error).Throw();
+                        global::System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(error).Throw();
                     }
 
                     yield break;
@@ -297,7 +297,7 @@ public static class ServerSentEventResume
         Exception exception,
         CancellationToken cancellationToken)
         => !cancellationToken.IsCancellationRequested &&
-           exception is HttpRequestException or IOException or OperationCanceledException or InvalidDataException or System.Text.Json.JsonException;
+           exception is HttpRequestException or IOException or OperationCanceledException or InvalidDataException or global::System.Text.Json.JsonException;
 
     // After a stream that ended: the server's retry, else the first wait. After failures: the policy's wait for the
     // count, the last one repeated - never shorter than the server's retry

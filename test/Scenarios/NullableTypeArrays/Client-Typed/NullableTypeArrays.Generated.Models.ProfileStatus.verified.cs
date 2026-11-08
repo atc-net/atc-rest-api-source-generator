@@ -170,7 +170,7 @@ public sealed class ProfileStatusJsonConverter : JsonConverter<ProfileStatus>
     private static ProfileStatus FromNumber(ref Utf8JsonReader reader)
         => reader.TryGetInt32(out var position) && position >= 0 && position < ProfileStatus.KnownValues.Count
             ? ProfileStatus.KnownValues[position]
-            : new ProfileStatus(System.Text.Encoding.UTF8.GetString(reader.HasValueSequence ? System.Buffers.BuffersExtensions.ToArray(reader.ValueSequence) : reader.ValueSpan.ToArray()));
+            : new ProfileStatus(global::System.Text.Encoding.UTF8.GetString(reader.HasValueSequence ? global::System.Buffers.BuffersExtensions.ToArray(reader.ValueSequence) : reader.ValueSpan.ToArray()));
 }
 
 /// <summary>

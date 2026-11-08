@@ -46,7 +46,7 @@ public record ProblemDetails(
         => !string.IsNullOrWhiteSpace(Detail)
             ? Detail!.Trim()
             : !string.IsNullOrWhiteSpace(Title) &&
-              !(Status is { } status && string.Equals(Title!.Trim(), ProblemDetailsFactory.ReasonPhrase(status), System.StringComparison.OrdinalIgnoreCase))
+              !(Status is { } status && string.Equals(Title!.Trim(), ProblemDetailsFactory.ReasonPhrase(status), global::System.StringComparison.OrdinalIgnoreCase))
                 ? Title!.Trim()
                 : null;
 }
@@ -81,7 +81,7 @@ public record ValidationProblemDetails(
         var messages = new List<string>();
         foreach (var field in Errors ?? new Dictionary<string, string[]>())
         {
-            foreach (var message in field.Value ?? System.Array.Empty<string>())
+            foreach (var message in field.Value ?? global::System.Array.Empty<string>())
             {
                 if (!string.IsNullOrWhiteSpace(message) && !messages.Contains(message.Trim()))
                 {
@@ -91,7 +91,7 @@ public record ValidationProblemDetails(
         }
 
         return messages.Count > 0
-            ? string.Join(System.Environment.NewLine, messages)
+            ? string.Join(global::System.Environment.NewLine, messages)
             : base.ToDisplayText();
     }
 }

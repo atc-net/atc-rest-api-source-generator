@@ -468,7 +468,7 @@ public static class PolymorphicTypeExtractor
         sb.AppendLine("{");
         sb.AppendLine("    // The host's options, made strict once per options instance: a missing required member or an unknown member");
         sb.AppendLine("    // fails the variant instead of becoming a default value");
-        sb.AppendLine("    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<JsonSerializerOptions, JsonSerializerOptions> StrictOptions = new();");
+        sb.AppendLine("    private static readonly global::System.Runtime.CompilerServices.ConditionalWeakTable<JsonSerializerOptions, JsonSerializerOptions> StrictOptions = new();");
         sb.AppendLine();
 
         sb.AppendLine($"    public override {config.BaseTypeName}? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)");

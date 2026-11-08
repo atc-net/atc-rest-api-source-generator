@@ -20,7 +20,7 @@ namespace Demo.Generated.Tasks.Handlers;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public interface IListTasksHandler
 {
-    System.Threading.Tasks.Task<ListTasksResult> ExecuteAsync(
+    global::System.Threading.Tasks.Task<ListTasksResult> ExecuteAsync(
         ListTasksParameters parameters,
         CancellationToken cancellationToken = default);
 }
@@ -31,7 +31,7 @@ public interface IListTasksHandler
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public interface ICreateTaskHandler
 {
-    System.Threading.Tasks.Task<CreateTaskResult> ExecuteAsync(
+    global::System.Threading.Tasks.Task<CreateTaskResult> ExecuteAsync(
         CreateTaskParameters parameters,
         CancellationToken cancellationToken = default);
 }
@@ -42,7 +42,7 @@ public interface ICreateTaskHandler
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public interface IGetTaskByIdHandler
 {
-    System.Threading.Tasks.Task<GetTaskByIdResult> ExecuteAsync(
+    global::System.Threading.Tasks.Task<GetTaskByIdResult> ExecuteAsync(
         GetTaskByIdParameters parameters,
         CancellationToken cancellationToken = default);
 }
@@ -53,7 +53,7 @@ public interface IGetTaskByIdHandler
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public interface IDeleteTaskByIdHandler
 {
-    System.Threading.Tasks.Task<DeleteTaskByIdResult> ExecuteAsync(
+    global::System.Threading.Tasks.Task<DeleteTaskByIdResult> ExecuteAsync(
         DeleteTaskByIdParameters parameters,
         CancellationToken cancellationToken = default);
 }
@@ -64,7 +64,7 @@ public interface IDeleteTaskByIdHandler
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public interface IUpdateTaskByIdHandler
 {
-    System.Threading.Tasks.Task<UpdateTaskByIdResult> ExecuteAsync(
+    global::System.Threading.Tasks.Task<UpdateTaskByIdResult> ExecuteAsync(
         UpdateTaskByIdParameters parameters,
         CancellationToken cancellationToken = default);
 }

@@ -150,7 +150,7 @@ public sealed class CreatePetResult : IResult, INestedHttpResult, IStatusCodeHtt
     /// <summary>
     /// 400 Bad Request - Validation error.
     /// </summary>
-    [System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
+    [global::System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
     public static CreatePetResult BadRequest(ValidationProblemDetails? errors = null)
         => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.Problem(ProblemWithStatus.Of(errors, 400)));
 

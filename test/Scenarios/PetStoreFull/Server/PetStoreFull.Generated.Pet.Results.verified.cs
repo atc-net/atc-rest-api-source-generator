@@ -73,7 +73,7 @@ public sealed class UpdatePetResult : IResult, INestedHttpResult, IStatusCodeHtt
     /// <summary>
     /// 400 Bad Request - Invalid ID supplied.
     /// </summary>
-    [System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
+    [global::System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
     public static UpdatePetResult BadRequest(ValidationProblemDetails? errors = null)
         => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.Problem(ProblemWithStatus.Of(errors, 400)));
 
@@ -172,7 +172,7 @@ public sealed class AddPetResult : IResult, INestedHttpResult, IStatusCodeHttpRe
     /// <summary>
     /// 400 Bad Request - Invalid input.
     /// </summary>
-    [System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
+    [global::System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
     public static AddPetResult BadRequest(ValidationProblemDetails? errors = null)
         => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.Problem(ProblemWithStatus.Of(errors, 400)));
 
@@ -268,7 +268,7 @@ public sealed class FindPetsByStatusResult : IResult, INestedHttpResult, IStatus
     /// <summary>
     /// 400 Bad Request - Invalid status value.
     /// </summary>
-    [System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
+    [global::System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
     public static FindPetsByStatusResult BadRequest(ValidationProblemDetails? errors = null)
         => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.Problem(ProblemWithStatus.Of(errors, 400)));
 
@@ -358,7 +358,7 @@ public sealed class FindPetsByTagsResult : IResult, INestedHttpResult, IStatusCo
     /// <summary>
     /// 400 Bad Request - Invalid tag value.
     /// </summary>
-    [System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
+    [global::System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
     public static FindPetsByTagsResult BadRequest(ValidationProblemDetails? errors = null)
         => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.Problem(ProblemWithStatus.Of(errors, 400)));
 
@@ -445,7 +445,7 @@ public sealed class GetPetByIdResult : IResult, INestedHttpResult, IStatusCodeHt
     /// <summary>
     /// 400 Bad Request - Invalid ID supplied.
     /// </summary>
-    [System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
+    [global::System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
     public static GetPetByIdResult BadRequest(ValidationProblemDetails? errors = null)
         => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.Problem(ProblemWithStatus.Of(errors, 400)));
 
@@ -538,7 +538,7 @@ public sealed class UpdatePetWithFormResult : IResult, INestedHttpResult, IStatu
     /// <summary>
     /// 400 Bad Request - Invalid input.
     /// </summary>
-    [System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
+    [global::System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
     public static UpdatePetWithFormResult BadRequest(ValidationProblemDetails? errors = null)
         => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.Problem(ProblemWithStatus.Of(errors, 400)));
 
@@ -622,7 +622,7 @@ public sealed class DeletePetResult : IResult, INestedHttpResult, IStatusCodeHtt
     /// <summary>
     /// 400 Bad Request - Invalid pet value.
     /// </summary>
-    [System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
+    [global::System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
     public static DeletePetResult BadRequest(ValidationProblemDetails? errors = null)
         => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.Problem(ProblemWithStatus.Of(errors, 400)));
 
@@ -709,7 +709,7 @@ public sealed class UploadFileResult : IResult, INestedHttpResult, IStatusCodeHt
     /// <summary>
     /// 400 Bad Request - No file uploaded.
     /// </summary>
-    [System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
+    [global::System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
     public static UploadFileResult BadRequest(ValidationProblemDetails? errors = null)
         => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.Problem(ProblemWithStatus.Of(errors, 400)));
 

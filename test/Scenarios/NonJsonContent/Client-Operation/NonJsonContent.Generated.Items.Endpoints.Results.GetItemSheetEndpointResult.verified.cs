@@ -97,7 +97,7 @@ public partial class GetItemSheetEndpointResult : EndpointResponse, IGetItemShee
             headers: new Dictionary<string, IEnumerable<string>>(StringComparer.OrdinalIgnoreCase)
             {
                 ["Content-Type"] = new[] { file.ContentType ?? "application/pdf" },
-                ["Content-Disposition"] = file.FileName is null ? Array.Empty<string>() : new[] { new System.Net.Http.Headers.ContentDispositionHeaderValue("attachment") { FileNameStar = file.FileName }.ToString() },
+                ["Content-Disposition"] = file.FileName is null ? Array.Empty<string>() : new[] { new global::System.Net.Http.Headers.ContentDispositionHeaderValue("attachment") { FileNameStar = file.FileName }.ToString() },
             }));
 
     /// <summary>

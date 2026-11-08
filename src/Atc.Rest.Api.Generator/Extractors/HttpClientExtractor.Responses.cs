@@ -279,16 +279,16 @@ public static partial class HttpClientExtractor
 
         // The text is in the charset the Content-Type names (a proxy, an older server); UTF-8 without one or for a
         // name the runtime does not know
-        sb.AppendLine("var errorEncoding = System.Text.Encoding.UTF8;");
+        sb.AppendLine("var errorEncoding = global::System.Text.Encoding.UTF8;");
         sb.AppendLine("if (response.Content.Headers.ContentType?.CharSet is { Length: > 0 } errorCharset)");
         sb.AppendLine("{");
         sb.AppendLine(4, "try");
         sb.AppendLine(4, "{");
-        sb.AppendLine(8, "errorEncoding = System.Text.Encoding.GetEncoding(errorCharset.Trim('\"'));");
+        sb.AppendLine(8, "errorEncoding = global::System.Text.Encoding.GetEncoding(errorCharset.Trim('\"'));");
         sb.AppendLine(4, "}");
-        sb.AppendLine(4, "catch (System.ArgumentException)");
+        sb.AppendLine(4, "catch (global::System.ArgumentException)");
         sb.AppendLine(4, "{");
-        sb.AppendLine(8, "errorEncoding = System.Text.Encoding.UTF8;");
+        sb.AppendLine(8, "errorEncoding = global::System.Text.Encoding.UTF8;");
         sb.AppendLine(4, "}");
         sb.AppendLine("}");
         sb.AppendLine();
@@ -302,7 +302,7 @@ public static partial class HttpClientExtractor
             Attributes: null,
             DeclarationModifier: DeclarationModifiers.PrivateStaticAsync,
             ReturnGenericTypeName: null,
-            ReturnTypeName: "System.Threading.Tasks.Task",
+            ReturnTypeName: "global::System.Threading.Tasks.Task",
             Name: "EnsureSuccessAsync",
             Parameters:
             [
@@ -530,7 +530,7 @@ public static partial class HttpClientExtractor
             DocumentationTags: null,
             Attributes: null,
             DeclarationModifier: DeclarationModifiers.PrivateStaticAsync,
-            ReturnGenericTypeName: "System.Threading.Tasks.Task",
+            ReturnGenericTypeName: "global::System.Threading.Tasks.Task",
             ReturnTypeName: envelopeTypeName,
             Name: name,
             Parameters: parameters,

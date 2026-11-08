@@ -120,7 +120,7 @@ public sealed class DeviceApiClient : IDeviceApiClient
         return await BuildTextResponseAsync(response, cancellationToken).ConfigureAwait(false);
     }
 
-    private static async System.Threading.Tasks.Task EnsureSuccessAsync(
+    private static async global::System.Threading.Tasks.Task EnsureSuccessAsync(
         HttpResponseMessage response,
         CancellationToken cancellationToken)
     {
@@ -139,16 +139,16 @@ public sealed class DeviceApiClient : IDeviceApiClient
             errorLength += errorRead;
         }
 
-        var errorEncoding = System.Text.Encoding.UTF8;
+        var errorEncoding = global::System.Text.Encoding.UTF8;
         if (response.Content.Headers.ContentType?.CharSet is { Length: > 0 } errorCharset)
         {
             try
             {
-                errorEncoding = System.Text.Encoding.GetEncoding(errorCharset.Trim('"'));
+                errorEncoding = global::System.Text.Encoding.GetEncoding(errorCharset.Trim('"'));
             }
-            catch (System.ArgumentException)
+            catch (global::System.ArgumentException)
             {
-                errorEncoding = System.Text.Encoding.UTF8;
+                errorEncoding = global::System.Text.Encoding.UTF8;
             }
         }
 
@@ -175,7 +175,7 @@ public sealed class DeviceApiClient : IDeviceApiClient
         return headers;
     }
 
-    private static async System.Threading.Tasks.Task<EndpointResponse> BuildEmptyResponseAsync(
+    private static async global::System.Threading.Tasks.Task<EndpointResponse> BuildEmptyResponseAsync(
         HttpResponseMessage response,
         CancellationToken cancellationToken)
     {
@@ -189,7 +189,7 @@ public sealed class DeviceApiClient : IDeviceApiClient
             ReadHeaders(response));
     }
 
-    private static async System.Threading.Tasks.Task<EndpointResponse<T>> BuildJsonResponseAsync<T>(
+    private static async global::System.Threading.Tasks.Task<EndpointResponse<T>> BuildJsonResponseAsync<T>(
         HttpResponseMessage response,
         JsonSerializerOptions jsonSerializerOptions,
         CancellationToken cancellationToken)
@@ -219,7 +219,7 @@ public sealed class DeviceApiClient : IDeviceApiClient
             ReadHeaders(response));
     }
 
-    private static async System.Threading.Tasks.Task<EndpointResponse<DownloadedFile>> BuildBinaryResponseAsync(
+    private static async global::System.Threading.Tasks.Task<EndpointResponse<DownloadedFile>> BuildBinaryResponseAsync(
         HttpResponseMessage response,
         CancellationToken cancellationToken)
     {
@@ -234,7 +234,7 @@ public sealed class DeviceApiClient : IDeviceApiClient
         return new EndpointResponse<DownloadedFile>(false, response.StatusCode, errorBody, null, ReadHeaders(response));
     }
 
-    private static async System.Threading.Tasks.Task<EndpointResponse<string>> BuildTextResponseAsync(
+    private static async global::System.Threading.Tasks.Task<EndpointResponse<string>> BuildTextResponseAsync(
         HttpResponseMessage response,
         CancellationToken cancellationToken)
     {
@@ -248,7 +248,7 @@ public sealed class DeviceApiClient : IDeviceApiClient
             ReadHeaders(response));
     }
 
-    private static async System.Threading.Tasks.Task<EndpointResponse<Uri>> BuildLocationResponseAsync(
+    private static async global::System.Threading.Tasks.Task<EndpointResponse<Uri>> BuildLocationResponseAsync(
         HttpResponseMessage response,
         CancellationToken cancellationToken)
     {

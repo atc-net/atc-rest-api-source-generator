@@ -190,7 +190,7 @@ public sealed class GenderTypeJsonConverter : JsonConverter<GenderType>
     private static GenderType FromNumber(ref Utf8JsonReader reader)
         => reader.TryGetInt32(out var position) && position >= 0 && position < GenderType.KnownValues.Count
             ? GenderType.KnownValues[position]
-            : new GenderType(System.Text.Encoding.UTF8.GetString(reader.HasValueSequence ? System.Buffers.BuffersExtensions.ToArray(reader.ValueSequence) : reader.ValueSpan.ToArray()));
+            : new GenderType(global::System.Text.Encoding.UTF8.GetString(reader.HasValueSequence ? global::System.Buffers.BuffersExtensions.ToArray(reader.ValueSequence) : reader.ValueSpan.ToArray()));
 }
 
 /// <summary>

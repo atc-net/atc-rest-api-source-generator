@@ -200,7 +200,7 @@ public sealed class OrderStatusJsonConverter : JsonConverter<OrderStatus>
     private static OrderStatus FromNumber(ref Utf8JsonReader reader)
         => reader.TryGetInt32(out var position) && position >= 0 && position < OrderStatus.KnownValues.Count
             ? OrderStatus.KnownValues[position]
-            : new OrderStatus(System.Text.Encoding.UTF8.GetString(reader.HasValueSequence ? System.Buffers.BuffersExtensions.ToArray(reader.ValueSequence) : reader.ValueSpan.ToArray()));
+            : new OrderStatus(global::System.Text.Encoding.UTF8.GetString(reader.HasValueSequence ? global::System.Buffers.BuffersExtensions.ToArray(reader.ValueSequence) : reader.ValueSpan.ToArray()));
 }
 
 /// <summary>

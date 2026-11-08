@@ -67,7 +67,7 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
             .MapGet("{id}/photo", GetPhoto)
             .WithName(global::MediaTypeParameters.Generated.ApiOperations.GetPhoto)
             .WithSummary("A wildcard with a binary schema stays a file.")
-            .Produces(StatusCodes.Status200OK, typeof(System.IO.Stream), "*/*")
+            .Produces(StatusCodes.Status200OK, typeof(global::System.IO.Stream), "*/*")
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status500InternalServerError)

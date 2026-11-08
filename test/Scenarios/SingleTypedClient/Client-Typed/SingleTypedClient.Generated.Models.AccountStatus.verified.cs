@@ -177,7 +177,7 @@ public sealed class AccountStatusJsonConverter : JsonConverter<AccountStatus>
     private static AccountStatus FromNumber(ref Utf8JsonReader reader)
         => reader.TryGetInt32(out var position) && position >= 0 && position < AccountStatus.KnownValues.Count
             ? AccountStatus.KnownValues[position]
-            : new AccountStatus(System.Text.Encoding.UTF8.GetString(reader.HasValueSequence ? System.Buffers.BuffersExtensions.ToArray(reader.ValueSequence) : reader.ValueSpan.ToArray()));
+            : new AccountStatus(global::System.Text.Encoding.UTF8.GetString(reader.HasValueSequence ? global::System.Buffers.BuffersExtensions.ToArray(reader.ValueSequence) : reader.ValueSpan.ToArray()));
 }
 
 /// <summary>

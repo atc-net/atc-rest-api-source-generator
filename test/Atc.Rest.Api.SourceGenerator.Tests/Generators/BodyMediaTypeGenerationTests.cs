@@ -488,8 +488,8 @@ public sealed class BodyMediaTypeGenerationTests
         // The endpoint metadata names the media type (the runtime OpenAPI document matches the specification): as a
         // Stream, a binary body - without a type the endpoint metadata drops the media type.
         var endpoints = string.Join(Environment.NewLine, sources.Where(s => s.HintName.Contains("EndpointDefinition", StringComparison.Ordinal)).Select(s => s.Source));
-        Assert.Contains(".Produces(StatusCodes.Status200OK, typeof(System.IO.Stream), \"application/pdf\")", endpoints, StringComparison.Ordinal);
-        Assert.Contains(".Produces(StatusCodes.Status200OK, typeof(System.IO.Stream), \"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\")", endpoints, StringComparison.Ordinal);
+        Assert.Contains(".Produces(StatusCodes.Status200OK, typeof(global::System.IO.Stream), \"application/pdf\")", endpoints, StringComparison.Ordinal);
+        Assert.Contains(".Produces(StatusCodes.Status200OK, typeof(global::System.IO.Stream), \"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\")", endpoints, StringComparison.Ordinal);
 
         // The probe imports the namespace the results are generated into.
         var resultsSource = sources.First(s => s.Source.Contains("class GetReportPdfResult", StringComparison.Ordinal)).Source;

@@ -90,7 +90,7 @@ public sealed class TasksEndpointDefinition : IEndpointDefinition
             .Accepts<Demo.Generated.Tasks.Models.Task>("application/json");
     }
 
-    internal async System.Threading.Tasks.Task<IResult> ListTasks(
+    internal async global::System.Threading.Tasks.Task<IResult> ListTasks(
         [FromServices] IListTasksHandler handler,
         [AsParameters] ListTasksParameters parameters,
         CancellationToken cancellationToken)
@@ -99,7 +99,7 @@ public sealed class TasksEndpointDefinition : IEndpointDefinition
                 cancellationToken))
             .Result;
 
-    internal async System.Threading.Tasks.Task<IResult> CreateTask(
+    internal async global::System.Threading.Tasks.Task<IResult> CreateTask(
         [FromServices] ICreateTaskHandler handler,
         [AsParameters] CreateTaskParameters parameters,
         CancellationToken cancellationToken)
@@ -108,7 +108,7 @@ public sealed class TasksEndpointDefinition : IEndpointDefinition
                 cancellationToken))
             .Result;
 
-    internal async System.Threading.Tasks.Task<IResult> GetTaskById(
+    internal async global::System.Threading.Tasks.Task<IResult> GetTaskById(
         [FromServices] IGetTaskByIdHandler handler,
         [AsParameters] GetTaskByIdParameters parameters,
         CancellationToken cancellationToken)
@@ -117,7 +117,7 @@ public sealed class TasksEndpointDefinition : IEndpointDefinition
                 cancellationToken))
             .Result;
 
-    internal async System.Threading.Tasks.Task<IResult> DeleteTaskById(
+    internal async global::System.Threading.Tasks.Task<IResult> DeleteTaskById(
         [FromServices] IDeleteTaskByIdHandler handler,
         [AsParameters] DeleteTaskByIdParameters parameters,
         CancellationToken cancellationToken)
@@ -126,7 +126,7 @@ public sealed class TasksEndpointDefinition : IEndpointDefinition
                 cancellationToken))
             .Result;
 
-    internal async System.Threading.Tasks.Task<IResult> UpdateTaskById(
+    internal async global::System.Threading.Tasks.Task<IResult> UpdateTaskById(
         [FromServices] IUpdateTaskByIdHandler handler,
         [AsParameters] UpdateTaskByIdParameters parameters,
         CancellationToken cancellationToken)

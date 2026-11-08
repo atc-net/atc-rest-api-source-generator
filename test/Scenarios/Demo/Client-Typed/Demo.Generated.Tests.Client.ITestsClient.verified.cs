@@ -16,19 +16,19 @@ namespace Demo.Generated.Tests.Client;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public interface ITestsClient
 {
-    System.Threading.Tasks.Task<TestItem> CreateTestItemWithModelAsync(
+    global::System.Threading.Tasks.Task<TestItem> CreateTestItemWithModelAsync(
         CreateTestItemWithModelParameters parameters,
         CancellationToken cancellationToken = default);
 
-    System.Threading.Tasks.Task<Uri> CreateTestItemWithLocationHeaderAsync(
+    global::System.Threading.Tasks.Task<Uri> CreateTestItemWithLocationHeaderAsync(
         CreateTestItemWithLocationHeaderParameters parameters,
         CancellationToken cancellationToken = default);
 
-    System.Threading.Tasks.Task<Uri> CreateTestItemWithLocationInBodyAsync(
+    global::System.Threading.Tasks.Task<Uri> CreateTestItemWithLocationInBodyAsync(
         CreateTestItemWithLocationInBodyParameters parameters,
         CancellationToken cancellationToken = default);
 
-    System.Threading.Tasks.Task CreateTestItemEmptyAsync(
+    global::System.Threading.Tasks.Task CreateTestItemEmptyAsync(
         CreateTestItemEmptyParameters parameters,
         CancellationToken cancellationToken = default);
 }

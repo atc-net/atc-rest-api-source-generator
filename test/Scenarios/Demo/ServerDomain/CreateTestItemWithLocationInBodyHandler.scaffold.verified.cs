@@ -8,7 +8,7 @@ public sealed class CreateTestItemWithLocationInBodyHandler : ICreateTestItemWit
     /// <summary>
     /// Executes the CreateTestItemWithLocationInBody operation.
     /// </summary>
-    public System.Threading.Tasks.Task<CreateTestItemWithLocationInBodyResult> ExecuteAsync(
+    public global::System.Threading.Tasks.Task<CreateTestItemWithLocationInBodyResult> ExecuteAsync(
         CreateTestItemWithLocationInBodyParameters parameters,
         CancellationToken cancellationToken = default)
     {

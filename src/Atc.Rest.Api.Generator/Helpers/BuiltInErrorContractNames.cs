@@ -119,7 +119,7 @@ public static class BuiltInErrorContractNames
 
         foreach (var name in generatedReservedModels.OrderBy(n => n, StringComparer.Ordinal))
         {
-            sb.AppendLine($"using {name} = Microsoft.AspNetCore.Mvc.{name};");
+            sb.AppendLine($"using {name} = global::Microsoft.AspNetCore.Mvc.{name};");
         }
     }
 

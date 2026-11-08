@@ -19,7 +19,7 @@ public sealed class NotificationJsonConverter : JsonConverter<Notification>
 {
     // The host's options, made strict once per options instance: a missing required member or an unknown member
     // fails the variant instead of becoming a default value
-    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<JsonSerializerOptions, JsonSerializerOptions> StrictOptions = new();
+    private static readonly global::System.Runtime.CompilerServices.ConditionalWeakTable<JsonSerializerOptions, JsonSerializerOptions> StrictOptions = new();
 
     public override Notification? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {

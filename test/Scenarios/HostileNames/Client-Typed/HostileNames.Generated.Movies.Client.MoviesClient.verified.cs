@@ -22,6 +22,7 @@ public sealed class MoviesClient : IMoviesClient
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
+        Converters = { new global::HostileNames.Generated.EnumWireConverterFactory() },
     };
 
     private readonly HttpClient httpClient;
@@ -77,7 +78,7 @@ public sealed class MoviesClient : IMoviesClient
         return JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<movie>())!;
     }
 
-    private static async System.Threading.Tasks.Task EnsureSuccessAsync(
+    private static async global::System.Threading.Tasks.Task EnsureSuccessAsync(
         HttpResponseMessage response,
         CancellationToken cancellationToken)
     {
@@ -96,16 +97,16 @@ public sealed class MoviesClient : IMoviesClient
             errorLength += errorRead;
         }
 
-        var errorEncoding = System.Text.Encoding.UTF8;
+        var errorEncoding = global::System.Text.Encoding.UTF8;
         if (response.Content.Headers.ContentType?.CharSet is { Length: > 0 } errorCharset)
         {
             try
             {
-                errorEncoding = System.Text.Encoding.GetEncoding(errorCharset.Trim('"'));
+                errorEncoding = global::System.Text.Encoding.GetEncoding(errorCharset.Trim('"'));
             }
-            catch (System.ArgumentException)
+            catch (global::System.ArgumentException)
             {
-                errorEncoding = System.Text.Encoding.UTF8;
+                errorEncoding = global::System.Text.Encoding.UTF8;
             }
         }
 

@@ -2018,7 +2018,7 @@ public static class EndpointPerOperationExtractor
             sb.AppendLine(12, "headers: new Dictionary<string, IEnumerable<string>>(StringComparer.OrdinalIgnoreCase)");
             sb.AppendLine(12, "{");
             sb.AppendLine(16, $"[\"Content-Type\"] = new[] {{ file.ContentType ?? \"{response.FileMediaTypes![0]}\" }},");
-            sb.AppendLine(16, "[\"Content-Disposition\"] = file.FileName is null ? Array.Empty<string>() : new[] { new System.Net.Http.Headers.ContentDispositionHeaderValue(\"attachment\") { FileNameStar = file.FileName }.ToString() },");
+            sb.AppendLine(16, "[\"Content-Disposition\"] = file.FileName is null ? Array.Empty<string>() : new[] { new global::System.Net.Http.Headers.ContentDispositionHeaderValue(\"attachment\") { FileNameStar = file.FileName }.ToString() },");
             sb.AppendLine(12, "}));");
             sb.AppendLine();
         }
@@ -2234,7 +2234,7 @@ public static class EndpointPerOperationExtractor
         // ValidationFilter still writes a ValidationProblemDetails, so its errors are read from the raw body.
         if (responses.Find(r => r.StatusCode == "400") is { ContentType: not (null or "string" or "ProblemDetails" or "ValidationProblemDetails") } badRequest)
         {
-            sb.AppendLine(4, $"public System.Collections.Generic.Dictionary<string, string[]>? {badRequest.PropertyName}ValidationErrors");
+            sb.AppendLine(4, $"public global::System.Collections.Generic.Dictionary<string, string[]>? {badRequest.PropertyName}ValidationErrors");
             sb.AppendLine(8, $"=> Is{badRequest.PropertyName} ? ProblemDetailsFactory.ValidationErrorsFromContent(Content) : null;");
             sb.AppendLine();
         }

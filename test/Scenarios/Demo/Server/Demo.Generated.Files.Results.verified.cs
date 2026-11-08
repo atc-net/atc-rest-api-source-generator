@@ -85,7 +85,7 @@ public sealed class GetFileByIdResult : IResult, INestedHttpResult, IStatusCodeH
     public static GetFileByIdResult NotFound(string? message = null)
         => new(TypedResults.Problem(detail: message, statusCode: 404));
 
-    public System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
+    public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
 
     /// <summary>
@@ -151,7 +151,7 @@ public sealed class UploadFormDataFileResult : IResult, INestedHttpResult, IStat
     /// <summary>
     /// 400 Bad Request - Bad Request.
     /// </summary>
-    [System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
+    [global::System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
     public static UploadFormDataFileResult BadRequest(ValidationProblemDetails? errors = null)
         => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.Problem(ProblemWithStatus.Of(errors, 400)));
 
@@ -161,7 +161,7 @@ public sealed class UploadFormDataFileResult : IResult, INestedHttpResult, IStat
     public static UploadFormDataFileResult BadRequest(string message)
         => new(TypedResults.Problem(detail: message, statusCode: 400));
 
-    public System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
+    public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
 
     /// <summary>
@@ -227,7 +227,7 @@ public sealed class UploadFormDataFilesResult : IResult, INestedHttpResult, ISta
     /// <summary>
     /// 400 Bad Request - Bad Request.
     /// </summary>
-    [System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
+    [global::System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
     public static UploadFormDataFilesResult BadRequest(ValidationProblemDetails? errors = null)
         => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.Problem(ProblemWithStatus.Of(errors, 400)));
 
@@ -237,7 +237,7 @@ public sealed class UploadFormDataFilesResult : IResult, INestedHttpResult, ISta
     public static UploadFormDataFilesResult BadRequest(string message)
         => new(TypedResults.Problem(detail: message, statusCode: 400));
 
-    public System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
+    public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
 
     /// <summary>
@@ -300,7 +300,7 @@ public sealed class UploadSingleFileAsFormDataResult : IResult, INestedHttpResul
     public static UploadSingleFileAsFormDataResult Ok()
         => new(TypedResults.Ok());
 
-    public System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
+    public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
 
     /// <summary>
@@ -363,7 +363,7 @@ public sealed class UploadMultiFilesAsFormDataResult : IResult, INestedHttpResul
     public static UploadMultiFilesAsFormDataResult Ok()
         => new(TypedResults.Ok());
 
-    public System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
+    public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
 
     /// <summary>

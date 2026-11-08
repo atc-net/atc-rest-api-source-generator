@@ -145,7 +145,7 @@ public sealed class CreateModelResult : IResult, INestedHttpResult, IStatusCodeH
     /// <summary>
     /// 400 Bad Request - Validation error.
     /// </summary>
-    [System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
+    [global::System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
     public static CreateModelResult BadRequest(ValidationProblemDetails? errors = null)
         => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.Problem(ProblemWithStatus.Of(errors, 400)));
 

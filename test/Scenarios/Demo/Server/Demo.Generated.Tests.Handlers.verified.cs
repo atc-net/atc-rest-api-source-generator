@@ -19,7 +19,7 @@ namespace Demo.Generated.Tests.Handlers;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public interface ICreateTestItemWithModelHandler
 {
-    System.Threading.Tasks.Task<CreateTestItemWithModelResult> ExecuteAsync(
+    global::System.Threading.Tasks.Task<CreateTestItemWithModelResult> ExecuteAsync(
         CreateTestItemWithModelParameters parameters,
         CancellationToken cancellationToken = default);
 }
@@ -30,7 +30,7 @@ public interface ICreateTestItemWithModelHandler
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public interface ICreateTestItemWithLocationHeaderHandler
 {
-    System.Threading.Tasks.Task<CreateTestItemWithLocationHeaderResult> ExecuteAsync(
+    global::System.Threading.Tasks.Task<CreateTestItemWithLocationHeaderResult> ExecuteAsync(
         CreateTestItemWithLocationHeaderParameters parameters,
         CancellationToken cancellationToken = default);
 }
@@ -41,7 +41,7 @@ public interface ICreateTestItemWithLocationHeaderHandler
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public interface ICreateTestItemWithLocationInBodyHandler
 {
-    System.Threading.Tasks.Task<CreateTestItemWithLocationInBodyResult> ExecuteAsync(
+    global::System.Threading.Tasks.Task<CreateTestItemWithLocationInBodyResult> ExecuteAsync(
         CreateTestItemWithLocationInBodyParameters parameters,
         CancellationToken cancellationToken = default);
 }
@@ -52,7 +52,7 @@ public interface ICreateTestItemWithLocationInBodyHandler
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public interface ICreateTestItemEmptyHandler
 {
-    System.Threading.Tasks.Task<CreateTestItemEmptyResult> ExecuteAsync(
+    global::System.Threading.Tasks.Task<CreateTestItemEmptyResult> ExecuteAsync(
         CreateTestItemEmptyParameters parameters,
         CancellationToken cancellationToken = default);
 }

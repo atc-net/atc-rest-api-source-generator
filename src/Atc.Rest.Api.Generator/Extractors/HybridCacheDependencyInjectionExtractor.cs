@@ -214,7 +214,7 @@ public static class HybridCacheDependencyInjectionExtractor
         builder.AppendLine(8, "IDictionary<string, string>? queryParams = null,");
         builder.AppendLine(8, "IDictionary<string, string>? headers = null)");
         builder.AppendLine(4, "{");
-        builder.AppendLine(8, "var keyBuilder = new System.Text.StringBuilder();");
+        builder.AppendLine(8, "var keyBuilder = new global::System.Text.StringBuilder();");
         builder.AppendLine();
         builder.AppendLine(8, "// Add key prefix if configured");
         builder.AppendLine(8, "var prefix = GetKeyPrefix(policyName);");

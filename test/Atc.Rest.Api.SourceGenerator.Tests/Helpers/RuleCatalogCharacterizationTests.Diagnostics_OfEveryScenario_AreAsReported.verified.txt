@@ -89,24 +89,26 @@ HostileNames | Strict | ATC_API_NAM003 | Warning | 0 | Property 'user_name' must
 HostileNames | Strict | ATC_API_NAM003 | Warning | 0 | Property 'display_name' must use camelCase
 HostileNames | Strict | ATC_API_NAM002 | Warning | 0 | Model 'Company.Api.KeyPage' must use PascalCase
 HostileNames | Strict | ATC_API_NAM002 | Warning | 0 | Model 'class' must use PascalCase
-HostileNames | Strict | ATC_API_SCH003 | Warning | 158 | Missing title on object type '#/components/schemas/account_summary'. Add a 'title' property to the schema.
-HostileNames | Strict | ATC_API_SCH006 | Warning | 158 | Schema 'account_summary' is not using PascalCase. Suggestion: 'AccountSummary'. Location: #/components/schemas/account_summary
-HostileNames | Strict | ATC_API_SCH007 | Warning | 158 | Property 'friendly_name' in schema 'account_summary' is not using camelCase. Suggestion: 'friendlyName'. Location: #/components/schemas/account_summary/properties/friendly_name
-HostileNames | Strict | ATC_API_SCH003 | Warning | 166 | Missing title on object type '#/components/schemas/movie'. Add a 'title' property to the schema.
-HostileNames | Strict | ATC_API_SCH006 | Warning | 166 | Schema 'movie' is not using PascalCase. Suggestion: 'Movie'. Location: #/components/schemas/movie
-HostileNames | Strict | ATC_API_SCH003 | Warning | 174 | Missing title on object type '#/components/schemas/pet'. Add a 'title' property to the schema.
-HostileNames | Strict | ATC_API_SCH006 | Warning | 174 | Schema 'pet' is not using PascalCase. Suggestion: 'Pet'. Location: #/components/schemas/pet
-HostileNames | Strict | ATC_API_SCH003 | Warning | 183 | Missing title on object type '#/components/schemas/user_profile'. Add a 'title' property to the schema.
-HostileNames | Strict | ATC_API_SCH006 | Warning | 183 | Schema 'user_profile' is not using PascalCase. Suggestion: 'UserProfile'. Location: #/components/schemas/user_profile
-HostileNames | Strict | ATC_API_SCH007 | Warning | 183 | Property 'user_name' in schema 'user_profile' is not using camelCase. Suggestion: 'userName'. Location: #/components/schemas/user_profile/properties/user_name
-HostileNames | Strict | ATC_API_SCH007 | Warning | 183 | Property 'display_name' in schema 'user_profile' is not using camelCase. Suggestion: 'displayName'. Location: #/components/schemas/user_profile/properties/display_name
-HostileNames | Strict | ATC_API_SCH003 | Warning | 191 | Missing title on object type '#/components/schemas/APIKey'. Add a 'title' property to the schema.
-HostileNames | Strict | ATC_API_SCH003 | Warning | 199 | Missing title on object type '#/components/schemas/Company.Api.KeyPage'. Add a 'title' property to the schema.
-HostileNames | Strict | ATC_API_SCH006 | Warning | 199 | Schema 'Company.Api.KeyPage' is not using PascalCase. Suggestion: 'Company.api.keypage'. Location: #/components/schemas/Company.Api.KeyPage
-HostileNames | Strict | ATC_API_SCH003 | Warning | 207 | Missing title on object type '#/components/schemas/Stream'. Add a 'title' property to the schema.
-HostileNames | Strict | ATC_API_SCH003 | Warning | 214 | Missing title on object type '#/components/schemas/Results'. Add a 'title' property to the schema.
-HostileNames | Strict | ATC_API_SCH003 | Warning | 221 | Missing title on object type '#/components/schemas/class'. Add a 'title' property to the schema.
-HostileNames | Strict | ATC_API_SCH006 | Warning | 221 | Schema 'class' is not using PascalCase. Suggestion: 'Class'. Location: #/components/schemas/class
+HostileNames | Strict | ATC_API_SCH003 | Warning | 195 | Missing title on object type '#/components/schemas/account_summary'. Add a 'title' property to the schema.
+HostileNames | Strict | ATC_API_SCH006 | Warning | 195 | Schema 'account_summary' is not using PascalCase. Suggestion: 'AccountSummary'. Location: #/components/schemas/account_summary
+HostileNames | Strict | ATC_API_SCH007 | Warning | 195 | Property 'friendly_name' in schema 'account_summary' is not using camelCase. Suggestion: 'friendlyName'. Location: #/components/schemas/account_summary/properties/friendly_name
+HostileNames | Strict | ATC_API_SCH003 | Warning | 203 | Missing title on object type '#/components/schemas/movie'. Add a 'title' property to the schema.
+HostileNames | Strict | ATC_API_SCH006 | Warning | 203 | Schema 'movie' is not using PascalCase. Suggestion: 'Movie'. Location: #/components/schemas/movie
+HostileNames | Strict | ATC_API_SCH003 | Warning | 211 | Missing title on object type '#/components/schemas/pet'. Add a 'title' property to the schema.
+HostileNames | Strict | ATC_API_SCH006 | Warning | 211 | Schema 'pet' is not using PascalCase. Suggestion: 'Pet'. Location: #/components/schemas/pet
+HostileNames | Strict | ATC_API_SCH003 | Warning | 220 | Missing title on object type '#/components/schemas/user_profile'. Add a 'title' property to the schema.
+HostileNames | Strict | ATC_API_SCH006 | Warning | 220 | Schema 'user_profile' is not using PascalCase. Suggestion: 'UserProfile'. Location: #/components/schemas/user_profile
+HostileNames | Strict | ATC_API_SCH007 | Warning | 220 | Property 'user_name' in schema 'user_profile' is not using camelCase. Suggestion: 'userName'. Location: #/components/schemas/user_profile/properties/user_name
+HostileNames | Strict | ATC_API_SCH007 | Warning | 220 | Property 'display_name' in schema 'user_profile' is not using camelCase. Suggestion: 'displayName'. Location: #/components/schemas/user_profile/properties/display_name
+HostileNames | Strict | ATC_API_SCH003 | Warning | 228 | Missing title on object type '#/components/schemas/APIKey'. Add a 'title' property to the schema.
+HostileNames | Strict | ATC_API_SCH003 | Warning | 236 | Missing title on object type '#/components/schemas/Company.Api.KeyPage'. Add a 'title' property to the schema.
+HostileNames | Strict | ATC_API_SCH006 | Warning | 236 | Schema 'Company.Api.KeyPage' is not using PascalCase. Suggestion: 'Company.api.keypage'. Location: #/components/schemas/Company.Api.KeyPage
+HostileNames | Strict | ATC_API_SCH003 | Warning | 244 | Missing title on object type '#/components/schemas/Stream'. Add a 'title' property to the schema.
+HostileNames | Strict | ATC_API_SCH003 | Warning | 251 | Missing title on object type '#/components/schemas/Results'. Add a 'title' property to the schema.
+HostileNames | Strict | ATC_API_SCH003 | Warning | 258 | Missing title on object type '#/components/schemas/class'. Add a 'title' property to the schema.
+HostileNames | Strict | ATC_API_SCH006 | Warning | 258 | Schema 'class' is not using PascalCase. Suggestion: 'Class'. Location: #/components/schemas/class
+HostileNames | Strict | ATC_API_SCH003 | Warning | 265 | Missing title on object type '#/components/schemas/SystemInfo'. Add a 'title' property to the schema.
+HostileNames | Strict | ATC_API_SCH003 | Warning | 275 | Missing title on object type '#/components/schemas/MicrosoftDevice'. Add a 'title' property to the schema.
 HostileNames | Strict | ATC_API_OPR002 | Warning | 124 | OperationId '1stThing' is not using a valid casing style. Detected: mixed/unknown. Expected: camelCase or kebab-case. Suggestion: '1stThing'. Location: GET /things
 HostileNames | Strict | ATC_API_OPR003 | Warning | 124 | OperationId '1stThing' should start with 'get' or 'list' for GET operation. Location: GET /things
 HostileNames | Strict | ATC_API_OPR002 | Warning | 135 | OperationId 'repos/get' is not using a valid casing style. Detected: mixed/unknown. Expected: camelCase or kebab-case. Suggestion: 'repos/get'. Location: GET /repos

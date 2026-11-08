@@ -21,5 +21,6 @@ public sealed class ApiClientJsonOptions
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
+        Converters = { new global::HostileNames.Generated.EnumWireConverterFactory() },
     };
 }

@@ -144,7 +144,7 @@ public sealed class CreatePaymentResult : IResult, INestedHttpResult, IStatusCod
     /// <summary>
     /// 400 Bad Request - Invalid payment data.
     /// </summary>
-    [System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
+    [global::System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
     public static CreatePaymentResult BadRequest(ValidationProblemDetails? errors = null)
         => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.Problem(ProblemWithStatus.Of(errors, 400)));
 

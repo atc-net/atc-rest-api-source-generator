@@ -45,7 +45,7 @@ public sealed class AccountsClient : IAccountsClient
         this.jsonSerializerOptions = jsonSerializerOptions;
     }
 
-    public async System.Threading.Tasks.Task<List<Account>> ListAccountsAsync(
+    public async global::System.Threading.Tasks.Task<List<Account>> ListAccountsAsync(
         ListAccountsParameters parameters,
         CancellationToken cancellationToken = default)
     {
@@ -75,7 +75,7 @@ public sealed class AccountsClient : IAccountsClient
         return JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<List<Account>>())!;
     }
 
-    public async System.Threading.Tasks.Task<Account> CreateAccountAsync(
+    public async global::System.Threading.Tasks.Task<Account> CreateAccountAsync(
         CreateAccountParameters parameters,
         CancellationToken cancellationToken = default)
     {
@@ -94,7 +94,7 @@ public sealed class AccountsClient : IAccountsClient
         return JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<Account>())!;
     }
 
-    public async System.Threading.Tasks.Task<Account> GetAccountByIdAsync(
+    public async global::System.Threading.Tasks.Task<Account> GetAccountByIdAsync(
         GetAccountByIdParameters parameters,
         CancellationToken cancellationToken = default)
     {
@@ -112,7 +112,7 @@ public sealed class AccountsClient : IAccountsClient
         return JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<Account>())!;
     }
 
-    public async System.Threading.Tasks.Task DeleteAccountByIdAsync(
+    public async global::System.Threading.Tasks.Task DeleteAccountByIdAsync(
         DeleteAccountByIdParameters parameters,
         CancellationToken cancellationToken = default)
     {
@@ -123,7 +123,7 @@ public sealed class AccountsClient : IAccountsClient
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
     }
 
-    public async System.Threading.Tasks.Task<Account> UpdateAccountByIdAsync(
+    public async global::System.Threading.Tasks.Task<Account> UpdateAccountByIdAsync(
         UpdateAccountByIdParameters parameters,
         CancellationToken cancellationToken = default)
     {
@@ -142,7 +142,7 @@ public sealed class AccountsClient : IAccountsClient
         return JsonSerializer.Deserialize(json, jsonSerializerOptions.TypeInfo<Account>())!;
     }
 
-    public async System.Threading.Tasks.Task<PaginatedResult<Account>> ListPaginatedAccountsAsync(
+    public async global::System.Threading.Tasks.Task<PaginatedResult<Account>> ListPaginatedAccountsAsync(
         ListPaginatedAccountsParameters parameters,
         CancellationToken cancellationToken = default)
     {
@@ -206,7 +206,7 @@ public sealed class AccountsClient : IAccountsClient
         }
     }
 
-    private static async System.Threading.Tasks.Task EnsureSuccessAsync(
+    private static async global::System.Threading.Tasks.Task EnsureSuccessAsync(
         HttpResponseMessage response,
         CancellationToken cancellationToken)
     {
@@ -225,16 +225,16 @@ public sealed class AccountsClient : IAccountsClient
             errorLength += errorRead;
         }
 
-        var errorEncoding = System.Text.Encoding.UTF8;
+        var errorEncoding = global::System.Text.Encoding.UTF8;
         if (response.Content.Headers.ContentType?.CharSet is { Length: > 0 } errorCharset)
         {
             try
             {
-                errorEncoding = System.Text.Encoding.GetEncoding(errorCharset.Trim('"'));
+                errorEncoding = global::System.Text.Encoding.GetEncoding(errorCharset.Trim('"'));
             }
-            catch (System.ArgumentException)
+            catch (global::System.ArgumentException)
             {
-                errorEncoding = System.Text.Encoding.UTF8;
+                errorEncoding = global::System.Text.Encoding.UTF8;
             }
         }
 

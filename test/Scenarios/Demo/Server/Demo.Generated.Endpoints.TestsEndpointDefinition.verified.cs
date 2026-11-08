@@ -76,7 +76,7 @@ public sealed class TestsEndpointDefinition : IEndpointDefinition
             .Accepts<CreateTestItemRequest>("application/json");
     }
 
-    internal async System.Threading.Tasks.Task<IResult> CreateTestItemWithModel(
+    internal async global::System.Threading.Tasks.Task<IResult> CreateTestItemWithModel(
         [FromServices] ICreateTestItemWithModelHandler handler,
         [AsParameters] CreateTestItemWithModelParameters parameters,
         CancellationToken cancellationToken)
@@ -85,7 +85,7 @@ public sealed class TestsEndpointDefinition : IEndpointDefinition
                 cancellationToken))
             .Result;
 
-    internal async System.Threading.Tasks.Task<IResult> CreateTestItemWithLocationHeader(
+    internal async global::System.Threading.Tasks.Task<IResult> CreateTestItemWithLocationHeader(
         [FromServices] ICreateTestItemWithLocationHeaderHandler handler,
         [AsParameters] CreateTestItemWithLocationHeaderParameters parameters,
         CancellationToken cancellationToken)
@@ -94,7 +94,7 @@ public sealed class TestsEndpointDefinition : IEndpointDefinition
                 cancellationToken))
             .Result;
 
-    internal async System.Threading.Tasks.Task<IResult> CreateTestItemWithLocationInBody(
+    internal async global::System.Threading.Tasks.Task<IResult> CreateTestItemWithLocationInBody(
         [FromServices] ICreateTestItemWithLocationInBodyHandler handler,
         [AsParameters] CreateTestItemWithLocationInBodyParameters parameters,
         CancellationToken cancellationToken)
@@ -103,7 +103,7 @@ public sealed class TestsEndpointDefinition : IEndpointDefinition
                 cancellationToken))
             .Result;
 
-    internal async System.Threading.Tasks.Task<IResult> CreateTestItemEmpty(
+    internal async global::System.Threading.Tasks.Task<IResult> CreateTestItemEmpty(
         [FromServices] ICreateTestItemEmptyHandler handler,
         [AsParameters] CreateTestItemEmptyParameters parameters,
         CancellationToken cancellationToken)
