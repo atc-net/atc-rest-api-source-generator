@@ -6,6 +6,8 @@ using System;
 using System.CodeDom.Compiler;
 using Atc.Rest.Client.Options;
 using Microsoft.Extensions.DependencyInjection;
+using HostileNames.Generated.Endpoints;
+using HostileNames.Generated.Endpoints.Interfaces;
 using HostileNames.Generated.Accounts;
 using HostileNames.Generated.Atc;
 using HostileNames.Generated.Keys;
@@ -47,6 +49,7 @@ public static class HostileNamesEndpointsServiceCollectionExtensions
         services.AddStreamsEndpoints();
         services.AddSystemEndpoints();
         services.AddThingsEndpoints();
+        services.AddTransient<IGetSettingsEndpoint, GetSettingsEndpoint>();
 
         if (configureJsonSerializerOptions is not null)
         {

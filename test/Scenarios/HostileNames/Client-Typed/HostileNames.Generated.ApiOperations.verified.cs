@@ -78,4 +78,9 @@ public static class ApiOperations
     /// <c>GET /atc/items</c>: A first path segment named like the Atc namespace.
     /// </summary>
     public const string ListAtcItems = "ListAtcItems";
+
+    /// <summary>
+    /// <c>GET /hostilenames/settings</c>: A first path segment named like the API itself, which resolves into the root namespace beside the other segments.
+    /// </summary>
+    public const string GetSettings = "GetSettings";
 }

@@ -50,6 +50,20 @@ public static class EndpointDefinitionExtensions
     /// <returns>
     /// The web application for method chaining.
     /// </returns>
+    public static WebApplication MapApiEndpoints(this WebApplication app)
+    {
+        new HostilenamesEndpointDefinition().DefineEndpoints(app);
+
+        return app;
+    }
+
+    /// <summary>
+    /// Maps all API endpoints from the generated endpoint definitions.
+    /// </summary>
+    /// <param name="app">The web application.</param>
+    /// <returns>
+    /// The web application for method chaining.
+    /// </returns>
     public static WebApplication MapKeysEndpoints(this WebApplication app)
     {
         new KeysEndpointDefinition().DefineEndpoints(app);

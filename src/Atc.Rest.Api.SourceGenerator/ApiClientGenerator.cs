@@ -372,8 +372,9 @@ public class ApiClientGenerator : IIncrementalGenerator
             EmitClientSchemaTypes(generatedContext, openApiDoc, projectName, sharedSchemas, pathSegment: null, sharedRegistry, config, includeSharedModelsUsing: false, xmlModels);
         }
 
-        // Track generated path segments for consolidated DI extension
-        var generatedPathSegments = new List<string>();
+        // The endpoints of each namespace segment, for their DI registration (EndpointPerOperation mode only); a segment
+        // that resolved away is the empty one
+        var segmentEndpoints = new List<(string Segment, List<string> EndpointNames)>();
 
         // Generate files per path segment (excluding shared schemas)
         foreach (var pathSegment in pathSegments)
@@ -383,7 +384,7 @@ public class ApiClientGenerator : IIncrementalGenerator
 
             if (EmitSegmentClient(generatedContext, openApiDoc, projectName, pathSegment, config, packages, conflicts, sharedSchemas, componentTypeNames, systemTypeResolver, customErrorTypeName, xmlModels) is { } generatedSegment)
             {
-                generatedPathSegments.Add(generatedSegment);
+                segmentEndpoints.Add(generatedSegment);
             }
         }
 
@@ -394,17 +395,9 @@ public class ApiClientGenerator : IIncrementalGenerator
             EmitTypedClientStreaming(generatedContext, openApiDoc, projectName);
         }
 
-        // Generate consolidated DI extension method for all path segments (EndpointPerOperation mode only).
-        // When the only segment resolved away, the per-segment extension is already project-named and
-        // lives in "{projectName}.Generated", so a consolidated wrapper would be a duplicate.
-        if (!isTypedClient &&
-            generatedPathSegments.Count > 0 &&
-            !generatedPathSegments.TrueForAll(string.IsNullOrEmpty))
+        if (!isTypedClient)
         {
-            var consolidatedDiContent = GenerateConsolidatedDiExtension(projectName, generatedPathSegments);
-            generatedContext.AddGeneratedSource(
-                $"{projectName}.Endpoints.DependencyInjection.g.cs",
-                consolidatedDiContent);
+            EmitEndpointRegistrations(generatedContext, projectName, segmentEndpoints, EnumWireConverterExtractor.HasEnums(openApiDoc));
         }
 
         // Resilience (x-retry-*) and OAuth token management, where the specification declares them
@@ -422,7 +415,7 @@ public class ApiClientGenerator : IIncrementalGenerator
             errors: 0,
             modelCount: schemaCount,
             clientMethodCount: operationCount,
-            endpointCount: generatedPathSegments.Count);
+            endpointCount: segmentEndpoints.Count);
     }
 
     // The typed client's support types: a downloaded or streamed file, the content-or-file of a model or a file, the
@@ -566,7 +559,7 @@ public class ApiClientGenerator : IIncrementalGenerator
 
     // One path segment's client: its models, then its endpoints (endpoint per operation) or its typed client. Returns
     // the segment as its namespace uses it when it has endpoints for the consolidated DI extension
-    private static string? EmitSegmentClient(
+    private static (string Segment, List<string> EndpointNames)? EmitSegmentClient(
         GeneratedSourceContext generatedContext,
         OpenApiDocument openApiDoc,
         string projectName,
@@ -623,8 +616,8 @@ public class ApiClientGenerator : IIncrementalGenerator
                 ? ErrorResponseFormatType.Custom
                 : config.ErrorResponseFormat;
 
-            var hasEndpoints = GenerateEndpointPerOperation(generatedContext, openApiDoc, projectName, pathSegment, effectiveSegment, registry, config.IncludeDeprecated, hasSegmentModels, hasSharedModels, config.UseServersBasePath, config.HttpClientName, effectiveErrorFormat, customErrorTypeName, config.ValidateSpecificationStrategy, config.StrictRequiredProperties, config.PreferXml, config.ExtensibleEnums, config.TransportFailure == TransportFailureType.Result);
-            return hasEndpoints ? effectiveSegment : null;
+            var endpointNames = GenerateEndpointPerOperation(generatedContext, openApiDoc, projectName, pathSegment, effectiveSegment, registry, config.IncludeDeprecated, hasSegmentModels, hasSharedModels, config.UseServersBasePath, config.HttpClientName, effectiveErrorFormat, customErrorTypeName, config.ValidateSpecificationStrategy, config.StrictRequiredProperties, config.PreferXml, config.ExtensibleEnums, config.TransportFailure == TransportFailureType.Result);
+            return endpointNames.Count > 0 ? (effectiveSegment, endpointNames) : null;
         }
         else
         {
@@ -1372,7 +1365,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         return sb.ToString();
     }
 
-    private static bool GenerateEndpointPerOperation(
+    private static List<string> GenerateEndpointPerOperation(
         GeneratedSourceContext context,
         OpenApiDocument openApiDoc,
         string projectName,
@@ -1474,17 +1467,52 @@ public class ApiClientGenerator : IIncrementalGenerator
             }
         }
 
-        // Generate DI extension method
-        if (endpointNames.Count > 0)
+        return endpointNames;
+    }
+
+    /// <summary>
+    /// Writes the DI registration of the endpoints: an <c>Add{Segment}Endpoints()</c> per segment, and
+    /// <c>Add{Project}Endpoints()</c> for all of them. The endpoints of a segment that resolved away (one named like the
+    /// API, or the only one) live in "{projectName}.Generated" and have no method of their own beside other segments:
+    /// it would be named <c>Add{Project}Endpoints()</c> too, so the one for all of them registers them itself.
+    /// </summary>
+    private static void EmitEndpointRegistrations(
+        GeneratedSourceContext context,
+        string projectName,
+        List<(string Segment, List<string> EndpointNames)> segmentEndpoints,
+        bool hasEnums)
+    {
+        if (segmentEndpoints.Count == 0)
         {
-            var diExtensionContent = GenerateEndpointDiExtension(projectName, namespaceSegment, endpointNames, EnumWireConverterExtractor.HasEnums(openApiDoc));
-            context.AddGeneratedSource(
-                NamespaceBuilder.ToFileName(NamespaceBuilder.ForEndpoints(projectName, namespaceSegment), "DependencyInjection"),
-                diExtensionContent);
-            return true;
+            return;
         }
 
-        return false;
+        var rootEndpointNames = segmentEndpoints
+            .Where(s => string.IsNullOrEmpty(s.Segment))
+            .SelectMany(s => s.EndpointNames)
+            .ToList();
+        var namedSegments = segmentEndpoints
+            .Where(s => !string.IsNullOrEmpty(s.Segment))
+            .ToList();
+
+        foreach (var (segment, endpointNames) in namedSegments)
+        {
+            context.AddGeneratedSource(
+                NamespaceBuilder.ToFileName(NamespaceBuilder.ForEndpoints(projectName, segment), "DependencyInjection"),
+                GenerateEndpointDiExtension(projectName, segment, endpointNames, hasEnums));
+        }
+
+        if (namedSegments.Count == 0)
+        {
+            context.AddGeneratedSource(
+                NamespaceBuilder.ToFileName(NamespaceBuilder.ForEndpoints(projectName, string.Empty), "DependencyInjection"),
+                GenerateEndpointDiExtension(projectName, string.Empty, rootEndpointNames, hasEnums));
+            return;
+        }
+
+        context.AddGeneratedSource(
+            $"{projectName}.Endpoints.DependencyInjection.g.cs",
+            GenerateConsolidatedDiExtension(projectName, namedSegments.ConvertAll(s => s.Segment), rootEndpointNames));
     }
 
     private static string GenerateEndpointDiExtension(
@@ -1578,7 +1606,8 @@ public class ApiClientGenerator : IIncrementalGenerator
 
     private static string GenerateConsolidatedDiExtension(
         string projectName,
-        List<string> pathSegments)
+        List<string> pathSegments,
+        List<string> rootEndpointNames)
     {
         // Sanitize project name for use in C# identifiers (remove dots)
         var sanitizedProjectName = CodeGenerationService.SanitizeProjectNameForIdentifier(projectName);
@@ -1590,6 +1619,13 @@ public class ApiClientGenerator : IIncrementalGenerator
         sb.AppendLine("using System.CodeDom.Compiler;");
         sb.AppendLine("using Atc.Rest.Client.Options;");
         sb.AppendLine("using Microsoft.Extensions.DependencyInjection;");
+
+        // The endpoints of a segment that resolved away, which this method registers itself
+        if (rootEndpointNames.Count > 0)
+        {
+            sb.AppendLine($"using {NamespaceBuilder.ForEndpoints(projectName, string.Empty)};");
+            sb.AppendLine($"using {NamespaceBuilder.ForEndpointInterfaces(projectName, string.Empty)};");
+        }
 
         // Add using statements for each path segment namespace
         foreach (var pathSegment in pathSegments)
@@ -1621,6 +1657,11 @@ public class ApiClientGenerator : IIncrementalGenerator
         foreach (var pathSegment in pathSegments)
         {
             sb.AppendLine(8, $"services.Add{pathSegment}Endpoints();");
+        }
+
+        foreach (var endpointName in rootEndpointNames)
+        {
+            sb.AppendLine(8, $"services.AddTransient<I{endpointName}Endpoint, {endpointName}Endpoint>();");
         }
 
         sb.AppendLine();

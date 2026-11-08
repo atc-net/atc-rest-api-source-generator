@@ -190,6 +190,17 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/movie'
+  /hostilenames/settings:
+    get:
+      operationId: getSettings
+      summary: A first path segment named like the API itself, which resolves into the root namespace beside the other segments.
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/movie'
 components:
   schemas:
     account_summary:

@@ -9,6 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 using HostileNames.Generated;
 using HostileNames.Generated.Accounts.Handlers;
 using HostileNames.Generated.Atc.Handlers;
+using HostileNames.Generated.Handlers;
 using HostileNames.Generated.Keys.Handlers;
 using HostileNames.Generated.Microsoft.Handlers;
 using HostileNames.Generated.Movies.Handlers;

@@ -86,6 +86,32 @@ public class DomainGlobalUsingsHelperTests
         Assert.Contains("global using MyApp.Generated.Pets.Parameters;", result);
     }
 
+    /// <summary>
+    /// A segment named like the API (/myapp in MyApp) resolves into "MyApp.Generated" beside the other segments: that
+    /// namespace gets the usings of its own operations - a Results one, but no Parameters one when they have none - not
+    /// those of the other segments.
+    /// </summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void BuildRequiredUsings_ASegmentNamedLikeTheApi_GetsTheUsingsOfItsOwnOperations(
+        bool discovered)
+    {
+        var doc = CreateOpenApiDocumentWithParameters("/pets");
+        doc.Paths.Add("/myapp/settings", CreateOpenApiDocumentWithPaths("/x").Paths["/x"]);
+        var discoveredNamespaces = discovered
+            ? new HashSet<string>(StringComparer.Ordinal) { "MyApp.Generated.Handlers", "MyApp.Generated.Pets.Handlers" }
+            : new HashSet<string>(StringComparer.Ordinal);
+
+        var result = DomainGlobalUsingsHelper.BuildRequiredUsings(discoveredNamespaces, "MyApp", [string.Empty, "Pets"], doc);
+
+        Assert.Contains("global using MyApp.Generated.Handlers;", result);
+        Assert.Contains("global using MyApp.Generated.Results;", result);
+        Assert.DoesNotContain("global using MyApp.Generated.Parameters;", result);
+        Assert.Contains("global using MyApp.Generated.Pets.Parameters;", result);
+        Assert.Contains("global using MyApp.Generated.Pets.Results;", result);
+    }
+
     [Fact]
     public void BuildRequiredUsings_NoDiscoveredNamespaces_FallsBackToPathSegments()
     {
