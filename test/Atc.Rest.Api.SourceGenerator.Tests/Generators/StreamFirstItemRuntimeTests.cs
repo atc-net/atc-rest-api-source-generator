@@ -187,6 +187,14 @@ public sealed class StreamFirstItemRuntimeTests
         sources.Add(("RuntimeTestDomain.cs", DomainSource));
 
         var assembly = CompilationVerificationHarness.EmitAndLoad(sources, includeMinimalApi: true);
+
+        // The first item is awaited as long as it takes: on a busy machine a handler can take over the default second
+        // to fail, and its headers would go out first - a cut 200, not the problem answer these tests are about
+        assembly
+            .GetType("Streams.Generated.Streaming.SequentialStreamWriter", throwOnError: true)!
+            .GetProperty("FirstItemWait")!
+            .SetValue(null, TimeSpan.FromMinutes(1));
+
         var serviceExtensions = assembly.GetType("Streams.Generated.Extensions.UnifiedServiceCollectionExtensions", throwOnError: true)!;
         var appExtensions = assembly.GetType("Streams.Generated.Extensions.UnifiedWebApplicationExtensions", throwOnError: true)!;
 
