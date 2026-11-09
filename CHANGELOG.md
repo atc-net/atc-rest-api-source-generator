@@ -3,6 +3,14 @@
 > ⬆️ **Upgrading from 2.x?** The entries below list the commits of each release. What to change in a project, and
 > why, is in the wiki: [Upgrading to v3](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Upgrading-to-v3).
 
+## [3.3.1](https://github.com/atc-net/atc-rest-api-source-generator/compare/v3.3.0...v3.3.1) (2026-11-09)
+
+
+### Bug fixes
+
+* **generator:** a path segment named like the API beside other segments compiles - the per-operation client registers its endpoints in Add{Api}Endpoints(), and the handlers get only its own usings ([2f2ea43](https://github.com/atc-net/atc-rest-api-source-generator/commit/2f2ea432506e080888efaf4825843a3fe4e49290))
+* **generator:** a path segment named System, Microsoft or Atc no longer breaks the build - generated code names framework types global::-qualified ([2f2ea43](https://github.com/atc-net/atc-rest-api-source-generator/commit/2f2ea432506e080888efaf4825843a3fe4e49290))
+
 ## [3.3.0](https://github.com/atc-net/atc-rest-api-source-generator/compare/v3.2.0...v3.3.0) (2026-11-05)
 
 
