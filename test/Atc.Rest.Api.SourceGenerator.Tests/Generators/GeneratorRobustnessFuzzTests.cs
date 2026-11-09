@@ -128,7 +128,7 @@ public sealed class GeneratorRobustnessFuzzTests : IClassFixture<FuzzResultsLog>
         var yaml = ReadScenario(scenario);
         var crashes = new List<string>();
 
-        using var folder = new TempFolder();
+        using var folder = new IsolatedProjectFolder("atc-fuzz");
         var compiled = new bool[Generators.Length];
         var mutants = new JsonArray();
         for (var mutant = 0; mutant < MutantsPerScenario; mutant++)
@@ -164,7 +164,7 @@ public sealed class GeneratorRobustnessFuzzTests : IClassFixture<FuzzResultsLog>
         var yaml = ReadScenario(scenario);
         var crashes = new List<string>();
 
-        using var folder = new TempFolder();
+        using var folder = new IsolatedProjectFolder("atc-fuzz");
         for (var mutant = 0; mutant < System.Math.Min(MutantsPerScenario, 2); mutant++)
         {
             var (part, mutation) = Mutate(yaml, StableSeed(scenario + "_part") + mutant);
@@ -187,7 +187,7 @@ public sealed class GeneratorRobustnessFuzzTests : IClassFixture<FuzzResultsLog>
         var yaml = Json(ReadScenario("PetStoreSimple"));
         var crashes = new List<string>();
 
-        using var folder = new TempFolder();
+        using var folder = new IsolatedProjectFolder("atc-fuzz");
         foreach (var (generator, marker) in Generators)
         {
             var (diagnostics, _) = Run(generator, folder.Path, markerContent, yaml);
@@ -205,7 +205,7 @@ public sealed class GeneratorRobustnessFuzzTests : IClassFixture<FuzzResultsLog>
         var yaml = Json(ReadScenario("PetStoreSimple"));
         var crashes = new List<string>();
 
-        using var folder = new TempFolder();
+        using var folder = new IsolatedProjectFolder("atc-fuzz");
         RunEveryGenerator(
             folder.Path,
             "{\"overlays\": [\"Contoso.overlay.yaml\"]}",
@@ -756,30 +756,4 @@ public sealed class GeneratorRobustnessFuzzTests : IClassFixture<FuzzResultsLog>
     // string.GetHashCode differs per process: a seed must not
     private static int StableSeed(string text)
         => text.Aggregate(17, (hash, c) => unchecked((hash * 31) + c));
-
-    /// <summary>
-    /// A folder of the test's own: the handler generator writes its scaffolds next to the marker.
-    /// </summary>
-    private sealed class TempFolder : IDisposable
-    {
-        public TempFolder()
-        {
-            Path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "atc-fuzz-" + Guid.NewGuid().ToString("N"));
-            Directory.CreateDirectory(Path);
-        }
-
-        public string Path { get; }
-
-        public void Dispose()
-        {
-            try
-            {
-                Directory.Delete(Path, recursive: true);
-            }
-            catch (IOException)
-            {
-                // A temp folder is harmless, a red test is not
-            }
-        }
-    }
 }

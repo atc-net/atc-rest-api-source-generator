@@ -27,7 +27,7 @@ public sealed class MultiPartValidationTests : IDisposable
                   description: ok
         """;
 
-    private readonly string markerDirectory = Path.Combine(Path.GetTempPath(), "atc-multipart-validation-" + Guid.NewGuid().ToString("N"));
+    private readonly IsolatedProjectFolder project = new("atc-multipart-validation");
 
     public static TheoryData<string, string> Generators => new()
     {
@@ -103,12 +103,7 @@ public sealed class MultiPartValidationTests : IDisposable
     }
 
     public void Dispose()
-    {
-        if (Directory.Exists(markerDirectory))
-        {
-            Directory.Delete(markerDirectory, recursive: true);
-        }
-    }
+        => project.Dispose();
 
     /// <summary>
     /// The rule ids the document validator owns (naming, operation, schema, security, ... rules);
@@ -140,7 +135,7 @@ public sealed class MultiPartValidationTests : IDisposable
         };
 
         // The handlers generator scaffolds files next to its marker, so the marker lives in a temp folder.
-        Directory.CreateDirectory(markerDirectory);
+        var markerDirectory = project.Path;
 
         var additionalTexts = yamlFiles
             .Select(f => (AdditionalText)new InMemoryAdditionalText(f.Path, f.Content))

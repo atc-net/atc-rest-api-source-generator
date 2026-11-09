@@ -27,43 +27,36 @@ public sealed class EmptyDocumentGenerationTests
     [Fact]
     public void NoOperations_EveryGeneratorReportsPTH002_AndWhatItEmitsCompiles()
     {
-        var folder = Path.Combine(Path.GetTempPath(), "atc-empty-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(folder);
-        try
+        using var project = new IsolatedProjectFolder("atc-empty");
+        var folder = project.Path;
+        var serverSources = new List<(string HintName, string Source)>();
+        foreach (var (generator, marker) in Generators)
         {
-            var serverSources = new List<(string HintName, string Source)>();
-            foreach (var (generator, marker) in Generators)
+            // Every "Auto" MinimalApi mode on: the server generator emits its unified extensions when it can
+            var compilation = CSharpCompilation.Create(
+                "Contoso.Empty",
+                references: CompilationVerificationHarness.GetFullFrameworkReferences(includeMinimalApi: true),
+                options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+            var driver = CSharpGeneratorDriver
+                .Create(generator)
+                .AddAdditionalTexts([
+                    new CompilationVerificationHarness.InMemoryAdditionalText(Path.Combine(folder, marker), "{}"),
+                    new CompilationVerificationHarness.InMemoryAdditionalText(Path.Combine(folder, "Contoso.yaml"), Specification),
+                ]);
+            driver = (CSharpGeneratorDriver)driver.RunGeneratorsAndUpdateCompilation(compilation, out _, out var diagnostics, CancellationToken.None);
+            var sources = driver.GetRunResult().GeneratedTrees.Select(t => (t.FilePath, t.GetText().ToString())).ToList();
+            if (generator is ApiServerGenerator)
             {
-                // Every "Auto" MinimalApi mode on: the server generator emits its unified extensions when it can
-                var compilation = CSharpCompilation.Create(
-                    "Contoso.Empty",
-                    references: CompilationVerificationHarness.GetFullFrameworkReferences(includeMinimalApi: true),
-                    options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
-                var driver = CSharpGeneratorDriver
-                    .Create(generator)
-                    .AddAdditionalTexts([
-                        new CompilationVerificationHarness.InMemoryAdditionalText(Path.Combine(folder, marker), "{}"),
-                        new CompilationVerificationHarness.InMemoryAdditionalText(Path.Combine(folder, "Contoso.yaml"), Specification),
-                    ]);
-                driver = (CSharpGeneratorDriver)driver.RunGeneratorsAndUpdateCompilation(compilation, out _, out var diagnostics, CancellationToken.None);
-                var sources = driver.GetRunResult().GeneratedTrees.Select(t => (t.FilePath, t.GetText().ToString())).ToList();
-                if (generator is ApiServerGenerator)
-                {
-                    serverSources = sources;
-                }
-
-                var warning = Assert.Single(diagnostics, d => d.Id == "ATC_API_PTH002");
-                Assert.Equal(DiagnosticSeverity.Warning, warning.Severity);
-                Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
-
-                List<(string HintName, string Source)> toCompile = generator is ApiServerDomainGenerator ? [.. serverSources, .. sources] : sources;
-                var errors = CompilationVerificationHarness.CompileGeneratedSources(toCompile, includeMinimalApi: true);
-                Assert.True(errors.Count == 0, $"{marker}:\n" + string.Join("\n", errors));
+                serverSources = sources;
             }
-        }
-        finally
-        {
-            Directory.Delete(folder, recursive: true);
+
+            var warning = Assert.Single(diagnostics, d => d.Id == "ATC_API_PTH002");
+            Assert.Equal(DiagnosticSeverity.Warning, warning.Severity);
+            Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+
+            List<(string HintName, string Source)> toCompile = generator is ApiServerDomainGenerator ? [.. serverSources, .. sources] : sources;
+            var errors = CompilationVerificationHarness.CompileGeneratedSources(toCompile, includeMinimalApi: true);
+            Assert.True(errors.Count == 0, $"{marker}:\n" + string.Join("\n", errors));
         }
     }
 }

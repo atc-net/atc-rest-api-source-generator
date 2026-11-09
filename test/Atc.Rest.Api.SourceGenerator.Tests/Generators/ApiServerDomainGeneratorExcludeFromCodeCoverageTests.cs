@@ -10,17 +10,11 @@ namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 /// </summary>
 public sealed class ApiServerDomainGeneratorExcludeFromCodeCoverageTests : IDisposable
 {
-    private readonly string tempMarkerDirectory = Path.Combine(Path.GetTempPath(), "atc-domain-gen-tests-" + Guid.NewGuid().ToString("N"));
-
-    public ApiServerDomainGeneratorExcludeFromCodeCoverageTests()
-        => Directory.CreateDirectory(tempMarkerDirectory);
+    private readonly IsolatedProjectFolder project = new("atc-domain-gen-tests");
 
     public void Dispose()
     {
-        if (Directory.Exists(tempMarkerDirectory))
-        {
-            Directory.Delete(tempMarkerDirectory, recursive: true);
-        }
+        project.Dispose();
 
         GC.SuppressFinalize(this);
     }
@@ -60,7 +54,7 @@ public sealed class ApiServerDomainGeneratorExcludeFromCodeCoverageTests : IDisp
         var yamlPath = CompilationVerificationHarness.GetScenarioPath("PetStoreSimple", "PetStoreSimple.yaml");
         var yamlContent = File.ReadAllText(yamlPath);
 
-        var handlersMarkerPath = Path.Combine(tempMarkerDirectory, ".atc-rest-api-server-handlers");
+        var handlersMarkerPath = Path.Combine(project.Path, ".atc-rest-api-server-handlers");
         var handlersMarkerContent = excludeFromCodeCoverage
             ? """{"excludeFromCodeCoverage": true}"""
             : "{}";

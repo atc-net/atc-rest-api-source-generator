@@ -382,6 +382,9 @@ public partial class ErrorResponseBodyRuntimeTests
                     {
                         if (failAfter == i - 1)
                         {
+                            // The failure aborts the connection, and a reset on Windows drops what the client has
+                            // received but not yet read: the client gets time to read the items sent before it
+                            await System.Threading.Tasks.Task.Delay(250, cancellationToken);
                             throw new InvalidOperationException("the handler failed after " + failAfter + " items");
                         }
 

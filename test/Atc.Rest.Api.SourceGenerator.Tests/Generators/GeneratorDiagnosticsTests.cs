@@ -454,25 +454,19 @@ public class GeneratorDiagnosticsTests
     [Fact]
     public void Domain_ScaffoldThatCannotBeWritten_ReportsGEN019()
     {
-        var folder = Path.Combine(Path.GetTempPath(), "atc-gen019-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(folder);
-        try
-        {
-            // The output folder is taken by a file: no scaffold can be written there
-            File.WriteAllText(Path.Combine(folder, "Handlers"), "a file, not a folder");
-            var marker = Marker(Path.Combine(folder, ".atc-rest-api-server-handlers"), """{ "generateHandlersOutput": "Handlers" }""");
+        using var project = new IsolatedProjectFolder("atc-gen019");
+        var folder = project.Path;
 
-            var diagnostics = RunDiagnostics(new ApiServerDomainGenerator(), [Spec(Yaml, Path.Combine(folder, ProjectName + ".yaml")), marker], Full());
+        // The output folder is taken by a file: no scaffold can be written there
+        File.WriteAllText(Path.Combine(folder, "Handlers"), "a file, not a folder");
+        var marker = Marker(Path.Combine(folder, ".atc-rest-api-server-handlers"), """{ "generateHandlersOutput": "Handlers" }""");
 
-            var warning = Assert.Single(diagnostics, d => d.Id == "ATC_API_GEN019");
-            Assert.Equal(DiagnosticSeverity.Warning, warning.Severity);
-            Assert.Contains("ListThingsHandler", warning.GetMessage(CultureInfo.InvariantCulture), StringComparison.Ordinal);
-            Assert.DoesNotContain(diagnostics, d => d.Id == "ATC_API_GEN005");
-        }
-        finally
-        {
-            Directory.Delete(folder, recursive: true);
-        }
+        var diagnostics = RunDiagnostics(new ApiServerDomainGenerator(), [Spec(Yaml, Path.Combine(folder, ProjectName + ".yaml")), marker], Full());
+
+        var warning = Assert.Single(diagnostics, d => d.Id == "ATC_API_GEN019");
+        Assert.Equal(DiagnosticSeverity.Warning, warning.Severity);
+        Assert.Contains("ListThingsHandler", warning.GetMessage(CultureInfo.InvariantCulture), StringComparison.Ordinal);
+        Assert.DoesNotContain(diagnostics, d => d.Id == "ATC_API_GEN005");
     }
 
     [Fact]
