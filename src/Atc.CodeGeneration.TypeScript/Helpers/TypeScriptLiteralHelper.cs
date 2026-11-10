@@ -124,7 +124,7 @@ public static class TypeScriptLiteralHelper
                 sb.Append('_');
             }
 
-            sb.Append(capitalizeNext ? TypeScriptCasingHelper.ToUpper(c) : c);
+            sb.Append(capitalizeNext ? Atc.Helpers.InvariantCasingHelper.ToUpper(c) : c);
             capitalizeNext = false;
             pendingSeparator = false;
             previousWasDigit = char.IsDigit(c);

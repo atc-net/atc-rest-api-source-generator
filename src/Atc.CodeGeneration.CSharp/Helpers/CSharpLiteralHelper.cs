@@ -8,17 +8,6 @@ public static class CSharpLiteralHelper
 {
     private static readonly char[] LineBreaks = [(char)13, (char)10];
 
-    private static readonly HashSet<string> Keywords = new(StringComparer.Ordinal)
-    {
-        "abstract", "as", "base", "bool", "break", "byte", "case", "catch", "char", "checked", "class", "const",
-        "continue", "decimal", "default", "delegate", "do", "double", "else", "enum", "event", "explicit", "extern",
-        "false", "finally", "fixed", "float", "for", "foreach", "goto", "if", "implicit", "in", "int", "interface",
-        "internal", "is", "lock", "long", "namespace", "new", "null", "object", "operator", "out", "override",
-        "params", "private", "protected", "public", "readonly", "ref", "return", "sbyte", "sealed", "short",
-        "sizeof", "stackalloc", "static", "string", "struct", "switch", "this", "throw", "true", "try", "typeof",
-        "uint", "ulong", "unchecked", "unsafe", "ushort", "using", "virtual", "void", "volatile", "while",
-    };
-
     // An ampersand that does not start an entity, and a "<" that does not start a documentation tag
     // (the generators write <c>, <see cref="..."/>, <para> ... into the texts themselves).
     private static readonly System.Text.RegularExpressions.Regex BareAmpersand = new(
@@ -153,7 +142,7 @@ public static class CSharpLiteralHelper
     {
         if (string.IsNullOrEmpty(name) ||
             !(char.IsLetter(name[0]) || name[0] == '_') ||
-            Keywords.Contains(name))
+            Atc.Helpers.CSharpKeywordHelper.IsReservedKeyword(name))
         {
             return false;
         }
@@ -208,7 +197,7 @@ public static class CSharpLiteralHelper
                 sb.Append('_');
             }
 
-            sb.Append(capitalizeNext ? IdentifierCasingHelper.ToUpper(c) : c);
+            sb.Append(capitalizeNext ? Atc.Helpers.InvariantCasingHelper.ToUpper(c) : c);
             capitalizeNext = false;
             pendingSeparator = false;
             previousWasDigit = char.IsDigit(c);

@@ -107,7 +107,7 @@ public static class NamespaceResolver
     private static bool IsValidIdentifier(string segment)
     {
         if (segment.Length == 0 ||
-            CSharpKeywords.IsKeyword(segment))
+            CSharpKeywordHelper.IsReservedKeyword(segment))
         {
             return false;
         }
@@ -139,9 +139,9 @@ public static class NamespaceResolver
             return segment;
         }
 
-        if (CSharpKeywords.IsKeyword(segment))
+        if (CSharpKeywordHelper.IsReservedKeyword(segment))
         {
-            return IdentifierCasingHelper.ToUpper(segment[0]) + segment.Substring(1);
+            return InvariantCasingHelper.ToUpper(segment[0]) + segment.Substring(1);
         }
 
         var sb = new StringBuilder(segment.Length + 1);
@@ -154,7 +154,7 @@ public static class NamespaceResolver
                 continue;
             }
 
-            sb.Append(startOfWord ? IdentifierCasingHelper.ToUpper(c) : c);
+            sb.Append(startOfWord ? InvariantCasingHelper.ToUpper(c) : c);
             startOfWord = false;
         }
 

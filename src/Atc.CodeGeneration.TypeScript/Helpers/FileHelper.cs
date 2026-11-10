@@ -5,8 +5,6 @@ namespace Atc.CodeGeneration.TypeScript.Helpers;
 /// </summary>
 public static class FileHelper
 {
-    private static readonly Encoding Utf8NoBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
-
     /// <summary>
     /// Writes the content as UTF-8 without BOM, with LF line endings and without trailing whitespace, creating the
     /// directory if needed. A file that already holds that content is left untouched, so a watcher or bundler does not
@@ -40,54 +38,9 @@ public static class FileHelper
             throw new ArgumentNullException(nameof(filePath));
         }
 
-        var directory = Path.GetDirectoryName(filePath);
-        if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
-        {
-            Directory.CreateDirectory(directory);
-        }
-
-        var normalized = ToLf(content ?? string.Empty);
-        if (File.Exists(filePath))
-        {
-            var existing = File.ReadAllText(filePath, Utf8NoBom);
-            if (HasUniformLineEndings(existing) &&
-                string.Equals(ToLf(existing), normalized, StringComparison.Ordinal))
-            {
-                return false;
-            }
-        }
-
-        File.WriteAllText(filePath, normalized, Utf8NoBom);
-        return true;
+        return Atc.Helpers.FileHelper.WriteAllTextIfChanged(
+            new FileInfo(filePath),
+            content ?? string.Empty,
+            useLineFeedLineEndings: true);
     }
-
-    // All LF or all CRLF (no lone CR)
-    private static bool HasUniformLineEndings(string text)
-    {
-        var cr = 0;
-        var lf = 0;
-        var crlf = 0;
-        for (var i = 0; i < text.Length; i++)
-        {
-            if (text[i] == '\r')
-            {
-                cr++;
-            }
-            else if (text[i] == '\n')
-            {
-                lf++;
-                if (i > 0 && text[i - 1] == '\r')
-                {
-                    crlf++;
-                }
-            }
-        }
-
-        return cr == crlf && (crlf == 0 || crlf == lf);
-    }
-
-    private static string ToLf(string text)
-        => text
-            .Replace("\r\n", "\n")
-            .Replace('\r', '\n');
 }

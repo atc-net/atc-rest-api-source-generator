@@ -312,7 +312,7 @@ public static class ResponseHeaderFactoryHelper
                     continue;
                 }
 
-                var propertyName = taken.Claim(header.Key.ToPascalCaseForDotNet().WithIdentifierStart("Response") + "Header");
+                var propertyName = UniqueNameHelper.Claim(taken, CSharpKeywordHelper.EnsureIdentifierStart(header.Key.ToPascalCaseForDotNet(), "Response") + "Header");
                 headers.Add(new DeclaredResponseHeader(header.Key, propertyName, type, isArray, kind, fields, explode));
             }
         }
@@ -877,14 +877,14 @@ public static class ResponseHeaderFactoryHelper
         string headerName,
         HashSet<string> taken)
     {
-        var pascal = headerName.ToPascalCaseForDotNet().WithIdentifierStart("Header");
-        var name = IdentifierCasingHelper.ToLower(pascal[0]) + pascal.Substring(1);
-        if (CSharpKeywords.IsKeyword(name) || taken.Contains(name))
+        var pascal = CSharpKeywordHelper.EnsureIdentifierStart(headerName.ToPascalCaseForDotNet(), "Header");
+        var name = InvariantCasingHelper.ToLower(pascal[0]) + pascal.Substring(1);
+        if (CSharpKeywordHelper.IsReservedKeyword(name) || taken.Contains(name))
         {
             name += "Header";
         }
 
-        return taken.Claim(name);
+        return UniqueNameHelper.Claim(taken, name);
     }
 
     private static (string TypeName, bool IsReference, string Text) TypeOf(

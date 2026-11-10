@@ -107,7 +107,7 @@ public static class ExtensibleEnumContentGenerator
             if (ReservedMemberNames.Contains(memberName) ||
                 string.Equals(memberName, parameters.EnumTypeName, StringComparison.Ordinal))
             {
-                memberName = used.Claim(memberName + "Member");
+                memberName = UniqueNameHelper.Claim(used, memberName + "Member");
             }
 
             members.Add((memberName, CSharpLiteralHelper.ToStringLiteral(value.EnumMemberValue ?? value.Name)));

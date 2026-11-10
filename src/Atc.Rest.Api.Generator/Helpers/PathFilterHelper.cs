@@ -85,86 +85,25 @@ public static class PathFilterHelper
     }
 
     /// <summary>
-    /// Checks if a path matches any of the given glob patterns.
+    /// Checks if a path matches any of the given glob patterns (see <see cref="MatchesPattern"/>).
     /// </summary>
+    /// <param name="path">The OpenAPI path.</param>
+    /// <param name="patterns">The glob patterns.</param>
+    /// <returns><see langword="true"/> when at least one pattern matches.</returns>
     public static bool MatchesAnyPattern(
         string path,
         IList<string> patterns)
-    {
-        foreach (var pattern in patterns)
-        {
-            if (MatchesPattern(path, pattern))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
+        => GlobHelper.IsMatchAny(path, patterns);
 
     /// <summary>
-    /// Checks if a path matches a glob pattern.
-    /// Supports: * (single segment), ** (any segments), literal text.
+    /// Checks if a path matches a glob pattern: <c>**</c> matches any number of segments, <c>*</c> a single segment
+    /// (or any characters within one), literal text matches regardless of case.
     /// </summary>
-    [SuppressMessage("", "S1075:URIs should not be hardcoded", Justification = "OpenAPI path separators, not file paths.")]
+    /// <param name="path">The OpenAPI path.</param>
+    /// <param name="pattern">The glob pattern.</param>
+    /// <returns><see langword="true"/> when the pattern matches the whole path.</returns>
     public static bool MatchesPattern(
         string path,
         string pattern)
-    {
-        // Normalize: ensure both start with /
-        if (!path.StartsWith("/", StringComparison.Ordinal))
-        {
-            path = "/" + path;
-        }
-
-        if (!pattern.StartsWith("/", StringComparison.Ordinal))
-        {
-            pattern = "/" + pattern;
-        }
-
-        var pathSegments = path.Split('/');
-        var patternSegments = pattern.Split('/');
-
-        return MatchSegments(pathSegments, patternSegments);
-    }
-
-    // Dynamic programming match: dp[i, j] is true iff pathSegments[i..] matches patternSegments[j..].
-    // Each state is evaluated once, giving O(pathLen * patternLen) worst case — avoids the
-    // exponential backtracking the recursive version could incur on inputs like "/**/a/**/b/**/c".
-    [SuppressMessage("Performance", "CA1814:Prefer jagged arrays over multidimensional", Justification = "Dense DP lookup with bounded small dimensions; rectangular bool[,] is clearer and avoids per-row allocation.")]
-    private static bool MatchSegments(
-        string[] pathSegments,
-        string[] patternSegments)
-    {
-        var p = pathSegments.Length;
-        var q = patternSegments.Length;
-
-        var dp = new bool[p + 1, q + 1];
-        dp[p, q] = true;
-
-        for (var j = q - 1; j >= 0; j--)
-        {
-            var patternSeg = patternSegments[j];
-
-            if (patternSeg == "**")
-            {
-                // ** matches zero or more path segments.
-                for (var i = p; i >= 0; i--)
-                {
-                    dp[i, j] = dp[i, j + 1] || (i < p && dp[i + 1, j]);
-                }
-            }
-            else
-            {
-                for (var i = p - 1; i >= 0; i--)
-                {
-                    var literalMatch = patternSeg == "*"
-                        || string.Equals(pathSegments[i], patternSeg, StringComparison.OrdinalIgnoreCase);
-                    dp[i, j] = literalMatch && dp[i + 1, j + 1];
-                }
-            }
-        }
-
-        return dp[0, 0];
-    }
+        => GlobHelper.IsMatch(path, pattern);
 }

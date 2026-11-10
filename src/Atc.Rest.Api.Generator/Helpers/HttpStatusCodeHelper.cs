@@ -99,34 +99,7 @@ public static class HttpStatusCodeHelper
     /// For undefined codes (e.g., 499, 529), returns "Status{code}" (e.g., "Status499").
     /// </summary>
     public static string ToEnumName(int statusCode)
-    {
-        // Codes with an alias in HttpStatusCode (Ambiguous, Moved, Redirect, RedirectMethod, RedirectKeepVerb,
-        // UnprocessableContent): always one fixed name, whichever alias Enum.ToString would pick.
-        switch (statusCode)
-        {
-            case 300:
-                return "MultipleChoices";
-            case 301:
-                return "MovedPermanently";
-            case 302:
-                return "Found";
-            case 303:
-                return "SeeOther";
-            case 307:
-                return "TemporaryRedirect";
-            case 422:
-                return "UnprocessableEntity";
-        }
-
-        var httpStatusCode = (System.Net.HttpStatusCode)statusCode;
-
-        if (Enum.IsDefined(typeof(System.Net.HttpStatusCode), statusCode))
-        {
-            return httpStatusCode.ToString();
-        }
-
-        return $"Status{statusCode}";
-    }
+        => System.Net.HttpStatusCodeExtensions.ToEnumName((System.Net.HttpStatusCode)statusCode);
 
     /// <summary>
     /// Tries to map an HTTP status code string (e.g. "404") to its ASP.NET Core

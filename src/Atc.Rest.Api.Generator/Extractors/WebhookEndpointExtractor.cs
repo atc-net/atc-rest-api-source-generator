@@ -190,7 +190,7 @@ public static class WebhookEndpointExtractor
     {
         // Get operation ID or generate from webhook name
         var operationId = OperationNamesExtractor.WebhookEndpointName(operation, webhookName);
-        var handlerName = IdentifierCasingHelper.ToUpperFirst(operationId);
+        var handlerName = InvariantCasingHelper.ToUpperFirst(operationId);
         var handlerInterfaceName = $"I{handlerName}WebhookHandler";
 
         // Webhooks typically use POST, but the declared verb is what the subscriber will call.

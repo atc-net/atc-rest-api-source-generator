@@ -483,7 +483,7 @@ public static class PolymorphicTypeExtractor
 
         foreach (var variant in config.Variants)
         {
-            var local = IdentifierCasingHelper.ToLower(variant.TypeName[0]) + variant.TypeName.Substring(1) + "Value";
+            var local = InvariantCasingHelper.ToLower(variant.TypeName[0]) + variant.TypeName.Substring(1) + "Value";
             sb.AppendLine();
             sb.AppendLine($"        {variant.TypeName}? {local} = null;");
             sb.AppendLine("        try");
