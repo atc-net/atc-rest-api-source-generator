@@ -4,17 +4,17 @@ namespace Atc.Rest.Api.Generator.Cli.Commands;
 /// Command to execute migration from old CLI-generated API to source generators.
 /// </summary>
 [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "CLI needs graceful error handling.")]
-public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSettings>
+public sealed class MigrateExecuteCommand : AsyncCommand<MigrateExecuteCommandSettings>
 {
-    private readonly INugetPackageVersionService nugetService;
+    private readonly INugetFeedClient nugetFeedClient;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="MigrateExecuteCommand"/> class.
     /// </summary>
-    /// <param name="nugetService">Resolves the source generator package version written into the migrated project files.</param>
-    public MigrateExecuteCommand(INugetPackageVersionService nugetService)
+    /// <param name="nugetFeedClient">Resolves the source generator package version written into the migrated project files.</param>
+    public MigrateExecuteCommand(INugetFeedClient nugetFeedClient)
     {
-        this.nugetService = nugetService;
+        this.nugetFeedClient = nugetFeedClient;
     }
 
     /// <summary>
@@ -24,7 +24,7 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
     /// <param name="settings">The parsed command-line settings.</param>
     /// <param name="cancellationToken">Cancels the command.</param>
     /// <returns>0 when the migration (or dry run) completed; otherwise 1.</returns>
-    public override int Execute(
+    public override async Task<int> ExecuteAsync(
         CommandContext context,
         MigrateExecuteCommandSettings settings,
         CancellationToken cancellationToken)
@@ -82,7 +82,7 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
 
             // Step 2: Git status check
             var rootDirectory = validationSettings.GetSolutionDirectory();
-            if (!CheckGitStatus(rootDirectory, settings.Force, settings.DryRun))
+            if (!await CheckGitStatusAsync(rootDirectory, settings.Force, settings.DryRun))
             {
                 AnsiConsole.MarkupLine("[yellow]Migration cancelled by user.[/]");
                 return 1;
@@ -395,14 +395,12 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
 
                 // Step 6: Resolve package versions from NuGet (with fallback)
                 ctx.Status("Resolving package versions...");
-                var sourceGeneratorVersion = TaskHelper.RunSync(() => nugetService.GetLatestVersionOrFallbackAsync(
+                var sourceGeneratorVersion = TaskHelper.RunSync(() => nugetFeedClient.GetLatestStableVersionAsync(
                     PackageVersionDefaults.SourceGeneratorPackageId,
-                    PackageVersionDefaults.SourceGeneratorFallback,
-                    cancellationToken));
-                var restClientVersion = TaskHelper.RunSync(() => nugetService.GetLatestVersionOrFallbackAsync(
+                    cancellationToken)) ?? PackageVersionDefaults.SourceGeneratorFallback;
+                var restClientVersion = TaskHelper.RunSync(() => nugetFeedClient.GetLatestStableVersionAsync(
                     PackageVersionDefaults.RestClientPackageId,
-                    PackageVersionDefaults.RestClientMinFallback,
-                    cancellationToken));
+                    cancellationToken)) ?? PackageVersionDefaults.RestClientMinFallback;
 
                 // Step 7: Modify project files
                 ctx.Status(dryRun ? "Analyzing project modifications..." : "Modifying project files...");
@@ -1058,19 +1056,19 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
             $"[dim]Summary: {summary.CreatedFiles.Count} create, {deleteCount} delete, {modifyCount} modify, {summary.RenamedProjects.Count} rename[/]");
     }
 
-    private static bool CheckGitStatus(
+    private static async Task<bool> CheckGitStatusAsync(
         string rootDirectory,
         bool force,
         bool dryRun)
     {
-        var gitStatus = GitStatusChecker.Check(rootDirectory);
+        var gitStatus = await GitStatusChecker.CheckAsync(rootDirectory);
 
         if (!gitStatus.IsGitRepository)
         {
             AnsiConsole.MarkupLine("[yellow]![/] Not a git repository. Cannot check for uncommitted changes.");
             if (!force)
             {
-                return AnsiConsole.Confirm("Do you want to proceed anyway?", defaultValue: false);
+                return await AnsiConsole.ConfirmAsync("Do you want to proceed anyway?", defaultValue: false);
             }
 
             return true;

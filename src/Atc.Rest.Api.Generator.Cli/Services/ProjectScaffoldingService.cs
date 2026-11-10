@@ -102,13 +102,13 @@ public sealed class ProjectScaffoldingService
 
             if (!Directory.Exists(srcPath))
             {
-                TrackedFile.CreateDirectory(srcPath);
+                FileSystemTransaction.CreateDirectory(srcPath);
                 AnsiConsole.MarkupLine("[green]✓[/] Created directory: src/");
             }
 
             if (!Directory.Exists(testPath))
             {
-                TrackedFile.CreateDirectory(testPath);
+                FileSystemTransaction.CreateDirectory(testPath);
                 AnsiConsole.MarkupLine("[green]✓[/] Created directory: test/");
             }
 
@@ -172,7 +172,7 @@ public sealed class ProjectScaffoldingService
                 return true;
             }
 
-            TrackedFile.WriteAllText(slnxPath, sb.ToString());
+            FileSystemTransaction.WriteAllText(slnxPath, sb.ToString());
             AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created solution file: {solutionName}.slnx");
             return true;
         }
@@ -215,7 +215,7 @@ public sealed class ProjectScaffoldingService
         {
             if (!Directory.Exists(testProjectPath))
             {
-                TrackedFile.CreateDirectory(testProjectPath);
+                FileSystemTransaction.CreateDirectory(testProjectPath);
             }
 
             if (!File.Exists(csprojPath))
@@ -223,7 +223,7 @@ public sealed class ProjectScaffoldingService
                 var csprojContent = withoutCodingRules
                     ? GenerateStandaloneTestProjectContent(reference, targetFramework)
                     : GenerateTestProjectContent(reference);
-                TrackedFile.WriteAllText(csprojPath, csprojContent);
+                FileSystemTransaction.WriteAllText(csprojPath, csprojContent);
                 AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created test project: {testProjectName}.csproj");
 
                 // Create a sample test file
@@ -231,7 +231,7 @@ public sealed class ProjectScaffoldingService
                 if (!File.Exists(testFilePath))
                 {
                     var testContent = GenerateTestFileContent(testProjectName);
-                    TrackedFile.WriteAllText(testFilePath, testContent);
+                    FileSystemTransaction.WriteAllText(testFilePath, testContent);
                     AnsiConsole.MarkupLine("[green]✓[/] Created sample test: UnitTest1.cs");
                 }
             }
@@ -263,7 +263,7 @@ public sealed class ProjectScaffoldingService
 
             if (!File.Exists(jsonPath))
             {
-                TrackedFile.WriteAllText(jsonPath, CodingRulesJson);
+                FileSystemTransaction.WriteAllText(jsonPath, CodingRulesJson);
                 AnsiConsole.MarkupLine("[green]✓[/] Created atc-coding-rules-updater.json");
             }
             else
@@ -273,7 +273,7 @@ public sealed class ProjectScaffoldingService
 
             if (!File.Exists(ps1Path))
             {
-                TrackedFile.WriteAllText(ps1Path, CodingRulesPs1);
+                FileSystemTransaction.WriteAllText(ps1Path, CodingRulesPs1);
                 AnsiConsole.MarkupLine("[green]✓[/] Created atc-coding-rules-updater.ps1");
             }
             else
@@ -300,7 +300,7 @@ public sealed class ProjectScaffoldingService
     /// <param name="organizationName">Organization name for initial setup (only used if Directory.Build.props doesn't exist).</param>
     /// <param name="repositoryName">Repository name for initial setup (only used if Directory.Build.props doesn't exist).</param>
     /// <returns>True if successful, false otherwise.</returns>
-    public bool RunCodingRulesUpdater(
+    public async Task<bool> RunCodingRulesUpdaterAsync(
         string repoPath,
         string? organizationName = null,
         string? repositoryName = null)
@@ -323,14 +323,25 @@ public sealed class ProjectScaffoldingService
                                !string.IsNullOrWhiteSpace(repositoryName);
 
             // The updater downloads the rules: it gets its time, and then the command goes on without it
-            var run = ExternalTool.Run(
-                ExecutableResolver.Resolve("atc-coding-rules-updater"),
-                BuildCodingRulesUpdaterArguments(repoPath, optionsPath, includeNames, organizationName, repositoryName),
-                repoPath,
-                CodingRulesUpdaterTimeout);
-            var error = run.Error;
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = ProcessHelper.FindExecutableInPath("atc-coding-rules-updater")?.FullName ?? "atc-coding-rules-updater",
+                Arguments = BuildCodingRulesUpdaterArguments(repoPath, optionsPath, includeNames, organizationName, repositoryName),
+                WorkingDirectory = repoPath,
+                CreateNoWindow = true,
+            };
 
-            if (run.TimedOut)
+            var run = await ProcessHelper.ExecuteAsync(startInfo, CodingRulesUpdaterTimeout);
+            var error = run.StandardError;
+
+            if (run.IsStartFailure())
+            {
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]![/] Could not run atc-coding-rules-updater: {run.Output}");
+                AnsiConsole.MarkupLine("[dim]Run './atc-coding-rules-updater.ps1' manually to download coding rules.[/]");
+                return true; // Don't fail the whole process, just warn
+            }
+
+            if (run.IsTimedOut)
             {
                 AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]![/] atc-coding-rules-updater did not end within {CodingRulesUpdaterTimeout.TotalMinutes:0} minutes and was stopped");
                 AnsiConsole.MarkupLine("[dim]Run './atc-coding-rules-updater.ps1' manually to download coding rules.[/]");
@@ -402,7 +413,7 @@ public sealed class ProjectScaffoldingService
 
         try
         {
-            TrackedFile.WriteAllText(gitignorePath, GitIgnoreContent);
+            FileSystemTransaction.WriteAllText(gitignorePath, GitIgnoreContent);
             AnsiConsole.MarkupLine("[green]✓[/] Created .gitignore");
             return true;
         }
@@ -468,7 +479,7 @@ public sealed class ProjectScaffoldingService
             // Create project directory
             if (!Directory.Exists(hostProjectPath))
             {
-                TrackedFile.CreateDirectory(hostProjectPath);
+                FileSystemTransaction.CreateDirectory(hostProjectPath);
                 AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created directory: {hostProjectName}/");
             }
 
@@ -480,7 +491,7 @@ public sealed class ProjectScaffoldingService
                     targetFramework,
                     hostUi,
                     hostNamespace);
-                TrackedFile.WriteAllText(csprojPath, csprojContent);
+                FileSystemTransaction.WriteAllText(csprojPath, csprojContent);
                 AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created project file: {hostProjectName}.csproj");
             }
             else
@@ -496,7 +507,7 @@ public sealed class ProjectScaffoldingService
                     domainProjectName.LastAssemblyNameTerm,
                     hostUi,
                     hostUiMode);
-                TrackedFile.WriteAllText(programPath, programContent);
+                FileSystemTransaction.WriteAllText(programPath, programContent);
                 AnsiConsole.MarkupLine("[green]✓[/] Created Program.cs");
             }
             else
@@ -511,7 +522,7 @@ public sealed class ProjectScaffoldingService
             if (!File.Exists(globalUsingsPath))
             {
                 var globalUsingsContent = HostProjectFiles.GlobalUsingsContent(generatedNamespace, hostUi);
-                TrackedFile.WriteAllText(globalUsingsPath, globalUsingsContent);
+                FileSystemTransaction.WriteAllText(globalUsingsPath, globalUsingsContent);
                 AnsiConsole.MarkupLine("[green]✓[/] Created GlobalUsings.cs");
             }
             else
@@ -551,7 +562,7 @@ public sealed class ProjectScaffoldingService
             // Create project directory
             if (!Directory.Exists(aspireProjectPath))
             {
-                TrackedFile.CreateDirectory(aspireProjectPath);
+                FileSystemTransaction.CreateDirectory(aspireProjectPath);
                 AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created directory: {aspireProjectName}/");
             }
 
@@ -559,7 +570,7 @@ public sealed class ProjectScaffoldingService
             if (!File.Exists(csprojPath))
             {
                 var csprojContent = GenerateAspireProjectContent(apiProjectName, targetFramework);
-                TrackedFile.WriteAllText(csprojPath, csprojContent);
+                FileSystemTransaction.WriteAllText(csprojPath, csprojContent);
                 AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created project file: {aspireProjectName}.csproj");
             }
             else
@@ -571,7 +582,7 @@ public sealed class ProjectScaffoldingService
             if (!File.Exists(programPath))
             {
                 var programContent = GenerateAspireProgramContent(apiProjectName);
-                TrackedFile.WriteAllText(programPath, programContent);
+                FileSystemTransaction.WriteAllText(programPath, programContent);
                 AnsiConsole.MarkupLine("[green]✓[/] Created Program.cs");
             }
             else

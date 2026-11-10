@@ -10,7 +10,7 @@ internal static class GitStatusChecker
     /// </summary>
     /// <param name="rootDirectory">The root directory of the repository.</param>
     /// <returns>A result containing the list of uncommitted files.</returns>
-    public static GitStatusResult Check(string rootDirectory)
+    public static async Task<GitStatusResult> CheckAsync(string rootDirectory)
     {
         var result = new GitStatusResult();
 
@@ -27,19 +27,34 @@ internal static class GitStatusChecker
             result.IsGitRepository = true;
 
             // Run git status --porcelain
-            var run = ExternalTool.Run(ExecutableResolver.Resolve("git"), "status --porcelain", rootDirectory, TimeSpan.FromSeconds(60));
-            if (run.TimedOut)
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = ProcessHelper.FindExecutableInPath("git")?.FullName ?? "git",
+                Arguments = "status --porcelain",
+                WorkingDirectory = rootDirectory,
+                CreateNoWindow = true,
+            };
+
+            var run = await ProcessHelper.ExecuteAsync(startInfo, TimeSpan.FromSeconds(60));
+            if (run.IsTimedOut)
             {
                 result.GitCommandFailed = true;
                 result.ErrorMessage = "git status did not end within 60 seconds and was stopped.";
                 return result;
             }
 
-            var output = run.Output;
+            if (run.IsStartFailure())
+            {
+                result.GitCommandFailed = true;
+                result.ErrorMessage = run.Output;
+                return result;
+            }
+
+            var output = run.StandardOutput;
             if (run.ExitCode != 0)
             {
                 result.GitCommandFailed = true;
-                result.ErrorMessage = run.Error;
+                result.ErrorMessage = run.StandardError;
                 return result;
             }
 

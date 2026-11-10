@@ -17,7 +17,7 @@ public sealed class SpecSplitCommand : Command<SpecSplitCommandSettings>
         CommandContext context,
         SpecSplitCommandSettings settings,
         CancellationToken cancellationToken)
-        => FileTransaction.Run(() => ExecuteCore(context, settings, cancellationToken));
+        => CommandFileTransaction.Run(() => ExecuteCore(context, settings, cancellationToken));
 
     private int ExecuteCore(
         CommandContext context,
@@ -217,13 +217,13 @@ public sealed class SpecSplitCommand : Command<SpecSplitCommandSettings>
         // Ensure output directory exists
         if (!Directory.Exists(outputDir))
         {
-            TrackedFile.CreateDirectory(outputDir);
+            FileSystemTransaction.CreateDirectory(outputDir);
         }
 
         foreach (var file in splitResult.AllFiles)
         {
             var outputPath = Path.Combine(outputDir, file.FileName);
-            TrackedFile.WriteAllText(outputPath, file.Content);
+            FileSystemTransaction.WriteAllText(outputPath, file.Content);
             AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Written: {file.FileName}");
         }
 

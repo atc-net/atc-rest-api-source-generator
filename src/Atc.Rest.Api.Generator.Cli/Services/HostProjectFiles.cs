@@ -20,8 +20,8 @@ internal static class HostProjectFiles
             return;
         }
 
-        TrackedFile.CreateDirectory(Path.GetDirectoryName(launchSettingsPath)!);
-        TrackedFile.WriteAllText(launchSettingsPath, LaunchSettingsContent(projectName, hostUi));
+        FileSystemTransaction.CreateDirectory(Path.GetDirectoryName(launchSettingsPath)!);
+        FileSystemTransaction.WriteAllText(launchSettingsPath, LaunchSettingsContent(projectName, hostUi));
         AnsiConsole.MarkupLine("[green]✓[/] Created Properties/launchSettings.json");
     }
 
