@@ -39,10 +39,10 @@ internal static class FeatureLayerMap
             "Models and schemas",
             "Records from schemas: properties, allOf / oneOf / anyOf, discriminators, nullability, tuples, inline schemas, names that clash with C# or .NET.",
             [
-                "OpenApi:OpenApiSchemaExtensionsTests", "OpenApi:OpenApiSchemaReferenceExtensionsTests", "OpenApi:JsonSchemaTypeExtensionsTests", "OpenApi:TypeConflictRegistryTests", "OpenApi:CSharpKeywordsTests",
+                "OpenApi:OpenApiSchemaExtensionsTests", "OpenApi:OpenApiSchemaReferenceExtensionsTests", "OpenApi:JsonSchemaTypeExtensionsTests", "OpenApi:TypeConflictRegistryTests",
                 "Generator:SchemaExtractor*", "Generator:PolymorphicTypeExtractorTests", "Generator:TupleExtractorTests", "Generator:InlineSchemaExtractorTests", "Generator:InlineAllOfFlattenerTests", "Generator:ModelsAndProperties*",
                 "Generator:HostileSchemaKeywordsTests", "Generator:SystemTypeConflictResolverTests", "Generator:RecordContentGeneratorTests", "Generator:SchemaNameNormalizerTests", "Generator:SchemaTypeResolverTests", "Generator:SchemaLookupTests",
-                "Generator:PropertyNameRegistryTests", "Generator:JsonPropertyNameHelperTests", "Generator:DefaultValueHelperTests", "Generator:RecordSerializationTests", "Generator:CSharpIdentifierHelperTests",
+                "Generator:PropertyNameRegistryTests", "Generator:JsonPropertyNameHelperTests", "Generator:DefaultValueHelperTests", "Generator:RecordSerializationTests",
                 "SourceGenerator:PolymorphismWireTests", "SourceGenerator:TupleWireTests", "SourceGenerator:ClientSchemaTypeTests", "SourceGenerator:ComponentsReuseTests", "SourceGenerator:DiscriminatorImprovementsTests",
                 "SourceGenerator:InlineSchemaModelUsingTests", "SourceGenerator:ModelPropertyNameWireTests", "SourceGenerator:OptionalPropertyRuntimeTests", "SourceGenerator:RequiredNullablePropertyRuntimeTests", "SourceGenerator:RefSiblingTests", "SourceGenerator:UnusedComponentSchemaTests",
                 "SourceGenerator:ResultNameClashTests", "SourceGenerator:EscaperPropertyTests",

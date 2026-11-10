@@ -250,7 +250,7 @@ public static class CasingHelper
         // If it's PascalCase, just lowercase the first character
         if (IsPascalCase(operationId))
         {
-            return IdentifierCasingHelper.ToLower(operationId[0]) + operationId.Substring(1);
+            return InvariantCasingHelper.ToLower(operationId[0]) + operationId.Substring(1);
         }
 
         // Words split at a separator (-, _, a space, a dot): each keeps its own casing (gridOperatorID stays as it is,
@@ -261,9 +261,9 @@ public static class CasingHelper
         foreach (var word in words)
         {
             var text = word.Any(char.IsLetter) && word.Where(char.IsLetter).All(char.IsUpper)
-                ? IdentifierCasingHelper.ToLower(word)
+                ? InvariantCasingHelper.ToLower(word)
                 : word;
-            result.Append(result.Length == 0 ? IdentifierCasingHelper.ToLower(text[0]) : IdentifierCasingHelper.ToUpper(text[0]));
+            result.Append(result.Length == 0 ? InvariantCasingHelper.ToLower(text[0]) : InvariantCasingHelper.ToUpper(text[0]));
             result.Append(text, 1, text.Length - 1);
         }
 
@@ -285,7 +285,7 @@ public static class CasingHelper
         // If it's camelCase, just uppercase the first character
         if (IsCamelCase(value))
         {
-            return IdentifierCasingHelper.ToUpper(value[0]) + value.Substring(1);
+            return InvariantCasingHelper.ToUpper(value[0]) + value.Substring(1);
         }
 
         // If it contains separators, convert to PascalCase
@@ -305,12 +305,12 @@ public static class CasingHelper
 
             if (capitalizeNext)
             {
-                result.Append(IdentifierCasingHelper.ToUpper(c));
+                result.Append(InvariantCasingHelper.ToUpper(c));
                 capitalizeNext = false;
             }
             else
             {
-                result.Append(IdentifierCasingHelper.ToLower(c));
+                result.Append(InvariantCasingHelper.ToLower(c));
             }
         }
 
@@ -388,7 +388,7 @@ public static class CasingHelper
                 }
             }
 
-            result.Append(IdentifierCasingHelper.ToLower(c));
+            result.Append(InvariantCasingHelper.ToLower(c));
         }
 
         return result.ToString();

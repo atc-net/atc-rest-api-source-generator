@@ -895,7 +895,7 @@ public static class TypeScriptClientGenerationService
             // per-segment files are named after their path segment.
             var moduleName = segmentName == "handlers"
                 ? "handlers"
-                : TypeScriptCasingHelper.ToLowerFirst(segmentName);
+                : InvariantCasingHelper.ToLowerFirst(segmentName);
             plan.Add($"mocks/{moduleName}.ts", content);
             moduleNames.Add(moduleName);
         }

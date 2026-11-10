@@ -36,6 +36,6 @@ public sealed class PropertyNameRegistry
             name = "_" + name;
         }
 
-        return usedNames.Claim(name);
+        return UniqueNameHelper.Claim(usedNames, name);
     }
 }

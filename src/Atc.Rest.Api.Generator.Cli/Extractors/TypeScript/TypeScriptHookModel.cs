@@ -437,7 +437,7 @@ internal static class TypeScriptHookModel
             }
 
             return withoutGet.Length > 0
-                ? TypeScriptCasingHelper.ToLower(withoutGet[0]) + withoutGet[1..]
+                ? InvariantCasingHelper.ToLower(withoutGet[0]) + withoutGet[1..]
                 : methodName;
         }
 

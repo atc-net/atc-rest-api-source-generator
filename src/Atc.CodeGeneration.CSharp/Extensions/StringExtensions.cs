@@ -43,10 +43,10 @@ public static class StringExtensions
                 }
 
                 // Capitalize first letter, lowercase the rest
-                result.Append(IdentifierCasingHelper.ToUpper(word[0]));
+                result.Append(Atc.Helpers.InvariantCasingHelper.ToUpper(word[0]));
                 if (word.Length > 1)
                 {
-                    var lowerInvariant = IdentifierCasingHelper.ToLower(word.Substring(1));
+                    var lowerInvariant = Atc.Helpers.InvariantCasingHelper.ToLower(word.Substring(1));
                     result.Append(lowerInvariant);
                 }
             }
@@ -100,21 +100,21 @@ public static class StringExtensions
 
             if (separators.Length <= 0)
             {
-                return IdentifierCasingHelper.ToUpper(value.Substring(0, 1)) +
-                       IdentifierCasingHelper.ToLower(value.Substring(1));
+                return Atc.Helpers.InvariantCasingHelper.ToUpper(value.Substring(0, 1)) +
+                       Atc.Helpers.InvariantCasingHelper.ToLower(value.Substring(1));
             }
 
             if (separators.Length == 1 && value.IndexOfAny(separators) == -1)
             {
-                return IdentifierCasingHelper.ToUpper(value.Substring(0, 1)) +
-                       IdentifierCasingHelper.ToLower(value.Substring(1));
+                return Atc.Helpers.InvariantCasingHelper.ToUpper(value.Substring(0, 1)) +
+                       Atc.Helpers.InvariantCasingHelper.ToLower(value.Substring(1));
             }
 
             var strArray = value.Split(separators, StringSplitOptions.RemoveEmptyEntries);
             for (var i = 0; i < strArray.Length; i++)
             {
-                var tmp = IdentifierCasingHelper.ToUpper(strArray[i].Substring(0, 1)) +
-                          IdentifierCasingHelper.ToLower(strArray[i].Substring(1));
+                var tmp = Atc.Helpers.InvariantCasingHelper.ToUpper(strArray[i].Substring(0, 1)) +
+                          Atc.Helpers.InvariantCasingHelper.ToLower(strArray[i].Substring(1));
 
                 for (var j = 1; j < strArray[i].Length - 1; j++)
                 {
@@ -187,58 +187,6 @@ public static class StringExtensions
                 : value.TrimEnd();
 
         /// <summary>
-        /// Converts a singular noun to its plural form using basic English pluralization rules.
-        /// </summary>
-        /// <returns>The pluralized form of the word.</returns>
-        public string Pluralize()
-        {
-            if (string.IsNullOrEmpty(value))
-            {
-                return value;
-            }
-
-            // If already plural, return as-is
-            if (value.EndsWith("s", StringComparison.OrdinalIgnoreCase) ||
-                value.EndsWith("es", StringComparison.OrdinalIgnoreCase))
-            {
-                return value;
-            }
-
-            // Apply common pluralization rules
-            if (value.EndsWith("y", StringComparison.OrdinalIgnoreCase) &&
-                value.Length > 1 &&
-                !IsVowel(value[value.Length - 2]))
-            {
-                // words ending in consonant + y: category -> categories
-                return value.Substring(0, value.Length - 1) + "ies";
-            }
-
-            if (value.EndsWith("x", StringComparison.OrdinalIgnoreCase) ||
-                value.EndsWith("z", StringComparison.OrdinalIgnoreCase) ||
-                value.EndsWith("ch", StringComparison.OrdinalIgnoreCase) ||
-                value.EndsWith("sh", StringComparison.OrdinalIgnoreCase))
-            {
-                // words ending in s, x, z, ch, sh: box -> boxes
-                return value + "es";
-            }
-
-            if (value.EndsWith("f", StringComparison.OrdinalIgnoreCase))
-            {
-                // words ending in f: leaf -> leaves
-                return value.Substring(0, value.Length - 1) + "ves";
-            }
-
-            if (value.EndsWith("fe", StringComparison.OrdinalIgnoreCase))
-            {
-                // words ending in fe: knife -> knives
-                return value.Substring(0, value.Length - 2) + "ves";
-            }
-
-            // Default: just add 's'
-            return value + "s";
-        }
-
-        /// <summary>
         /// Sanitizes a type name for use in a file name by removing invalid characters.
         /// Generic types like "PaginatedResult&lt;T&gt;" become "PaginatedResultT".
         /// </summary>
@@ -251,12 +199,6 @@ public static class StringExtensions
                     .Replace(">", string.Empty)
                     .Replace(",", string.Empty)
                     .Replace(" ", string.Empty);
-
-        /// <summary>
-        /// Checks if a character is a vowel.
-        /// </summary>
-        private static bool IsVowel(char c)
-            => c is 'a' or 'e' or 'i' or 'o' or 'u' or 'A' or 'E' or 'I' or 'O' or 'U';
 
         /// <summary>
         /// Splits a string into words based on separators and case transitions.

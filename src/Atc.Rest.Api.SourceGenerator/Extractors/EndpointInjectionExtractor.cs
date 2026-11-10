@@ -209,6 +209,6 @@ internal static class EndpointInjectionExtractor
             return value;
         }
 
-        return Atc.CodeGeneration.CSharp.Helpers.IdentifierCasingHelper.ToLowerFirst(value);
+        return Atc.Helpers.InvariantCasingHelper.ToLowerFirst(value);
     }
 }
