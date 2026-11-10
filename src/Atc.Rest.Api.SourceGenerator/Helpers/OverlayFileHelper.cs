@@ -97,7 +97,7 @@ internal static class OverlayFileHelper
         EquatableArray<MarkerFileInfo> markers,
         ImmutableArray<YamlFileInfo> overlayFiles)
     {
-        foreach (var marker in markers.Values)
+        foreach (var marker in markers)
         {
             List<string>? listed = null;
             try

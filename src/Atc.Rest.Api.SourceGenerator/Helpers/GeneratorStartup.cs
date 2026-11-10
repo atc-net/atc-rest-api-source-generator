@@ -30,13 +30,13 @@ internal static class GeneratorStartup
         }
 
         // One configuration per project: two marker files are a mistake, not a choice
-        if (markers.Values.Length > 1)
+        if (markers.Length > 1)
         {
-            DiagnosticHelpers.ReportMultipleMarkerFiles(context, markers.Values.Select(m => m.Path).ToList());
+            DiagnosticHelpers.ReportMultipleMarkerFiles(context, markers.Select(m => m.Path).ToList());
             return null;
         }
 
-        var marker = markers.Values[0];
+        var marker = markers[0];
         TConfig config;
         try
         {
@@ -69,7 +69,7 @@ internal static class GeneratorStartup
         IReadOnlyList<string>? listedOverlays,
         EquatableArray<YamlFileInfo> yamlFiles)
     {
-        var (specificationFiles, overlayFiles) = OverlayFileHelper.Split(yamlFiles.Values);
+        var (specificationFiles, overlayFiles) = OverlayFileHelper.Split(yamlFiles.AsImmutableArray());
         var overlays = OverlayFileHelper.Resolve(context, markerPath, listedOverlays, overlayFiles);
         if (overlays is null || YamlFileHelper.IdentifyBaseFile(specificationFiles) is not { } baseFile)
         {

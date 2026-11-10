@@ -24,6 +24,7 @@ global using System.Threading;
 global using System.Xml;
 global using System.Xml.Linq;
 
+global using Atc.CodeAnalysis.CSharp;
 global using Atc.CodeGeneration.CSharp.Helpers;
 global using Atc.CodeGeneration.TypeScript.Helpers;
 global using Atc.OpenApi.Extensions;
