@@ -129,7 +129,7 @@ public class ApiEndpointInjectionGenerator : IIncrementalGenerator
         (ClassInfo ClassInfo, (EquatableArray<YamlFileInfo> YamlFiles, EquatableArray<MarkerFileInfo> Markers) Files) input)
     {
         var (classInfo, (allFiles, markers)) = input;
-        var (yamlFiles, overlayFiles) = OverlayFileHelper.Split(allFiles.Values);
+        var (yamlFiles, overlayFiles) = OverlayFileHelper.Split(allFiles.AsImmutableArray());
 
         try
         {
@@ -154,7 +154,7 @@ public class ApiEndpointInjectionGenerator : IIncrementalGenerator
             OpenApiDocument? openApiDoc;
             if (partFiles.Count > 0)
             {
-                openApiDoc = SpecificationLoader.Merge(context, matchingYaml, partFiles, MarkerFileHelper.MultiPartConfigurationOf(markers.Values), overlays);
+                openApiDoc = SpecificationLoader.Merge(context, matchingYaml, partFiles, MarkerFileHelper.MultiPartConfigurationOf(markers), overlays);
             }
             else
             {
@@ -224,7 +224,7 @@ public class ApiEndpointInjectionGenerator : IIncrementalGenerator
     private static ClientConfig? ClientConfigOf(
         EquatableArray<MarkerFileInfo> markers)
     {
-        var clientMarker = markers.Values.FirstOrDefault(m => Path.GetFileName(m.Path).StartsWith(".atc-rest-api-client", StringComparison.OrdinalIgnoreCase));
+        var clientMarker = markers.FirstOrDefault(m => Path.GetFileName(m.Path).StartsWith(".atc-rest-api-client", StringComparison.OrdinalIgnoreCase));
         if (string.IsNullOrEmpty(clientMarker.Content))
         {
             return null;

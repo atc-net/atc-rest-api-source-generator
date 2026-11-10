@@ -93,7 +93,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         context.RegisterSourceOutput(combined, (productionContext, combinedData) =>
         {
             var ((((yamlFiles, summary), markers), declaredServerMarkers), writes) = combinedData;
-            var scaffolding = new ScaffoldSettings(declaredServerMarkers.Values, writes);
+            var scaffolding = new ScaffoldSettings(declaredServerMarkers.AsImmutableArray(), writes);
 
             if (GeneratorStartup.ReadMarker<ServerDomainConfig>(productionContext, yamlFiles, markers) is not { } started)
             {
@@ -129,7 +129,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
                     productionContext,
                     files,
                     config,
-                    MarkerFileHelper.MultiPartConfigurationOf(declaredServerMarkers.Values),
+                    MarkerFileHelper.MultiPartConfigurationOf(declaredServerMarkers),
                     parametersMustBind: true,
                     DiagnosticHelpers.ReportDomainParsingError);
                 if (openApiDoc is null)
@@ -269,7 +269,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         // implement it. Keeping every namespace (rather than collapsing to one) lets the
         // loop below prefer a user-written handler over a scaffolded stub of the same name.
         var implementedHandlers = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
-        foreach (var handler in summary.ImplementedHandlers.Values)
+        foreach (var handler in summary.ImplementedHandlers)
         {
             if (!implementedHandlers.TryGetValue(handler.Name, out var namespaces))
             {
@@ -300,7 +300,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         var rawPathSegments = PathSegmentHelper.GetUniquePathSegments(openApiDoc);
 
         // Convert summary interface namespaces to HashSet
-        var interfaceNamespaces = new HashSet<string>(summary.InterfaceNamespaces.Values, StringComparer.Ordinal);
+        var interfaceNamespaces = new HashSet<string>(summary.InterfaceNamespaces, StringComparer.Ordinal);
 
         // Report diagnostic if injectLogger is enabled but logging is not available
         if (config.InjectLogger && !summary.HasLogging)
@@ -360,7 +360,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         GenerateDependencyRegistration(generatedContext, assemblyName, rootNamespace, allHandlers, config, interfaceNamespaces, pathSegments);
 
         // Generate DI registration extension method for validators
-        var validators = summary.ImplementedValidators.Values
+        var validators = summary.ImplementedValidators
             .Select(v => (v.Name, v.Namespace, v.ModelType))
             .ToList();
         GenerateValidatorDependencyRegistration(generatedContext, assemblyName, rootNamespace, validators);

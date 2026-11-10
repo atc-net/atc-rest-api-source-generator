@@ -43,31 +43,4 @@ internal static class SyntaxExtensions
             return string.Join(" ", modifiers);
         }
     }
-
-    /// <param name="node">The syntax node to check.</param>
-    extension(SyntaxNode node)
-    {
-        /// <summary>
-        /// Checks if the syntax node is a partial class with at least one attribute.
-        /// This is a quick syntax-only check used for incremental generator predicates.
-        /// </summary>
-        /// <returns>True if the node is a partial class with attributes.</returns>
-        public bool IsPartialClassWithAttribute()
-        {
-            // Only process class declarations
-            if (node is not ClassDeclarationSyntax classDecl)
-            {
-                return false;
-            }
-
-            // Must be a partial class
-            if (!classDecl.Modifiers.Any(SyntaxKind.PartialKeyword))
-            {
-                return false;
-            }
-
-            // Must have at least one attribute
-            return classDecl.AttributeLists.Count > 0;
-        }
-    }
 }

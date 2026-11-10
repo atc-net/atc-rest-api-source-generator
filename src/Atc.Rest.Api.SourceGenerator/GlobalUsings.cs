@@ -5,6 +5,7 @@ global using System.Text.Json;
 global using System.Text.Json.Nodes;
 global using System.Text.RegularExpressions;
 
+global using Atc.CodeAnalysis.CSharp;
 global using Atc.CodeGeneration.CSharp.CodeDocumentation.CodeComment;
 global using Atc.CodeGeneration.CSharp.Content;
 global using Atc.CodeGeneration.CSharp.Content.Generators;

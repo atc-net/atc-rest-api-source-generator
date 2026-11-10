@@ -78,7 +78,7 @@ internal static class DomainTypeScanner
         DomainReferences references)
     {
         var handlers = facts
-            .SelectMany(f => f.Handlers.Values)
+            .SelectMany(f => f.Handlers)
             .Distinct()
             .OrderBy(h => h.Name, StringComparer.OrdinalIgnoreCase)
             .ThenBy(h => h.Namespace, StringComparer.Ordinal)
