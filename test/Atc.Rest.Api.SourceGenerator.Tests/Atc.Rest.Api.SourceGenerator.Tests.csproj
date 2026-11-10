@@ -10,6 +10,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Coverage runs of this project use these settings (the CLI assembly is left uninstrumented - see the file) -->
+    <TestingPlatformCommandLineOptionDefault Include="coverage-settings" Value="$(MSBuildThisFileDirectory)codecoverage.settings.xml" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- NOTE: Microsoft.AspNetCore.OpenApi cannot be referenced here. It requires
          Microsoft.OpenApi >= 2.12.0 && < 3.0.0, while this repo pins 3.7.0 (NU1107). That is why
          HttpQueryRuntimeTests covers the Kestrel/QUERY behaviour but not what the runtime OpenAPI
