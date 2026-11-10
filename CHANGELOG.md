@@ -3,6 +3,15 @@
 > ⬆️ **Upgrading from 2.x?** The entries below list the commits of each release. What to change in a project, and
 > why, is in the wiki: [Upgrading to v3](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Upgrading-to-v3).
 
+## [3.3.2](https://github.com/atc-net/atc-rest-api-source-generator/compare/v3.3.1...v3.3.2) (2026-11-10)
+
+
+### Code refactoring
+
+* **cli:** the update check, the tool runner, the file transaction and the Spectre start-up helpers come from Atc 4.1 - the update panel now reads dotnet tool update -g, and generate server and migrate execute run as async commands ([1518ff5](https://github.com/atc-net/atc-rest-api-source-generator/commit/1518ff51ffa28e814db5fcf8ae8a538d205c880a))
+* **generator:** the casing, C# keyword, unique-name, glob, status-code and file-write helpers come from Atc 4.1 - the local copies are gone, the generated code is byte-identical, and the one keyword list now also escapes __arglist, __makeref, __reftype and __refvalue ([2d82a32](https://github.com/atc-net/atc-rest-api-source-generator/commit/2d82a323d00cea44e8404741339e9270b10d25df))
+* **generator:** the source generator takes EquatableArray and its Compilation and syntax helpers from Atc.CodeAnalysis.CSharp 4.1 - the package bundles Atc.CodeAnalysis.CSharp.dll next to Atc.dll, Roslyn stays out, and default(EquatableArray) and null elements no longer throw ([e61749c](https://github.com/atc-net/atc-rest-api-source-generator/commit/e61749c544a08a063bb5702a8f775b33d9ff58f5))
+
 ## [3.3.1](https://github.com/atc-net/atc-rest-api-source-generator/compare/v3.3.0...v3.3.1) (2026-11-09)
 
 
