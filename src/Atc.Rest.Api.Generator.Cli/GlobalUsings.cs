@@ -1,5 +1,4 @@
 global using System;
-global using System.Collections.Concurrent;
 global using System.Collections.Generic;
 global using System.ComponentModel;
 global using System.Diagnostics;
@@ -22,11 +21,11 @@ global using Atc.CodeGeneration.TypeScript.Content.Factories;
 global using Atc.CodeGeneration.TypeScript.Content.Generators;
 global using Atc.CodeGeneration.TypeScript.Content.Generators.Internal;
 global using Atc.CodeGeneration.TypeScript.Helpers;
-global using Atc.Console.Spectre;
 global using Atc.Console.Spectre.Factories;
 global using Atc.Console.Spectre.Helpers;
 global using Atc.Console.Spectre.Logging;
 global using Atc.Helpers;
+global using Atc.Nuget;
 
 global using Atc.OpenApi;
 global using Atc.OpenApi.Extensions;

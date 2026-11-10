@@ -223,9 +223,9 @@ public sealed class ProjectScaffoldingServiceTests : IDisposable
     }
 
     [Fact]
-    public void RunCodingRulesUpdater_NoUpdaterConfig_SkipsAndSucceeds()
+    public async Task RunCodingRulesUpdaterAsync_NoUpdaterConfig_SkipsAndSucceeds()
     {
-        var result = sut.RunCodingRulesUpdater(tempSrcPath, "atc-net", "demo");
+        var result = await sut.RunCodingRulesUpdaterAsync(tempSrcPath, "atc-net", "demo");
 
         Assert.True(result);
         Assert.False(File.Exists(Path.Combine(tempSrcPath, "Directory.Build.props")));

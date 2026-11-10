@@ -6,15 +6,15 @@ namespace Atc.Rest.Api.Generator.Cli.Commands;
 [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "CLI needs graceful error handling.")]
 public sealed class GenerateClientCommand : Command<GenerateClientCommandSettings>
 {
-    private readonly INugetPackageVersionService nugetService;
+    private readonly INugetFeedClient nugetFeedClient;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="GenerateClientCommand"/> class.
     /// </summary>
-    /// <param name="nugetService">Resolves the latest package versions written into the generated project file.</param>
-    public GenerateClientCommand(INugetPackageVersionService nugetService)
+    /// <param name="nugetFeedClient">Resolves the latest package versions written into the generated project file.</param>
+    public GenerateClientCommand(INugetFeedClient nugetFeedClient)
     {
-        this.nugetService = nugetService;
+        this.nugetFeedClient = nugetFeedClient;
     }
 
     /// <summary>
@@ -28,7 +28,7 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
         CommandContext context,
         GenerateClientCommandSettings settings,
         CancellationToken cancellationToken)
-        => FileTransaction.Run(() => ExecuteCore(context, settings, cancellationToken));
+        => CommandFileTransaction.Run(() => ExecuteCore(context, settings, cancellationToken));
 
     private int ExecuteCore(
         CommandContext context,
@@ -85,14 +85,12 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
             {
                 // Step 0: Resolve package versions from NuGet (with fallback)
                 ctx.Status("Resolving package versions...");
-                var sourceGeneratorVersion = TaskHelper.RunSync(() => nugetService.GetLatestVersionOrFallbackAsync(
+                var sourceGeneratorVersion = TaskHelper.RunSync(() => nugetFeedClient.GetLatestStableVersionAsync(
                     PackageVersionDefaults.SourceGeneratorPackageId,
-                    PackageVersionDefaults.SourceGeneratorFallback,
-                    cancellationToken));
-                var restClientVersion = TaskHelper.RunSync(() => nugetService.GetLatestVersionOrFallbackAsync(
+                    cancellationToken)) ?? PackageVersionDefaults.SourceGeneratorFallback;
+                var restClientVersion = TaskHelper.RunSync(() => nugetFeedClient.GetLatestStableVersionAsync(
                     PackageVersionDefaults.RestClientPackageId,
-                    PackageVersionDefaults.RestClientMinFallback,
-                    cancellationToken));
+                    cancellationToken)) ?? PackageVersionDefaults.RestClientMinFallback;
 
                 // Step 1: Validate the OpenAPI specification
                 ctx.Status("Validating OpenAPI specification...");
@@ -109,20 +107,18 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
                 Version? resilienceVersion = null;
                 if (parsedDocument is not null && parsedDocument.HasRetryConfiguration())
                 {
-                    resilienceVersion = TaskHelper.RunSync(() => nugetService.GetLatestVersionOrFallbackAsync(
+                    resilienceVersion = TaskHelper.RunSync(() => nugetFeedClient.GetLatestStableVersionAsync(
                         PackageVersionDefaults.ResiliencePackageId,
-                        PackageVersionDefaults.ResilienceMinFallback,
-                        cancellationToken));
+                        cancellationToken)) ?? PackageVersionDefaults.ResilienceMinFallback;
                 }
 
                 // The SignalR client, if the spec declares hubs: the typed hub clients build on it
                 Version? signalRClientVersion = null;
                 if (parsedDocument is not null && SignalRHubHelper.Parse(parsedDocument).Count > 0)
                 {
-                    signalRClientVersion = TaskHelper.RunSync(() => nugetService.GetLatestVersionOrFallbackAsync(
+                    signalRClientVersion = TaskHelper.RunSync(() => nugetFeedClient.GetLatestStableVersionAsync(
                         PackageVersionDefaults.SignalRClientPackageId,
-                        PackageVersionDefaults.SignalRClientMinFallback,
-                        cancellationToken));
+                        cancellationToken)) ?? PackageVersionDefaults.SignalRClientMinFallback;
                 }
 
                 // Step 2: Check for conflicting project files in output directory
@@ -137,7 +133,7 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
                 {
                     if (!Directory.Exists(outputPath))
                     {
-                        TrackedFile.CreateDirectory(outputPath);
+                        FileSystemTransaction.CreateDirectory(outputPath);
                         AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created output directory: {outputPath}");
                     }
                 }
@@ -359,12 +355,12 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
                 }
 
                 // Source is newer, update the file
-                TrackedFile.Copy(sourcePath, destinationPath, overwrite: true);
+                FileSystemTransaction.Copy(sourcePath, destinationPath, overwrite: true);
                 AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Updated specification file: {fileName}");
             }
             else
             {
-                TrackedFile.Copy(sourcePath, destinationPath);
+                FileSystemTransaction.Copy(sourcePath, destinationPath, overwrite: false);
                 AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Copied specification file: {fileName}");
             }
 
@@ -403,7 +399,7 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
             }
             else
             {
-                TrackedFile.WriteAllText(markerFilePath, json);
+                FileSystemTransaction.WriteAllText(markerFilePath, json);
                 AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created marker file: {Constants.MarkerFile.Client}");
             }
 
@@ -433,7 +429,7 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
             if (!File.Exists(csprojPath))
             {
                 var csprojContent = GenerateProjectFileContent(specFileName, sourceGeneratorVersion, restClientVersion, resilienceVersion, signalRClientVersion);
-                TrackedFile.WriteAllText(csprojPath, csprojContent);
+                FileSystemTransaction.WriteAllText(csprojPath, csprojContent);
                 foreach (var partFileName in partFileNames)
                 {
                     UpdateProjectFileIfNeeded(csprojPath, partFileName);
@@ -589,7 +585,7 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
 
         if (content != originalContent)
         {
-            TrackedFile.WriteAllText(csprojPath, content);
+            FileSystemTransaction.WriteAllText(csprojPath, content);
             return true;
         }
 

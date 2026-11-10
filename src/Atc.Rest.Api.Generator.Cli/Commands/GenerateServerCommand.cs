@@ -4,18 +4,18 @@ namespace Atc.Rest.Api.Generator.Cli.Commands;
 /// Command to generate server contracts and optionally domain handler scaffolds from an OpenAPI specification.
 /// </summary>
 [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "CLI needs graceful error handling.")]
-public sealed class GenerateServerCommand : Command<GenerateServerCommandSettings>
+public sealed class GenerateServerCommand : AsyncCommand<GenerateServerCommandSettings>
 {
     private readonly ProjectScaffoldingService scaffoldingService = new();
-    private readonly INugetPackageVersionService nugetService;
+    private readonly INugetFeedClient nugetFeedClient;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="GenerateServerCommand"/> class.
     /// </summary>
-    /// <param name="nugetService">Resolves the latest package versions written into the generated project files.</param>
-    public GenerateServerCommand(INugetPackageVersionService nugetService)
+    /// <param name="nugetFeedClient">Resolves the latest package versions written into the generated project files.</param>
+    public GenerateServerCommand(INugetFeedClient nugetFeedClient)
     {
-        this.nugetService = nugetService;
+        this.nugetFeedClient = nugetFeedClient;
     }
 
     /// <summary>
@@ -25,13 +25,13 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
     /// <param name="settings">The parsed command-line settings.</param>
     /// <param name="cancellationToken">Cancels the command.</param>
     /// <returns>0 when generation succeeded; otherwise 1.</returns>
-    public override int Execute(
+    public override Task<int> ExecuteAsync(
         CommandContext context,
         GenerateServerCommandSettings settings,
         CancellationToken cancellationToken)
-        => FileTransaction.Run(() => ExecuteCore(context, settings, cancellationToken));
+        => CommandFileTransaction.RunAsync(() => ExecuteCoreAsync(context, settings, cancellationToken));
 
-    private int ExecuteCore(
+    private async Task<int> ExecuteCoreAsync(
         CommandContext context,
         GenerateServerCommandSettings settings,
         CancellationToken cancellationToken)
@@ -77,18 +77,17 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         OpenApiDocument? parsedDocument = null;
         IReadOnlyList<DiagnosticMessage> validationDiagnostics = [];
 
-        var statusResult = AnsiConsole
+        var statusResult = await AnsiConsole
             .Status()
             .Spinner(Spinner.Known.Dots)
             .SpinnerStyle(Style.Parse("blue"))
-            .Start("Initializing...", ctx =>
+            .StartAsync("Initializing...", async ctx =>
             {
                 // Step 0: Resolve package version from NuGet (with fallback)
                 ctx.Status("Resolving package versions...");
-                var sourceGeneratorVersion = TaskHelper.RunSync(() => nugetService.GetLatestVersionOrFallbackAsync(
+                var sourceGeneratorVersion = await nugetFeedClient.GetLatestStableVersionAsync(
                     PackageVersionDefaults.SourceGeneratorPackageId,
-                    PackageVersionDefaults.SourceGeneratorFallback,
-                    cancellationToken));
+                    cancellationToken) ?? PackageVersionDefaults.SourceGeneratorFallback;
 
                 // Step 1: Validate the OpenAPI specification
                 ctx.Status("Validating OpenAPI specification...");
@@ -205,7 +204,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
                     }
 
                     ctx.Status("Running coding rules updater...");
-                    scaffoldingService.RunCodingRulesUpdater(
+                    await scaffoldingService.RunCodingRulesUpdaterAsync(
                         outputPath,
                         organizationName: plan.BaseName,
                         repositoryName: plan.BaseName);
@@ -525,7 +524,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         {
             if (!Directory.Exists(outputPath))
             {
-                TrackedFile.CreateDirectory(outputPath);
+                FileSystemTransaction.CreateDirectory(outputPath);
                 AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created output directory: {outputPath}");
             }
         }
@@ -608,7 +607,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         {
             if (!Directory.Exists(outputPath))
             {
-                TrackedFile.CreateDirectory(outputPath);
+                FileSystemTransaction.CreateDirectory(outputPath);
                 AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created output directory: {outputPath}");
             }
         }
@@ -715,7 +714,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             // Create folder if needed
             if (!Directory.Exists(specsFolder))
             {
-                TrackedFile.CreateDirectory(specsFolder);
+                FileSystemTransaction.CreateDirectory(specsFolder);
                 AnsiConsole.MarkupLine("[green]✓[/] Created directory: ScriptsAndSpecifications/");
             }
 
@@ -727,7 +726,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
                 if (!File.Exists(destPath) ||
                     File.GetLastWriteTimeUtc(sourcePath) > File.GetLastWriteTimeUtc(destPath))
                 {
-                    TrackedFile.Copy(sourcePath, destPath, overwrite: true);
+                    FileSystemTransaction.Copy(sourcePath, destPath, overwrite: true);
                     AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Copied specification file to ScriptsAndSpecifications/{fileName}");
                 }
                 else
@@ -767,8 +766,8 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             {
                 if (!string.Equals(source, Path.GetFullPath(destination), StringComparison.OrdinalIgnoreCase))
                 {
-                    TrackedFile.CreateDirectory(specBasePath);
-                    TrackedFile.Copy(source, destination, overwrite: true);
+                    FileSystemTransaction.CreateDirectory(specBasePath);
+                    FileSystemTransaction.Copy(source, destination, overwrite: true);
                     AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Copied overlay next to the specification: {fileName}");
                 }
             }
@@ -825,7 +824,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             }
             else
             {
-                TrackedFile.WriteAllText(markerFilePath, json);
+                FileSystemTransaction.WriteAllText(markerFilePath, json);
                 AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created marker file: {Constants.MarkerFile.Server}");
             }
 
@@ -864,7 +863,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             }
             else
             {
-                TrackedFile.WriteAllText(markerFilePath, json);
+                FileSystemTransaction.WriteAllText(markerFilePath, json);
                 AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created marker file: {Constants.MarkerFile.ServerHandlers}");
             }
 
@@ -890,7 +889,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             if (!File.Exists(csprojPath))
             {
                 var csprojContent = GenerateContractsProjectFileContent(specFilePaths, sourceGeneratorVersion);
-                TrackedFile.WriteAllText(csprojPath, csprojContent);
+                FileSystemTransaction.WriteAllText(csprojPath, csprojContent);
                 AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created project file: {projectName}.csproj");
             }
             else
@@ -929,7 +928,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             if (!File.Exists(csprojPath))
             {
                 var csprojContent = GenerateDomainProjectFileContent(specFilePaths, contractsReference, sourceGeneratorVersion);
-                TrackedFile.WriteAllText(csprojPath, csprojContent);
+                FileSystemTransaction.WriteAllText(csprojPath, csprojContent);
                 AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created project file: {projectName}.csproj");
             }
             else
@@ -1093,7 +1092,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
 
         if (content != originalContent)
         {
-            TrackedFile.WriteAllText(csprojPath, content);
+            FileSystemTransaction.WriteAllText(csprojPath, content);
             return true;
         }
 

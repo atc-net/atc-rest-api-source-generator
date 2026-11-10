@@ -7,6 +7,16 @@ namespace Atc.Rest.Api.Generator.Cli;
 public static class Program
 {
     /// <summary>
+    /// The NuGet package id of the tool, which the update check looks up.
+    /// </summary>
+    public const string PackageId = "atc-rest-api-gen";
+
+    /// <summary>
+    /// The environment variable that turns the start-up update check off (<c>1</c> or <c>true</c>).
+    /// </summary>
+    public const string NoUpdateCheckVariable = "ATC_REST_API_GEN_NO_UPDATE_CHECK";
+
+    /// <summary>
     /// The time the update check may take before the command runs. The check is best effort:
     /// when the budget runs out, the command starts and nothing is printed.
     /// </summary>
@@ -23,16 +33,14 @@ public static class Program
         ArgumentNullException.ThrowIfNull(args);
 
         var shouldCheckForUpdates =
-            CliVersionHelper.ShouldCheckForUpdates(args) &&
-            !CliVersionHelper.IsUpdateCheckDisabled(Environment.GetEnvironmentVariable);
+            CliUpdateCheckHelper.ShouldCheckForUpdates(args) &&
+            !CliUpdateCheckHelper.IsUpdateCheckDisabled(Environment.GetEnvironmentVariable, NoUpdateCheckVariable);
+        var updateCheckArgs = args;
 
-        args = SetHelpArgumentIfNeeded(args);
+        args = ProgramCsHelper.SetHelpArgumentIfNeeded(args);
 
         // Redirected output (a pipe, a CI log) is not wrapped at a window's 80 columns
-        if (System.Console.IsOutputRedirected)
-        {
-            AnsiConsole.Profile.Width = ConsoleWidthHelper.ForRedirectedOutput(Environment.GetEnvironmentVariable("COLUMNS"));
-        }
+        ConsoleOutputWidthHelper.ApplyRedirectedOutputWidth();
 
         var consoleLoggerConfiguration = new ConsoleLoggerConfiguration();
         ProgramCsHelper.SetMinimumLogLevelIfNeeded(args, consoleLoggerConfiguration);
@@ -43,7 +51,9 @@ public static class Program
         if (shouldCheckForUpdates)
         {
             await using var startupProvider = serviceCollection.BuildServiceProvider();
-            await CheckForUpdatesAsync(startupProvider.GetRequiredService<INugetPackageVersionService>());
+            await CliUpdateCheckHelper.CheckForUpdatesAsync(
+                updateCheckArgs,
+                CreateUpdateCheckOptions(startupProvider.GetRequiredService<INugetFeedClient>()));
         }
 
         var app = CommandAppFactory.Create(serviceCollection);
@@ -52,60 +62,37 @@ public static class Program
         return await app.RunAsync(args);
     }
 
-    [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "The update check must never affect the command that runs after it.")]
-    private static async Task CheckForUpdatesAsync(
-        INugetPackageVersionService nugetService)
-    {
-        try
+    /// <summary>
+    /// The options of the start-up update check: the tool's package, its own opt-out variable, the time budget
+    /// and the version of the running CLI.
+    /// </summary>
+    /// <param name="nugetFeedClient">The client the latest version is looked up with.</param>
+    /// <returns>The options.</returns>
+    public static CliUpdateCheckOptions CreateUpdateCheckOptions(
+        INugetFeedClient nugetFeedClient)
+        => new(PackageId)
         {
-            var currentVersion = CliHelper.GetCurrentVersion();
+            CurrentVersion = CliHelper.GetCurrentVersion(),
+            OptOutEnvironmentVariable = NoUpdateCheckVariable,
+            Budget = UpdateCheckBudget,
+            NugetFeedClient = nugetFeedClient,
+        };
 
-            // Skip check for development versions
-            if (currentVersion == new Version(1, 0, 0, 0))
-            {
-                return;
-            }
-
-            var latestVersion = await CliVersionHelper.TryGetNewerVersionAsync(nugetService, currentVersion, UpdateCheckBudget);
-            if (latestVersion is null)
-            {
-                return;
-            }
-
-            AnsiConsole.WriteLine();
-            AnsiConsole.Write(new Panel(
-                Markup.FromInterpolated(
-                    CultureInfo.InvariantCulture,
-                    $"[yellow]A new version is available![/]\n\n  Current: [dim]{currentVersion}[/]\n  Latest:  [green]{latestVersion}[/]\n\n[blue]dotnet tool update --global atc-rest-api-gen[/]"))
-                .Header("[yellow] ⬆ Update Available [/]")
-                .BorderColor(Color.Yellow)
-                .Padding(1, 0, 1, 0));
-            AnsiConsole.WriteLine();
-        }
-        catch (Exception)
-        {
-            // Nothing about the update check may stop the command.
-        }
-    }
-
-    private static void ConfigureServices(IServiceCollection services)
+    /// <summary>
+    /// Registers the services the commands are resolved with.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    public static void ConfigureServices(IServiceCollection services)
     {
+        ArgumentNullException.ThrowIfNull(services);
+
         services
-            .AddHttpClient<INugetPackageVersionService, NugetPackageVersionService>(client =>
+            .AddHttpClient(nameof(NugetFeedClient), client =>
             {
                 client.Timeout = TimeSpan.FromSeconds(10);
-                client.DefaultRequestHeaders.UserAgent.ParseAdd("atc-rest-api-gen");
+                client.DefaultRequestHeaders.UserAgent.ParseAdd(PackageId);
             })
+            .AddTypedClient<INugetFeedClient>(httpClient => new NugetFeedClient(httpClient))
             .RemoveAllLoggers();
-    }
-
-    private static string[] SetHelpArgumentIfNeeded(string[] args)
-    {
-        if (args.Length == 0)
-        {
-            return [CommandConstants.ArgumentShortHelp];
-        }
-
-        return args;
     }
 }

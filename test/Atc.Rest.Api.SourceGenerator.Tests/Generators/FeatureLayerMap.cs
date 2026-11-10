@@ -276,9 +276,9 @@ internal static class FeatureLayerMap
             "The atc-rest-api-gen commands: generate, migrate, options and spec, their settings, output and project scaffolding; the packages installed into a fresh project.",
             [
                 "Cli:*CommandTests", "Cli:*SettingsTests", "Cli:Migrate*", "Cli:GenerateCommandOptionsFileTests", "Generator:StatisticsCollectorTests", "Cli:CliConsistencyTests", "Cli:MarkupEscapingTests", "Cli:UpdateCheckTests", "Cli:CommandAppExtensionsTests", "Cli:NamingStrategyExtensionsTests",
-                "Cli:CliVersionHelperTests", "Cli:ExecutableResolverTests", "Cli:ExternalToolTests", "Cli:FileTransactionTests", "Cli:MarkupInterpolationGuardTests", "Cli:MigrationPathResolverTests", "Cli:PathHelperTests",
+                "Cli:MarkupInterpolationGuardTests", "Cli:MigrationPathResolverTests", "Cli:PathHelperTests",
                 "Cli:ProjectNameHelperTests", "Cli:SerialRunnerTests", "Cli:SpecificationWatcherTests", "Cli:CallShapeDetectorTests", "Cli:ContractsNamespaceRewriterTests", "Cli:GeneratedCodeCleanerTests", "Cli:MarkerFileGeneratorTests",
-                "Cli:MigrationValidatorTests", "Cli:ObsoletePackageTests", "Cli:ProjectFileModifierTests", "Cli:ProjectRenamerTests", "Cli:SpecificationValidatorTests", "Cli:NugetPackageVersionServiceTests",
+                "Cli:MigrationValidatorTests", "Cli:ObsoletePackageTests", "Cli:ProjectFileModifierTests", "Cli:ProjectRenamerTests", "Cli:SpecificationValidatorTests",
                 "Cli:ProjectScaffoldingServiceTests", "Cli:ReportServiceTests", "Cli:ServerScaffoldPlanTests",
                 "Integration:PackageInstallTests",
             ],
