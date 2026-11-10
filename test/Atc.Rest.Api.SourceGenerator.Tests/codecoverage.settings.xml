@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Code coverage settings for this test project (used whenever it runs with coverage, see the project file).
+  The CLI assembly is not instrumented here: its coverage comes from Atc.Rest.Api.Generator.Cli.Tests, and in the
+  solution-wide coverage run on the GitHub Ubuntu runner the instrumented CLI threw InvalidProgramException while
+  this project's fuzz tests generated TypeScript (the same tests pass uninstrumented and when run on their own).
+-->
+<Configuration>
+  <CodeCoverage>
+    <ModulePaths>
+      <Exclude>
+        <!-- The CLI project's assembly name -->
+        <ModulePath>.*atc-rest-api-gen\.dll$</ModulePath>
+      </Exclude>
+    </ModulePaths>
+  </CodeCoverage>
+</Configuration>
