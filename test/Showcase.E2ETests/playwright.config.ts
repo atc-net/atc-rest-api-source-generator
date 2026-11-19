@@ -68,7 +68,9 @@ export default defineConfig({
       env: { Showcase__DisableRateLimiter: 'true' },
     },
     {
-      command: 'dotnet run --project ../../sample/Showcase/Showcase.BlazorApp',
+      // Hot reload is off: in a Debug build, SDK 11's hot reload helper asks for a settings file that only
+      // dotnet watch serves, so under dotnet run every Blazor page would log a 404 for it
+      command: 'dotnet run --project ../../sample/Showcase/Showcase.BlazorApp -p:EnableHotReloadInRuntimeConfigDevFile=false',
       port: BLAZOR_PORT,
       reuseExistingServer,
       timeout: 300_000,
