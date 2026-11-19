@@ -1,6 +1,6 @@
 # Showcase.Aspire
 
-This project is the .NET Aspire v13 AppHost that orchestrates the Showcase distributed application.
+This project is the Aspire 17 AppHost that orchestrates the Showcase distributed application.
 
 ## Architecture
 
@@ -15,16 +15,16 @@ The AppHost is configured in `Program.cs` with the following setup:
 
 ```csharp
 var api = builder
-    .AddProject<Projects.Showcase_Api>("api")
+    .AddDotnetProject("api", "../Showcase.Api/Showcase.Api.csproj")
     .WithExternalHttpEndpoints();
 
 builder
-    .AddProject<Projects.Showcase_BlazorApp>("blazor")
+    .AddDotnetProject("blazor", "../Showcase.BlazorApp/Showcase.BlazorApp.csproj")
     .WithReference(api)
     .WithExternalHttpEndpoints();
 
 builder
-    .AddProject<Projects.Showcase_ClientApp>("client")
+    .AddDotnetProject("client", "../Showcase.ClientApp/Showcase.ClientApp.csproj")
     .WithReference(api);
 ```
 
@@ -45,6 +45,9 @@ The ClientApp automatically discovers the API endpoint via environment variables
 ## Running the Application
 
 To run the application via Aspire orchestration:
+
+Running a C# AppHost on Aspire 17 needs the [Aspire CLI](https://aspire.dev/get-started/install-cli/)
+installed: the dashboard and the developer control plane come from its bundle.
 
 ```bash
 dotnet run --project sample/Showcase/Showcase.Aspire
@@ -71,14 +74,15 @@ This will start:
 - **File Upload Demos**: Single, multiple, and with metadata
 - **IAsyncEnumerable**: Real-time streaming support
 
-## Aspire v13 Features
+## Aspire 17
 
-This project uses .NET Aspire v13 features:
-- **New SDK format**: `<Project Sdk="Aspire.AppHost.Sdk/13.4.5">`
-- **Simplified project references**: The `Aspire.Hosting.AppHost` package is implicit in the SDK
+This AppHost uses the Aspire 17 project layout:
+- **Plain SDK**: `<Project Sdk="Microsoft.NET.Sdk">` with explicit `Aspire.Hosting.AppHost` and `Aspire.Hosting.Dotnet`
+  package references (the `Aspire.AppHost.Sdk` is obsolete in Aspire 17)
+- **Projects by path**: each service is added with `AddDotnetProject(name, path)`, so the AppHost has no
+  `ProjectReference` to the services and no generated `Projects.*` types
 - **Service references**: Automatic endpoint injection for service discovery
 - **RunAsync**: Using the async Run method for better async/await patterns
-- **External HTTP endpoints**: Both API and Blazor app exposed externally
 
 ## Dashboard
 

@@ -540,11 +540,11 @@ public sealed class ProjectScaffoldingService
     }
 
     /// <summary>
-    /// Generates an Aspire AppHost project that references the API project.
+    /// Generates an Aspire AppHost project that starts the API project.
     /// </summary>
     /// <param name="srcPath">Path to the src directory.</param>
     /// <param name="aspireProjectName">Name of the Aspire project (e.g., "Demo.Aspire").</param>
-    /// <param name="apiProjectName">Name of the API project to reference.</param>
+    /// <param name="apiProjectName">Name of the API project the AppHost starts.</param>
     /// <param name="targetFramework">Target framework (e.g., "net10.0").</param>
     /// <returns>True if successful, false otherwise.</returns>
     public bool GenerateAspireProject(
@@ -569,7 +569,7 @@ public sealed class ProjectScaffoldingService
             // Create .csproj file
             if (!File.Exists(csprojPath))
             {
-                var csprojContent = GenerateAspireProjectContent(apiProjectName, targetFramework);
+                var csprojContent = GenerateAspireProjectContent(targetFramework);
                 FileSystemTransaction.WriteAllText(csprojPath, csprojContent);
                 AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created project file: {aspireProjectName}.csproj");
             }
@@ -726,7 +726,7 @@ public sealed class ProjectScaffoldingService
             switch (hostUi)
             {
                 case HostUiType.Scalar:
-                    sb.AppendLine(4, "<PackageReference Include=\"Scalar.AspNetCore\" Version=\"2.*\" />");
+                    sb.AppendLine(4, "<PackageReference Include=\"Scalar.AspNetCore\" Version=\"3.*\" />");
                     break;
                 case HostUiType.Swagger:
                     sb.AppendLine(4, "<PackageReference Include=\"Swashbuckle.AspNetCore.SwaggerUI\" Version=\"7.*\" />");
@@ -742,12 +742,13 @@ public sealed class ProjectScaffoldingService
         return sb.ToString();
     }
 
-    private static string GenerateAspireProjectContent(
-        string apiProjectName,
-        string targetFramework)
+    private static string GenerateAspireProjectContent(string targetFramework)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("<Project Sdk=\"Aspire.AppHost.Sdk/13.3.2\">");
+
+        // Aspire 17: a plain Microsoft.NET.Sdk project with the AppHost packages (the Aspire.AppHost.Sdk is obsolete,
+        // ASPIRE012); the API project is started by path (AddDotnetProject), so the AppHost has no ProjectReference
+        sb.AppendLine("<Project Sdk=\"Microsoft.NET.Sdk\">");
         sb.AppendLine();
         sb.AppendLine(2, "<PropertyGroup>");
         sb.AppendLine(4, "<OutputType>Exe</OutputType>");
@@ -757,7 +758,8 @@ public sealed class ProjectScaffoldingService
         sb.AppendLine(2, "</PropertyGroup>");
         sb.AppendLine();
         sb.AppendLine(2, "<ItemGroup>");
-        sb.AppendLine(4, $"<ProjectReference Include=\"..\\{apiProjectName}\\{apiProjectName}.csproj\" />");
+        sb.AppendLine(4, $"<PackageReference Include=\"Aspire.Hosting.AppHost\" Version=\"{PackageVersionDefaults.AspireVersion}\" />");
+        sb.AppendLine(4, $"<PackageReference Include=\"Aspire.Hosting.Dotnet\" Version=\"{PackageVersionDefaults.AspireVersion}\" />");
         sb.AppendLine(2, "</ItemGroup>");
         sb.AppendLine();
         sb.Append("</Project>");
@@ -767,15 +769,12 @@ public sealed class ProjectScaffoldingService
 
     private static string GenerateAspireProgramContent(string apiProjectName)
     {
-        // In Aspire Program.cs, dots in project names are replaced with underscores
-        var projectsReference = apiProjectName.Replace(".", "_", StringComparison.Ordinal);
-
         var sb = new StringBuilder();
         sb.AppendLine("var builder = DistributedApplication.CreateBuilder(args);");
         sb.AppendLine();
         sb.AppendLine("// Add the API project");
         sb.AppendLine("var api = builder");
-        sb.AppendLine(4, $".AddProject<Projects.{projectsReference}>(\"api\")");
+        sb.AppendLine(4, $".AddDotnetProject(\"api\", \"../{apiProjectName}/{apiProjectName}.csproj\")");
         sb.AppendLine(4, ".WithExternalHttpEndpoints();");
         sb.AppendLine();
         sb.AppendLine("await builder");

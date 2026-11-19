@@ -247,17 +247,21 @@ public sealed class ProjectScaffoldingServiceTests : IDisposable
     }
 
     [Fact]
-    public void GenerateAspireProject_ReferencesTheApiProjectWithUnderscoredName()
+    public void GenerateAspireProject_StartsTheApiProjectByPathOnTheAspire17AppHostPackages()
     {
         var result = sut.GenerateAspireProject(tempSrcPath, "Demo.Aspire", "Demo.Api", "net10.0");
 
         Assert.True(result);
         var projectDir = Path.Combine(tempSrcPath, "Demo.Aspire");
         var csproj = File.ReadAllText(Path.Combine(projectDir, "Demo.Aspire.csproj"));
-        Assert.StartsWith("<Project Sdk=\"Aspire.AppHost.Sdk/", csproj, StringComparison.Ordinal);
+        Assert.StartsWith("<Project Sdk=\"Microsoft.NET.Sdk\">", csproj, StringComparison.Ordinal);
+        Assert.DoesNotContain("Aspire.AppHost.Sdk", csproj, StringComparison.Ordinal);
         Assert.Contains("<TargetFramework>net10.0</TargetFramework>", csproj, StringComparison.Ordinal);
-        Assert.Contains("<ProjectReference Include=\"..\\Demo.Api\\Demo.Api.csproj\" />", csproj, StringComparison.Ordinal);
+        Assert.Contains("<PackageReference Include=\"Aspire.Hosting.AppHost\" Version=\"17.0.0\" />", csproj, StringComparison.Ordinal);
+        Assert.Contains("<PackageReference Include=\"Aspire.Hosting.Dotnet\" Version=\"17.0.0\" />", csproj, StringComparison.Ordinal);
+        Assert.DoesNotContain("<ProjectReference", csproj, StringComparison.Ordinal);
         var program = File.ReadAllText(Path.Combine(projectDir, "Program.cs"));
-        Assert.Contains(".AddProject<Projects.Demo_Api>(\"api\")", program, StringComparison.Ordinal);
+        Assert.Contains(".AddDotnetProject(\"api\", \"../Demo.Api/Demo.Api.csproj\")", program, StringComparison.Ordinal);
+        Assert.DoesNotContain("AddProject<", program, StringComparison.Ordinal);
     }
 }

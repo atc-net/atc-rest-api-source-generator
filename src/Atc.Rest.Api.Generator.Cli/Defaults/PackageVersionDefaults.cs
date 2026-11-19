@@ -41,6 +41,11 @@ internal static class PackageVersionDefaults
     public const string XunitRunnerVisualStudioVersion = "4.0.1";
 
     /// <summary>
+    /// Aspire.Hosting.AppHost and Aspire.Hosting.Dotnet in a scaffolded Aspire AppHost.
+    /// </summary>
+    public const string AspireVersion = "17.0.0";
+
+    /// <summary>
     /// Fallback version for Atc.Rest.Api.SourceGenerator when NuGet cannot be reached: the CLI's own version, since the
     /// CLI and the generator are released together.
     /// </summary>
