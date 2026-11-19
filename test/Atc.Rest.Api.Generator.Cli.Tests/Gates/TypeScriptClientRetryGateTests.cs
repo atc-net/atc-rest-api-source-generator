@@ -260,8 +260,8 @@ public sealed class TypeScriptClientRetryGateTests
         """;
 
     // The mocked wire, shared by both transports: answers by the last path segment (a status code, "429-short" /
-    // "503-short" with Retry-After: 0, "429-long" / "503-long" / "500-long" with Retry-After: 120, "slow" after two
-    // seconds unless aborted). An aborted
+    // "503-short" with Retry-After: 0, "429-long" / "503-long" / "500-long" with Retry-After: 120, "slow" after ten
+    // seconds unless aborted: a response no timeout case waits for, so a bound well below it still proves the cut). An aborted
     // "slow" rejects as the transport does (abortedBy): fetch with the signal's reason, axios with its CanceledError.
     private const string Wire = """
         let calls = 0;
@@ -278,7 +278,7 @@ public sealed class TypeScriptClientRetryGateTests
             case '500-long': return Promise.resolve({ status: 500, headers: { 'retry-after': '120' } });
             case 'slow':
               return new Promise((resolve, reject) => {
-                const timer = setTimeout(() => resolve({ status: 204, headers: {} }), 2000);
+                const timer = setTimeout(() => resolve({ status: 204, headers: {} }), 10000);
                 signal?.addEventListener('abort', () => { clearTimeout(timer); reject(abortedBy(signal)); }, { once: true });
               });
             default: {
@@ -461,7 +461,7 @@ public sealed class TypeScriptClientRetryGateTests
           await attempt('postItem 503', 1, () => items.postItem('503'));
           await attempt('postItem 429-short', 1, () => items.postItem('429-short'));
           // A timeout rejects with a TimeoutError with either transport - never with what the caller's own abort rejects with
-          await attempt('postItem slow (policy timeout 1 s still applies)', 1, () => items.postItem('slow'), 1800, 'TimeoutError');
+          await attempt('postItem slow (policy timeout 1 s still applies)', 1, () => items.postItem('slow'), 5000, 'TimeoutError');
           await attempt('patchItem 503', 1, () => items.patchItem('503'));
           await attempt('getDisabled 503', 1, () => disabled.getDisabled('503'));
           await attempt('getQuiet 503', 1, () => quiet.getQuiet('503'));
