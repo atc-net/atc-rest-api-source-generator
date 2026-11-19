@@ -801,6 +801,44 @@ public class EndpointDefinitionExtractorTests
     }
 
     /// <summary>
+    /// The wire binding step answers a required query or header parameter that was not sent on every endpoint - with
+    /// the ValidationFilter too: the step runs before the framework binds, which in Development throws before any
+    /// filter runs, and the filter cannot tell a missing value type from its default.
+    /// </summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Extract_TheWireBindingStep_RequiresTheParameters_WithOrWithoutTheValidationFilter(
+        bool useValidationFilter)
+    {
+        var document = OpenApiDocumentHelper.ParseYaml("""
+            openapi: 3.0.3
+            info: { title: T, version: 1.0.0 }
+            paths:
+              /meters:
+                get:
+                  operationId: listMeters
+                  parameters:
+                    - { name: limit, in: query, required: true, schema: { type: integer, format: int32 } }
+                    - { name: X-Tenant, in: header, required: true, schema: { type: string } }
+                  responses:
+                    '200': { description: OK }
+            """);
+        var (_, classes) = EndpointDefinitionExtractor.Extract(
+            document,
+            "Shop",
+            TypeConflictRegistry.Build(document, "Shop", "Shop"),
+            new SystemTypeConflictResolver([]),
+            useMinimalApiPackage: true,
+            useValidationFilter: useValidationFilter);
+
+        var content = string.Join("\n", classes!.SelectMany(c => c.Methods ?? []).Select(m => m.Content ?? string.Empty));
+
+        Assert.Contains(".WithWireBinding(ListMetersParametersWire.Parameters, requireParameters: true)", content, StringComparison.Ordinal);
+        Assert.Equal(useValidationFilter, content.Contains("ValidationFilter<ListMetersParameters>", StringComparison.Ordinal));
+    }
+
+    /// <summary>
     /// The chained calls of one endpoint registration: from its MapX up to the next blank line.
     /// </summary>
     private static string Registration(
