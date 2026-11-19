@@ -28,12 +28,12 @@ internal static class PackageVersionDefaults
     /// <summary>
     /// Microsoft.NET.Test.Sdk in a test project scaffolded without the coding rules (as their test props pin it).
     /// </summary>
-    public const string TestSdkVersion = "18.11.0";
+    public const string TestSdkVersion = "18.12.0";
 
     /// <summary>
     /// xunit.v3 in a test project scaffolded without the coding rules (as their test props pin it).
     /// </summary>
-    public const string XunitVersion = "4.0.2";
+    public const string XunitVersion = "4.0.3";
 
     /// <summary>
     /// xunit.runner.visualstudio in a test project scaffolded without the coding rules (as their test props pin it).

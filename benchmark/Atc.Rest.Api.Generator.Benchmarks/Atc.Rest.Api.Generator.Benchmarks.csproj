@@ -15,7 +15,7 @@
     <PackageReference Include="Atc.CodeAnalysis.CSharp" Version="4.1.0" />
     <PackageReference Include="BenchmarkDotNet" Version="0.15.8" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0" />
-    <PackageReference Include="Microsoft.OpenApi.YamlReader" Version="3.11.0" />
+    <PackageReference Include="Microsoft.OpenApi.YamlReader" Version="3.11.1" />
   </ItemGroup>
 
   <ItemGroup>

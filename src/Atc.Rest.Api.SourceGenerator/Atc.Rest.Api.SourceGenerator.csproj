@@ -46,8 +46,8 @@
     <PackageReference Include="Atc.CodeAnalysis.CSharp" Version="4.1.0" GeneratePathProperty="true" PrivateAssets="all" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0" PrivateAssets="all" />
     <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="5.9.0" PrivateAssets="all" />
-    <PackageReference Include="Microsoft.OpenApi" Version="3.11.0" GeneratePathProperty="true" />
-    <PackageReference Include="Microsoft.OpenApi.YamlReader" Version="3.11.0" GeneratePathProperty="true" />
+    <PackageReference Include="Microsoft.OpenApi" Version="3.11.1" GeneratePathProperty="true" />
+    <PackageReference Include="Microsoft.OpenApi.YamlReader" Version="3.11.1" GeneratePathProperty="true" />
     <!-- Exact pin, not a floor — SharpYaml 3.x breaks Microsoft.OpenApi.YamlReader at runtime.
          See Atc.OpenApi.csproj for the full rationale. -->
     <PackageReference Include="SharpYaml" Version="[2.1.5]" GeneratePathProperty="true" />
