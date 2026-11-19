@@ -3,6 +3,24 @@
 > ⬆️ **Upgrading from 2.x?** The entries below list the commits of each release. What to change in a project, and
 > why, is in the wiki: [Upgrading to v3](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Upgrading-to-v3).
 
+## [3.4.0](https://github.com/atc-net/atc-rest-api-source-generator/compare/v3.3.2...v3.4.0) (2026-11-19)
+
+
+### New features
+
+* **cli:** Aspire 17 AppHosts - generate server --aspire and the samples' AppHosts are plain Microsoft.NET.Sdk projects on Aspire.Hosting.AppHost and Aspire.Hosting.Dotnet 17.0.0 that add each service by path with AddDotnetProject, as Aspire 17 makes the Aspire.AppHost.Sdk (ASPIRE012) and AddProject&lt;TProject&gt; obsolete; the scaffolded host takes Scalar.AspNetCore 3.*, the MessagePack override goes (Aspire.Hosting 17 depends on the fixed 2.5.307), and the AppHost READMEs say a run needs the Aspire CLI ([3f632c1](https://github.com/atc-net/atc-rest-api-source-generator/commit/3f632c116cc6e9cdccf1a093b742b9560b278f97))
+
+
+### Bug fixes
+
+* **generator:** a required query or header parameter that was not sent is a 400 naming it with the ValidationFilter too - the wire binding step answers it on every endpoint (requireParameters: true), before the framework binds: in Development, where ThrowOnBadRequest threw BadHttpRequestException before any filter ran, and for a missing value type (int), which the filter saw as its default and left unnamed ([1a601f7](https://github.com/atc-net/atc-rest-api-source-generator/commit/1a601f718536e6ddb86c77c17b497b819157e3da))
+
+
+### Documentation
+
+* **report:** test-suite report from dee1e7feb - five suites green (14,909 passed, 5 skipped), Playwright 263 passed, every matrix green with no known failures; Atc.Rest.MinimalApi 3.2.0 in the provenance ([499e242](https://github.com/atc-net/atc-rest-api-source-generator/commit/499e242391557541addaf57f19ea6a2288014685))
+* **report:** the fuzz run's report from the last test run ([24c3124](https://github.com/atc-net/atc-rest-api-source-generator/commit/24c3124e3bc0e000eb4aa21de2b4398c4c5a3649))
+
 ## [3.3.2](https://github.com/atc-net/atc-rest-api-source-generator/compare/v3.3.1...v3.3.2) (2026-11-10)
 
 
