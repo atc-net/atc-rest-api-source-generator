@@ -1,12 +1,12 @@
 namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 
-/// <summary>
+/// <content>
 /// The generated scope and role checks against real signed JWTs read by <c>AddJwtBearer</c>, as an identity provider
 /// issues them: scopes in a space-separated <c>scp</c> or <c>scope</c> claim, or as an array (one claim each); roles as
 /// a <c>roles</c> array. With <c>MapInboundClaims</c> on, the handler renames <c>scp</c> and <c>roles</c> to the long
 /// claim types; off, they keep their names - and then a role only counts when the host sets <c>RoleClaimType</c>
 /// to <c>roles</c>, which is where consumers get a 403 in production. The guard matrix uses a plain-text token instead.
-/// </summary>
+/// </content>
 public partial class ErrorResponseBodyRuntimeTests
 {
     private static readonly SymmetricSecurityKey JwtKey = new(Encoding.UTF8.GetBytes("contoso-test-signing-key-of-at-least-256-bits!"));

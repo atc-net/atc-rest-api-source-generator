@@ -145,7 +145,8 @@ public class RuleSeverityConfigurationTests
     {
         var diagnostics = Run(
             $$"""{ "validateSpecificationStrategy": "Strict", "ruleSeverities": { "{{Generator.RuleIdentifiers.GetOperationIdPrefix}}": "error" } }""",
-            parts: [("/project/Things_More.yaml", """
+            parts: [
+                ("/project/Things_More.yaml", """
                 openapi: 3.1.1
                 info:
                   title: Things
@@ -157,7 +158,8 @@ public class RuleSeverityConfigurationTests
                       responses:
                         '204':
                           description: None
-                """)]);
+                """),
+            ]);
 
         Assert.All(
             diagnostics.Where(d => d.Id == Generator.RuleIdentifiers.GetOperationIdPrefix),

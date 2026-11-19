@@ -132,8 +132,8 @@ public static class OpenApiOperationExtensions
             // A JSON body declared under another JSON media type (application/merge-patch+json, application/vnd.x+json)
             return string.Equals(contentType, "application/json", StringComparison.OrdinalIgnoreCase) &&
                    operation.GetJsonRequestBodyMediaType() is { } jsonMediaType
-                ? operation.RequestBody.Content[jsonMediaType].Schema
-                : null;
+                       ? operation.RequestBody.Content[jsonMediaType].Schema
+                       : null;
         }
 
         /// <summary>
@@ -406,8 +406,8 @@ public static class OpenApiOperationExtensions
             var (_, contentType) = operation.GetRequestBodySchemaWithContentType();
             return contentType.Length > 0 &&
                    IsTextRequestBodyContentType(contentType, operation.RequestBody!.Content![contentType].Schema)
-                ? contentType
-                : null;
+                       ? contentType
+                       : null;
         }
 
         /// <summary>
@@ -540,42 +540,6 @@ public static class OpenApiOperationExtensions
             }
 
             return operation.GetAnnotatedStreamingResponse();
-        }
-
-        /// <summary>
-        /// The pre-3.2 way to declare a sequential stream: a <c>schema</c> under a streaming media type
-        /// (<c>text/event-stream</c>, <c>application/jsonl</c>, <c>application/json-seq</c>, ...). The schema describes
-        /// one element, or the array of them. The media type says it is a stream on its own;
-        /// <c>multipart/mixed</c> - as often a batch answer as a stream - streams only with
-        /// <c>x-return-async-enumerable</c>.
-        /// </summary>
-        private (string MediaType, IOpenApiSchema ItemSchema)? GetAnnotatedStreamingResponse()
-        {
-            if (operation.Responses is null)
-            {
-                return null;
-            }
-
-            var annotated = operation.IsAsyncEnumerableOperation();
-            foreach (var statusCode in new[] { "200", "201" })
-            {
-                if (!operation.Responses.TryGetValue(statusCode, out var response) ||
-                    response.Content is null)
-                {
-                    continue;
-                }
-
-                foreach (var kvp in response.Content)
-                {
-                    if ((annotated || StreamingMediaType.Classify(kvp.Key) != StreamingFraming.MultipartMixed) &&
-                        StreamingMediaType.ItemSchemaOf(kvp.Key, kvp.Value.Schema) is { } itemSchema)
-                    {
-                        return (kvp.Key, itemSchema);
-                    }
-                }
-            }
-
-            return null;
         }
 
         /// <summary>
@@ -825,6 +789,42 @@ public static class OpenApiOperationExtensions
             }
 
             return (schemaName, schema.Properties, required);
+        }
+
+        /// <summary>
+        /// The pre-3.2 way to declare a sequential stream: a <c>schema</c> under a streaming media type
+        /// (<c>text/event-stream</c>, <c>application/jsonl</c>, <c>application/json-seq</c>, ...). The schema describes
+        /// one element, or the array of them. The media type says it is a stream on its own;
+        /// <c>multipart/mixed</c> - as often a batch answer as a stream - streams only with
+        /// <c>x-return-async-enumerable</c>.
+        /// </summary>
+        private (string MediaType, IOpenApiSchema ItemSchema)? GetAnnotatedStreamingResponse()
+        {
+            if (operation.Responses is null)
+            {
+                return null;
+            }
+
+            var annotated = operation.IsAsyncEnumerableOperation();
+            foreach (var statusCode in new[] { "200", "201" })
+            {
+                if (!operation.Responses.TryGetValue(statusCode, out var response) ||
+                    response.Content is null)
+                {
+                    continue;
+                }
+
+                foreach (var kvp in response.Content)
+                {
+                    if ((annotated || StreamingMediaType.Classify(kvp.Key) != StreamingFraming.MultipartMixed) &&
+                        StreamingMediaType.ItemSchemaOf(kvp.Key, kvp.Value.Schema) is { } itemSchema)
+                    {
+                        return (kvp.Key, itemSchema);
+                    }
+                }
+            }
+
+            return null;
         }
 
         private IEnumerable<OpenApiParameter> GetParametersByLocationIterator(

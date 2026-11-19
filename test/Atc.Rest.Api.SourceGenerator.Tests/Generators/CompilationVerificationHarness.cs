@@ -251,9 +251,11 @@ internal static class CompilationVerificationHarness
     /// </summary>
     public static List<MetadataReference> GetFullFrameworkReferencesWithout(
         params string[] assemblyNamePrefixes)
-        => [.. GetFullFrameworkReferences()
+        => [
+            .. GetFullFrameworkReferences()
             .Where(r => r is not PortableExecutableReference pe ||
-                        !assemblyNamePrefixes.Any(p => Path.GetFileNameWithoutExtension(pe.FilePath ?? string.Empty).StartsWith(p, StringComparison.OrdinalIgnoreCase)))];
+                        !assemblyNamePrefixes.Any(p => Path.GetFileNameWithoutExtension(pe.FilePath ?? string.Empty).StartsWith(p, StringComparison.OrdinalIgnoreCase))),
+        ];
 
     /// <summary>
     /// Whether a scenario stands for a project that references <c>Atc.Rest.MinimalApi</c>, which
@@ -296,9 +298,6 @@ internal static class CompilationVerificationHarness
             .Select(p => (MetadataReference)MetadataReference.CreateFromFile(p))
             .ToList(),
         LazyThreadSafetyMode.ExecutionAndPublication);
-
-    private static bool IsMinimalApiAssembly(MetadataReference reference)
-        => string.Equals(Path.GetFileName(reference.Display), MinimalApiAssemblyFileName, StringComparison.OrdinalIgnoreCase);
 
     private static readonly string[] MinimalApiModeProperties =
     [
@@ -345,6 +344,9 @@ internal static class CompilationVerificationHarness
     /// so generated code must write them <c>global::</c>-qualified.
     /// </summary>
     private static readonly string[] FrameworkRootNamespaces = ["System", "Microsoft", "Atc"];
+
+    private static bool IsMinimalApiAssembly(MetadataReference reference)
+        => string.Equals(Path.GetFileName(reference.Display), MinimalApiAssemblyFileName, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Declares <c>N.System</c>, <c>N.Microsoft</c> and <c>N.Atc</c> for every namespace <c>N</c> the generated files

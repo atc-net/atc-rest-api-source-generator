@@ -4,9 +4,9 @@
 // ReSharper disable LoopCanBeConvertedToQuery
 namespace Atc.Rest.Api.Generator.Validators;
 
-/// <summary>
+/// <content>
 /// The security rules (ATC_API_SEC): security schemes and the access an operation or a path declares.
-/// </summary>
+/// </content>
 public static partial class OpenApiDocumentValidator
 {
     /// <summary>

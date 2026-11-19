@@ -1,14 +1,14 @@
 // ReSharper disable StringLiteralTypo
 namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 
-/// <summary>
+/// <content>
 /// End-to-end request-binding matrix: the generated server runs on Kestrel with handlers that answer with what they
 /// were given, and every generated client calls it over HTTP with values in the path, the query string, headers,
 /// cookies and the body (JSON, a <c>+json</c> media type, multipart, a URL-encoded form). Each cell compares what the
 /// server bound with what the client was given. A second group sends, without a client, the requests no typed client
 /// can send - a value of the wrong type, a missing required value, a malformed body, a media type the operation does
 /// not take, a body that is too large - and checks the server's answer.
-/// </summary>
+/// </content>
 /// <remarks>
 /// Not exercised: cookies from a browser (a page cannot set the Cookie header; the TypeScript cells run on Node).
 /// </remarks>
@@ -251,18 +251,6 @@ public partial class ErrorResponseBodyRuntimeTests
             """),
         "        services.AddScoped<IBindFormHandler, BindFormHandlerImpl>();",
         "        services.AddScoped<IBindJson31Handler, BindJson31HandlerImpl>();");
-
-    /// <summary>
-    /// The text with a block inserted before the anchor line - and a complaint, not a silent no-op, when the anchor
-    /// is not there (a raw string literal strips the closing quotes' indentation, so an anchor is easy to get wrong).
-    /// </summary>
-    private static string Spliced(
-        string text,
-        string anchor,
-        string block)
-        => text.Contains(anchor, StringComparison.Ordinal)
-            ? text.Replace(anchor, block + Environment.NewLine + anchor, StringComparison.Ordinal)
-            : throw new InvalidOperationException($"The anchor '{anchor}' is not in the text to splice into.");
 
     /// <summary>
     /// Every handler answers with what it was given: each bound value in one canonical text form (a number and a
@@ -1039,7 +1027,7 @@ public partial class ErrorResponseBodyRuntimeTests
         cases.Add(new RequestBindingCase("cookie: a string", "cookie", "BindCookies", Cookies: new JsonObject { ["session"] = "s3ss ion=1" }, Expected: Expect(("Session", "s3ss ion=1"))));
         cases.Add(new RequestBindingCase("cookie: an integer", "cookie", "BindCookies", Cookies: new JsonObject { ["count"] = 5 }, Expected: Expect(("Count", "5"))));
 
-        JsonObject Thing() => new()
+        static JsonObject Thing() => new()
         {
             ["name"] = "N é \"q\"", ["count"] = 3, ["ratio"] = 1.5, ["when"] = BindInstant, ["day"] = "2026-03-04", ["color"] = "dark-blue", ["tags"] = new JsonArray("a", "b"),
         };
@@ -1167,6 +1155,18 @@ public partial class ErrorResponseBodyRuntimeTests
             new("form: an integer that is none", "POST", "/bind/body/form", 400, "count", ContentType: "application/x-www-form-urlencoded", Body: "name=x&count=abc"),
             new("form: a media type the operation does not take", "POST", "/bind/body/form", 415, ContentType: "application/json", Body: "{ \"name\": \"x\" }"),
         ];
+
+    /// <summary>
+    /// The text with a block inserted before the anchor line - and a complaint, not a silent no-op, when the anchor
+    /// is not there (a raw string literal strips the closing quotes' indentation, so an anchor is easy to get wrong).
+    /// </summary>
+    private static string Spliced(
+        string text,
+        string anchor,
+        string block)
+        => text.Contains(anchor, StringComparison.Ordinal)
+            ? text.Replace(anchor, block + Environment.NewLine + anchor, StringComparison.Ordinal)
+            : throw new InvalidOperationException($"The anchor '{anchor}' is not in the text to splice into.");
 
     private static List<(string Key, string Why)> RequestBindingFailingCells(
         JsonObject matrix)

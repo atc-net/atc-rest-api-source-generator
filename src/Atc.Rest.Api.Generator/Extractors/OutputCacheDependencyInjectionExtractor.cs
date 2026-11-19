@@ -61,17 +61,18 @@ public static class OutputCacheDependencyInjectionExtractor
         // Build header with only required usings
         // The shared policy's types: the output cache's, HttpMethods / StatusCodes, ValueTask and CancellationToken
         var hasShared = policies.Values.Any(p => p.Shared);
-        string[] namespaces = hasShared
-            ?
+        string[] namespaces = [NamespaceConstants.SystemCodeDomCompiler, $"{projectName}.Generated.Caching"];
+        if (hasShared)
+        {
+            namespaces =
             [
-                NamespaceConstants.SystemCodeDomCompiler,
-                $"{projectName}.Generated.Caching",
+                .. namespaces,
                 "Microsoft.AspNetCore.OutputCaching",
                 NamespaceConstants.MicrosoftAspNetCoreHttp,
                 NamespaceConstants.SystemThreading,
                 NamespaceConstants.SystemThreadingTasks,
-            ]
-            : [NamespaceConstants.SystemCodeDomCompiler, $"{projectName}.Generated.Caching"];
+            ];
+        }
 
         var builder = new StringBuilder();
         builder.Append(UsingStatementHelper.BuildHeader(content, namespaces));

@@ -1,10 +1,10 @@
 namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 
-/// <summary>
+/// <content>
 /// The report's Test layers tab: per feature area of <see cref="FeatureLayerMap"/>, how many tests prove it at each
 /// layer, counted from this run's data - the test suites' TRX results, the runtime matrices, the tsc gate and the
 /// Playwright run - and the test classes no area claims.
-/// </summary>
+/// </content>
 public sealed partial class ErrorResponseBodyRuntimeTests
 {
     private static readonly (string Key, string Label, string Covers)[] TestLayers =
@@ -163,7 +163,8 @@ public sealed partial class ErrorResponseBodyRuntimeTests
         // A matrix group no case is in: the map is behind the matrices - say which, rather than show an area with less
         Assert.True(emptyMatrixSelectors.Count == 0, "Matrix selectors in FeatureLayerMap with no case: " + string.Join("; ", emptyMatrixSelectors));
 
-        var unclaimed = new JsonArray([.. classes
+        var unclaimed = new JsonArray([
+            .. classes
             .Where(c => !claimed.Contains(c.Node) && !FeatureLayerMap.PerScenarioClasses.Contains((string)c.Node["name"]!))
             .OrderBy(c => c.Project, StringComparer.Ordinal)
             .ThenBy(c => (string?)c.Node["name"], StringComparer.Ordinal)
@@ -173,7 +174,8 @@ public sealed partial class ErrorResponseBodyRuntimeTests
                 ["project"] = c.Project,
                 ["layer"] = LayerOf(c.Project, c.Area),
                 ["tests"] = Number(c.Node, "tests"),
-            })]);
+            }),
+        ]);
 
         return new JsonObject
         {

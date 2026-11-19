@@ -1,7 +1,7 @@
 // ReSharper disable StringLiteralTypo
 namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 
-/// <summary>
+/// <content>
 /// End-to-end enum-casing matrix: the generated server runs on Kestrel with handlers that answer with the enum values
 /// they were given, and a raw HTTP client sends each listed value in another casing - lower case, upper case, the first
 /// letter flipped - as a caller typing it by hand would (Postman, curl). Every place a value arrives is a column: the
@@ -9,7 +9,7 @@ namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 /// XML body. A listed value is read in any casing and reaches the handler as the specification writes it; a casing two
 /// listed values share (<c>active</c>, <c>Active</c> sent as <c>ACTIVE</c>) names neither and is a 400, and an exact
 /// match always wins.
-/// </summary>
+/// </content>
 public partial class ErrorResponseBodyRuntimeTests
 {
     /// <summary>

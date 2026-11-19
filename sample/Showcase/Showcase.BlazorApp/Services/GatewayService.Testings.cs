@@ -1,9 +1,9 @@
 #pragma warning disable IDE0001
 namespace Showcase.BlazorApp.Services;
 
-/// <summary>
+/// <content>
 /// Gateway service - Testings operations using generated endpoints.
-/// </summary>
+/// </content>
 public sealed partial class GatewayService
 {
     /// <summary>

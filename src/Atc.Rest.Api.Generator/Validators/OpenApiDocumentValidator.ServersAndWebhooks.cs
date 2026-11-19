@@ -4,9 +4,9 @@
 // ReSharper disable LoopCanBeConvertedToQuery
 namespace Atc.Rest.Api.Generator.Validators;
 
-/// <summary>
+/// <content>
 /// The server and webhook rules (ATC_API_SRV, ATC_API_WBH).
-/// </summary>
+/// </content>
 public static partial class OpenApiDocumentValidator
 {
     /// <summary>
@@ -40,7 +40,7 @@ public static partial class OpenApiDocumentValidator
                     Context: "servers",
                     Suggestions:
                     [
-                        "Provide a valid server URL (e.g., https://api.example.com)"
+                        "Provide a valid server URL (e.g., https://api.example.com)",
                     ]));
                 continue;
             }
@@ -71,7 +71,7 @@ public static partial class OpenApiDocumentValidator
                             Context: "servers",
                             Suggestions:
                             [
-                                $"Add '{variable}' to server variables with a default value"
+                                $"Add '{variable}' to server variables with a default value",
                             ]));
                     }
                 }
@@ -93,7 +93,7 @@ public static partial class OpenApiDocumentValidator
                     Context: "servers",
                     Suggestions:
                     [
-                        $"Use an absolute URL like 'https://{url}' or a relative path like '/{url}'"
+                        $"Use an absolute URL like 'https://{url}' or a relative path like '/{url}'",
                     ]));
             }
         }
@@ -157,7 +157,7 @@ public static partial class OpenApiDocumentValidator
             Suggestions:
             [
                 "Webhook handlers will be generated for each webhook operation",
-                "Implement webhook handlers to process incoming webhook events"
+                "Implement webhook handlers to process incoming webhook events",
             ]));
 
         // Validate each webhook
@@ -178,7 +178,7 @@ public static partial class OpenApiDocumentValidator
                     Suggestions:
                     [
                         $"Add an operationId to the {method} operation in webhook '{webhookName}'",
-                        "Use a descriptive name like 'onOrderCreated' or 'handlePaymentWebhook'"
+                        "Use a descriptive name like 'onOrderCreated' or 'handlePaymentWebhook'",
                     ]));
             }
 
@@ -197,7 +197,7 @@ public static partial class OpenApiDocumentValidator
                     Suggestions:
                     [
                         $"Add a requestBody to the {method} operation in webhook '{webhookName}'",
-                        "Define the schema for the data your API will receive"
+                        "Define the schema for the data your API will receive",
                     ]));
             }
         }

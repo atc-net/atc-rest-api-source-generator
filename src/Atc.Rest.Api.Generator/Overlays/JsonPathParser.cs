@@ -132,7 +132,7 @@ internal sealed class JsonPathParser
             return true;
         }
 
-        if (c is >= '\u0080' and <= '퟿' or >= '')
+        if (c is (>= '\u0080' and <= '퟿') or >= '')
         {
             return true;
         }

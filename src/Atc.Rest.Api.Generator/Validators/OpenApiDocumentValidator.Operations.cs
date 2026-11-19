@@ -4,9 +4,9 @@
 // ReSharper disable LoopCanBeConvertedToQuery
 namespace Atc.Rest.Api.Generator.Validators;
 
-/// <summary>
+/// <content>
 /// The operation rules (ATC_API_OPR): operation ids, parameters, request bodies, responses and their statuses.
-/// </summary>
+/// </content>
 public static partial class OpenApiDocumentValidator
 {
     /// <summary>
@@ -150,8 +150,8 @@ public static partial class OpenApiDocumentValidator
             {
                 var encodingContentType = FormBodyHelper.FindMultipartFormDataMediaType(content) == mediaType &&
                                           form.Encoding?.TryGetValue(property.Key, out var encoding) == true
-                    ? encoding.ContentType
-                    : null;
+                                              ? encoding.ContentType
+                                              : null;
                 yield return (mediaType, property.Key, encodingContentType);
             }
         }

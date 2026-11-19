@@ -121,8 +121,8 @@ public static class HttpRequestMessageExtensions
 
         return authorization is not null &&
                string.Equals(authorization.Scheme, "Bearer", StringComparison.OrdinalIgnoreCase)
-            ? authorization.Parameter
-            : null;
+                   ? authorization.Parameter
+                   : null;
     }
 
     /// <summary>

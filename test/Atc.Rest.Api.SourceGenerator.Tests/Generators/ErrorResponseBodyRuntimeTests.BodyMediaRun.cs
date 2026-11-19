@@ -1,9 +1,9 @@
 // ReSharper disable StringLiteralTypo
 namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 
-/// <summary>
+/// <content>
 /// Runs the body media-type matrix (<see cref="BodyMediaCases"/>) and gives every cell its verdict.
-/// </summary>
+/// </content>
 /// <remarks>
 /// What a case expects - a file, a model or an error - comes from the case, never from the wire. The server's answer is
 /// checked against values computed here (the file's bytes, name and media type; the handler's model; the error's
@@ -516,8 +516,8 @@ public partial class ErrorResponseBodyRuntimeTests
                        string.Equals(wire.Sha256, file.Sha256, StringComparison.Ordinal) &&
                        wire.Length == file.Length &&
                        string.Equals(wire.FileName, file.FileName, StringComparison.Ordinal)
-                    ? (VerdictPass, $"the file: {wire.Length:N0} bytes as computed, {wire.MediaType}, " + (wire.FileName is null ? "inline" : $"file name {wire.FileName}"))
-                    : (VerdictFail, $"expected {file.MediaType} {file.Length:N0} bytes sha256 {HashHead(file.Sha256)}.. {file.FileName ?? "inline"}, got {wire.MediaType} {wire.Length:N0} bytes sha256 {HashHead(wire.Sha256)}.. {wire.FileName ?? "inline"}");
+                           ? (VerdictPass, $"the file: {wire.Length:N0} bytes as computed, {wire.MediaType}, " + (wire.FileName is null ? "inline" : $"file name {wire.FileName}"))
+                           : (VerdictFail, $"expected {file.MediaType} {file.Length:N0} bytes sha256 {HashHead(file.Sha256)}.. {file.FileName ?? "inline"}, got {wire.MediaType} {wire.Length:N0} bytes sha256 {HashHead(wire.Sha256)}.. {wire.FileName ?? "inline"}");
             }
 
             case "model":

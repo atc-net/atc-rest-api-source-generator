@@ -204,12 +204,12 @@ public static class FormBodyHelper
         var mediaTypes = multipart?.Encoding is { } encoding &&
                          encoding.TryGetValue(fieldName, out var fieldEncoding) &&
                          !string.IsNullOrWhiteSpace(fieldEncoding.ContentType)
-            ? fieldEncoding.ContentType!
-                .Split(',')
-                .Select(m => m.BaseType)
-                .Where(m => m.Length > 0)
-                .ToList()
-            : [];
+                             ? fieldEncoding.ContentType!
+                                 .Split(',')
+                                 .Select(m => m.BaseType)
+                                 .Where(m => m.Length > 0)
+                                 .ToList()
+                             : [];
 
         if (mediaTypes.Count == 0 || mediaTypes.Any(ErrorResponseShapeResolver.IsJsonMediaType))
         {
@@ -413,8 +413,8 @@ public static class FormBodyHelper
         return !string.IsNullOrEmpty(schemaId) &&
                openApiDoc.Components?.Schemas is not null &&
                openApiDoc.Components.Schemas.TryGetValue(schemaId!, out var component)
-            ? component
-            : null;
+                   ? component
+                   : null;
     }
 
     /// <summary>

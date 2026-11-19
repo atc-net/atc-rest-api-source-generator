@@ -1,14 +1,14 @@
 // ReSharper disable StringLiteralTypo
 namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 
-/// <summary>
+/// <content>
 /// The test-suite report (<c>docs/test-suite-report.html</c>, its data <c>docs/test-suite-report.json</c>, all tracked in git):
 /// the five runtime matrices (error bodies, body media types, request binding, security and rate limiting, features),
 /// what each one does not exercise, the ratchets (the cells expected to fail), a machine-readable summary,
 /// the specification-feature support table (every scenario through every generator, by OpenAPI version), the
 /// diagnostics coverage, the Playwright summary, and the changes since the previous run (that run's verdict per cell,
 /// <c>docs/test-suite-report.history.jsonl</c>).
-/// </summary>
+/// </content>
 public partial class ErrorResponseBodyRuntimeTests
 {
     /// <summary>
@@ -221,7 +221,8 @@ public partial class ErrorResponseBodyRuntimeTests
             ("bodyMedia", BodyMediaNotExercised),
             ("requestBinding", RequestBindingNotExercised),
             ("guard", GuardNotExercised),
-            ("feature", FeatureNotExercised)])
+            ("feature", FeatureNotExercised),
+        ])
         {
             if (ratchets[key]!.AsArray().Count == 0)
             {
@@ -301,7 +302,7 @@ public partial class ErrorResponseBodyRuntimeTests
     [Fact]
     public void Summary_CountsOnlyUnexpectedPlaywrightTestsAsFailed()
     {
-        JsonObject Matrix(JsonObject apps)
+        static JsonObject Matrix(JsonObject apps)
             => new() { ["cases"] = new JsonArray(), ["ratchet"] = new JsonObject(), ["playwright"] = new JsonObject { ["apps"] = apps } };
 
         var flaky = Summary(Matrix(new JsonObject { ["blazor"] = new JsonObject { ["expected"] = 3, ["flaky"] = 1, ["skipped"] = 2 } }));
@@ -486,24 +487,30 @@ public partial class ErrorResponseBodyRuntimeTests
             ["state"] = unexpected.Count > 0 ? "regressions" : knownCount > 0 ? "known-failures" : "green",
             ["unexpectedFailures"] = unexpected,
             ["matrices"] = matrices,
-            ["compileGate"] = support is null ? null : new JsonObject
-            {
-                ["scenarios"] = support.Count,
-                ["clean"] = support.Count(s => s!["generators"]!.AsObject().All(g => (int?)g.Value!["errors"] == 0 && (int?)g.Value!["warnings"] == 0)),
-                ["generators"] = matrix["support"]!["generators"]!.AsArray().Count,
-            },
-            ["diagnostics"] = diagnostics is null ? null : new JsonObject
-            {
-                ["rules"] = diagnostics.Count,
-                ["tested"] = diagnostics.Count(r => !string.Equals((string?)r!["status"], "untested", StringComparison.Ordinal)),
-            },
-            ["playwright"] = playwright is null ? null : new JsonObject
-            {
-                ["apps"] = playwright.Count,
-                ["failed"] = playwright.Sum(a => a.Value!.AsObject().Where(s => s.Key is not ("expected" or "passed" or "skipped" or "flaky")).Sum(s => (int)s.Value!)),
-                ["flaky"] = playwright.Sum(a => (int?)a.Value!["flaky"] ?? 0),
-                ["stale"] = playwrightStale,
-            },
+            ["compileGate"] = support is null
+                ? null
+                : new JsonObject
+                {
+                    ["scenarios"] = support.Count,
+                    ["clean"] = support.Count(s => s!["generators"]!.AsObject().All(g => (int?)g.Value!["errors"] == 0 && (int?)g.Value!["warnings"] == 0)),
+                    ["generators"] = matrix["support"]!["generators"]!.AsArray().Count,
+                },
+            ["diagnostics"] = diagnostics is null
+                ? null
+                : new JsonObject
+                {
+                    ["rules"] = diagnostics.Count,
+                    ["tested"] = diagnostics.Count(r => !string.Equals((string?)r!["status"], "untested", StringComparison.Ordinal)),
+                },
+            ["playwright"] = playwright is null
+                ? null
+                : new JsonObject
+                {
+                    ["apps"] = playwright.Count,
+                    ["failed"] = playwright.Sum(a => a.Value!.AsObject().Where(s => s.Key is not ("expected" or "passed" or "skipped" or "flaky")).Sum(s => (int)s.Value!)),
+                    ["flaky"] = playwright.Sum(a => (int?)a.Value!["flaky"] ?? 0),
+                    ["stale"] = playwrightStale,
+                },
         };
     }
 
@@ -571,7 +578,8 @@ public partial class ErrorResponseBodyRuntimeTests
             ("feature31", KnownFeatureFailures),
             .. EnumCasingHosts.Select(h => (h.Key, KnownEnumCasingFailures.GetValueOrDefault(h.Key) ?? new Dictionary<string, string>(StringComparer.Ordinal))),
             .. ValidationHosts.Select(h => (h.Key, KnownValidationFailures.GetValueOrDefault(h.Key) ?? new Dictionary<string, string>(StringComparer.Ordinal))),
-            .. ValidationCombinedHosts.Select(h => (h.Key, KnownValidationCombinedFailures.GetValueOrDefault(h.Key) ?? new Dictionary<string, string>(StringComparer.Ordinal)))])
+            .. ValidationCombinedHosts.Select(h => (h.Key, KnownValidationCombinedFailures.GetValueOrDefault(h.Key) ?? new Dictionary<string, string>(StringComparer.Ordinal))),
+        ])
         {
             reasons[key] = new JsonObject(known.OrderBy(k => k.Key, StringComparer.Ordinal).Select(k => KeyValuePair.Create(k.Key, (JsonNode?)k.Value)));
         }
@@ -704,13 +712,15 @@ public partial class ErrorResponseBodyRuntimeTests
 
         return new JsonObject
         {
-            ["previous"] = previous is null ? null : new JsonObject
-            {
-                ["generatedAt"] = (string?)previous["generatedAt"],
-                ["commit"] = (string?)previous["commit"],
-                ["uncommittedFiles"] = (int?)previous["uncommittedFiles"],
-                ["totals"] = previous["totals"]?.DeepClone(),
-            },
+            ["previous"] = previous is null
+                ? null
+                : new JsonObject
+                {
+                    ["generatedAt"] = (string?)previous["generatedAt"],
+                    ["commit"] = (string?)previous["commit"],
+                    ["uncommittedFiles"] = (int?)previous["uncommittedFiles"],
+                    ["totals"] = previous["totals"]?.DeepClone(),
+                },
             ["changed"] = changed,
             ["added"] = new JsonArray([.. now.Keys.Where(k => !before.ContainsKey(k)).Order(StringComparer.Ordinal).Select(k => (JsonNode)k)]),
             ["removed"] = new JsonArray([.. before.Keys.Where(k => !now.ContainsKey(k)).Order(StringComparer.Ordinal).Select(k => (JsonNode)k)]),
@@ -975,7 +985,7 @@ public partial class ErrorResponseBodyRuntimeTests
 
         var apps = new Dictionary<string, Dictionary<string, int>>(StringComparer.Ordinal);
         var files = new Dictionary<string, Dictionary<string, int>>(StringComparer.Ordinal);
-        void Count(
+        static void Count(
             Dictionary<string, Dictionary<string, int>> tallies,
             string key,
             string status)

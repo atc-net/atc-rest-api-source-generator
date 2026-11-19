@@ -1,9 +1,9 @@
 // ReSharper disable InvertIf
 namespace Atc.Rest.Api.Generator.Extractors;
 
-/// <summary>
+/// <content>
 /// The typed client's response side: the completion of a send by payload kind, and the response helpers of the Result style.
-/// </summary>
+/// </content>
 public static partial class HttpClientExtractor
 {
     /// <summary>

@@ -1,10 +1,10 @@
 namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 
-/// <summary>
+/// <content>
 /// The report's Test suites tab: every test of the five test projects as the last run recorded it (their TRX files in
 /// <c>TestResults/</c>, written by <c>dotnet test --report-trx</c>), as suite, area (the test namespace), class and
 /// test method - a theory's cases counted under their method - with the rules each class covers.
-/// </summary>
+/// </content>
 public sealed partial class ErrorResponseBodyRuntimeTests
 {
     private static readonly (string Project, string Covers)[] TestSuiteProjects =
@@ -108,7 +108,7 @@ public sealed partial class ErrorResponseBodyRuntimeTests
             return dot < 0 ? "(root)" : local[..dot];
         }
 
-        JsonObject Tally(
+        static JsonObject Tally(
             IEnumerable<(string Outcome, double Milliseconds)> items,
             JsonObject node)
         {

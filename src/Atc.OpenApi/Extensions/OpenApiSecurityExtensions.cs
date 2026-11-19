@@ -730,8 +730,8 @@ public static class OpenApiSecurityExtensions
 
         return scheme.Type == Microsoft.OpenApi.SecuritySchemeType.Http &&
                string.Equals(scheme.Scheme, "bearer", StringComparison.OrdinalIgnoreCase)
-            ? AspNetBearerAuthenticationScheme
-            : schemeKey;
+                   ? AspNetBearerAuthenticationScheme
+                   : schemeKey;
     }
 
     /// <summary>

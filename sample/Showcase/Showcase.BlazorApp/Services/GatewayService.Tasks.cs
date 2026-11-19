@@ -1,8 +1,8 @@
 namespace Showcase.BlazorApp.Services;
 
-/// <summary>
+/// <content>
 /// Gateway service - Tasks operations using generated endpoints.
-/// </summary>
+/// </content>
 public sealed partial class GatewayService
 {
     /// <summary>

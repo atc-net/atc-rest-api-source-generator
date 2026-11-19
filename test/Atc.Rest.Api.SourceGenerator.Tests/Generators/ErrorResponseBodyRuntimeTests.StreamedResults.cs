@@ -1,10 +1,10 @@
 namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 
-/// <summary>
+/// <content>
 /// A streamed operation of the EndpointPerOperation client has a result class like every other operation: the items
 /// are its <c>Content</c>, and an error is typed - <c>Is{Status}</c>, <c>{Status}Content</c>, the <c>default</c>
 /// model, the declared headers - whichever of the five framings the operation streams in.
-/// </summary>
+/// </content>
 public sealed partial class ErrorResponseBodyRuntimeTests
 {
     private const string StreamedResultsYaml = """

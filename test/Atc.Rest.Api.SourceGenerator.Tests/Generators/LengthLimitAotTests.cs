@@ -131,8 +131,10 @@ public sealed class LengthLimitAotTests
         Validator.TryValidateObject(instance, new ValidationContext(instance), results, validateAllProperties: true);
 
         var order = type.GetProperties().Select(p => p.Name).ToList();
-        return [.. results
+        return [
+            .. results
             .OrderBy(r => order.IndexOf(r.MemberNames.First()))
-            .Select(r => r.ErrorMessage!)];
+            .Select(r => r.ErrorMessage!),
+        ];
     }
 }

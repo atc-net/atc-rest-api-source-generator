@@ -1,10 +1,10 @@
 namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 
-/// <summary>
+/// <content>
 /// The host's own middleware, added through <c>ApiMiddlewareOptions.AfterErrorHandling</c>, runs inside the error
 /// handling <c>Use{Api}ApiMiddleware()</c> adds: what it throws is a ProblemDetails 500 and what it answers empty gets a
 /// ProblemDetails body - on the package's host and on the plain host alike.
-/// </summary>
+/// </content>
 public partial class ErrorResponseBodyRuntimeTests
 {
     [Theory]

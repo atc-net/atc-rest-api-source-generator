@@ -4,10 +4,10 @@
 // ReSharper disable LoopCanBeConvertedToQuery
 namespace Atc.Rest.Api.Generator.Validators;
 
-/// <summary>
+/// <content>
 /// Validates OpenAPI documents according to the configured strategy.
 /// Returns DiagnosticMessage objects (Roslyn-free) instead of Roslyn Diagnostic objects.
-/// </summary>
+/// </content>
 public static partial class OpenApiDocumentValidator
 {
     /// <summary>

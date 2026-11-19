@@ -1,9 +1,9 @@
 // ReSharper disable InvertIf
 namespace Atc.Rest.Api.Generator.Extractors;
 
-/// <summary>
+/// <content>
 /// Extracts OpenAPI operations and converts them to ClassParameters for HTTP client class generation.
-/// </summary>
+/// </content>
 public static partial class HttpClientExtractor
 {
     /// <summary>

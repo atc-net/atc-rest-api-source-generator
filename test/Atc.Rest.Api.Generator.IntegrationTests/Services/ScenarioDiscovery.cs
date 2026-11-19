@@ -22,23 +22,6 @@ namespace Atc.Rest.Api.Generator.IntegrationTests.Services;
 public static class ScenarioDiscovery
 {
     /// <summary>
-    /// Marker file to generator type and output folder mapping.
-    /// </summary>
-    private static readonly Dictionary<string, (string GeneratorType, string OutputFolder)> MarkerFileMappingInternal = new(StringComparer.Ordinal)
-    {
-        [".atc-rest-api-server"] = ("Server", "Server"),
-        [".atc-rest-api-server-handlers"] = ("ServerDomain", "ServerDomain"),
-        [".atc-rest-api-client"] = ("Client", "Client"),
-        [".atc-rest-api-ts-client"] = ("TypeScriptClient", "TypeScriptClient"),
-    };
-
-    /// <summary>
-    /// Marker file to generator type and output folder mapping.
-    /// </summary>
-    public static IReadOnlyDictionary<string, (string GeneratorType, string OutputFolder)> MarkerFileMapping
-        => MarkerFileMappingInternal;
-
-    /// <summary>
     /// Known master folders for different generator configurations.
     /// </summary>
     /// <remarks>
@@ -54,6 +37,23 @@ public static class ScenarioDiscovery
     /// Valid generator types for comparison.
     /// </summary>
     public static readonly string[] GeneratorTypes = ["Server", "Client", "ServerDomain", "TypeScriptClient"];
+
+    /// <summary>
+    /// Marker file to generator type and output folder mapping.
+    /// </summary>
+    private static readonly Dictionary<string, (string GeneratorType, string OutputFolder)> MarkerFileMappingInternal = new(StringComparer.Ordinal)
+    {
+        [".atc-rest-api-server"] = ("Server", "Server"),
+        [".atc-rest-api-server-handlers"] = ("ServerDomain", "ServerDomain"),
+        [".atc-rest-api-client"] = ("Client", "Client"),
+        [".atc-rest-api-ts-client"] = ("TypeScriptClient", "TypeScriptClient"),
+    };
+
+    /// <summary>
+    /// Marker file to generator type and output folder mapping.
+    /// </summary>
+    public static IReadOnlyDictionary<string, (string GeneratorType, string OutputFolder)> MarkerFileMapping
+        => MarkerFileMappingInternal;
 
     /// <summary>
     /// Gets the base path for test scenarios (test/Scenarios/).

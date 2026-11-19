@@ -1,10 +1,10 @@
 namespace Showcase.BlazorApp.Services;
 
-/// <summary>
+/// <content>
 /// Gateway service - Files operations using generated endpoints.
 /// Binary file endpoints now use BinaryEndpointResponse from Atc.Rest.Client
 /// which provides typed access to Content (byte[]), ContentType, and FileName.
-/// </summary>
+/// </content>
 public sealed partial class GatewayService
 {
     /// <summary>

@@ -202,8 +202,8 @@ public static class WebhookParameterExtractor
         var contentType = operation.RequestBody?.Content?.Keys.FirstOrDefault() ?? "application/json";
         return operation.RequestBody?.Content is { } content &&
                content.TryGetValue(contentType, out var mediaType)
-            ? mediaType?.Schema
-            : null;
+                   ? mediaType?.Schema
+                   : null;
     }
 
     private static string GetBodyTypeName(

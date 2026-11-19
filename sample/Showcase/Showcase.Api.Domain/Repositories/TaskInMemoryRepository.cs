@@ -8,7 +8,7 @@ public sealed class TaskInMemoryRepository
     [
         "Review", "Update", "Create", "Fix", "Implement", "Design", "Test", "Deploy",
         "Refactor", "Optimize", "Document", "Analyze", "Configure", "Migrate", "Debug",
-        "Validate", "Monitor", "Setup", "Integrate", "Research"
+        "Validate", "Monitor", "Setup", "Integrate", "Research",
     ];
 
     private static readonly string[] TaskSuffixes =
@@ -16,7 +16,7 @@ public sealed class TaskInMemoryRepository
         "database schema", "API endpoints", "user authentication", "CI/CD pipeline",
         "unit tests", "documentation", "performance metrics", "security audit",
         "code review", "deployment scripts", "error handling", "logging system",
-        "caching layer", "search functionality", "notification service", "backup system"
+        "caching layer", "search functionality", "notification service", "backup system",
     ];
 
     private static readonly string[] Tags = ["high-priority", "low-priority", "in-progress", "blocked"];

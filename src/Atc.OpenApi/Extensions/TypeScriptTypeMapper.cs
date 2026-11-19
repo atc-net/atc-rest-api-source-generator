@@ -284,8 +284,8 @@ public static class TypeScriptTypeMapper
             case OpenApiSchemaReference itemRef:
                 var element = itemRef.Target is OpenApiSchema { Type: { } itemTargetType, Items: OpenApiSchemaReference elementRef } &&
                               itemTargetType.HasFlag(JsonSchemaType.Array)
-                    ? elementRef
-                    : itemRef;
+                                  ? elementRef
+                                  : itemRef;
                 itemSchemaName = element.ComponentName;
                 if (itemSchemaName is null)
                 {

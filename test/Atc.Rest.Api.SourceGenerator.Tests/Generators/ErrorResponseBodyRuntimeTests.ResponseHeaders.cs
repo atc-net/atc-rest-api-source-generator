@@ -1,11 +1,11 @@
 namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 
-/// <summary>
+/// <content>
 /// The headers a response declares are what the handler's result can write: each is an optional, typed parameter of
 /// the response's factory - after the parameters the factory has, so no call that compiled changes its meaning - and
 /// is written with the result. A header the handler does not give is not written (a middleware may), and then the
 /// result is the framework's own, unwrapped.
-/// </summary>
+/// </content>
 public sealed partial class ErrorResponseBodyRuntimeTests
 {
     private const string ResponseHeadersYaml = """
@@ -617,14 +617,13 @@ public sealed partial class ErrorResponseBodyRuntimeTests
 
         var lines = await (Task<List<string>>)run.Invoke(null, [])!;
 
-        Assert.Equal(
-            resultStyle == "Result"
-                ? [
-                    "ok 200: X-Mode=slow-and-steady X-Priority=3 X-Level=low X-Window=4/(null)/fast",
-                    "down 503: X-Mode=fast X-Priority=(null) X-Level=(null) X-Window=(null)",
-                ]
-                : ["down 503: X-Mode=fast X-Priority=(null) X-Level=(null) X-Window=(null)"],
-            lines);
+        string[] whenResult =
+        [
+            "ok 200: X-Mode=slow-and-steady X-Priority=3 X-Level=low X-Window=4/(null)/fast",
+            "down 503: X-Mode=fast X-Priority=(null) X-Level=(null) X-Window=(null)",
+        ];
+        string[] whenThrow = ["down 503: X-Mode=fast X-Priority=(null) X-Level=(null) X-Window=(null)"];
+        Assert.Equal(resultStyle == "Result" ? whenResult : whenThrow, lines, StringComparer.Ordinal);
     }
 
     private const string StatusHeadersClientProbe = """"

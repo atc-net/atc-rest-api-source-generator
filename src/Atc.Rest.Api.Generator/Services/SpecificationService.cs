@@ -112,49 +112,6 @@ public static class SpecificationService
     }
 
     /// <summary>
-    /// Writes the document in the OpenAPI version it was parsed as (3.0 when unknown): writing a 3.1 / 3.2
-    /// document as 3.0 would turn type arrays into `nullable`, and drop `query:` operations and webhooks.
-    /// </summary>
-    private static void Serialize(
-        OpenApiDocument document,
-        IOpenApiWriter writer)
-    {
-        var version = document.SpecVersion;
-        if (version is OpenApiSpecVersion.OpenApi3_1 or OpenApiSpecVersion.OpenApi3_2)
-        {
-            // The 3.0 `nullable: true` in a 3.1+ document is kept as an unrecognized keyword (and honored by the
-            // generator); written back it would become `unrecognizedKeywords: { nullable: true }`. Write it the
-            // 3.1 way, as a `null` type - the same meaning.
-            new OpenApiWalker(new NullableKeywordNormalizer()).Walk(document);
-        }
-
-        // The library writes a schema's unrecognized keywords (JSON Schema keywords it has no property for, such as
-        // `prefixItems`, or `summary` on a schema) nested under an `unrecognizedKeywords` key, which reads back as
-        // a different schema. Write them in place instead, and leave the document as it was.
-        var inliner = new UnrecognizedKeywordInliner();
-        new OpenApiWalker(inliner).Walk(document);
-        try
-        {
-            switch (version)
-            {
-                case OpenApiSpecVersion.OpenApi3_2:
-                    document.SerializeAsV32(writer);
-                    break;
-                case OpenApiSpecVersion.OpenApi3_1:
-                    document.SerializeAsV31(writer);
-                    break;
-                default:
-                    document.SerializeAsV3(writer);
-                    break;
-            }
-        }
-        finally
-        {
-            inliner.Restore();
-        }
-    }
-
-    /// <summary>
     /// Moves each schema's unrecognized keywords into its extensions (written under their own name) until
     /// <see cref="Restore"/>.
     /// </summary>
@@ -730,6 +687,49 @@ public static class SpecificationService
     }
 
     /// <summary>
+    /// Writes the document in the OpenAPI version it was parsed as (3.0 when unknown): writing a 3.1 / 3.2
+    /// document as 3.0 would turn type arrays into `nullable`, and drop `query:` operations and webhooks.
+    /// </summary>
+    private static void Serialize(
+        OpenApiDocument document,
+        IOpenApiWriter writer)
+    {
+        var version = document.SpecVersion;
+        if (version is OpenApiSpecVersion.OpenApi3_1 or OpenApiSpecVersion.OpenApi3_2)
+        {
+            // The 3.0 `nullable: true` in a 3.1+ document is kept as an unrecognized keyword (and honored by the
+            // generator); written back it would become `unrecognizedKeywords: { nullable: true }`. Write it the
+            // 3.1 way, as a `null` type - the same meaning.
+            new OpenApiWalker(new NullableKeywordNormalizer()).Walk(document);
+        }
+
+        // The library writes a schema's unrecognized keywords (JSON Schema keywords it has no property for, such as
+        // `prefixItems`, or `summary` on a schema) nested under an `unrecognizedKeywords` key, which reads back as
+        // a different schema. Write them in place instead, and leave the document as it was.
+        var inliner = new UnrecognizedKeywordInliner();
+        new OpenApiWalker(inliner).Walk(document);
+        try
+        {
+            switch (version)
+            {
+                case OpenApiSpecVersion.OpenApi3_2:
+                    document.SerializeAsV32(writer);
+                    break;
+                case OpenApiSpecVersion.OpenApi3_1:
+                    document.SerializeAsV31(writer);
+                    break;
+                default:
+                    document.SerializeAsV3(writer);
+                    break;
+            }
+        }
+        finally
+        {
+            inliner.Restore();
+        }
+    }
+
+    /// <summary>
     /// What a part is next to its base: another OpenAPI version (ATC_API_MPT012 - the part is read by its own), or
     /// nothing to contribute (ATC_API_MPT013 - a <c>paths</c> that is no map, an empty file).
     /// </summary>
@@ -1135,7 +1135,7 @@ public static class SpecificationService
         return
         [
             .. unresolvedRefs
-                .Distinct(StringComparer.Ordinal)
+                .Distinct(StringComparer.Ordinal),
         ];
     }
 
@@ -1634,9 +1634,9 @@ public static class SpecificationService
                     [
                         .. kvp
                             .Value
-                            .OrderBy(d => d, StringComparer.OrdinalIgnoreCase)
+                            .OrderBy(d => d, StringComparer.OrdinalIgnoreCase),
                     ]))
-                .OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase)
+                .OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase),
         ];
     }
 }

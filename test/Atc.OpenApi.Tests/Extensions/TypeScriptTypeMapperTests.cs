@@ -689,8 +689,8 @@ public class TypeScriptTypeMapperTests
             yaml,
             "test.yaml",
             out var document)
-            ? document
-            : null;
+                ? document
+                : null;
 
     private static IOpenApiSchema? GetSchemaProperty(
         OpenApiDocument doc,

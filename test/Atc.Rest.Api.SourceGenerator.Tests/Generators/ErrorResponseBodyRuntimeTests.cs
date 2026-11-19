@@ -1,10 +1,10 @@
 namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 
-/// <summary>
+/// <content>
 /// Runtime characterization of error response bodies: what the generated server actually writes on
 /// the wire for each way a spec can declare a 4xx/5xx response, and what each generated client
 /// (every <c>errorResponseFormat</c>, plus both typed-client result styles) makes of those bytes.
-/// </summary>
+/// </content>
 /// <remarks>
 /// The spec, the markers and the handlers all live in this file, so no scenario snapshot folder is
 /// involved. The handlers are derived from the factory methods the server generator actually emits,
@@ -36,22 +36,6 @@ public partial class ErrorResponseBodyRuntimeTests
           "useGlobalErrorHandler": "Disabled"
         }
         """;
-
-    /// <summary>
-    /// Where a hand-run (explicit) test writes its output: the environment variable's path when set, else a fresh
-    /// folder of its own under the temp folder - two runs (or two checkouts) never overwrite each other. The path is
-    /// written to the test output.
-    /// </summary>
-    internal static string HandRunOutputPath(
-        string environmentVariable,
-        string name)
-    {
-        var path = Environment.GetEnvironmentVariable(environmentVariable)
-            ?? Path.Combine(Path.GetTempPath(), "atc-hand-run", DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture) + "-" + Guid.NewGuid().ToString("N")[..6], name);
-        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
-        TestContext.Current.TestOutputHelper?.WriteLine(path);
-        return path;
-    }
 
     /// <summary>
     /// Every registered 4xx/5xx status code, plus two non-standard codes (499, 599). The <c>all-*</c>
@@ -1601,6 +1585,22 @@ public partial class ErrorResponseBodyRuntimeTests
         Assert.True(mismatches.Count == 0, $"{mismatches.Count} metadata mismatches:\n" + string.Join("\n", mismatches));
     }
 
+    /// <summary>
+    /// Where a hand-run (explicit) test writes its output: the environment variable's path when set, else a fresh
+    /// folder of its own under the temp folder - two runs (or two checkouts) never overwrite each other. The path is
+    /// written to the test output.
+    /// </summary>
+    internal static string HandRunOutputPath(
+        string environmentVariable,
+        string name)
+    {
+        var path = Environment.GetEnvironmentVariable(environmentVariable)
+            ?? Path.Combine(Path.GetTempPath(), "atc-hand-run", DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture) + "-" + Guid.NewGuid().ToString("N")[..6], name);
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
+        TestContext.Current.TestOutputHelper?.WriteLine(path);
+        return path;
+    }
+
     internal static string ClientOperationMarker(string errorResponseFormat)
         => string.Equals(errorResponseFormat, "Custom", StringComparison.Ordinal)
             ? """
@@ -2175,21 +2175,21 @@ public partial class ErrorResponseBodyRuntimeTests
         (string Name, bool Empty) wanted = sweepStatus is not null
             ? (sweepStatus == 200 ? "Ok" : HttpStatusCodeHelper.ToEnumName(sweepStatus.Value), mode.EndsWith("-empty", StringComparison.Ordinal))
             : mode switch
-        {
-            "ok" => (available.ContainsKey("NoContent") ? "NoContent" : "Ok", false),
-            "bad" => ("BadRequest", false),
-            "bad-empty" => ("BadRequest", true),
-            "missing" => ("NotFound", false),
-            "missing-empty" => ("NotFound", true),
-            "conflict" => ("Conflict", false),
-            "invalid" => ("UnprocessableEntity", false),
-            "invalid-empty" => ("UnprocessableEntity", true),
-            "error500" => ("InternalServerError", false),
-            "error500-empty" => ("InternalServerError", true),
-            "unavailable" => ("ServiceUnavailable", false),
-            "error" => ("Error", false),
-            _ => (string.Empty, false),
-        };
+            {
+                "ok" => (available.ContainsKey("NoContent") ? "NoContent" : "Ok", false),
+                "bad" => ("BadRequest", false),
+                "bad-empty" => ("BadRequest", true),
+                "missing" => ("NotFound", false),
+                "missing-empty" => ("NotFound", true),
+                "conflict" => ("Conflict", false),
+                "invalid" => ("UnprocessableEntity", false),
+                "invalid-empty" => ("UnprocessableEntity", true),
+                "error500" => ("InternalServerError", false),
+                "error500-empty" => ("InternalServerError", true),
+                "unavailable" => ("ServiceUnavailable", false),
+                "error" => ("Error", false),
+                _ => (string.Empty, false),
+            };
 
         if (!available.TryGetValue(wanted.Name, out var factory))
         {

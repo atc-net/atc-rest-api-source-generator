@@ -1,7 +1,7 @@
 // ReSharper disable StringLiteralTypo
 namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 
-/// <summary>
+/// <content>
 /// End-to-end security and rate-limit matrix: the generated server runs on Kestrel with two test authentication
 /// schemes (a bearer token that spells out its subject, scopes and roles; an API key), and every generated client
 /// calls its secured and rate-limited operations over HTTP - without credentials, with the wrong ones, with the right
@@ -10,7 +10,7 @@ namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 /// Resilience) say, and the server's own log of the requests proves what the client's retry policy did with a 429:
 /// a <c>Retry-After</c> it can wait for is waited for, one past the cap is handed back at once, and a 429 without
 /// one is retried with the policy's back-off.
-/// </summary>
+/// </content>
 /// <remarks>
 /// Not exercised: a real JWT (the bearer handler here reads a plain-text token), OpenID Connect, and a limiter
 /// partitioned by IP (every client runs on the same machine; the limited operations partition by user).
@@ -598,14 +598,14 @@ public partial class ErrorResponseBodyRuntimeTests
     {
         var limited = GuardCases().Single(c => c.Name.StartsWith("fixed window: the third", StringComparison.Ordinal));
         var client = GuardClients[0];
-        JsonObject Call(
+        static JsonObject Call(
             int status,
             string accessor,
             string? retryAfter = null)
             => new() { ["status"] = status, ["success"] = status < 400, ["accessor"] = accessor, ["retryAfter"] = retryAfter };
         var ok = Call(200, "OkContent => Thing {\"Name\":\"fixed\"}");
         var tooMany = Call(429, "TooManyRequestsContent => ProblemDetails {\"Status\":429}", "60");
-        List<GuardLogEntry> Log(params int[] statuses)
+        static List<GuardLogEntry> Log(params int[] statuses)
             => [.. statuses.Select(s => new GuardLogEntry("/limit/fixed", s, s == 429 ? "60" : null, null, s == 429 ? "application/problem+json" : "application/json", s == 429 ? "{\"status\":429}" : "{}"))];
 
         Assert.Equal(VerdictPass, (string?)GuardVerdict(limited, client, Calls(ok, ok, tooMany), Log(200, 200, 429))["verdict"]);
@@ -634,13 +634,13 @@ public partial class ErrorResponseBodyRuntimeTests
         Assert.Equal(VerdictPass, (string?)GuardVerdict(unauthorized, typedThrow, Calls(new JsonObject { ["status"] = 401, ["threw"] = "ApiException: HTTP 401 (Unauthorized): {\"status\":401}" }), [challenge])["verdict"]);
         Assert.Equal(VerdictFail, (string?)GuardVerdict(unauthorized, typedThrow, Calls(new JsonObject { ["status"] = 401, ["threw"] = "ApiException: HTTP 401 (Unauthorized): " }), [challenge])["verdict"]);
         Assert.Equal(VerdictFail, (string?)GuardVerdict(unauthorized, typedThrow, Calls(new JsonObject { ["status"] = 401, ["threw"] = "HttpRequestException: HTTP 401 (Unauthorized): {\"status\":401}" }), [challenge])["verdict"]);
-        JsonObject Thrown429(string? retryAfter)
+        static JsonObject Thrown429(string? retryAfter)
             => new() { ["status"] = 429, ["threw"] = "ApiException: HTTP 429 (Too Many Requests): {\"status\":429}", ["retryAfter"] = retryAfter };
         Assert.Equal(VerdictPass, (string?)GuardVerdict(limited, typedThrow, Calls(new JsonObject { ["status"] = 200 }, new JsonObject { ["status"] = 200 }, Thrown429("60")), Log(200, 200, 429))["verdict"]);
         Assert.Equal(VerdictFail, (string?)GuardVerdict(limited, typedThrow, Calls(new JsonObject { ["status"] = 200 }, new JsonObject { ["status"] = 200 }, Thrown429(null)), Log(200, 200, 429))["verdict"]);
 
         var ts = GuardClients.Single(c => c.Id == "ts-fetch");
-        JsonObject TsCall(
+        static JsonObject TsCall(
             int status,
             string arm,
             string? retryAfter = null,

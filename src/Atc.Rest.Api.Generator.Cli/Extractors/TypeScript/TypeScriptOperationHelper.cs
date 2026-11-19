@@ -709,90 +709,6 @@ public static class TypeScriptOperationHelper
     public static bool IsDateOnly(IOpenApiSchema? schema)
         => schema?.DateFormat == "date";
 
-    /// <summary>
-    /// Emits <c>buildUrl</c> (shared by the Fetch and Axios ApiClient extractors): the base URL and the path, with the
-    /// query parameters. A relative base URL (<c>/api</c>, or an empty one) resolves against the origin of the page;
-    /// without a page (server-side rendering, Node) the URL stays relative - building it never throws, and the request
-    /// goes to a fetch that knows its origin, or fails there.
-    /// </summary>
-    /// <param name="sb">The ApiClient being written.</param>
-    /// <param name="modifier">The method's modifier (<c>private </c>, or empty).</param>
-    internal static void AppendBuildUrlMethod(
-        StringBuilder sb,
-        string modifier)
-    {
-        sb.Append("  ").Append(modifier).AppendLine("buildUrl(path: string, query?: Record<string, string | number | boolean | (string | number | boolean)[] | undefined>): string {");
-        sb.AppendLine("    // A relative base URL ('/api', or an empty one) resolves against the origin of the page; without a page");
-        sb.AppendLine("    // (server-side rendering, Node) it stays relative");
-        sb.AppendLine("    const relativeOrigin = 'http://relative.invalid';");
-        sb.AppendLine("    const origin = (globalThis as { location?: { origin?: string } }).location?.origin;");
-        sb.AppendLine("    const url = new URL(`${this.baseUrl}${path}`, origin ?? relativeOrigin);");
-        sb.AppendLine("    if (query) {");
-        sb.AppendLine("      for (const [key, value] of Object.entries(query)) {");
-        sb.AppendLine("        if (value === undefined) {");
-        sb.AppendLine("          continue;");
-        sb.AppendLine("        }");
-        sb.AppendLine("        if (Array.isArray(value)) {");
-        sb.AppendLine("          for (const item of value) {");
-        sb.AppendLine("            url.searchParams.append(key, String(item));");
-        sb.AppendLine("          }");
-        sb.AppendLine("        } else {");
-        sb.AppendLine("          url.searchParams.set(key, String(value));");
-        sb.AppendLine("        }");
-        sb.AppendLine("      }");
-        sb.AppendLine("    }");
-        sb.AppendLine("    // Note: URL.searchParams always percent-encodes values.");
-        sb.AppendLine("    // OpenAPI allowReserved cannot be honoured via this path.");
-        sb.AppendLine("    return url.origin === relativeOrigin ? `${url.pathname}${url.search}${url.hash}` : url.toString();");
-        sb.AppendLine("  }");
-        sb.AppendLine();
-    }
-
-    /// <summary>
-    /// Emits the <c>xml</c> member of <c>RequestOptions</c> when the specification has XML bodies (shared by the Fetch
-    /// and Axios ApiClient extractors).
-    /// </summary>
-    /// <param name="sb">The ApiClient being written.</param>
-    /// <param name="hasXml">Whether the specification has XML bodies.</param>
-    internal static void AppendXmlRequestOption(
-        StringBuilder sb,
-        bool hasXml)
-    {
-        if (!hasXml)
-        {
-            return;
-        }
-
-        sb.AppendLine("  /** An XML body (the generated client passes it): the Accept, how to write the request body and read the response. */");
-        sb.AppendLine("  xml?: XmlOptions;");
-    }
-
-    /// <summary>
-    /// Emits <c>dateOnly</c>: a Date as the calendar day it is in the caller's time zone (<c>yyyy-MM-dd</c>), for the
-    /// <c>format: date</c> parameters and form fields of the generated clients (with <c>--convert-dates</c>).
-    /// </summary>
-    /// <param name="sb">The ApiClient being written.</param>
-    internal static void AppendDateOnlyHelper(StringBuilder sb)
-    {
-        sb.AppendLine("/**");
-        sb.AppendLine(" * A format: date value as text: the calendar day the Date is in the caller's time zone (yyyy-MM-dd from the local");
-        sb.AppendLine(" * year, month and day). A date is a day, not an instant - the UTC day of a local midnight is the day before east of");
-        sb.AppendLine(" * UTC - and the models read and write it the same way.");
-        sb.AppendLine(" */");
-        sb.AppendLine("export function dateOnly(value: Date): string;");
-        sb.AppendLine("export function dateOnly(value: Date | undefined): string | undefined;");
-        sb.AppendLine("export function dateOnly(value: Date | undefined): string | undefined {");
-        sb.AppendLine("  if (value === undefined) {");
-        sb.AppendLine("    return undefined;");
-        sb.AppendLine("  }");
-        sb.AppendLine();
-        sb.AppendLine("  const month = String(value.getMonth() + 1).padStart(2, '0');");
-        sb.AppendLine("  const day = String(value.getDate()).padStart(2, '0');");
-        sb.AppendLine("  return `${String(value.getFullYear()).padStart(4, '0')}-${month}-${day}`;");
-        sb.AppendLine("}");
-        sb.AppendLine();
-    }
-
     private static readonly Regex BlockCommentPattern = new(@"/\*.*?\*/", RegexOptions.Singleline, TimeSpan.FromSeconds(1));
 
     /// <summary>
@@ -1247,6 +1163,90 @@ public static class TypeScriptOperationHelper
         }
 
         return "`" + interpolated + "`";
+    }
+
+    /// <summary>
+    /// Emits <c>buildUrl</c> (shared by the Fetch and Axios ApiClient extractors): the base URL and the path, with the
+    /// query parameters. A relative base URL (<c>/api</c>, or an empty one) resolves against the origin of the page;
+    /// without a page (server-side rendering, Node) the URL stays relative - building it never throws, and the request
+    /// goes to a fetch that knows its origin, or fails there.
+    /// </summary>
+    /// <param name="sb">The ApiClient being written.</param>
+    /// <param name="modifier">The method's modifier (<c>private </c>, or empty).</param>
+    internal static void AppendBuildUrlMethod(
+        StringBuilder sb,
+        string modifier)
+    {
+        sb.Append("  ").Append(modifier).AppendLine("buildUrl(path: string, query?: Record<string, string | number | boolean | (string | number | boolean)[] | undefined>): string {");
+        sb.AppendLine("    // A relative base URL ('/api', or an empty one) resolves against the origin of the page; without a page");
+        sb.AppendLine("    // (server-side rendering, Node) it stays relative");
+        sb.AppendLine("    const relativeOrigin = 'http://relative.invalid';");
+        sb.AppendLine("    const origin = (globalThis as { location?: { origin?: string } }).location?.origin;");
+        sb.AppendLine("    const url = new URL(`${this.baseUrl}${path}`, origin ?? relativeOrigin);");
+        sb.AppendLine("    if (query) {");
+        sb.AppendLine("      for (const [key, value] of Object.entries(query)) {");
+        sb.AppendLine("        if (value === undefined) {");
+        sb.AppendLine("          continue;");
+        sb.AppendLine("        }");
+        sb.AppendLine("        if (Array.isArray(value)) {");
+        sb.AppendLine("          for (const item of value) {");
+        sb.AppendLine("            url.searchParams.append(key, String(item));");
+        sb.AppendLine("          }");
+        sb.AppendLine("        } else {");
+        sb.AppendLine("          url.searchParams.set(key, String(value));");
+        sb.AppendLine("        }");
+        sb.AppendLine("      }");
+        sb.AppendLine("    }");
+        sb.AppendLine("    // Note: URL.searchParams always percent-encodes values.");
+        sb.AppendLine("    // OpenAPI allowReserved cannot be honoured via this path.");
+        sb.AppendLine("    return url.origin === relativeOrigin ? `${url.pathname}${url.search}${url.hash}` : url.toString();");
+        sb.AppendLine("  }");
+        sb.AppendLine();
+    }
+
+    /// <summary>
+    /// Emits the <c>xml</c> member of <c>RequestOptions</c> when the specification has XML bodies (shared by the Fetch
+    /// and Axios ApiClient extractors).
+    /// </summary>
+    /// <param name="sb">The ApiClient being written.</param>
+    /// <param name="hasXml">Whether the specification has XML bodies.</param>
+    internal static void AppendXmlRequestOption(
+        StringBuilder sb,
+        bool hasXml)
+    {
+        if (!hasXml)
+        {
+            return;
+        }
+
+        sb.AppendLine("  /** An XML body (the generated client passes it): the Accept, how to write the request body and read the response. */");
+        sb.AppendLine("  xml?: XmlOptions;");
+    }
+
+    /// <summary>
+    /// Emits <c>dateOnly</c>: a Date as the calendar day it is in the caller's time zone (<c>yyyy-MM-dd</c>), for the
+    /// <c>format: date</c> parameters and form fields of the generated clients (with <c>--convert-dates</c>).
+    /// </summary>
+    /// <param name="sb">The ApiClient being written.</param>
+    internal static void AppendDateOnlyHelper(StringBuilder sb)
+    {
+        sb.AppendLine("/**");
+        sb.AppendLine(" * A format: date value as text: the calendar day the Date is in the caller's time zone (yyyy-MM-dd from the local");
+        sb.AppendLine(" * year, month and day). A date is a day, not an instant - the UTC day of a local midnight is the day before east of");
+        sb.AppendLine(" * UTC - and the models read and write it the same way.");
+        sb.AppendLine(" */");
+        sb.AppendLine("export function dateOnly(value: Date): string;");
+        sb.AppendLine("export function dateOnly(value: Date | undefined): string | undefined;");
+        sb.AppendLine("export function dateOnly(value: Date | undefined): string | undefined {");
+        sb.AppendLine("  if (value === undefined) {");
+        sb.AppendLine("    return undefined;");
+        sb.AppendLine("  }");
+        sb.AppendLine();
+        sb.AppendLine("  const month = String(value.getMonth() + 1).padStart(2, '0');");
+        sb.AppendLine("  const day = String(value.getDate()).padStart(2, '0');");
+        sb.AppendLine("  return `${String(value.getFullYear()).padStart(4, '0')}-${month}-${day}`;");
+        sb.AppendLine("}");
+        sb.AppendLine();
     }
 
     /// <summary>

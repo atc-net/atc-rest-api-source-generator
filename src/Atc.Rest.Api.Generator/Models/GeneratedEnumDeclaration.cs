@@ -40,14 +40,16 @@ public sealed record GeneratedEnumDeclaration(
         }
 
         var namespaceName = namespaceMatch.Groups["name"].Value;
-        return [.. EnumRegex
+        return [
+            .. EnumRegex
             .Matches(content)
             .Cast<Match>()
             .Select(m => m.Groups["name"].Value)
             .Select(name => new GeneratedEnumDeclaration(
                 $"global::{namespaceName}.{name}",
                 content.IndexOf($"JsonNumberEnumConverter<{name}>", StringComparison.Ordinal) >= 0,
-                EmptyMemberOf(content, name)))];
+                EmptyMemberOf(content, name))),
+        ];
     }
 
     // The enum's ToWireValue switch names the member of the empty string: `Mark.Empty => "",`

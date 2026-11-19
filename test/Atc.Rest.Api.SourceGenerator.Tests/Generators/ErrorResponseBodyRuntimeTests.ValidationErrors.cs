@@ -1,11 +1,11 @@
 namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 
-/// <summary>
+/// <content>
 /// A 400 that declares its own model (<c>ApiProblem</c>, no <c>errors</c>) while the generated ValidationFilter writes a
 /// ValidationProblemDetails: the EndpointPerOperation client keeps <c>BadRequestContent</c> as the declared model and
 /// gives the field errors through <c>BadRequestValidationErrors</c> - the data the TypeScript clients expose as
 /// <c>ValidationError.errors</c>.
-/// </summary>
+/// </content>
 public partial class ErrorResponseBodyRuntimeTests
 {
     /// <summary>
