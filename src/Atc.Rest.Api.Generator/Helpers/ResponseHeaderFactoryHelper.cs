@@ -940,8 +940,8 @@ public static class ResponseHeaderFactoryHelper
         return schema is OpenApiSchema { Items: { } items } array &&
                array.IsOfType(JsonSchemaType.Array) &&
                items.IsInlineEnum
-            ? (OpenApiSchema)items
-            : null;
+                   ? (OpenApiSchema)items
+                   : null;
     }
 
     private static string InlineEnumTypeName(

@@ -272,20 +272,17 @@ public sealed class ModelOrFileResponseTests
         var rows = await (Task<List<string>>)assembly.GetType("ErrorBodies.RuntimeTest.ModelOrFileClientProbe", throwOnError: true)!.GetMethod("RunAsync")!.Invoke(null, [await RunServerAsync(), client != "EndpointPerOperation"])!;
 
         const string accept = "application/json, application/pdf, application/problem+json";
-        Assert.Equal(
-            client == "EndpointPerOperation"
-                ?
-                [
-                    $"1: IsOk=True IsOkFile=False Report {{\"Title\":\"Q3\"}} accept={accept}",
-                    $"2: IsOk=True IsOkFile=True file 25504446 application/pdf Rapport-Å.pdf accept={accept}",
-                ]
-                :
-                [
-                    $"1: ContentOrFile IsFile=False Report {{\"Title\":\"Q3\"}} accept={accept}",
-                    $"2: ContentOrFile IsFile=True file 25504446 application/pdf Rapport-Å.pdf accept={accept}",
-                ],
-            rows,
-            StringComparer.Ordinal);
+        string[] endpointPerOperation =
+        [
+            $"1: IsOk=True IsOkFile=False Report {{\"Title\":\"Q3\"}} accept={accept}",
+            $"2: IsOk=True IsOkFile=True file 25504446 application/pdf Rapport-Å.pdf accept={accept}",
+        ];
+        string[] contentOrFile =
+        [
+            $"1: ContentOrFile IsFile=False Report {{\"Title\":\"Q3\"}} accept={accept}",
+            $"2: ContentOrFile IsFile=True file 25504446 application/pdf Rapport-Å.pdf accept={accept}",
+        ];
+        Assert.Equal(client == "EndpointPerOperation" ? endpointPerOperation : contentOrFile, rows, StringComparer.Ordinal);
     }
 
     /// <summary>

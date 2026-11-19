@@ -1,10 +1,10 @@
 namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 
-/// <summary>
+/// <content>
 /// The report's OpenAPI constructs tab: which constructs of OpenAPI (and which of Atc's <c>x-</c> extensions) each
 /// scenario specification under <c>test/Scenarios</c> uses - read from the specifications themselves at report time, so
 /// it is never stale - and which construct no scenario uses.
-/// </summary>
+/// </content>
 public sealed partial class ErrorResponseBodyRuntimeTests
 {
     private static readonly (string Group, string Key, string Label)[] OpenApiConstructs =
@@ -160,7 +160,8 @@ public sealed partial class ErrorResponseBodyRuntimeTests
 
         return new JsonObject
         {
-            ["constructs"] = new JsonArray([.. OpenApiConstructs
+            ["constructs"] = new JsonArray([
+                .. OpenApiConstructs
                 .Select(c => (JsonNode)new JsonObject
                 {
                     ["group"] = c.Group,
@@ -168,7 +169,8 @@ public sealed partial class ErrorResponseBodyRuntimeTests
                     ["label"] = c.Label,
                     ["rejected"] = RejectedOpenApiConstructs.TryGetValue(c.Key, out var rule) ? rule : null,
                 })
-                .Concat(extensions.Select(x => (JsonNode)new JsonObject { ["group"] = "Atc extensions", ["key"] = x, ["label"] = x }))]),
+                .Concat(extensions.Select(x => (JsonNode)new JsonObject { ["group"] = "Atc extensions", ["key"] = x, ["label"] = x })),
+            ]),
             ["scenarios"] = scenarios,
         };
     }

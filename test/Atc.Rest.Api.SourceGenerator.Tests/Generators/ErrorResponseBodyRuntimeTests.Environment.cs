@@ -1,10 +1,10 @@
 namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 
-/// <summary>
+/// <content>
 /// The host environment and a 5xx from an exception: in Production the body is a ProblemDetails that carries nothing
 /// of the exception - not its message, its type, a stack frame or the handler's type name - on both the package's
 /// host and the plain <c>MapEndpoints()</c> host; in Development the message is there to read.
-/// </summary>
+/// </content>
 public partial class ErrorResponseBodyRuntimeTests
 {
     private static readonly (string Mode, string Message, string TypeName)[] ExceptionProbes =

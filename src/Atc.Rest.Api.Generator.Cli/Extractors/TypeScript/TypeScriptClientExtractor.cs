@@ -1183,8 +1183,8 @@ public static class TypeScriptClientExtractor
         var bodyType = bodySchema is OpenApiSchemaReference bodyRef &&
                        bodyRef.ComponentName is { } refName &&
                        writableSchemas.Contains(refName)
-            ? refName + TypeScriptModelExtractor.WritableSuffix
-            : bodySchema.ToTypeScriptReturnType();
+                           ? refName + TypeScriptModelExtractor.WritableSuffix
+                           : bodySchema.ToTypeScriptReturnType();
 
         // A stream of records (JSON Lines, JSON Text Sequences): an async source or a list of them
         return StreamingMediaType.IsSequential(bodyContentType)

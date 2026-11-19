@@ -1,12 +1,12 @@
 namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 
-/// <summary>
+/// <content>
 /// The report's mutation score: how many of the code changes Stryker.NET makes to a product library its tests catch,
 /// per library and per file, with the changes no test caught. A Stryker run takes long and is run by hand
 /// (<c>dotnet stryker</c> in a test project with a <c>stryker-config.json</c>), so the summary is kept in
 /// <c>docs/test-suite-report.mutation.json</c> with the run's own date and commit: a newer local run replaces it, an
 /// older one does not.
-/// </summary>
+/// </content>
 public sealed partial class ErrorResponseBodyRuntimeTests
 {
     private const int MaxSurvivorsListed = 500;
@@ -141,10 +141,12 @@ public sealed partial class ErrorResponseBodyRuntimeTests
             ["coveredScore"] = Score(killed, survived),
             ["statuses"] = new JsonObject(statuses.OrderBy(s => s.Key, StringComparer.Ordinal).Select(s => new KeyValuePair<string, JsonNode?>(s.Key, s.Value))),
             ["files"] = new JsonArray([.. files.OrderBy(f => (double)f["score"]!).ThenBy(f => (string)f["file"]!, StringComparer.Ordinal)]),
-            ["survivors"] = new JsonArray([.. survivors
+            ["survivors"] = new JsonArray([
+                .. survivors
                 .OrderBy(s => (string)s["file"]!, StringComparer.Ordinal)
                 .ThenBy(s => (int?)s["line"] ?? 0)
-                .Take(MaxSurvivorsListed)]),
+                .Take(MaxSurvivorsListed),
+            ]),
             ["survivorsListed"] = System.Math.Min(survivors.Count, MaxSurvivorsListed),
         };
     }

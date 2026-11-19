@@ -1,11 +1,11 @@
 namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 
-/// <summary>
+/// <content>
 /// The generated server features that only show at run time, through the generated <c>Add…ApiServices()</c> and
 /// <c>Map…ApiEndpoints()</c>: an output-cache policy serves the second request from the cache, varies by its query key and never
 /// stores or serves an authenticated caller's answer; a webhook receiver (mapped by the documented
 /// <c>Map…Webhooks()</c>) receives its payload; a <c>head</c> operation answers HEAD with its header and no body.
-/// </summary>
+/// </content>
 public partial class ErrorResponseBodyRuntimeTests
 {
     private const string WiringYaml = """

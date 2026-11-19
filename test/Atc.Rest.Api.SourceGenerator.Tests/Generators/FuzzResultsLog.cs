@@ -81,14 +81,16 @@ public sealed class FuzzResultsLog : IDisposable
             ["mutantsPerScenario"] = GeneratorRobustnessFuzzTests.MutantsPerScenario,
             ["compile"] = GeneratorRobustnessFuzzTests.CompileEverySilentMutant ? "every silent output" : "the first silent output per generator and scenario",
             ["generators"] = new JsonArray([.. GeneratorRobustnessFuzzTests.GeneratorMarkers.Select(m => (JsonNode)m), "TypeScript (Fetch and Axios)"]),
-            ["scenarios"] = new JsonArray([.. scenarios
+            ["scenarios"] = new JsonArray([
+                .. scenarios
                 .OrderBy(s => s.Key, StringComparer.Ordinal)
                 .Select(s =>
                 {
                     var node = (JsonObject)s.Value.DeepClone();
                     node["parts"] = parts.TryGetValue(s.Key, out var part) ? part.DeepClone() : null;
                     return (JsonNode)node;
-                })]),
+                }),
+            ]),
             ["markers"] = new JsonObject { ["cases"] = markers, ["crashes"] = new JsonArray([.. markerCrashes.Order(StringComparer.Ordinal).Select(c => (JsonNode)c)]) },
             ["overlays"] = new JsonObject { ["cases"] = overlays, ["crashes"] = new JsonArray([.. overlayCrashes.Order(StringComparer.Ordinal).Select(c => (JsonNode)c)]) },
         };

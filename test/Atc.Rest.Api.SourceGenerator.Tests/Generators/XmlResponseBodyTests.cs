@@ -377,28 +377,25 @@ public sealed class XmlResponseBodyTests
         var created = "Pet {\"Id\":3,\"Name\":\"New \\u0026 \\u003Cshiny\\u003E\",\"Tags\":null}";
         var report = "Report {\"Title\":\"Q3\",\"Pages\":12}";
         var latin1 = "Report {\"Title\":\"\\u00C5rsrapport\",\"Pages\":null}";
-        Assert.Equal(
-            resultStyle == "Throw"
-                ?
-                [
-                    $"GetPet(1): {pet} accept=application/xml | application/problem+json",
-                    "GetPet(404): THROWS ApiException NotFound accept=application/xml | application/problem+json",
-                    $"ListPets(): {pets} accept=application/xml | application/problem+json",
-                    $"CreatePet(NewPet): {created} accept=text/xml | application/problem+json",
-                    $"GetReport(7): {report} accept=application/vnd.acme.report+xml | application/problem+json",
-                    $"GetReport(8): {latin1} accept=application/vnd.acme.report+xml | application/problem+json",
-                ]
-                :
-                [
-                    $"GetPet(1): 200 SuccessContent={pet} accept=application/xml | application/problem+json",
-                    "GetPet(404): 404 =null accept=application/xml | application/problem+json",
-                    $"ListPets(): 200 SuccessContent={pets} accept=application/xml | application/problem+json",
-                    $"CreatePet(NewPet): 201 SuccessContent={created} accept=text/xml | application/problem+json",
-                    $"GetReport(7): 200 SuccessContent={report} accept=application/vnd.acme.report+xml | application/problem+json",
-                    $"GetReport(8): 200 SuccessContent={latin1} accept=application/vnd.acme.report+xml | application/problem+json",
-                ],
-            rows,
-            StringComparer.Ordinal);
+        string[] whenThrow =
+        [
+            $"GetPet(1): {pet} accept=application/xml | application/problem+json",
+            "GetPet(404): THROWS ApiException NotFound accept=application/xml | application/problem+json",
+            $"ListPets(): {pets} accept=application/xml | application/problem+json",
+            $"CreatePet(NewPet): {created} accept=text/xml | application/problem+json",
+            $"GetReport(7): {report} accept=application/vnd.acme.report+xml | application/problem+json",
+            $"GetReport(8): {latin1} accept=application/vnd.acme.report+xml | application/problem+json",
+        ];
+        string[] whenResult =
+        [
+            $"GetPet(1): 200 SuccessContent={pet} accept=application/xml | application/problem+json",
+            "GetPet(404): 404 =null accept=application/xml | application/problem+json",
+            $"ListPets(): 200 SuccessContent={pets} accept=application/xml | application/problem+json",
+            $"CreatePet(NewPet): 201 SuccessContent={created} accept=text/xml | application/problem+json",
+            $"GetReport(7): 200 SuccessContent={report} accept=application/vnd.acme.report+xml | application/problem+json",
+            $"GetReport(8): 200 SuccessContent={latin1} accept=application/vnd.acme.report+xml | application/problem+json",
+        ];
+        Assert.Equal(resultStyle == "Throw" ? whenThrow : whenResult, rows, StringComparer.Ordinal);
     }
 
     private static Task<List<string>> RunServerAsync()

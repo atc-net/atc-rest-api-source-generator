@@ -96,8 +96,8 @@ public abstract class MarkerValueConverter<TEnum> : JsonConverter<TEnum>, IMarke
         return reader.TokenType == JsonTokenType.String &&
                reader.GetString() is { } value &&
                valuesBySpelling.TryGetValue(value, out var known)
-            ? known
-            : fallback;
+                   ? known
+                   : fallback;
     }
 
     /// <inheritdoc />

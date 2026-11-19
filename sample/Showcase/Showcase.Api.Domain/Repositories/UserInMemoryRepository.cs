@@ -10,14 +10,14 @@ public sealed class UserInMemoryRepository
         "Emma", "Liam", "Olivia", "Noah", "Ava", "Oliver", "Sophia", "Lucas",
         "Isabella", "Mason", "Mia", "Ethan", "Charlotte", "James", "Amelia",
         "Alexander", "Harper", "Sebastian", "Evelyn", "Benjamin", "Luna", "William",
-        "Ella", "Henry", "Scarlett", "Michael", "Grace", "Daniel", "Chloe", "Jacob"
+        "Ella", "Henry", "Scarlett", "Michael", "Grace", "Daniel", "Chloe", "Jacob",
     ];
 
     private static readonly string[] LastNames =
     [
         "Jensen", "Nielsen", "Hansen", "Pedersen", "Andersen", "Christensen", "Larsen",
         "Sørensen", "Rasmussen", "Jørgensen", "Petersen", "Madsen", "Kristensen",
-        "Olsen", "Thomsen", "Møller", "Poulsen", "Johansen", "Knudsen", "Eriksen"
+        "Olsen", "Thomsen", "Møller", "Poulsen", "Johansen", "Knudsen", "Eriksen",
     ];
 
     private static readonly (string City, string PostalCode, double Lat, double Lon)[] DenmarkCities =
@@ -31,7 +31,7 @@ public sealed class UserInMemoryRepository
         ("Kolding", "6000", 55.4904, 9.4722),
         ("Horsens", "8700", 55.8607, 9.8503),
         ("Vejle", "7100", 55.7113, 9.5364),
-        ("Roskilde", "4000", 55.6415, 12.0803)
+        ("Roskilde", "4000", 55.6415, 12.0803),
     ];
 
     private static readonly (string City, string PostalCode, double Lat, double Lon)[] SwedenCities =
@@ -40,7 +40,7 @@ public sealed class UserInMemoryRepository
         ("Gothenburg", "411 06", 57.7089, 11.9746),
         ("Malmö", "211 18", 55.6050, 13.0038),
         ("Uppsala", "751 05", 59.8586, 17.6389),
-        ("Linköping", "581 83", 58.4108, 15.6214)
+        ("Linköping", "581 83", 58.4108, 15.6214),
     ];
 
     private static readonly (string City, string PostalCode, double Lat, double Lon)[] FinlandCities =
@@ -49,7 +49,7 @@ public sealed class UserInMemoryRepository
         ("Espoo", "02100", 60.2055, 24.6559),
         ("Tampere", "33100", 61.4978, 23.7610),
         ("Turku", "20100", 60.4518, 22.2666),
-        ("Oulu", "90100", 65.0121, 25.4651)
+        ("Oulu", "90100", 65.0121, 25.4651),
     ];
 
     private static readonly (string City, string PostalCode, double Lat, double Lon)[] GermanyCities =
@@ -58,7 +58,7 @@ public sealed class UserInMemoryRepository
         ("Munich", "80331", 48.1351, 11.5820),
         ("Hamburg", "20095", 53.5511, 9.9937),
         ("Frankfurt", "60311", 50.1109, 8.6821),
-        ("Cologne", "50667", 50.9375, 6.9603)
+        ("Cologne", "50667", 50.9375, 6.9603),
     ];
 
     private static readonly (string City, string PostalCode, double Lat, double Lon)[] EnglandCities =
@@ -67,7 +67,7 @@ public sealed class UserInMemoryRepository
         ("Manchester", "M1 1AD", 53.4808, -2.2426),
         ("Birmingham", "B1 1AA", 52.4862, -1.8904),
         ("Liverpool", "L1 1AA", 53.4084, -2.9916),
-        ("Bristol", "BS1 1AA", 51.4545, -2.5879)
+        ("Bristol", "BS1 1AA", 51.4545, -2.5879),
     ];
 
     private static readonly (string City, string State, string PostalCode, double Lat, double Lon)[] UsaCities =
@@ -76,14 +76,14 @@ public sealed class UserInMemoryRepository
         ("Los Angeles", "CA", "90001", 34.0522, -118.2437),
         ("Chicago", "IL", "60601", 41.8781, -87.6298),
         ("Houston", "TX", "77001", 29.7604, -95.3698),
-        ("Phoenix", "AZ", "85001", 33.4484, -112.0740)
+        ("Phoenix", "AZ", "85001", 33.4484, -112.0740),
     ];
 
     private static readonly string[] StreetNames =
     [
         "Main Street", "Oak Avenue", "Park Road", "High Street", "Church Lane",
         "Station Road", "Mill Lane", "School Road", "The Green", "Kings Road",
-        "Queen Street", "Victoria Road", "Castle Street", "Bridge Street", "Market Place"
+        "Queen Street", "Victoria Road", "Castle Street", "Bridge Street", "Market Place",
     ];
 
     private static readonly string[] Bios =
@@ -97,7 +97,7 @@ public sealed class UserInMemoryRepository
         "Data scientist turning numbers into insights.",
         "Creative designer with an eye for detail.",
         "Project manager keeping teams on track.",
-        "HR professional building great company cultures."
+        "HR professional building great company cultures.",
     ];
 
     // Requests run in parallel: every change happens under the gate, and every read works on a copy

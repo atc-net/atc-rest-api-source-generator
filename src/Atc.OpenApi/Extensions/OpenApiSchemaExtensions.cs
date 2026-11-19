@@ -739,91 +739,6 @@ public static class OpenApiSchemaExtensions
         }
 
         /// <summary>
-        /// Checks if an extension value represents boolean false.
-        /// </summary>
-        private static bool IsExtensionValueFalse(IOpenApiExtension? extension)
-        {
-            if (extension is not JsonNodeExtension jsonNodeExt)
-            {
-                return false;
-            }
-
-            return jsonNodeExt.Node is { } node && node.GetValueKind() == JsonValueKind.False;
-        }
-
-        /// <summary>
-        /// Extracts the tuple items from the prefixItems array.
-        /// </summary>
-        private static List<TupleItemInfo> ExtractPrefixItems(
-            JsonArray jsonArray,
-            OpenApiDocument? document,
-            TypeConflictRegistry? registry)
-        {
-            var result = new List<TupleItemInfo>();
-
-            var index = 0;
-            foreach (var item in jsonArray)
-            {
-                if (item is JsonObject schemaObj)
-                {
-                    var itemInfo = ParseTupleItemFromJson(schemaObj, index, registry);
-                    result.Add(itemInfo);
-                }
-
-                index++;
-            }
-
-            return result;
-        }
-
-        /// <summary>
-        /// Parses a tuple item from a JSON schema object.
-        /// </summary>
-        /// <summary>
-        /// The schema's type - or, without a <c>type</c> (JSON Schema 2020-12 needs none next to <c>const</c> or
-        /// <c>enum</c>), the type its values have: a const is kept as text by the reader, so it is a string; an enum
-        /// is the kind of its members (strings, integers, numbers or booleans; <c>null</c> members do not count).
-        /// Neither is an <c>object</c> no client could pass a value to.
-        /// </summary>
-        private static JsonSchemaType? EffectiveType(OpenApiSchema actual)
-        {
-            if (actual.Type is { } type)
-            {
-                return type;
-            }
-
-            if (!string.IsNullOrEmpty(actual.Const))
-            {
-                return JsonSchemaType.String;
-            }
-
-            var members = (actual.Enum ?? []).Where(m => m is JsonValue value && value.GetValueKind() != JsonValueKind.Null).Cast<JsonValue>().ToList();
-            if (members.Count == 0)
-            {
-                return null;
-            }
-
-            if (members.All(m => m.GetValueKind() == JsonValueKind.String))
-            {
-                return JsonSchemaType.String;
-            }
-
-            if (members.All(m => m.GetValueKind() is JsonValueKind.True or JsonValueKind.False))
-            {
-                return JsonSchemaType.Boolean;
-            }
-
-            if (members.All(m => m.GetValueKind() == JsonValueKind.Number))
-            {
-                return members.All(m => long.TryParse(m.ToJsonString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out _))
-                    ? JsonSchemaType.Integer
-                    : JsonSchemaType.Number;
-            }
-
-            return JsonSchemaType.String;
-        }
-
-        /// <summary>
         /// Whether a schema's <c>default</c> can be the default of a C# parameter: a string, number or boolean for a
         /// property that is a string, a number, a boolean or an enum (its own or one it wraps in <c>allOf</c>). A date
         /// (<c>DateOnly</c> is no constant), an array or an object cannot.
@@ -831,27 +746,6 @@ public static class OpenApiSchemaExtensions
         /// <param name="registry">The registry of the generation; with <see cref="TypeConflictRegistry.ExtensibleEnums"/> a string enum's member is no constant.</param>
         public bool HasConstantDefault(TypeConflictRegistry? registry = null)
             => DefaultIsConstant(schema, registry);
-
-        private static bool DefaultIsConstant(
-            IOpenApiSchema candidate,
-            TypeConflictRegistry? registry)
-        {
-            if (candidate is not OpenApiSchema actual ||
-                actual.Default is not JsonValue value ||
-                value.GetValueKind() is not (JsonValueKind.String or JsonValueKind.Number or JsonValueKind.True or JsonValueKind.False))
-            {
-                return false;
-            }
-
-            if ((actual.Enum is { Count: > 0 } ? actual : actual.WrappedEnum()) is { } enumSchema)
-            {
-                // A client's extensible enum is a struct: its members are no compile-time constants
-                return registry?.ExtensibleEnums != true || !enumSchema.IsOfType(JsonSchemaType.String);
-            }
-
-            var csharp = EffectiveType(actual).ToPrimitiveCSharpTypeName(actual.Format);
-            return csharp is "string" or "bool" or "int" or "long" or "short" or "double" or "float" or "decimal";
-        }
 
         /// <summary>
         /// The one reference the schema wraps in an <c>allOf</c> - <c>allOf: [$ref, {}]</c>, the OpenAPI 3.0 way to give
@@ -941,120 +835,6 @@ public static class OpenApiSchemaExtensions
                allOf[0] is OpenApiSchemaReference { Target: OpenApiSchema { Enum.Count: > 0 } target }
                 ? target
                 : null;
-
-        private static (string? Value, bool IsExclusive) Bound(
-            string? inclusive,
-            string? exclusive)
-            => !string.IsNullOrEmpty(inclusive)
-                ? (inclusive, false)
-                : !string.IsNullOrEmpty(exclusive)
-                    ? (exclusive, true)
-                    : (null, false);
-
-        private static string? ParseNumberBound(string? bound)
-            => double.TryParse(bound, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) && !double.IsInfinity(value) && !double.IsNaN(value)
-                ? value.ToString(CultureInfo.InvariantCulture)
-                : null;
-
-        /// <summary>
-        /// An integer whose bounds do not fit an <c>int</c> (<c>maximum: 4294967295</c>) is a <c>long</c>.
-        /// </summary>
-        private static string WidenForBounds(
-            string typeName,
-            OpenApiSchema actual)
-        {
-            if (!string.Equals(typeName, "int", StringComparison.Ordinal))
-            {
-                return typeName;
-            }
-
-            return Exceeds(actual.Minimum) || Exceeds(actual.Maximum) ? "long" : typeName;
-
-            static bool Exceeds(string? bound)
-                => decimal.TryParse(bound, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) &&
-                   (value > int.MaxValue || value < int.MinValue);
-        }
-
-        private static TupleItemInfo ParseTupleItemFromJson(
-            JsonObject schemaObj,
-            int index,
-            TypeConflictRegistry? registry)
-        {
-            // Extract type info
-            var typeStr = JsonKeywordReader.StringOrNull(schemaObj["type"]) ?? "object";
-            var format = JsonKeywordReader.StringOrNull(schemaObj["format"]);
-            var description = JsonKeywordReader.StringOrNull(schemaObj["description"]);
-            var nullable = schemaObj["nullable"]?.GetValue<bool>() ?? false;
-
-            // Handle $ref
-            var refStr = JsonKeywordReader.StringOrNull(schemaObj["$ref"]);
-            string csharpType;
-            var refName = !string.IsNullOrEmpty(refStr)
-                ? refStr!.Split('/').LastOrDefault()
-                : null;
-            if (!string.IsNullOrWhiteSpace(refName))
-            {
-                csharpType = ResolveTypeName(refName!, registry);
-            }
-            else
-            {
-                // Either no $ref, or a malformed one (e.g. a trailing-slash ref whose last
-                // segment is empty). Fall back to the mapped primitive type rather than
-                // emitting an empty, invalid C# type name.
-                csharpType = IOpenApiSchema.MapJsonTypeToCSharp(typeStr, format);
-            }
-
-            // Generate name from description or use positional
-            var name = IOpenApiSchema.GenerateTupleElementName(description, index);
-
-            return new TupleItemInfo
-            {
-                CSharpType = csharpType,
-                Name = name,
-                Description = description,
-                IsNullable = nullable,
-            };
-        }
-
-        /// <summary>
-        /// Generates a name for a tuple element from its description or position.
-        /// </summary>
-        private static string GenerateTupleElementName(
-            string? description,
-            int index)
-        {
-            if (string.IsNullOrWhiteSpace(description))
-            {
-                return $"Item{index + 1}";
-            }
-
-            // Extract first word as name, convert to PascalCase
-            var firstWord = description.Split(' ', '.', ',', ':')[0];
-            return firstWord.ToPascalCaseForDotNet();
-        }
-
-        /// <summary>
-        /// Maps a JSON Schema type and format to a C# type.
-        /// </summary>
-        private static string MapJsonTypeToCSharp(
-            string jsonType,
-            string? format)
-            => jsonType.ToLowerInvariant() switch
-            {
-                "string" when format == "uuid" => "Guid",
-                "string" when format == "date-time" => "DateTimeOffset",
-                "string" when format == "date" => "DateOnly",
-                "string" when format == "uri" => "Uri",
-                "string" when format == "byte" => "byte[]",
-                "string" => "string",
-                "integer" when format == "int64" => "long",
-                "integer" => "int",
-                "number" when format == "float" => "float",
-                "number" when format == "decimal" => "decimal",
-                "number" => "double",
-                "boolean" => "bool",
-                _ => "object",
-            };
 
         /// <summary>
         /// Gets the reference ID from a schema reference.
@@ -1170,140 +950,6 @@ public static class OpenApiSchemaExtensions
             }
 
             return attributes;
-        }
-
-        // Range for a numeric type (HasFlag for a type that also allows null)
-        private static IEnumerable<string> RangeAttributes(
-            OpenApiSchema actualSchema,
-            JsonSchemaType schemaType)
-        {
-            // An exclusive bound (the 3.0 boolean next to minimum/maximum, which the reader folds into
-            // exclusiveMinimum/exclusiveMaximum, or the 3.1 number) is the same Range with its exclusive flag
-            var (minimum, minimumIsExclusive) = Bound(actualSchema.Minimum, actualSchema.ExclusiveMinimum);
-            var (maximum, maximumIsExclusive) = Bound(actualSchema.Maximum, actualSchema.ExclusiveMaximum);
-            var flags = (minimumIsExclusive ? ", MinimumIsExclusive = true" : string.Empty) +
-                        (maximumIsExclusive ? ", MaximumIsExclusive = true" : string.Empty);
-            if (schemaType.HasFlag(JsonSchemaType.Integer))
-            {
-                // A bound may be written as a decimal or in exponent form (minimum: 1.0, maximum: 1e3):
-                // it is rounded inwards to the integers it allows. A bound that is no number is skipped.
-                var min = ParseIntegerBound(minimum, isMinimum: true);
-                var max = ParseIntegerBound(maximum, isMinimum: false);
-
-                if (min is not null || max is not null)
-                {
-                    // The open bound of an int (no int64 format) is int's, so the attribute binds the int constructor;
-                    // long's made it the double one, and a tool that builds values from the attribute (a test data
-                    // generator) then made doubles for an int
-                    var asInt = !string.Equals(actualSchema.Format, "int64", StringComparison.OrdinalIgnoreCase) &&
-                                (min ?? 0) is >= int.MinValue and <= int.MaxValue &&
-                                (max ?? 0) is >= int.MinValue and <= int.MaxValue;
-                    var minText = min?.ToString(CultureInfo.InvariantCulture);
-                    var maxText = max?.ToString(CultureInfo.InvariantCulture);
-                    yield return $"Range({minText ?? (asInt ? "int.MinValue" : "long.MinValue")}, {maxText ?? (asInt ? "int.MaxValue" : "long.MaxValue")}{flags}{OneBoundMessage(minText, minimumIsExclusive, maxText, maximumIsExclusive)})";
-                }
-            }
-            else if (schemaType.HasFlag(JsonSchemaType.Number))
-            {
-                var min = ParseNumberBound(minimum);
-                var max = ParseNumberBound(maximum);
-
-                if (min is not null || max is not null)
-                {
-                    yield return $"Range({min ?? "double.MinValue"}, {max ?? "double.MaxValue"}{flags}{OneBoundMessage(min, minimumIsExclusive, max, maximumIsExclusive)})";
-                }
-            }
-        }
-
-        // A Range with one bound says that bound: "at most 100", not the default "between -9.22E+18 and 100"
-        private static string OneBoundMessage(
-            string? minimum,
-            bool minimumIsExclusive,
-            string? maximum,
-            bool maximumIsExclusive)
-            => (minimum, maximum) switch
-            {
-                (null, { } max) => $", ErrorMessage = \"The field {{0}} must be {(maximumIsExclusive ? "less than" : "at most")} {max}.\"",
-                ({ } min, null) => $", ErrorMessage = \"The field {{0}} must be {(minimumIsExclusive ? "greater than" : "at least")} {min}.\"",
-                _ => string.Empty,
-            };
-
-        // String length validation: ApiMinLength/ApiMaxLength, the trim- and AOT-safe MinLength/MaxLength a generated
-        // project declares (LengthLimitAttributesExtractor)
-        // Skip for formats that convert to non-string C# types (Uri, Guid, DateTimeOffset, byte[], int, long) - a length
-        // attribute on one throws when it validates
-        private static IEnumerable<string> StringAttributes(
-            OpenApiSchema actualSchema)
-        {
-            var format = actualSchema.Format?.ToLowerInvariant();
-            var isNonStringFormat = format is "uri" or "uuid" or "guid" or "date" or "date-time" or "byte" or "int32" or "int" or "int64" or "long";
-
-            if (!isNonStringFormat)
-            {
-                if (actualSchema.MinLength > 0)
-                {
-                    yield return $"ApiMinLength({actualSchema.MinLength})";
-                }
-
-                if (actualSchema.MaxLength > 0)
-                {
-                    yield return $"ApiMaxLength({actualSchema.MaxLength})";
-                }
-
-                // Regular expression validation: ApiRegularExpression, the generated RegularExpression that matches an
-                // empty string against the pattern too (the base counts "" as valid; the specification's pattern
-                // applies to it). A verbatim literal keeps the backslashes; a double quote is doubled
-                if (!string.IsNullOrWhiteSpace(actualSchema.Pattern))
-                {
-                    var escapedPattern = actualSchema.Pattern.Replace("\"", "\"\"");
-                    yield return $"ApiRegularExpression(@\"{escapedPattern}\")";
-                }
-            }
-
-            // Format-based validation attributes: an email address; a uri is absolute (a relative reference is
-            // format: uri-reference), which the Uri it binds to does not check
-            switch (format)
-            {
-                case "email":
-                    yield return "EmailAddress";
-                    break;
-                case "uri":
-                    yield return "ApiAbsoluteUri";
-                    break;
-            }
-        }
-
-        // Array length validation
-        private static IEnumerable<string> ArrayAttributes(
-            OpenApiSchema actualSchema)
-        {
-            var hasMinItems = actualSchema.MinItems > 0;
-            var hasMaxItems = actualSchema.MaxItems > 0;
-
-            if (hasMinItems)
-            {
-                yield return $"ApiMinLength({actualSchema.MinItems})";
-            }
-
-            if (hasMaxItems)
-            {
-                yield return $"ApiMaxLength({actualSchema.MaxItems})";
-            }
-
-            // A pattern on the items (in place, or on the string component they reference): RegularExpression
-            // validates one string, so each item is matched by the generated ApiItemsRegularExpression
-            if (ItemPattern(actualSchema.Items) is { } itemPattern)
-            {
-                yield return $"ApiItemsRegularExpression(@\"{itemPattern.Replace("\"", "\"\"")}\")";
-            }
-
-            // Items of format: uri are absolute, as one is
-            var items = actualSchema.Items is OpenApiSchemaReference itemsRef ? itemsRef.AliasTarget : actualSchema.Items as OpenApiSchema;
-            if (items is { Type: { } itemType } && itemType.HasFlag(JsonSchemaType.String) &&
-                string.Equals(items.Format, "uri", StringComparison.OrdinalIgnoreCase))
-            {
-                yield return "ApiAbsoluteUri";
-            }
         }
 
         /// <summary>
@@ -1505,73 +1151,6 @@ public static class OpenApiSchemaExtensions
         }
 
         /// <summary>
-        /// Reads an integer schema's <c>minimum</c> / <c>maximum</c>, which a specification may write as any
-        /// JSON number. Rounded inwards (a minimum up, a maximum down) and limited to the range of a long.
-        /// </summary>
-        private static long? ParseIntegerBound(
-            string? bound,
-            bool isMinimum)
-        {
-            if (string.IsNullOrEmpty(bound) ||
-                !decimal.TryParse(bound, NumberStyles.Float, CultureInfo.InvariantCulture, out var value))
-            {
-                return null;
-            }
-
-            value = isMinimum ? decimal.Ceiling(value) : decimal.Floor(value);
-            if (value <= long.MinValue)
-            {
-                return long.MinValue;
-            }
-
-            return value >= long.MaxValue ? long.MaxValue : (long)value;
-        }
-
-        /// <summary>
-        /// A component schema that only names an array or a primitive (no enum, no composition,
-        /// no tuple) - the generators emit no type for it.
-        /// </summary>
-        private static bool IsAliasSchema(OpenApiSchema target)
-        {
-            if (EffectiveType(target) is not { } type ||
-                target.AllOf is { Count: > 0 } ||
-                target.HasPolymorphicComposition ||
-                target.HasPrefixItems)
-            {
-                return false;
-            }
-
-            var withoutNull = type & ~JsonSchemaType.Null;
-
-            // A string or integer enum is a generated enum type; a number or boolean enum has no C# enum to be and
-            // is its primitive, with the values in the documentation
-            if (target.Enum is { Count: > 0 } && withoutNull is JsonSchemaType.String or JsonSchemaType.Integer)
-            {
-                return false;
-            }
-
-            return withoutNull != default && withoutNull != JsonSchemaType.Object;
-        }
-
-        // The pattern of an array's string items: declared in place, or on the string component they reference
-        private static string? ItemPattern(IOpenApiSchema? items)
-        {
-            var item = items switch
-            {
-                OpenApiSchemaReference { Target: OpenApiSchema target } when IsAliasSchema(target) => target,
-                OpenApiSchema inPlace => inPlace,
-                _ => null,
-            };
-
-            return item is { Type: { } type } &&
-                   type.HasFlag(JsonSchemaType.String) &&
-                   !string.IsNullOrWhiteSpace(item.Pattern) &&
-                   item.Format?.ToLowerInvariant() is not ("uri" or "uuid" or "date" or "date-time" or "byte")
-                ? item.Pattern
-                : null;
-        }
-
-        /// <summary>
         /// Checks if the schema uses allOf composition.
         /// </summary>
         /// <returns>True if the schema has allOf elements.</returns>
@@ -1626,7 +1205,7 @@ public static class OpenApiSchemaExtensions
         /// propertyName omitted" from "no discriminator at all".
         /// </summary>
         public bool HasDiscriminatorBlock()
-            => schema is OpenApiSchema actualSchema && actualSchema.Discriminator is not null;
+            => schema is OpenApiSchema { Discriminator: not null };
 
         /// <summary>
         /// Gets the discriminator property name from a polymorphic schema.
@@ -1783,7 +1362,7 @@ public static class OpenApiSchemaExtensions
                 return null;
             }
 
-            HashSet<string> StringProperties(OpenApiSchema variant)
+            static HashSet<string> StringProperties(OpenApiSchema variant)
                 => new(
                     variant.Properties!
                         .Where(p => p.Value is OpenApiSchema propSchema &&
@@ -2031,37 +1610,6 @@ public static class OpenApiSchemaExtensions
         }
 
         /// <summary>
-        /// Resolves array alias types to their element types.
-        /// If the type name refers to an array schema (like "Accounts" which is array of Account),
-        /// returns the element type ("Account") instead.
-        /// </summary>
-        private static string ResolveArrayAliasType(
-            string typeName,
-            OpenApiDocument document,
-            TypeConflictRegistry? registry = null)
-        {
-            if (document.Components?.Schemas is null)
-            {
-                return typeName;
-            }
-
-            // Try to find the schema with this name
-            if (!document.Components.Schemas.TryGetValue(typeName, out var schemaInterface))
-            {
-                return typeName;
-            }
-
-            // Check if it's an array schema
-            if (schemaInterface is OpenApiSchema arraySchema && arraySchema.IsOfType(JsonSchemaType.Array))
-            {
-                // Return the array's item type instead
-                return arraySchema.GetArrayItemType(registry);
-            }
-
-            return typeName;
-        }
-
-        /// <summary>
         /// Maps schema to C# type with allOf generic support.
         /// Returns PaginatedResult&lt;Account&gt; for allOf patterns with base schema and array override.
         /// </summary>
@@ -2146,41 +1694,6 @@ public static class OpenApiSchemaExtensions
         }
 
         /// <summary>
-        /// Resolves an array alias type name to its actual array type.
-        /// If the type name refers to an array schema (like "Accounts" which is array of Account),
-        /// returns "Account[]" instead of "Accounts".
-        /// </summary>
-        private static string ResolveArrayAliasToArrayType(
-            string typeName,
-            OpenApiDocument document,
-            TypeConflictRegistry? registry = null)
-        {
-            // Remove nullable marker for lookup
-            var baseTypeName = typeName.TrimEnd('?');
-
-            if (document.Components?.Schemas is null)
-            {
-                return typeName;
-            }
-
-            // Try to find the schema with this name
-            if (!document.Components.Schemas.TryGetValue(baseTypeName, out var schemaInterface))
-            {
-                return typeName;
-            }
-
-            // Check if it's an array schema
-            if (schemaInterface is not OpenApiSchema arraySchema || !arraySchema.IsOfType(JsonSchemaType.Array))
-            {
-                return typeName;
-            }
-
-            // Return the array type with element type
-            var itemType = arraySchema.GetArrayItemType(registry);
-            return $"{itemType}[]";
-        }
-
-        /// <summary>
         /// Gets the list of interfaces from the x-implements OpenAPI extension.
         /// This extension allows specifying interfaces that a generated model should implement.
         /// </summary>
@@ -2252,6 +1765,493 @@ public static class OpenApiSchemaExtensions
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Checks if an extension value represents boolean false.
+        /// </summary>
+        private static bool IsExtensionValueFalse(IOpenApiExtension? extension)
+        {
+            if (extension is not JsonNodeExtension jsonNodeExt)
+            {
+                return false;
+            }
+
+            return jsonNodeExt.Node is { } node && node.GetValueKind() == JsonValueKind.False;
+        }
+
+        /// <summary>
+        /// Extracts the tuple items from the prefixItems array.
+        /// </summary>
+        private static List<TupleItemInfo> ExtractPrefixItems(
+            JsonArray jsonArray,
+            OpenApiDocument? document,
+            TypeConflictRegistry? registry)
+        {
+            var result = new List<TupleItemInfo>();
+
+            var index = 0;
+            foreach (var item in jsonArray)
+            {
+                if (item is JsonObject schemaObj)
+                {
+                    var itemInfo = ParseTupleItemFromJson(schemaObj, index, registry);
+                    result.Add(itemInfo);
+                }
+
+                index++;
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Parses a tuple item from a JSON schema object.
+        /// </summary>
+        /// <summary>
+        /// The schema's type - or, without a <c>type</c> (JSON Schema 2020-12 needs none next to <c>const</c> or
+        /// <c>enum</c>), the type its values have: a const is kept as text by the reader, so it is a string; an enum
+        /// is the kind of its members (strings, integers, numbers or booleans; <c>null</c> members do not count).
+        /// Neither is an <c>object</c> no client could pass a value to.
+        /// </summary>
+        private static JsonSchemaType? EffectiveType(OpenApiSchema actual)
+        {
+            if (actual.Type is { } type)
+            {
+                return type;
+            }
+
+            if (!string.IsNullOrEmpty(actual.Const))
+            {
+                return JsonSchemaType.String;
+            }
+
+            var members = (actual.Enum ?? []).Where(m => m is JsonValue value && value.GetValueKind() != JsonValueKind.Null).Cast<JsonValue>().ToList();
+            if (members.Count == 0)
+            {
+                return null;
+            }
+
+            if (members.All(m => m.GetValueKind() == JsonValueKind.String))
+            {
+                return JsonSchemaType.String;
+            }
+
+            if (members.All(m => m.GetValueKind() is JsonValueKind.True or JsonValueKind.False))
+            {
+                return JsonSchemaType.Boolean;
+            }
+
+            if (members.All(m => m.GetValueKind() == JsonValueKind.Number))
+            {
+                return members.All(m => long.TryParse(m.ToJsonString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out _))
+                    ? JsonSchemaType.Integer
+                    : JsonSchemaType.Number;
+            }
+
+            return JsonSchemaType.String;
+        }
+
+        private static bool DefaultIsConstant(
+            IOpenApiSchema candidate,
+            TypeConflictRegistry? registry)
+        {
+            if (candidate is not OpenApiSchema actual ||
+                actual.Default is not JsonValue value ||
+                value.GetValueKind() is not (JsonValueKind.String or JsonValueKind.Number or JsonValueKind.True or JsonValueKind.False))
+            {
+                return false;
+            }
+
+            if ((actual.Enum is { Count: > 0 } ? actual : actual.WrappedEnum()) is { } enumSchema)
+            {
+                // A client's extensible enum is a struct: its members are no compile-time constants
+                return registry?.ExtensibleEnums != true || !enumSchema.IsOfType(JsonSchemaType.String);
+            }
+
+            var csharp = EffectiveType(actual).ToPrimitiveCSharpTypeName(actual.Format);
+            return csharp is "string" or "bool" or "int" or "long" or "short" or "double" or "float" or "decimal";
+        }
+
+        private static (string? Value, bool IsExclusive) Bound(
+            string? inclusive,
+            string? exclusive)
+            => !string.IsNullOrEmpty(inclusive)
+                ? (inclusive, false)
+                : !string.IsNullOrEmpty(exclusive)
+                    ? (exclusive, true)
+                    : (null, false);
+
+        private static string? ParseNumberBound(string? bound)
+            => double.TryParse(bound, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) && !double.IsInfinity(value) && !double.IsNaN(value)
+                ? value.ToString(CultureInfo.InvariantCulture)
+                : null;
+
+        /// <summary>
+        /// An integer whose bounds do not fit an <c>int</c> (<c>maximum: 4294967295</c>) is a <c>long</c>.
+        /// </summary>
+        private static string WidenForBounds(
+            string typeName,
+            OpenApiSchema actual)
+        {
+            if (!string.Equals(typeName, "int", StringComparison.Ordinal))
+            {
+                return typeName;
+            }
+
+            return Exceeds(actual.Minimum) || Exceeds(actual.Maximum) ? "long" : typeName;
+
+            static bool Exceeds(string? bound)
+                => decimal.TryParse(bound, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) &&
+                   (value > int.MaxValue || value < int.MinValue);
+        }
+
+        private static TupleItemInfo ParseTupleItemFromJson(
+            JsonObject schemaObj,
+            int index,
+            TypeConflictRegistry? registry)
+        {
+            // Extract type info
+            var typeStr = JsonKeywordReader.StringOrNull(schemaObj["type"]) ?? "object";
+            var format = JsonKeywordReader.StringOrNull(schemaObj["format"]);
+            var description = JsonKeywordReader.StringOrNull(schemaObj["description"]);
+            var nullable = schemaObj["nullable"]?.GetValue<bool>() ?? false;
+
+            // Handle $ref
+            var refStr = JsonKeywordReader.StringOrNull(schemaObj["$ref"]);
+            string csharpType;
+            var refName = !string.IsNullOrEmpty(refStr)
+                ? refStr!.Split('/').LastOrDefault()
+                : null;
+            if (!string.IsNullOrWhiteSpace(refName))
+            {
+                csharpType = ResolveTypeName(refName!, registry);
+            }
+            else
+            {
+                // Either no $ref, or a malformed one (e.g. a trailing-slash ref whose last
+                // segment is empty). Fall back to the mapped primitive type rather than
+                // emitting an empty, invalid C# type name.
+                csharpType = IOpenApiSchema.MapJsonTypeToCSharp(typeStr, format);
+            }
+
+            // Generate name from description or use positional
+            var name = IOpenApiSchema.GenerateTupleElementName(description, index);
+
+            return new TupleItemInfo
+            {
+                CSharpType = csharpType,
+                Name = name,
+                Description = description,
+                IsNullable = nullable,
+            };
+        }
+
+        /// <summary>
+        /// Generates a name for a tuple element from its description or position.
+        /// </summary>
+        private static string GenerateTupleElementName(
+            string? description,
+            int index)
+        {
+            if (string.IsNullOrWhiteSpace(description))
+            {
+                return $"Item{index + 1}";
+            }
+
+            // Extract first word as name, convert to PascalCase
+            var firstWord = description.Split(' ', '.', ',', ':')[0];
+            return firstWord.ToPascalCaseForDotNet();
+        }
+
+        /// <summary>
+        /// Maps a JSON Schema type and format to a C# type.
+        /// </summary>
+        private static string MapJsonTypeToCSharp(
+            string jsonType,
+            string? format)
+            => jsonType.ToLowerInvariant() switch
+            {
+                "string" when format == "uuid" => "Guid",
+                "string" when format == "date-time" => "DateTimeOffset",
+                "string" when format == "date" => "DateOnly",
+                "string" when format == "uri" => "Uri",
+                "string" when format == "byte" => "byte[]",
+                "string" => "string",
+                "integer" when format == "int64" => "long",
+                "integer" => "int",
+                "number" when format == "float" => "float",
+                "number" when format == "decimal" => "decimal",
+                "number" => "double",
+                "boolean" => "bool",
+                _ => "object",
+            };
+
+        // Range for a numeric type (HasFlag for a type that also allows null)
+        private static IEnumerable<string> RangeAttributes(
+            OpenApiSchema actualSchema,
+            JsonSchemaType schemaType)
+        {
+            // An exclusive bound (the 3.0 boolean next to minimum/maximum, which the reader folds into
+            // exclusiveMinimum/exclusiveMaximum, or the 3.1 number) is the same Range with its exclusive flag
+            var (minimum, minimumIsExclusive) = Bound(actualSchema.Minimum, actualSchema.ExclusiveMinimum);
+            var (maximum, maximumIsExclusive) = Bound(actualSchema.Maximum, actualSchema.ExclusiveMaximum);
+            var flags = (minimumIsExclusive ? ", MinimumIsExclusive = true" : string.Empty) +
+                        (maximumIsExclusive ? ", MaximumIsExclusive = true" : string.Empty);
+            if (schemaType.HasFlag(JsonSchemaType.Integer))
+            {
+                // A bound may be written as a decimal or in exponent form (minimum: 1.0, maximum: 1e3):
+                // it is rounded inwards to the integers it allows. A bound that is no number is skipped.
+                var min = ParseIntegerBound(minimum, isMinimum: true);
+                var max = ParseIntegerBound(maximum, isMinimum: false);
+
+                if (min is not null || max is not null)
+                {
+                    // The open bound of an int (no int64 format) is int's, so the attribute binds the int constructor;
+                    // long's made it the double one, and a tool that builds values from the attribute (a test data
+                    // generator) then made doubles for an int
+                    var asInt = !string.Equals(actualSchema.Format, "int64", StringComparison.OrdinalIgnoreCase) &&
+                                (min ?? 0) is >= int.MinValue and <= int.MaxValue &&
+                                (max ?? 0) is >= int.MinValue and <= int.MaxValue;
+                    var minText = min?.ToString(CultureInfo.InvariantCulture);
+                    var maxText = max?.ToString(CultureInfo.InvariantCulture);
+                    yield return $"Range({minText ?? (asInt ? "int.MinValue" : "long.MinValue")}, {maxText ?? (asInt ? "int.MaxValue" : "long.MaxValue")}{flags}{OneBoundMessage(minText, minimumIsExclusive, maxText, maximumIsExclusive)})";
+                }
+            }
+            else if (schemaType.HasFlag(JsonSchemaType.Number))
+            {
+                var min = ParseNumberBound(minimum);
+                var max = ParseNumberBound(maximum);
+
+                if (min is not null || max is not null)
+                {
+                    yield return $"Range({min ?? "double.MinValue"}, {max ?? "double.MaxValue"}{flags}{OneBoundMessage(min, minimumIsExclusive, max, maximumIsExclusive)})";
+                }
+            }
+        }
+
+        // A Range with one bound says that bound: "at most 100", not the default "between -9.22E+18 and 100"
+        private static string OneBoundMessage(
+            string? minimum,
+            bool minimumIsExclusive,
+            string? maximum,
+            bool maximumIsExclusive)
+            => (minimum, maximum) switch
+            {
+                (null, { } max) => $", ErrorMessage = \"The field {{0}} must be {(maximumIsExclusive ? "less than" : "at most")} {max}.\"",
+                ({ } min, null) => $", ErrorMessage = \"The field {{0}} must be {(minimumIsExclusive ? "greater than" : "at least")} {min}.\"",
+                _ => string.Empty,
+            };
+
+        // String length validation: ApiMinLength/ApiMaxLength, the trim- and AOT-safe MinLength/MaxLength a generated
+        // project declares (LengthLimitAttributesExtractor)
+        // Skip for formats that convert to non-string C# types (Uri, Guid, DateTimeOffset, byte[], int, long) - a length
+        // attribute on one throws when it validates
+        private static IEnumerable<string> StringAttributes(
+            OpenApiSchema actualSchema)
+        {
+            var format = actualSchema.Format?.ToLowerInvariant();
+            var isNonStringFormat = format is "uri" or "uuid" or "guid" or "date" or "date-time" or "byte" or "int32" or "int" or "int64" or "long";
+
+            if (!isNonStringFormat)
+            {
+                if (actualSchema.MinLength > 0)
+                {
+                    yield return $"ApiMinLength({actualSchema.MinLength})";
+                }
+
+                if (actualSchema.MaxLength > 0)
+                {
+                    yield return $"ApiMaxLength({actualSchema.MaxLength})";
+                }
+
+                // Regular expression validation: ApiRegularExpression, the generated RegularExpression that matches an
+                // empty string against the pattern too (the base counts "" as valid; the specification's pattern
+                // applies to it). A verbatim literal keeps the backslashes; a double quote is doubled
+                if (!string.IsNullOrWhiteSpace(actualSchema.Pattern))
+                {
+                    var escapedPattern = actualSchema.Pattern.Replace("\"", "\"\"");
+                    yield return $"ApiRegularExpression(@\"{escapedPattern}\")";
+                }
+            }
+
+            // Format-based validation attributes: an email address; a uri is absolute (a relative reference is
+            // format: uri-reference), which the Uri it binds to does not check
+            switch (format)
+            {
+                case "email":
+                    yield return "EmailAddress";
+                    break;
+                case "uri":
+                    yield return "ApiAbsoluteUri";
+                    break;
+            }
+        }
+
+        // Array length validation
+        private static IEnumerable<string> ArrayAttributes(
+            OpenApiSchema actualSchema)
+        {
+            var hasMinItems = actualSchema.MinItems > 0;
+            var hasMaxItems = actualSchema.MaxItems > 0;
+
+            if (hasMinItems)
+            {
+                yield return $"ApiMinLength({actualSchema.MinItems})";
+            }
+
+            if (hasMaxItems)
+            {
+                yield return $"ApiMaxLength({actualSchema.MaxItems})";
+            }
+
+            // A pattern on the items (in place, or on the string component they reference): RegularExpression
+            // validates one string, so each item is matched by the generated ApiItemsRegularExpression
+            if (ItemPattern(actualSchema.Items) is { } itemPattern)
+            {
+                yield return $"ApiItemsRegularExpression(@\"{itemPattern.Replace("\"", "\"\"")}\")";
+            }
+
+            // Items of format: uri are absolute, as one is
+            var items = actualSchema.Items is OpenApiSchemaReference itemsRef ? itemsRef.AliasTarget : actualSchema.Items as OpenApiSchema;
+            if (items is { Type: { } itemType } && itemType.HasFlag(JsonSchemaType.String) &&
+                string.Equals(items.Format, "uri", StringComparison.OrdinalIgnoreCase))
+            {
+                yield return "ApiAbsoluteUri";
+            }
+        }
+
+        /// <summary>
+        /// Reads an integer schema's <c>minimum</c> / <c>maximum</c>, which a specification may write as any
+        /// JSON number. Rounded inwards (a minimum up, a maximum down) and limited to the range of a long.
+        /// </summary>
+        private static long? ParseIntegerBound(
+            string? bound,
+            bool isMinimum)
+        {
+            if (string.IsNullOrEmpty(bound) ||
+                !decimal.TryParse(bound, NumberStyles.Float, CultureInfo.InvariantCulture, out var value))
+            {
+                return null;
+            }
+
+            value = isMinimum ? decimal.Ceiling(value) : decimal.Floor(value);
+            if (value <= long.MinValue)
+            {
+                return long.MinValue;
+            }
+
+            return value >= long.MaxValue ? long.MaxValue : (long)value;
+        }
+
+        /// <summary>
+        /// A component schema that only names an array or a primitive (no enum, no composition,
+        /// no tuple) - the generators emit no type for it.
+        /// </summary>
+        private static bool IsAliasSchema(OpenApiSchema target)
+        {
+            if (EffectiveType(target) is not { } type ||
+                target.AllOf is { Count: > 0 } ||
+                target.HasPolymorphicComposition ||
+                target.HasPrefixItems)
+            {
+                return false;
+            }
+
+            var withoutNull = type & ~JsonSchemaType.Null;
+
+            // A string or integer enum is a generated enum type; a number or boolean enum has no C# enum to be and
+            // is its primitive, with the values in the documentation
+            if (target.Enum is { Count: > 0 } && withoutNull is JsonSchemaType.String or JsonSchemaType.Integer)
+            {
+                return false;
+            }
+
+            return withoutNull != default && withoutNull != JsonSchemaType.Object;
+        }
+
+        // The pattern of an array's string items: declared in place, or on the string component they reference
+        private static string? ItemPattern(IOpenApiSchema? items)
+        {
+            var item = items switch
+            {
+                OpenApiSchemaReference { Target: OpenApiSchema target } when IsAliasSchema(target) => target,
+                OpenApiSchema inPlace => inPlace,
+                _ => null,
+            };
+
+            return item is { Type: { } type } &&
+                   type.HasFlag(JsonSchemaType.String) &&
+                   !string.IsNullOrWhiteSpace(item.Pattern) &&
+                   item.Format?.ToLowerInvariant() is not ("uri" or "uuid" or "date" or "date-time" or "byte")
+                       ? item.Pattern
+                       : null;
+        }
+
+        /// <summary>
+        /// Resolves array alias types to their element types.
+        /// If the type name refers to an array schema (like "Accounts" which is array of Account),
+        /// returns the element type ("Account") instead.
+        /// </summary>
+        private static string ResolveArrayAliasType(
+            string typeName,
+            OpenApiDocument document,
+            TypeConflictRegistry? registry = null)
+        {
+            if (document.Components?.Schemas is null)
+            {
+                return typeName;
+            }
+
+            // Try to find the schema with this name
+            if (!document.Components.Schemas.TryGetValue(typeName, out var schemaInterface))
+            {
+                return typeName;
+            }
+
+            // Check if it's an array schema
+            if (schemaInterface is OpenApiSchema arraySchema && arraySchema.IsOfType(JsonSchemaType.Array))
+            {
+                // Return the array's item type instead
+                return arraySchema.GetArrayItemType(registry);
+            }
+
+            return typeName;
+        }
+
+        /// <summary>
+        /// Resolves an array alias type name to its actual array type.
+        /// If the type name refers to an array schema (like "Accounts" which is array of Account),
+        /// returns "Account[]" instead of "Accounts".
+        /// </summary>
+        private static string ResolveArrayAliasToArrayType(
+            string typeName,
+            OpenApiDocument document,
+            TypeConflictRegistry? registry = null)
+        {
+            // Remove nullable marker for lookup
+            var baseTypeName = typeName.TrimEnd('?');
+
+            if (document.Components?.Schemas is null)
+            {
+                return typeName;
+            }
+
+            // Try to find the schema with this name
+            if (!document.Components.Schemas.TryGetValue(baseTypeName, out var schemaInterface))
+            {
+                return typeName;
+            }
+
+            // Check if it's an array schema
+            if (schemaInterface is not OpenApiSchema arraySchema || !arraySchema.IsOfType(JsonSchemaType.Array))
+            {
+                return typeName;
+            }
+
+            // Return the array type with element type
+            var itemType = arraySchema.GetArrayItemType(registry);
+            return $"{itemType}[]";
         }
     }
 

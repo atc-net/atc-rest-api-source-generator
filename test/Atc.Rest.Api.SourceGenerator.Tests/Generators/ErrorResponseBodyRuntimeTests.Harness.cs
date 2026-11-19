@@ -1,10 +1,10 @@
 namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 
-/// <summary>
+/// <content>
 /// A client harness that does not run - a non-zero exit, no results file - is one column of the matrix, not the end
 /// of it: every case of that client gets the verdict <c>harness</c> with the tail of the harness output, the other
 /// columns are judged as usual, and the report is still written (with the column red and the run not green).
-/// </summary>
+/// </content>
 public sealed partial class ErrorResponseBodyRuntimeTests
 {
     /// <summary>

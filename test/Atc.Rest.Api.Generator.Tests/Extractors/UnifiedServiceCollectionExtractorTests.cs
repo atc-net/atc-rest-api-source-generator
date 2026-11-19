@@ -87,33 +87,6 @@ public class UnifiedServiceCollectionExtractorTests
         Assert.Equal(polymorphic || enums, result.Contains("<para>• JSON options", StringComparison.Ordinal));
     }
 
-    // A spec with or without a polymorphic schema (a oneOf with a discriminator) and with or without an enum
-    private static string JsonOptionsYaml(
-        bool polymorphic,
-        bool enums)
-        => $$"""
-            openapi: 3.0.3
-            info: { title: T, version: 1.0.0 }
-            paths:
-              /things:
-                post:
-                  operationId: createThing
-                  requestBody:
-                    content:
-                      application/json:
-                        schema: { $ref: '#/components/schemas/{{(polymorphic ? "Shape" : "Thing")}}' }
-                  responses:
-                    '204': { description: No Content }
-            components:
-              schemas:
-                Thing:
-                  type: object
-                  required: [name]
-                  properties:
-                    name: { type: string{{(enums ? ", enum: [Red, Green]" : string.Empty)}} }
-            {{(polymorphic ? ShapeSchemas : string.Empty)}}
-            """;
-
     // A polymorphic schema is generated whether an operation uses it or not, so the non-polymorphic spec has none
     private const string ShapeSchemas = """
             Circle:
@@ -156,4 +129,31 @@ public class UnifiedServiceCollectionExtractorTests
             StringComparison.Ordinal);
         Assert.DoesNotContain("services.Any(d => d.ImplementationType", result, StringComparison.Ordinal);
     }
+
+    // A spec with or without a polymorphic schema (a oneOf with a discriminator) and with or without an enum
+    private static string JsonOptionsYaml(
+        bool polymorphic,
+        bool enums)
+        => $$"""
+            openapi: 3.0.3
+            info: { title: T, version: 1.0.0 }
+            paths:
+              /things:
+                post:
+                  operationId: createThing
+                  requestBody:
+                    content:
+                      application/json:
+                        schema: { $ref: '#/components/schemas/{{(polymorphic ? "Shape" : "Thing")}}' }
+                  responses:
+                    '204': { description: No Content }
+            components:
+              schemas:
+                Thing:
+                  type: object
+                  required: [name]
+                  properties:
+                    name: { type: string{{(enums ? ", enum: [Red, Green]" : string.Empty)}} }
+            {{(polymorphic ? ShapeSchemas : string.Empty)}}
+            """;
 }

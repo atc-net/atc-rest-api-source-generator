@@ -309,7 +309,8 @@ try
             new UploadMultiFilesAsFormDataParameters(File: [
                 new StreamFileContent(multiFileStream1, "requirements.txt"),
                 new StreamFileContent(multiFileStream2, "design.txt"),
-                new StreamFileContent(multiFileStream3, "metadata.json")]),
+                new StreamFileContent(multiFileStream3, "metadata.json"),
+            ]),
             CancellationToken.None)
         .ConfigureAwait(false);
 

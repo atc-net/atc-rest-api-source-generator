@@ -4,9 +4,9 @@
 // ReSharper disable LoopCanBeConvertedToQuery
 namespace Atc.Rest.Api.Generator.Validators;
 
-/// <summary>
+/// <content>
 /// The streaming and caching rules (ATC_API_STREAM, ATC_API_CACHE).
-/// </summary>
+/// </content>
 public static partial class OpenApiDocumentValidator
 {
     /// <summary>

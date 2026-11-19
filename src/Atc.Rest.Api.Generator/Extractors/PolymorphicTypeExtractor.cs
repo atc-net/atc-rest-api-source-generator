@@ -305,8 +305,8 @@ public static class PolymorphicTypeExtractor
             // A variant that pins the property to a value of its own (const, one-value enum) is read by that value
             var pinnedValue = !isExplicit && explicitMapping?.Values.Contains(variantName, StringComparer.Ordinal) != true &&
                               document.Components?.Schemas?.TryGetValue(variantName, out var variantSchema) == true
-                ? variantSchema.GetPinnedStringValue(discriminatorPropertyName!)
-                : null;
+                                  ? variantSchema.GetPinnedStringValue(discriminatorPropertyName!)
+                                  : null;
             var discriminatorValue = pinnedValue ?? GetDiscriminatorValueForVariant(variantName, explicitMapping);
 
             config.Variants.Add(new PolymorphicVariant

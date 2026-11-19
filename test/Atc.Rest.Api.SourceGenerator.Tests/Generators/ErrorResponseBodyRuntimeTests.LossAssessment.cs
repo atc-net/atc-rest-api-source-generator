@@ -1,11 +1,11 @@
 namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 
-/// <summary>
+/// <content>
 /// The suggested assessment of every lossy cell in the end-to-end matrix: a judgement, not a measurement. The loss
 /// itself (kind, type, fields) is measured by the verdict code; these rules only say how the team rates it, so the
 /// report can point at what deserves another design iteration. A lossy cell no rule matches fails the matrix, so a
 /// new kind of loss is rated on purpose. Change a rating here, not in the report.
-/// </summary>
+/// </content>
 public partial class ErrorResponseBodyRuntimeTests
 {
     // Green: the best a client can do with that body. Blue: a trade-off chosen by configuration or by the

@@ -200,8 +200,8 @@ internal static class AotAnalyzerHarness
                 or "build_property.EnableAotAnalyzer"
                 or "build_property.EnableRequestDelegateGenerator"
                 or "build_property.EnableConfigurationBindingGenerator"
-                ? "true"
-                : null;
+                    ? "true"
+                    : null;
             return value is not null;
         }
     }

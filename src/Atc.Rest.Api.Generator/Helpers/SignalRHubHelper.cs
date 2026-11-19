@@ -121,8 +121,8 @@ public static class SignalRHubHelper
                           !sharedSchemas.Contains(schema) &&
                           schemaSegments.TryGetValue(schema, out var segments) &&
                           segments.Count == 1
-                ? PathSegmentHelper.ResolveEffectivePathSegment(openApiDoc, projectName, segments.First())
-                : null;
+                              ? PathSegmentHelper.ResolveEffectivePathSegment(openApiDoc, projectName, segments.First())
+                              : null;
             names[schema] = $"global::{NamespaceBuilder.ForModels(projectName, segment ?? string.Empty)}.{OpenApiSchemaExtensions.SanitizeSchemaName(schema)}";
         }
 

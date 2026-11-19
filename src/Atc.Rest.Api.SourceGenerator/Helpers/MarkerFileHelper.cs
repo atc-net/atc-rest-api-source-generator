@@ -84,8 +84,7 @@ internal static class MarkerFileHelper
         var serverMarkerPath = Path.Combine(markerDirectory, Constants.MarkerFile.Server);
         var serverMarkerJsonPath = Path.Combine(markerDirectory, Constants.MarkerFile.ServerJson);
 
-        var markerPath = File.Exists(serverMarkerPath) ? serverMarkerPath :
-                         File.Exists(serverMarkerJsonPath) ? serverMarkerJsonPath : null;
+        var markerPath = File.Exists(serverMarkerPath) ? serverMarkerPath : File.Exists(serverMarkerJsonPath) ? serverMarkerJsonPath : null;
 
         // If not in same directory, search sibling directories
         if (markerPath is null)

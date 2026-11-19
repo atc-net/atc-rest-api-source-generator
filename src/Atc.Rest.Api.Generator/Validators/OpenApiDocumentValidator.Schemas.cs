@@ -4,9 +4,9 @@
 // ReSharper disable LoopCanBeConvertedToQuery
 namespace Atc.Rest.Api.Generator.Validators;
 
-/// <summary>
+/// <content>
 /// The schema rules (ATC_API_SCH): types, references, constraints, discriminators and schema names.
-/// </summary>
+/// </content>
 public static partial class OpenApiDocumentValidator
 {
     /// <summary>
@@ -159,7 +159,7 @@ public static partial class OpenApiDocumentValidator
                 Suggestions:
                 [
                     "Consider using a single type instead of type array",
-                    "Use oneOf/anyOf for polymorphic types"
+                    "Use oneOf/anyOf for polymorphic types",
                 ]));
         }
 
@@ -197,7 +197,7 @@ public static partial class OpenApiDocumentValidator
                         Suggestions:
                         [
                             "Consider using a single type instead of type array",
-                            "Use oneOf/anyOf for polymorphic types"
+                            "Use oneOf/anyOf for polymorphic types",
                         ]));
                 }
             }
@@ -249,7 +249,7 @@ public static partial class OpenApiDocumentValidator
                 Suggestions:
                 [
                     "This is supported - sibling properties override referenced schema properties",
-                    "For OpenAPI 3.0 compatibility, move overrides to a separate schema using allOf"
+                    "For OpenAPI 3.0 compatibility, move overrides to a separate schema using allOf",
                 ]));
         }
 
@@ -296,7 +296,7 @@ public static partial class OpenApiDocumentValidator
                         Suggestions:
                         [
                             "This is supported - sibling properties override referenced schema properties",
-                            "For OpenAPI 3.0 compatibility, move overrides to a separate schema using allOf"
+                            "For OpenAPI 3.0 compatibility, move overrides to a separate schema using allOf",
                         ]));
                 }
             }
@@ -328,7 +328,7 @@ public static partial class OpenApiDocumentValidator
                 Suggestions:
                 [
                     $"The const value '{constValue}' will be used as a fixed value",
-                    "Consider using enum with a single value for better OpenAPI 3.0 compatibility"
+                    "Consider using enum with a single value for better OpenAPI 3.0 compatibility",
                 ]));
         }
 
@@ -353,7 +353,7 @@ public static partial class OpenApiDocumentValidator
                         Suggestions:
                         [
                             $"The const value '{constValue}' will be used as a fixed value",
-                            "Consider using enum with a single value for better OpenAPI 3.0 compatibility"
+                            "Consider using enum with a single value for better OpenAPI 3.0 compatibility",
                         ]));
                 }
             }
@@ -385,7 +385,7 @@ public static partial class OpenApiDocumentValidator
                 [
                     "unevaluatedProperties affects allOf/oneOf/anyOf composition validation",
                     "For code generation, additionalProperties: false provides similar behavior",
-                    "Manual validation may be needed for strict enforcement"
+                    "Manual validation may be needed for strict enforcement",
                 ]));
         }
     }

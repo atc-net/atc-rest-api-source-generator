@@ -8,11 +8,13 @@ namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 public sealed class EnumWireConverterFactoryCoverageTests
 {
     public static TheoryData<string> FoldersWithAFactory()
-        => [.. Directory
+        => [
+            .. Directory
             .EnumerateFiles(GeneratorSnapshotHarness.GetScenariosRoot(), "*.EnumWireConverterFactory.verified.cs", SearchOption.AllDirectories)
             .Select(Path.GetDirectoryName)
             .Select(d => Path.GetRelativePath(GeneratorSnapshotHarness.GetScenariosRoot(), d!))
-            .Order(StringComparer.Ordinal)];
+            .Order(StringComparer.Ordinal),
+        ];
 
     [Theory]
     [MemberData(nameof(FoldersWithAFactory))]

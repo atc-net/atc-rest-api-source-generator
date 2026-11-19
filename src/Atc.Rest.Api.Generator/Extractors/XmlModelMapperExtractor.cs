@@ -32,6 +32,11 @@ public static class XmlModelMapperExtractor
     /// <summary>The name of the generated interface of a model a list request body carries.</summary>
     public const string XmlRequestBodyInterfaceName = "IXmlRequestBody";
 
+    /// <summary>
+    /// The class name of the server's request-body problem step.
+    /// </summary>
+    public const string RequestBodyProblemsTypeName = "RequestBodyProblems";
+
     private const string Xml = "global::System.Xml";
     private const string XmlConvert = "global::System.Xml.XmlConvert";
     private const string Invariant = "global::System.Globalization.CultureInfo.InvariantCulture";
@@ -319,11 +324,6 @@ public static class XmlModelMapperExtractor
             }
             """;
     }
-
-    /// <summary>
-    /// The class name of the server's request-body problem step.
-    /// </summary>
-    public const string RequestBodyProblemsTypeName = "RequestBodyProblems";
 
     /// <summary>
     /// Generates the server's request-body problem step: the generated body reader marks the request before it throws

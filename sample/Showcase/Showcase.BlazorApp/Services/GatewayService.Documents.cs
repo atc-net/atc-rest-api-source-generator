@@ -1,9 +1,9 @@
 namespace Showcase.BlazorApp.Services;
 
-/// <summary>
+/// <content>
 /// Gateway service - Documents operations using generated endpoints: raw uploads of several media types, downloads with
 /// their own media type and file name, and a summary that is a model or a file.
-/// </summary>
+/// </content>
 public sealed partial class GatewayService
 {
     /// <summary>

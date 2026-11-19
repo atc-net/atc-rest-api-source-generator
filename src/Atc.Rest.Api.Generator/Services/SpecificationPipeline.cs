@@ -116,9 +116,11 @@ public static class SpecificationPipeline
     /// <returns>The diagnostics, with those warnings as errors.</returns>
     public static List<DiagnosticMessage> WithUnbindableParametersAsErrors(
         IEnumerable<DiagnosticMessage> diagnostics)
-        => [.. (diagnostics ?? []).Select(d => d.RuleId == RuleIdentifiers.ParameterValueNotBindable && d.Severity == DiagnosticSeverity.Warning
-            ? d with { Severity = DiagnosticSeverity.Error }
-            : d)];
+        => [
+            .. (diagnostics ?? []).Select(d => d.RuleId == RuleIdentifiers.ParameterValueNotBindable && d.Severity == DiagnosticSeverity.Warning
+                ? d with { Severity = DiagnosticSeverity.Error }
+                : d),
+        ];
 
     private static SpecificationPipelineResult Finish(
         OpenApiDocument document,

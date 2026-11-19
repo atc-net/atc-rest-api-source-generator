@@ -1,10 +1,10 @@
 namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 
-/// <summary>
+/// <content>
 /// The report's code coverage: the Cobertura files the five test projects wrote in the same run
 /// (<c>dotnet test --coverage --coverage-output-format cobertura --coverage-output {project}.cobertura.xml</c>, in
 /// <c>TestResults/</c>), merged line by line - a line is covered when any suite ran it - for the product assemblies.
-/// </summary>
+/// </content>
 public sealed partial class ErrorResponseBodyRuntimeTests
 {
     private static readonly (string Assembly, string What)[] CoveredAssemblies =

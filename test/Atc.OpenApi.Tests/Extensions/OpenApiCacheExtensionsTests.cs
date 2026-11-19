@@ -314,8 +314,8 @@ public class OpenApiCacheExtensionsTests
             yaml,
             "test.yaml",
             out var document)
-            ? document
-            : null;
+                ? document
+                : null;
 
     private static OpenApiPathItem GetFirstPathItem(OpenApiDocument doc)
         => (OpenApiPathItem)doc.Paths.First().Value;

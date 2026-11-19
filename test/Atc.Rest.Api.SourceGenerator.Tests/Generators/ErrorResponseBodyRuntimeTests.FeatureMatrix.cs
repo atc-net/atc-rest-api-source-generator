@@ -1,7 +1,7 @@
 // ReSharper disable StringLiteralTypo
 namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 
-/// <summary>
+/// <content>
 /// End-to-end feature matrix: the generated server runs on Kestrel with handlers that stream, page, echo and
 /// version, and every generated client - the C# EndpointPerOperation and typed clients, the TypeScript Fetch
 /// and Axios clients, the Fetch client with Zod runtime validation, and the React Query and SWR hooks rendered
@@ -15,7 +15,7 @@ namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 /// a connection reset mid-body, a server that never answers (the client's own timeout and the operation's
 /// x-retry-timeout-seconds), a body that stalls after the headers, a port no server listens on and a host name that
 /// does not resolve - and a handler that throws a ValidationException.
-/// </summary>
+/// </content>
 /// <remarks>
 /// Not exercised: a browser runtime (the hooks render with
 /// React on jsdom in Node); the React Query and SWR hooks on a 304 (a browser cache sends the condition, not a
@@ -24,6 +24,36 @@ namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 /// </remarks>
 public partial class ErrorResponseBodyRuntimeTests
 {
+    /// <summary>
+    /// The streams a stub writes: the stub's name (the <c>X-Feature-Stub</c> header), the operation it answers for,
+    /// and what the case is called. Each carries the items <c>t1</c>, <c>t2</c>, <c>t3</c> (the empty array: none).
+    /// </summary>
+    internal static readonly (string Stub, string Operation, string Name)[] FeatureWireStubs =
+    [
+        ("sse-noise", "FeatureSse", "Server-Sent Events with a comment, id and retry fields, a heartbeat without data and a named event between the items"),
+        ("sse-crlf", "FeatureSse", "Server-Sent Events with CRLF line ends and data over two lines"),
+        ("sse-bom", "FeatureSse", "Server-Sent Events behind a byte order mark, with an event field without a value and an event named message"),
+        ("sse-named", "FeatureSseNamed", "Server-Sent Events whose items are named events (x-sse-item-events: [thing]), between a heartbeat and an event of another name"),
+        ("lines-blank", "FeatureLines", "JSON Lines with blank lines, CRLF and no line feed after the last item"),
+        ("seq-blank", "FeatureSeq", "JSON Text Sequence with a line feed between the records and a pretty-printed record"),
+        ("mixed-padded", "FeatureMixed", "multipart/mixed with a preamble, padded boundaries, part headers and a pretty-printed part"),
+        ("array-pretty", "FeatureArray", "a JSON array that is pretty-printed"),
+        ("array-empty", "FeatureArray", "a JSON array with no body at all (200, no content)"),
+    ];
+
+    internal static readonly (string Id, string Group, string Label, string Marker, bool Typed, string? TsFlavour)[] FeatureClients =
+    [
+        ("cs-epo", "C# EndpointPerOperation", "errorResponseFormat: ProblemDetails", """{ "generationMode": "EndpointPerOperation", "errorResponseFormat": "ProblemDetails" }""", false, null),
+        ("cs-epo-classic-enums", "C# EndpointPerOperation", "extensibleEnums: false (the classic enum)", """{ "generationMode": "EndpointPerOperation", "errorResponseFormat": "ProblemDetails", "extensibleEnums": false }""", false, null),
+        ("cs-typed", "C# TypedClient", "typedClientResultStyle: Result", """{ "generationMode": "TypedClient", "typedClientResultStyle": "Result" }""", true, null),
+        ("cs-typed-throw", "C# TypedClient", "typedClientResultStyle: Throw (the default)", """{ "generationMode": "TypedClient" }""", true, null),
+        ("ts-fetch", "TypeScript", "Fetch client", string.Empty, false, "fetch"),
+        ("ts-axios", "TypeScript", "Axios client", string.Empty, false, "axios"),
+        ("ts-fetch-zod", "TypeScript", "Fetch client, Zod runtime validation", string.Empty, false, "fetch-zod"),
+        ("ts-fetch-reactquery", "TypeScript", "React Query hooks (rendered with React on jsdom)", string.Empty, false, "fetch-reactquery"),
+        ("ts-fetch-swr", "TypeScript", "SWR hooks (rendered with React on jsdom)", string.Empty, false, "fetch-swr"),
+    ];
+
     private const string FeatureYaml = """
         openapi: 3.0.3
         info:
@@ -2025,6 +2055,318 @@ public partial class ErrorResponseBodyRuntimeTests
         (string Name, string Value)[]? Headers = null);
 
     /// <summary>
+    /// The cells that fail today, as <c>case [client]</c>: a cell not listed here must pass, and a listed cell that
+    /// passes fails the test asking to be removed. The matrix started with 124 red (a discriminated union whose
+    /// variants declare the discriminator could not start the server; a three-level allOf lost its base; the typed
+    /// client wrote PascalCase; Zod refused a date-time with an offset; a C# client threw on an enum value the server
+    /// added later, fixed by the extensible enums) - all fixed. The network, timeout and validation cases came in with
+    /// 15 red: the Axios client's timeout rejected with a CanceledError and the C# resilience handler's timeout did
+    /// not cover a body that stalls - fixed; Atc.Rest.MinimalApi 3.0 keeps the field errors of a ValidationException a
+    /// handler throws - fixed.
+    /// </summary>
+    private static readonly Dictionary<string, string> KnownFeatureFailures = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// Every generated client runs every feature against the generated server as the specification and the
+    /// documented contract say: streams arrive whole, a mid-stream failure surfaces, a client's cancellation
+    /// reaches the server, pages chain, polymorphic and inherited models round-trip with every property, enum
+    /// and date values keep their wire form, and a 304 is a 304 (no <c>fail</c> outside <see cref="KnownFeatureFailures"/>).
+    /// </summary>
+    [Fact]
+    [Trait("Category", "TypeScriptToolchain")]
+    public async Task EndToEnd_EveryClientRunsEveryFeature()
+    {
+        if (!IsNodeAvailable(out var reason))
+        {
+            if (string.Equals(Environment.GetEnvironmentVariable("CI"), "true", StringComparison.OrdinalIgnoreCase))
+            {
+                Assert.Fail(reason + " (running under CI where the feature matrix is required)");
+            }
+
+            Assert.Skip(reason);
+        }
+
+        var matrix = await CollectFeatureMatrixAsync();
+        if (Environment.GetEnvironmentVariable("FEATURE_E2E_JSON") is { Length: > 0 } dumpPath)
+        {
+            await File.WriteAllTextAsync(dumpPath, matrix.ToJsonString(new JsonSerializerOptions { WriteIndented = true }), TestContext.Current.CancellationToken);
+        }
+
+        var failures = RequestBindingFailingCells(matrix);
+        var unexpected = failures.Where(f => !KnownFeatureFailures.ContainsKey(f.Key)).ToList();
+        var fixedCells = KnownFeatureFailures.Keys.Where(k => failures.All(f => f.Key != k)).Order(StringComparer.Ordinal).ToList();
+
+        Assert.True(
+            unexpected.Count == 0,
+            $"{unexpected.Count} failing cells:\n" + string.Join("\n", unexpected.Take(120).Select(f => $"{f.Key}: {f.Why}")));
+        Assert.True(
+            fixedCells.Count == 0,
+            $"{fixedCells.Count} cells pass now. Remove them from {nameof(KnownFeatureFailures)}:\n" + string.Join("\n", fixedCells));
+    }
+
+    /// <summary>
+    /// The same matrix from the specification as an OpenAPI 3.1 document (its nullable member a type array): every
+    /// feature must run as it does from the 3.0 document.
+    /// </summary>
+    [Fact]
+    [Trait("Category", "TypeScriptToolchain")]
+    public async Task EndToEnd_EveryClientRunsEveryFeature_WithAnOpenApi31Document()
+    {
+        if (!IsNodeAvailable(out var reason))
+        {
+            if (string.Equals(Environment.GetEnvironmentVariable("CI"), "true", StringComparison.OrdinalIgnoreCase))
+            {
+                Assert.Fail(reason + " (running under CI where the feature matrix is required)");
+            }
+
+            Assert.Skip(reason);
+        }
+
+        var matrix = await CollectFeatureMatrixAsync(openApi31: true);
+        Assert.Equal("3.1.0", (string?)matrix["openApi"]);
+        if (Environment.GetEnvironmentVariable("FEATURE_E2E_31_JSON") is { Length: > 0 } dumpPath)
+        {
+            await File.WriteAllTextAsync(dumpPath, matrix.ToJsonString(new JsonSerializerOptions { WriteIndented = true }), TestContext.Current.CancellationToken);
+        }
+
+        var failures = RequestBindingFailingCells(matrix);
+        var unexpected = failures.Where(f => !KnownFeatureFailures.ContainsKey(f.Key)).ToList();
+        var fixedCells = KnownFeatureFailures.Keys.Where(k => failures.All(f => f.Key != k)).Order(StringComparer.Ordinal).ToList();
+
+        Assert.True(
+            unexpected.Count == 0,
+            $"{unexpected.Count} failing cells:\n" + string.Join("\n", unexpected.Take(120).Select(f => $"{f.Key}: {f.Why}")));
+        Assert.True(
+            fixedCells.Count == 0,
+            $"{fixedCells.Count} cells pass now. Remove them from {nameof(KnownFeatureFailures)}:\n" + string.Join("\n", fixedCells));
+    }
+
+    /// <summary>
+    /// The verdict is not blind: a short stream, a failure that does not surface, a cancellation the server did
+    /// not see, a lost page, a changed echo, a lost base property, a date that became a date-time and a 304 that
+    /// is not one each fail; the documented outcome passes.
+    /// </summary>
+    [Fact]
+    public void FeatureVerdicts_FailALostItemValueOrStatus()
+    {
+        var cases = FeatureCases();
+        var client = FeatureClients[0];
+        static JsonObject Items(
+            string? error,
+            params string[] names)
+            => new() { ["kind"] = "items", ["items"] = new JsonArray([.. names.Select(n => (JsonNode)n)]), ["error"] = error };
+
+        var whole = cases.Single(c => c.Name == "stream: Server-Sent Events, five items");
+        Assert.Equal(VerdictPass, (string?)FeatureVerdict(whole, client, Items(null, "t1", "t2", "t3", "t4", "t5"), cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(whole, client, Items(null, "t1", "t2", "t3", "t4"), cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(whole, client, Items("IOException: reset", "t1", "t2", "t3", "t4", "t5"), cancelled: false)["verdict"]);
+
+        var failing = cases.Single(c => c.Name == "stream: Server-Sent Events, the handler fails after two items");
+        Assert.Equal(VerdictPass, (string?)FeatureVerdict(failing, client, Items("HttpIOException: ended prematurely", "t1", "t2"), cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(failing, client, Items(null, "t1", "t2"), cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(failing, client, Items("boom", "t1"), cancelled: false)["verdict"]);
+
+        var cancelled = cases.Single(c => c.Name == "stream: Server-Sent Events, cancelled by the client after two items");
+        Assert.Equal(VerdictPass, (string?)FeatureVerdict(cancelled, client, Items(null, "t1", "t2"), cancelled: true)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(cancelled, client, Items(null, "t1", "t2"), cancelled: false)["verdict"]);
+
+        // A streamed request body: the handler read every record, in order; an invalid record is a 400, nothing else
+        var upload = cases.Single(c => c.Name == "upload: JSON Lines, three records");
+        Assert.Equal(VerdictPass, (string?)FeatureVerdict(upload, client, new JsonObject { ["kind"] = "value", ["value"] = "t1,t2,t3" }, cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(upload, client, new JsonObject { ["kind"] = "value", ["value"] = "t1,t3" }, cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(upload, client, new JsonObject { ["kind"] = "value", ["value"] = "t1,t2,t3,t3" }, cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(upload, client, new JsonObject { ["kind"] = "error", ["status"] = 415, ["error"] = "Unsupported Media Type" }, cancelled: false)["verdict"]);
+        var empty = cases.Single(c => c.Name == "upload: JSON Lines, no records");
+        Assert.Equal(VerdictPass, (string?)FeatureVerdict(empty, client, new JsonObject { ["kind"] = "value", ["value"] = string.Empty }, cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(empty, client, new JsonObject { ["kind"] = "value", ["value"] = null }, cancelled: false)["verdict"]);
+        var invalidRecord = cases.Single(c => c.Name.StartsWith("upload: JSON Lines, the second record", StringComparison.Ordinal));
+        Assert.Equal(VerdictPass, (string?)FeatureVerdict(invalidRecord, client, new JsonObject { ["kind"] = "error", ["status"] = 400, ["error"] = "[1].name" }, cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(invalidRecord, client, new JsonObject { ["kind"] = "value", ["value"] = "t1,,t3" }, cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(invalidRecord, client, new JsonObject { ["kind"] = "error", ["status"] = 500, ["error"] = "boom" }, cancelled: false)["verdict"]);
+        var transform = cases.Single(c => c.Kind == "transform");
+        Assert.Equal(VerdictPass, (string?)FeatureVerdict(transform, client, Items(null, "t1", "t2", "t3"), cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(transform, client, Items(null, "t1", "t2"), cancelled: false)["verdict"]);
+
+        var page = cases.Single(c => c.Kind == "page");
+        var pages = Items(null, "t1", "t2", "t3", "t4", "t5");
+        pages["pages"] = 2;
+        Assert.Equal(VerdictPass, (string?)FeatureVerdict(page, client, pages, cancelled: false)["verdict"]);
+        pages["pages"] = 1;
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(page, client, pages, cancelled: false)["verdict"]);
+
+        static JsonObject Value(
+            string? type,
+            string json)
+            => new() { ["kind"] = "value", ["type"] = type, ["value"] = JsonNode.Parse(json) };
+        var circle = cases.Single(c => c.Name.StartsWith("oneOf: a circle", StringComparison.Ordinal));
+        Assert.Equal(VerdictPass, (string?)FeatureVerdict(circle, client, Value("Circle", """{"kind":"circle","radius":2.5}"""), cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(circle, client, Value("Shape", """{"kind":"circle","radius":2.5}"""), cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(circle, client, Value("Circle", """{"kind":"circle","radius":3}"""), cancelled: false)["verdict"]);
+
+        // A hub's event or answer: the same value passes, a date-time written in another offset is the same instant, and
+        // a changed, lost or missing value fails
+        var hubEvent = cases.Single(c => c.Name == "hub: an event with a model (a date and a date-time)");
+        Assert.Equal(VerdictPass, (string?)FeatureVerdict(hubEvent, client, Value(null, """{"day":"2026-03-04","at":"2026-03-04T03:06:07.000Z"}"""), cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(hubEvent, client, Value(null, """{"day":"2026-03-04","at":"2026-03-04T05:06:07Z"}"""), cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(hubEvent, client, Value(null, """{"day":"2026-03-04"}"""), cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(hubEvent, client, new JsonObject { ["kind"] = "threw", ["error"] = "TimeoutException: no event" }, cancelled: false)["verdict"]);
+        var hubList = cases.Single(c => c.Name.StartsWith("hub: a method whose name is no identifier", StringComparison.Ordinal));
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(hubList, client, Value(null, """[{"day":"2026-03-05","at":"2026-03-04T05:06:07+02:00"}]"""), cancelled: false)["verdict"]);
+
+        var nested = cases.Single(c => c.Kind == "nested");
+        Assert.Equal(VerdictPass, (string?)FeatureVerdict(nested, client, Value("Leaf", """{"id":"leaf-1","name":"Leaf","extra":"more"}"""), cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(nested, client, Value("Leaf", """{"extra":"more"}"""), cancelled: false)["verdict"]);
+
+        var dates = cases.Single(c => c.Kind == "dates");
+        Assert.Equal(VerdictPass, (string?)FeatureVerdict(dates, client, Value("Moment", """{"day":"2026-03-04","at":"2026-03-04T03:06:07+00:00"}"""), cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(dates, client, Value("Moment", """{"day":"2026-03-04T00:00:00+00:00","at":"2026-03-04T03:06:07+00:00"}"""), cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(dates, client, Value("Moment", """{"day":"2026-03-04","at":"2026-03-04T05:06:07+00:00"}"""), cancelled: false)["verdict"]);
+
+        var unknown = cases.Single(c => c.Name.StartsWith("enum: a value the client does not know", StringComparison.Ordinal));
+        var tsFetch = FeatureClients.Single(c => c.Id == "ts-fetch");
+        var tsZod = FeatureClients.Single(c => c.Id == "ts-fetch-zod");
+        Assert.Equal(VerdictPass, (string?)FeatureVerdict(unknown, tsFetch, Value(null, """{"color":"purple"}"""), cancelled: false)["verdict"]);
+        Assert.Equal(VerdictPass, (string?)FeatureVerdict(unknown, tsZod, Value(null, """{"color":"purple"}"""), cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(unknown, tsZod, new JsonObject { ["kind"] = "schemaMismatch", ["error"] = "issues" }, cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(unknown, client, new JsonObject { ["kind"] = "threw", ["error"] = "JsonException: purple" }, cancelled: false)["verdict"]);
+
+        // Opted out (extensibleEnums: false): the classic enum refuses the value, as the option documents; the value
+        // getting through would mean the option did nothing
+        var classic = FeatureClients.Single(c => c.Id == "cs-epo-classic-enums");
+        Assert.Equal(VerdictPass, (string?)FeatureVerdict(unknown, classic, new JsonObject { ["kind"] = "threw", ["error"] = "JsonException: purple" }, cancelled: false)["verdict"]);
+        Assert.Equal(VerdictPass, (string?)FeatureVerdict(unknown, classic, new JsonObject { ["kind"] = "threw", ["error"] = "RestClientDeserializationException: Failed to deserialize response content to Painted for status code 200 (OK)" }, cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(unknown, classic, Value("Painted", """{"color":"purple"}"""), cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(unknown, classic, new JsonObject { ["kind"] = "threw", ["error"] = "HttpRequestException: refused" }, cancelled: false)["verdict"]);
+
+        var notModified = cases.Single(c => c.Name.StartsWith("conditional: If-None-Match", StringComparison.Ordinal));
+        Assert.Equal(VerdictPass, (string?)FeatureVerdict(notModified, client, new JsonObject { ["kind"] = "status", ["status"] = 304, ["notModified"] = true }, cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(notModified, client, new JsonObject { ["kind"] = "status", ["status"] = 304, ["notModified"] = false }, cancelled: false)["verdict"]);
+        var current = cases.Single(c => c.Name.StartsWith("conditional: no condition", StringComparison.Ordinal));
+        var ok = Value("Thing", """{"name":"v1"}""");
+        ok["status"] = 200;
+        ok["etag"] = "\"v1\"";
+        Assert.Equal(VerdictPass, (string?)FeatureVerdict(current, client, ok, cancelled: false)["verdict"]);
+        ok["etag"] = null;
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(current, client, ok, cancelled: false)["verdict"]);
+
+        var slow = cases.Single(c => c.Kind == "slow");
+        Assert.Equal(VerdictPass, (string?)FeatureVerdict(slow, client, new JsonObject { ["kind"] = "cancelled", ["callerToken"] = true }, cancelled: true)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(slow, client, new JsonObject { ["kind"] = "cancelled", ["callerToken"] = true }, cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(slow, client, new JsonObject { ["kind"] = "completed" }, cancelled: false)["verdict"]);
+        Assert.Equal(VerdictNotApplicable, (string?)FeatureVerdict(slow, FeatureClients.Single(c => c.Id == "ts-fetch-swr"), new JsonObject { ["kind"] = "na", ["why"] = "SWR" }, cancelled: false)["verdict"]);
+
+        // A C# cancellation must carry the caller's token
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(slow, client, new JsonObject { ["kind"] = "cancelled", ["type"] = "TaskCanceledException", ["callerToken"] = false }, cancelled: true)["verdict"]);
+
+        var tsAxios = FeatureClients.Single(c => c.Id == "ts-axios");
+        static JsonObject Threw(
+            string type,
+            string? inner = null,
+            bool callerToken = false,
+            bool httpRequestException = false)
+            => new() { ["kind"] = "threw", ["type"] = type, ["inner"] = inner, ["callerToken"] = callerToken, ["httpRequestException"] = httpRequestException, ["error"] = type + ": message" };
+        static JsonObject TsThrew(
+            string errorName,
+            string? code = null,
+            bool isAxiosError = false,
+            bool isApiError = false)
+            => new() { ["kind"] = "threw", ["errorName"] = errorName, ["code"] = code, ["isAxiosError"] = isAxiosError, ["isApiError"] = isApiError, ["error"] = errorName + ": message" };
+        FeatureCase Net(string scenario)
+            => cases.Single(c => (string?)c.Arguments["scenario"] == scenario);
+
+        // A reset: the transport's network error - an HttpRequestException, fetch's TypeError, an AxiosError (named
+        // after the socket error it came from) - never an ApiError or a cancellation
+        Assert.Equal(VerdictPass, (string?)FeatureVerdict(Net("reset"), client, Threw("HttpIOException", "IOException", httpRequestException: true), cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net("reset"), client, Threw("JsonException"), cancelled: false)["verdict"]);
+        Assert.Equal(VerdictPass, (string?)FeatureVerdict(Net("reset"), tsFetch, TsThrew("TypeError"), cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net("reset"), tsFetch, TsThrew("ApiError", isApiError: true), cancelled: false)["verdict"]);
+        Assert.Equal(VerdictPass, (string?)FeatureVerdict(Net("reset"), tsAxios, TsThrew("Error", "ECONNRESET", isAxiosError: true), cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net("reset"), tsAxios, TsThrew("CanceledError", "ERR_CANCELED", isAxiosError: true), cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net("reset"), client, new JsonObject { ["kind"] = "hung" }, cancelled: false)["verdict"]);
+
+        // No server on the port, a host name that does not resolve: the transport's network error naming which - an
+        // HttpRequestException with its HttpRequestError, fetch's TypeError with the cause's code, an AxiosError with
+        // its code - never the other failure, a bare error, an ApiError or a call that hangs
+        foreach (var (scenario, requestError, otherRequestError, code, otherCode) in ((string, string, string, string, string)[])[
+            ("refused", "ConnectionError", "NameResolutionError", "ECONNREFUSED", "ENOTFOUND"),
+            ("dns", "NameResolutionError", "ConnectionError", "ENOTFOUND", "ECONNREFUSED"),
+        ])
+        {
+            static JsonObject Refused(string? error)
+            {
+                var threw = Threw("HttpRequestException", "SocketException", httpRequestException: true);
+                threw["httpRequestError"] = error;
+                return threw;
+            }
+
+            static JsonObject TsRefused(
+                string errorName,
+                string? cause,
+                string? errorCode = null,
+                bool isAxiosError = false)
+            {
+                var threw = TsThrew(errorName, errorCode, isAxiosError);
+                threw["cause"] = cause;
+                return threw;
+            }
+
+            Assert.Equal(VerdictPass, (string?)FeatureVerdict(Net(scenario), client, Refused(requestError), cancelled: false)["verdict"]);
+            Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net(scenario), client, Refused(otherRequestError), cancelled: false)["verdict"]);
+            Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net(scenario), client, Refused(null), cancelled: false)["verdict"]);
+            Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net(scenario), client, Threw("TaskCanceledException", "TimeoutException"), cancelled: false)["verdict"]);
+            Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net(scenario), client, new JsonObject { ["kind"] = "hung" }, cancelled: false)["verdict"]);
+            Assert.Equal(VerdictPass, (string?)FeatureVerdict(Net(scenario), tsFetch, TsRefused("TypeError", code), cancelled: false)["verdict"]);
+            Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net(scenario), tsFetch, TsRefused("TypeError", otherCode), cancelled: false)["verdict"]);
+            Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net(scenario), tsFetch, TsRefused("TypeError", null), cancelled: false)["verdict"]);
+            Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net(scenario), tsFetch, TsThrew("ApiError", isApiError: true), cancelled: false)["verdict"]);
+            Assert.Equal(VerdictPass, (string?)FeatureVerdict(Net(scenario), tsAxios, TsRefused("Error", null, code, isAxiosError: true), cancelled: false)["verdict"]);
+            Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net(scenario), tsAxios, TsRefused("Error", null, otherCode, isAxiosError: true), cancelled: false)["verdict"]);
+            Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net(scenario), tsAxios, TsRefused("Error", null, code), cancelled: false)["verdict"]);
+        }
+
+        // HttpClient.Timeout: a TaskCanceledException with an inner TimeoutException, not the caller's token
+        Assert.Equal(VerdictPass, (string?)FeatureVerdict(Net("client-timeout"), client, Threw("TaskCanceledException", "TimeoutException"), cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net("client-timeout"), client, Threw("TaskCanceledException", callerToken: true), cancelled: false)["verdict"]);
+
+        // The operation's timeout is a timeout, never what the caller's own abort rejects with - also for a stalled body
+        foreach (var scenario in (string[])["retry-timeout", "stall-timeout"])
+        {
+            Assert.Equal(VerdictPass, (string?)FeatureVerdict(Net(scenario), client, Threw("TimeoutRejectedException", "TaskCanceledException"), cancelled: false)["verdict"]);
+            Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net(scenario), client, Threw("TaskCanceledException", "TimeoutException"), cancelled: false)["verdict"]);
+            Assert.Equal(VerdictPass, (string?)FeatureVerdict(Net(scenario), tsAxios, TsThrew("TimeoutError", "23"), cancelled: false)["verdict"]);
+            Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net(scenario), tsAxios, TsThrew("CanceledError", "ERR_CANCELED", isAxiosError: true), cancelled: false)["verdict"]);
+        }
+
+        // The caller's cancellation mid-body: a cancellation with the caller's token, which reaches the server
+        Assert.Equal(VerdictPass, (string?)FeatureVerdict(Net("cancel-mid-body"), client, Threw("TaskCanceledException", callerToken: true), cancelled: true)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net("cancel-mid-body"), client, Threw("TaskCanceledException", callerToken: true), cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net("cancel-mid-body"), client, Threw("HttpRequestException", httpRequestException: true), cancelled: true)["verdict"]);
+        Assert.Equal(VerdictPass, (string?)FeatureVerdict(Net("cancel-mid-body"), tsAxios, TsThrew("CanceledError", "ERR_CANCELED", isAxiosError: true), cancelled: true)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net("cancel-mid-body"), tsFetch, TsThrew("TypeError"), cancelled: true)["verdict"]);
+
+        // A ValidationException: a 400 with the validator's message and its field error (a ValidationError in TypeScript)
+        var invalid = cases.Single(c => c.Kind == "invalid");
+        static JsonObject Rejected(
+            string? errorName,
+            params string[] errors)
+            => new() { ["kind"] = "error", ["status"] = 400, ["errorName"] = errorName, ["detail"] = "'Name' must be a known thing.", ["errors"] = new JsonArray([.. errors.Select(e => (JsonNode)e)]) };
+        Assert.Equal(VerdictPass, (string?)FeatureVerdict(invalid, client, Rejected(null, "name"), cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(invalid, client, Rejected(null), cancelled: false)["verdict"]);
+        Assert.Equal(VerdictPass, (string?)FeatureVerdict(invalid, tsFetch, Rejected("ValidationError", "name"), cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(invalid, tsFetch, Rejected("ApiError", "name"), cancelled: false)["verdict"]);
+
+        // Atc.Rest.MinimalApi 3.0 writes the failures as field errors, with no detail: the message reaches the caller in
+        // the field error's messages, as for a 400 from the validation filter
+        static JsonObject FieldErrors(
+            string? errorName,
+            params string[] messages)
+            => new() { ["kind"] = "error", ["status"] = 400, ["errorName"] = errorName, ["error"] = "One or more validation errors occurred.", ["errors"] = new JsonArray("name"), ["messages"] = new JsonArray([.. messages.Select(m => (JsonNode)m)]) };
+        Assert.Equal(VerdictPass, (string?)FeatureVerdict(invalid, client, FieldErrors(null, "'Name' must be a known thing."), cancelled: false)["verdict"]);
+        Assert.Equal(VerdictPass, (string?)FeatureVerdict(invalid, tsFetch, FieldErrors("ValidationError", "'Name' must be a known thing."), cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(invalid, tsFetch, FieldErrors("ValidationError"), cancelled: false)["verdict"]);
+    }
+
+    /// <summary>
     /// The cases: the feature, the operation, the arguments every client is given, and (in <see cref="FeatureVerdict"/>)
     /// what the client must expose for them.
     /// </summary>
@@ -2131,23 +2473,6 @@ public partial class ErrorResponseBodyRuntimeTests
     }
 
     /// <summary>
-    /// The streams a stub writes: the stub's name (the <c>X-Feature-Stub</c> header), the operation it answers for,
-    /// and what the case is called. Each carries the items <c>t1</c>, <c>t2</c>, <c>t3</c> (the empty array: none).
-    /// </summary>
-    internal static readonly (string Stub, string Operation, string Name)[] FeatureWireStubs =
-    [
-        ("sse-noise", "FeatureSse", "Server-Sent Events with a comment, id and retry fields, a heartbeat without data and a named event between the items"),
-        ("sse-crlf", "FeatureSse", "Server-Sent Events with CRLF line ends and data over two lines"),
-        ("sse-bom", "FeatureSse", "Server-Sent Events behind a byte order mark, with an event field without a value and an event named message"),
-        ("sse-named", "FeatureSseNamed", "Server-Sent Events whose items are named events (x-sse-item-events: [thing]), between a heartbeat and an event of another name"),
-        ("lines-blank", "FeatureLines", "JSON Lines with blank lines, CRLF and no line feed after the last item"),
-        ("seq-blank", "FeatureSeq", "JSON Text Sequence with a line feed between the records and a pretty-printed record"),
-        ("mixed-padded", "FeatureMixed", "multipart/mixed with a preamble, padded boundaries, part headers and a pretty-printed part"),
-        ("array-pretty", "FeatureArray", "a JSON array that is pretty-printed"),
-        ("array-empty", "FeatureArray", "a JSON array with no body at all (200, no content)"),
-    ];
-
-    /// <summary>
     /// Writes the stream (or the failure) a stub stands for; <see langword="false"/> when the request names none.
     /// </summary>
     private static async Task<bool> WriteFeatureStubAsync(HttpContext context)
@@ -2184,330 +2509,6 @@ public partial class ErrorResponseBodyRuntimeTests
         context.Response.ContentType = contentType;
         await context.Response.WriteAsync(body, context.RequestAborted);
         return true;
-    }
-
-    internal static readonly (string Id, string Group, string Label, string Marker, bool Typed, string? TsFlavour)[] FeatureClients =
-    [
-        ("cs-epo", "C# EndpointPerOperation", "errorResponseFormat: ProblemDetails", """{ "generationMode": "EndpointPerOperation", "errorResponseFormat": "ProblemDetails" }""", false, null),
-        ("cs-epo-classic-enums", "C# EndpointPerOperation", "extensibleEnums: false (the classic enum)", """{ "generationMode": "EndpointPerOperation", "errorResponseFormat": "ProblemDetails", "extensibleEnums": false }""", false, null),
-        ("cs-typed", "C# TypedClient", "typedClientResultStyle: Result", """{ "generationMode": "TypedClient", "typedClientResultStyle": "Result" }""", true, null),
-        ("cs-typed-throw", "C# TypedClient", "typedClientResultStyle: Throw (the default)", """{ "generationMode": "TypedClient" }""", true, null),
-        ("ts-fetch", "TypeScript", "Fetch client", string.Empty, false, "fetch"),
-        ("ts-axios", "TypeScript", "Axios client", string.Empty, false, "axios"),
-        ("ts-fetch-zod", "TypeScript", "Fetch client, Zod runtime validation", string.Empty, false, "fetch-zod"),
-        ("ts-fetch-reactquery", "TypeScript", "React Query hooks (rendered with React on jsdom)", string.Empty, false, "fetch-reactquery"),
-        ("ts-fetch-swr", "TypeScript", "SWR hooks (rendered with React on jsdom)", string.Empty, false, "fetch-swr"),
-    ];
-
-    /// <summary>
-    /// The cells that fail today, as <c>case [client]</c>: a cell not listed here must pass, and a listed cell that
-    /// passes fails the test asking to be removed. The matrix started with 124 red (a discriminated union whose
-    /// variants declare the discriminator could not start the server; a three-level allOf lost its base; the typed
-    /// client wrote PascalCase; Zod refused a date-time with an offset; a C# client threw on an enum value the server
-    /// added later, fixed by the extensible enums) - all fixed. The network, timeout and validation cases came in with
-    /// 15 red: the Axios client's timeout rejected with a CanceledError and the C# resilience handler's timeout did
-    /// not cover a body that stalls - fixed; Atc.Rest.MinimalApi 3.0 keeps the field errors of a ValidationException a
-    /// handler throws - fixed.
-    /// </summary>
-    private static readonly Dictionary<string, string> KnownFeatureFailures = new(StringComparer.Ordinal);
-
-    /// <summary>
-    /// Every generated client runs every feature against the generated server as the specification and the
-    /// documented contract say: streams arrive whole, a mid-stream failure surfaces, a client's cancellation
-    /// reaches the server, pages chain, polymorphic and inherited models round-trip with every property, enum
-    /// and date values keep their wire form, and a 304 is a 304 (no <c>fail</c> outside <see cref="KnownFeatureFailures"/>).
-    /// </summary>
-    [Fact]
-    [Trait("Category", "TypeScriptToolchain")]
-    public async Task EndToEnd_EveryClientRunsEveryFeature()
-    {
-        if (!IsNodeAvailable(out var reason))
-        {
-            if (string.Equals(Environment.GetEnvironmentVariable("CI"), "true", StringComparison.OrdinalIgnoreCase))
-            {
-                Assert.Fail(reason + " (running under CI where the feature matrix is required)");
-            }
-
-            Assert.Skip(reason);
-        }
-
-        var matrix = await CollectFeatureMatrixAsync();
-        if (Environment.GetEnvironmentVariable("FEATURE_E2E_JSON") is { Length: > 0 } dumpPath)
-        {
-            await File.WriteAllTextAsync(dumpPath, matrix.ToJsonString(new JsonSerializerOptions { WriteIndented = true }), TestContext.Current.CancellationToken);
-        }
-
-        var failures = RequestBindingFailingCells(matrix);
-        var unexpected = failures.Where(f => !KnownFeatureFailures.ContainsKey(f.Key)).ToList();
-        var fixedCells = KnownFeatureFailures.Keys.Where(k => failures.All(f => f.Key != k)).Order(StringComparer.Ordinal).ToList();
-
-        Assert.True(
-            unexpected.Count == 0,
-            $"{unexpected.Count} failing cells:\n" + string.Join("\n", unexpected.Take(120).Select(f => $"{f.Key}: {f.Why}")));
-        Assert.True(
-            fixedCells.Count == 0,
-            $"{fixedCells.Count} cells pass now. Remove them from {nameof(KnownFeatureFailures)}:\n" + string.Join("\n", fixedCells));
-    }
-
-    /// <summary>
-    /// The same matrix from the specification as an OpenAPI 3.1 document (its nullable member a type array): every
-    /// feature must run as it does from the 3.0 document.
-    /// </summary>
-    [Fact]
-    [Trait("Category", "TypeScriptToolchain")]
-    public async Task EndToEnd_EveryClientRunsEveryFeature_WithAnOpenApi31Document()
-    {
-        if (!IsNodeAvailable(out var reason))
-        {
-            if (string.Equals(Environment.GetEnvironmentVariable("CI"), "true", StringComparison.OrdinalIgnoreCase))
-            {
-                Assert.Fail(reason + " (running under CI where the feature matrix is required)");
-            }
-
-            Assert.Skip(reason);
-        }
-
-        var matrix = await CollectFeatureMatrixAsync(openApi31: true);
-        Assert.Equal("3.1.0", (string?)matrix["openApi"]);
-        if (Environment.GetEnvironmentVariable("FEATURE_E2E_31_JSON") is { Length: > 0 } dumpPath)
-        {
-            await File.WriteAllTextAsync(dumpPath, matrix.ToJsonString(new JsonSerializerOptions { WriteIndented = true }), TestContext.Current.CancellationToken);
-        }
-
-        var failures = RequestBindingFailingCells(matrix);
-        var unexpected = failures.Where(f => !KnownFeatureFailures.ContainsKey(f.Key)).ToList();
-        var fixedCells = KnownFeatureFailures.Keys.Where(k => failures.All(f => f.Key != k)).Order(StringComparer.Ordinal).ToList();
-
-        Assert.True(
-            unexpected.Count == 0,
-            $"{unexpected.Count} failing cells:\n" + string.Join("\n", unexpected.Take(120).Select(f => $"{f.Key}: {f.Why}")));
-        Assert.True(
-            fixedCells.Count == 0,
-            $"{fixedCells.Count} cells pass now. Remove them from {nameof(KnownFeatureFailures)}:\n" + string.Join("\n", fixedCells));
-    }
-
-    /// <summary>
-    /// The verdict is not blind: a short stream, a failure that does not surface, a cancellation the server did
-    /// not see, a lost page, a changed echo, a lost base property, a date that became a date-time and a 304 that
-    /// is not one each fail; the documented outcome passes.
-    /// </summary>
-    [Fact]
-    public void FeatureVerdicts_FailALostItemValueOrStatus()
-    {
-        var cases = FeatureCases();
-        var client = FeatureClients[0];
-        JsonObject Items(
-            string? error,
-            params string[] names)
-            => new() { ["kind"] = "items", ["items"] = new JsonArray([.. names.Select(n => (JsonNode)n)]), ["error"] = error };
-
-        var whole = cases.Single(c => c.Name == "stream: Server-Sent Events, five items");
-        Assert.Equal(VerdictPass, (string?)FeatureVerdict(whole, client, Items(null, "t1", "t2", "t3", "t4", "t5"), cancelled: false)["verdict"]);
-        Assert.Equal(VerdictFail, (string?)FeatureVerdict(whole, client, Items(null, "t1", "t2", "t3", "t4"), cancelled: false)["verdict"]);
-        Assert.Equal(VerdictFail, (string?)FeatureVerdict(whole, client, Items("IOException: reset", "t1", "t2", "t3", "t4", "t5"), cancelled: false)["verdict"]);
-
-        var failing = cases.Single(c => c.Name == "stream: Server-Sent Events, the handler fails after two items");
-        Assert.Equal(VerdictPass, (string?)FeatureVerdict(failing, client, Items("HttpIOException: ended prematurely", "t1", "t2"), cancelled: false)["verdict"]);
-        Assert.Equal(VerdictFail, (string?)FeatureVerdict(failing, client, Items(null, "t1", "t2"), cancelled: false)["verdict"]);
-        Assert.Equal(VerdictFail, (string?)FeatureVerdict(failing, client, Items("boom", "t1"), cancelled: false)["verdict"]);
-
-        var cancelled = cases.Single(c => c.Name == "stream: Server-Sent Events, cancelled by the client after two items");
-        Assert.Equal(VerdictPass, (string?)FeatureVerdict(cancelled, client, Items(null, "t1", "t2"), cancelled: true)["verdict"]);
-        Assert.Equal(VerdictFail, (string?)FeatureVerdict(cancelled, client, Items(null, "t1", "t2"), cancelled: false)["verdict"]);
-
-        // A streamed request body: the handler read every record, in order; an invalid record is a 400, nothing else
-        var upload = cases.Single(c => c.Name == "upload: JSON Lines, three records");
-        Assert.Equal(VerdictPass, (string?)FeatureVerdict(upload, client, new JsonObject { ["kind"] = "value", ["value"] = "t1,t2,t3" }, cancelled: false)["verdict"]);
-        Assert.Equal(VerdictFail, (string?)FeatureVerdict(upload, client, new JsonObject { ["kind"] = "value", ["value"] = "t1,t3" }, cancelled: false)["verdict"]);
-        Assert.Equal(VerdictFail, (string?)FeatureVerdict(upload, client, new JsonObject { ["kind"] = "value", ["value"] = "t1,t2,t3,t3" }, cancelled: false)["verdict"]);
-        Assert.Equal(VerdictFail, (string?)FeatureVerdict(upload, client, new JsonObject { ["kind"] = "error", ["status"] = 415, ["error"] = "Unsupported Media Type" }, cancelled: false)["verdict"]);
-        var empty = cases.Single(c => c.Name == "upload: JSON Lines, no records");
-        Assert.Equal(VerdictPass, (string?)FeatureVerdict(empty, client, new JsonObject { ["kind"] = "value", ["value"] = string.Empty }, cancelled: false)["verdict"]);
-        Assert.Equal(VerdictFail, (string?)FeatureVerdict(empty, client, new JsonObject { ["kind"] = "value", ["value"] = null }, cancelled: false)["verdict"]);
-        var invalidRecord = cases.Single(c => c.Name.StartsWith("upload: JSON Lines, the second record", StringComparison.Ordinal));
-        Assert.Equal(VerdictPass, (string?)FeatureVerdict(invalidRecord, client, new JsonObject { ["kind"] = "error", ["status"] = 400, ["error"] = "[1].name" }, cancelled: false)["verdict"]);
-        Assert.Equal(VerdictFail, (string?)FeatureVerdict(invalidRecord, client, new JsonObject { ["kind"] = "value", ["value"] = "t1,,t3" }, cancelled: false)["verdict"]);
-        Assert.Equal(VerdictFail, (string?)FeatureVerdict(invalidRecord, client, new JsonObject { ["kind"] = "error", ["status"] = 500, ["error"] = "boom" }, cancelled: false)["verdict"]);
-        var transform = cases.Single(c => c.Kind == "transform");
-        Assert.Equal(VerdictPass, (string?)FeatureVerdict(transform, client, Items(null, "t1", "t2", "t3"), cancelled: false)["verdict"]);
-        Assert.Equal(VerdictFail, (string?)FeatureVerdict(transform, client, Items(null, "t1", "t2"), cancelled: false)["verdict"]);
-
-        var page = cases.Single(c => c.Kind == "page");
-        var pages = Items(null, "t1", "t2", "t3", "t4", "t5");
-        pages["pages"] = 2;
-        Assert.Equal(VerdictPass, (string?)FeatureVerdict(page, client, pages, cancelled: false)["verdict"]);
-        pages["pages"] = 1;
-        Assert.Equal(VerdictFail, (string?)FeatureVerdict(page, client, pages, cancelled: false)["verdict"]);
-
-        JsonObject Value(
-            string? type,
-            string json)
-            => new() { ["kind"] = "value", ["type"] = type, ["value"] = JsonNode.Parse(json) };
-        var circle = cases.Single(c => c.Name.StartsWith("oneOf: a circle", StringComparison.Ordinal));
-        Assert.Equal(VerdictPass, (string?)FeatureVerdict(circle, client, Value("Circle", """{"kind":"circle","radius":2.5}"""), cancelled: false)["verdict"]);
-        Assert.Equal(VerdictFail, (string?)FeatureVerdict(circle, client, Value("Shape", """{"kind":"circle","radius":2.5}"""), cancelled: false)["verdict"]);
-        Assert.Equal(VerdictFail, (string?)FeatureVerdict(circle, client, Value("Circle", """{"kind":"circle","radius":3}"""), cancelled: false)["verdict"]);
-
-        // A hub's event or answer: the same value passes, a date-time written in another offset is the same instant, and
-        // a changed, lost or missing value fails
-        var hubEvent = cases.Single(c => c.Name == "hub: an event with a model (a date and a date-time)");
-        Assert.Equal(VerdictPass, (string?)FeatureVerdict(hubEvent, client, Value(null, """{"day":"2026-03-04","at":"2026-03-04T03:06:07.000Z"}"""), cancelled: false)["verdict"]);
-        Assert.Equal(VerdictFail, (string?)FeatureVerdict(hubEvent, client, Value(null, """{"day":"2026-03-04","at":"2026-03-04T05:06:07Z"}"""), cancelled: false)["verdict"]);
-        Assert.Equal(VerdictFail, (string?)FeatureVerdict(hubEvent, client, Value(null, """{"day":"2026-03-04"}"""), cancelled: false)["verdict"]);
-        Assert.Equal(VerdictFail, (string?)FeatureVerdict(hubEvent, client, new JsonObject { ["kind"] = "threw", ["error"] = "TimeoutException: no event" }, cancelled: false)["verdict"]);
-        var hubList = cases.Single(c => c.Name.StartsWith("hub: a method whose name is no identifier", StringComparison.Ordinal));
-        Assert.Equal(VerdictFail, (string?)FeatureVerdict(hubList, client, Value(null, """[{"day":"2026-03-05","at":"2026-03-04T05:06:07+02:00"}]"""), cancelled: false)["verdict"]);
-
-        var nested = cases.Single(c => c.Kind == "nested");
-        Assert.Equal(VerdictPass, (string?)FeatureVerdict(nested, client, Value("Leaf", """{"id":"leaf-1","name":"Leaf","extra":"more"}"""), cancelled: false)["verdict"]);
-        Assert.Equal(VerdictFail, (string?)FeatureVerdict(nested, client, Value("Leaf", """{"extra":"more"}"""), cancelled: false)["verdict"]);
-
-        var dates = cases.Single(c => c.Kind == "dates");
-        Assert.Equal(VerdictPass, (string?)FeatureVerdict(dates, client, Value("Moment", """{"day":"2026-03-04","at":"2026-03-04T03:06:07+00:00"}"""), cancelled: false)["verdict"]);
-        Assert.Equal(VerdictFail, (string?)FeatureVerdict(dates, client, Value("Moment", """{"day":"2026-03-04T00:00:00+00:00","at":"2026-03-04T03:06:07+00:00"}"""), cancelled: false)["verdict"]);
-        Assert.Equal(VerdictFail, (string?)FeatureVerdict(dates, client, Value("Moment", """{"day":"2026-03-04","at":"2026-03-04T05:06:07+00:00"}"""), cancelled: false)["verdict"]);
-
-        var unknown = cases.Single(c => c.Name.StartsWith("enum: a value the client does not know", StringComparison.Ordinal));
-        var tsFetch = FeatureClients.Single(c => c.Id == "ts-fetch");
-        var tsZod = FeatureClients.Single(c => c.Id == "ts-fetch-zod");
-        Assert.Equal(VerdictPass, (string?)FeatureVerdict(unknown, tsFetch, Value(null, """{"color":"purple"}"""), cancelled: false)["verdict"]);
-        Assert.Equal(VerdictPass, (string?)FeatureVerdict(unknown, tsZod, Value(null, """{"color":"purple"}"""), cancelled: false)["verdict"]);
-        Assert.Equal(VerdictFail, (string?)FeatureVerdict(unknown, tsZod, new JsonObject { ["kind"] = "schemaMismatch", ["error"] = "issues" }, cancelled: false)["verdict"]);
-        Assert.Equal(VerdictFail, (string?)FeatureVerdict(unknown, client, new JsonObject { ["kind"] = "threw", ["error"] = "JsonException: purple" }, cancelled: false)["verdict"]);
-
-        // Opted out (extensibleEnums: false): the classic enum refuses the value, as the option documents; the value
-        // getting through would mean the option did nothing
-        var classic = FeatureClients.Single(c => c.Id == "cs-epo-classic-enums");
-        Assert.Equal(VerdictPass, (string?)FeatureVerdict(unknown, classic, new JsonObject { ["kind"] = "threw", ["error"] = "JsonException: purple" }, cancelled: false)["verdict"]);
-        Assert.Equal(VerdictPass, (string?)FeatureVerdict(unknown, classic, new JsonObject { ["kind"] = "threw", ["error"] = "RestClientDeserializationException: Failed to deserialize response content to Painted for status code 200 (OK)" }, cancelled: false)["verdict"]);
-        Assert.Equal(VerdictFail, (string?)FeatureVerdict(unknown, classic, Value("Painted", """{"color":"purple"}"""), cancelled: false)["verdict"]);
-        Assert.Equal(VerdictFail, (string?)FeatureVerdict(unknown, classic, new JsonObject { ["kind"] = "threw", ["error"] = "HttpRequestException: refused" }, cancelled: false)["verdict"]);
-
-        var notModified = cases.Single(c => c.Name.StartsWith("conditional: If-None-Match", StringComparison.Ordinal));
-        Assert.Equal(VerdictPass, (string?)FeatureVerdict(notModified, client, new JsonObject { ["kind"] = "status", ["status"] = 304, ["notModified"] = true }, cancelled: false)["verdict"]);
-        Assert.Equal(VerdictFail, (string?)FeatureVerdict(notModified, client, new JsonObject { ["kind"] = "status", ["status"] = 304, ["notModified"] = false }, cancelled: false)["verdict"]);
-        var current = cases.Single(c => c.Name.StartsWith("conditional: no condition", StringComparison.Ordinal));
-        var ok = Value("Thing", """{"name":"v1"}""");
-        ok["status"] = 200;
-        ok["etag"] = "\"v1\"";
-        Assert.Equal(VerdictPass, (string?)FeatureVerdict(current, client, ok, cancelled: false)["verdict"]);
-        ok["etag"] = null;
-        Assert.Equal(VerdictFail, (string?)FeatureVerdict(current, client, ok, cancelled: false)["verdict"]);
-
-        var slow = cases.Single(c => c.Kind == "slow");
-        Assert.Equal(VerdictPass, (string?)FeatureVerdict(slow, client, new JsonObject { ["kind"] = "cancelled", ["callerToken"] = true }, cancelled: true)["verdict"]);
-        Assert.Equal(VerdictFail, (string?)FeatureVerdict(slow, client, new JsonObject { ["kind"] = "cancelled", ["callerToken"] = true }, cancelled: false)["verdict"]);
-        Assert.Equal(VerdictFail, (string?)FeatureVerdict(slow, client, new JsonObject { ["kind"] = "completed" }, cancelled: false)["verdict"]);
-        Assert.Equal(VerdictNotApplicable, (string?)FeatureVerdict(slow, FeatureClients.Single(c => c.Id == "ts-fetch-swr"), new JsonObject { ["kind"] = "na", ["why"] = "SWR" }, cancelled: false)["verdict"]);
-
-        // A C# cancellation must carry the caller's token
-        Assert.Equal(VerdictFail, (string?)FeatureVerdict(slow, client, new JsonObject { ["kind"] = "cancelled", ["type"] = "TaskCanceledException", ["callerToken"] = false }, cancelled: true)["verdict"]);
-
-        var tsAxios = FeatureClients.Single(c => c.Id == "ts-axios");
-        JsonObject Threw(
-            string type,
-            string? inner = null,
-            bool callerToken = false,
-            bool httpRequestException = false)
-            => new() { ["kind"] = "threw", ["type"] = type, ["inner"] = inner, ["callerToken"] = callerToken, ["httpRequestException"] = httpRequestException, ["error"] = type + ": message" };
-        JsonObject TsThrew(
-            string errorName,
-            string? code = null,
-            bool isAxiosError = false,
-            bool isApiError = false)
-            => new() { ["kind"] = "threw", ["errorName"] = errorName, ["code"] = code, ["isAxiosError"] = isAxiosError, ["isApiError"] = isApiError, ["error"] = errorName + ": message" };
-        FeatureCase Net(string scenario)
-            => cases.Single(c => (string?)c.Arguments["scenario"] == scenario);
-
-        // A reset: the transport's network error - an HttpRequestException, fetch's TypeError, an AxiosError (named
-        // after the socket error it came from) - never an ApiError or a cancellation
-        Assert.Equal(VerdictPass, (string?)FeatureVerdict(Net("reset"), client, Threw("HttpIOException", "IOException", httpRequestException: true), cancelled: false)["verdict"]);
-        Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net("reset"), client, Threw("JsonException"), cancelled: false)["verdict"]);
-        Assert.Equal(VerdictPass, (string?)FeatureVerdict(Net("reset"), tsFetch, TsThrew("TypeError"), cancelled: false)["verdict"]);
-        Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net("reset"), tsFetch, TsThrew("ApiError", isApiError: true), cancelled: false)["verdict"]);
-        Assert.Equal(VerdictPass, (string?)FeatureVerdict(Net("reset"), tsAxios, TsThrew("Error", "ECONNRESET", isAxiosError: true), cancelled: false)["verdict"]);
-        Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net("reset"), tsAxios, TsThrew("CanceledError", "ERR_CANCELED", isAxiosError: true), cancelled: false)["verdict"]);
-        Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net("reset"), client, new JsonObject { ["kind"] = "hung" }, cancelled: false)["verdict"]);
-
-        // No server on the port, a host name that does not resolve: the transport's network error naming which - an
-        // HttpRequestException with its HttpRequestError, fetch's TypeError with the cause's code, an AxiosError with
-        // its code - never the other failure, a bare error, an ApiError or a call that hangs
-        foreach (var (scenario, requestError, otherRequestError, code, otherCode) in ((string, string, string, string, string)[])[
-            ("refused", "ConnectionError", "NameResolutionError", "ECONNREFUSED", "ENOTFOUND"),
-            ("dns", "NameResolutionError", "ConnectionError", "ENOTFOUND", "ECONNREFUSED")])
-        {
-            JsonObject Refused(string? error)
-            {
-                var threw = Threw("HttpRequestException", "SocketException", httpRequestException: true);
-                threw["httpRequestError"] = error;
-                return threw;
-            }
-
-            JsonObject TsRefused(
-                string errorName,
-                string? cause,
-                string? errorCode = null,
-                bool isAxiosError = false)
-            {
-                var threw = TsThrew(errorName, errorCode, isAxiosError);
-                threw["cause"] = cause;
-                return threw;
-            }
-
-            Assert.Equal(VerdictPass, (string?)FeatureVerdict(Net(scenario), client, Refused(requestError), cancelled: false)["verdict"]);
-            Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net(scenario), client, Refused(otherRequestError), cancelled: false)["verdict"]);
-            Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net(scenario), client, Refused(null), cancelled: false)["verdict"]);
-            Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net(scenario), client, Threw("TaskCanceledException", "TimeoutException"), cancelled: false)["verdict"]);
-            Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net(scenario), client, new JsonObject { ["kind"] = "hung" }, cancelled: false)["verdict"]);
-            Assert.Equal(VerdictPass, (string?)FeatureVerdict(Net(scenario), tsFetch, TsRefused("TypeError", code), cancelled: false)["verdict"]);
-            Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net(scenario), tsFetch, TsRefused("TypeError", otherCode), cancelled: false)["verdict"]);
-            Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net(scenario), tsFetch, TsRefused("TypeError", null), cancelled: false)["verdict"]);
-            Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net(scenario), tsFetch, TsThrew("ApiError", isApiError: true), cancelled: false)["verdict"]);
-            Assert.Equal(VerdictPass, (string?)FeatureVerdict(Net(scenario), tsAxios, TsRefused("Error", null, code, isAxiosError: true), cancelled: false)["verdict"]);
-            Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net(scenario), tsAxios, TsRefused("Error", null, otherCode, isAxiosError: true), cancelled: false)["verdict"]);
-            Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net(scenario), tsAxios, TsRefused("Error", null, code), cancelled: false)["verdict"]);
-        }
-
-        // HttpClient.Timeout: a TaskCanceledException with an inner TimeoutException, not the caller's token
-        Assert.Equal(VerdictPass, (string?)FeatureVerdict(Net("client-timeout"), client, Threw("TaskCanceledException", "TimeoutException"), cancelled: false)["verdict"]);
-        Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net("client-timeout"), client, Threw("TaskCanceledException", callerToken: true), cancelled: false)["verdict"]);
-
-        // The operation's timeout is a timeout, never what the caller's own abort rejects with - also for a stalled body
-        foreach (var scenario in (string[])["retry-timeout", "stall-timeout"])
-        {
-            Assert.Equal(VerdictPass, (string?)FeatureVerdict(Net(scenario), client, Threw("TimeoutRejectedException", "TaskCanceledException"), cancelled: false)["verdict"]);
-            Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net(scenario), client, Threw("TaskCanceledException", "TimeoutException"), cancelled: false)["verdict"]);
-            Assert.Equal(VerdictPass, (string?)FeatureVerdict(Net(scenario), tsAxios, TsThrew("TimeoutError", "23"), cancelled: false)["verdict"]);
-            Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net(scenario), tsAxios, TsThrew("CanceledError", "ERR_CANCELED", isAxiosError: true), cancelled: false)["verdict"]);
-        }
-
-        // The caller's cancellation mid-body: a cancellation with the caller's token, which reaches the server
-        Assert.Equal(VerdictPass, (string?)FeatureVerdict(Net("cancel-mid-body"), client, Threw("TaskCanceledException", callerToken: true), cancelled: true)["verdict"]);
-        Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net("cancel-mid-body"), client, Threw("TaskCanceledException", callerToken: true), cancelled: false)["verdict"]);
-        Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net("cancel-mid-body"), client, Threw("HttpRequestException", httpRequestException: true), cancelled: true)["verdict"]);
-        Assert.Equal(VerdictPass, (string?)FeatureVerdict(Net("cancel-mid-body"), tsAxios, TsThrew("CanceledError", "ERR_CANCELED", isAxiosError: true), cancelled: true)["verdict"]);
-        Assert.Equal(VerdictFail, (string?)FeatureVerdict(Net("cancel-mid-body"), tsFetch, TsThrew("TypeError"), cancelled: true)["verdict"]);
-
-        // A ValidationException: a 400 with the validator's message and its field error (a ValidationError in TypeScript)
-        var invalid = cases.Single(c => c.Kind == "invalid");
-        JsonObject Rejected(
-            string? errorName,
-            params string[] errors)
-            => new() { ["kind"] = "error", ["status"] = 400, ["errorName"] = errorName, ["detail"] = "'Name' must be a known thing.", ["errors"] = new JsonArray([.. errors.Select(e => (JsonNode)e)]) };
-        Assert.Equal(VerdictPass, (string?)FeatureVerdict(invalid, client, Rejected(null, "name"), cancelled: false)["verdict"]);
-        Assert.Equal(VerdictFail, (string?)FeatureVerdict(invalid, client, Rejected(null), cancelled: false)["verdict"]);
-        Assert.Equal(VerdictPass, (string?)FeatureVerdict(invalid, tsFetch, Rejected("ValidationError", "name"), cancelled: false)["verdict"]);
-        Assert.Equal(VerdictFail, (string?)FeatureVerdict(invalid, tsFetch, Rejected("ApiError", "name"), cancelled: false)["verdict"]);
-
-        // Atc.Rest.MinimalApi 3.0 writes the failures as field errors, with no detail: the message reaches the caller in
-        // the field error's messages, as for a 400 from the validation filter
-        JsonObject FieldErrors(
-            string? errorName,
-            params string[] messages)
-            => new() { ["kind"] = "error", ["status"] = 400, ["errorName"] = errorName, ["error"] = "One or more validation errors occurred.", ["errors"] = new JsonArray("name"), ["messages"] = new JsonArray([.. messages.Select(m => (JsonNode)m)]) };
-        Assert.Equal(VerdictPass, (string?)FeatureVerdict(invalid, client, FieldErrors(null, "'Name' must be a known thing."), cancelled: false)["verdict"]);
-        Assert.Equal(VerdictPass, (string?)FeatureVerdict(invalid, tsFetch, FieldErrors("ValidationError", "'Name' must be a known thing."), cancelled: false)["verdict"]);
-        Assert.Equal(VerdictFail, (string?)FeatureVerdict(invalid, tsFetch, FieldErrors("ValidationError"), cancelled: false)["verdict"]);
     }
 
     /// <summary>

@@ -22,7 +22,7 @@ public static class DiagnosticBuilder
             [
                 $"Add the missing schema '{referenceId}' to components.schemas",
                 "Check for typos in the $ref path",
-                "Ensure the schema name matches exactly (case-sensitive)"
+                "Ensure the schema name matches exactly (case-sensitive)",
             ],
             DocumentationUrl: GetDocUrl(RuleIdentifiers.InvalidSchemaReference));
 
@@ -46,7 +46,7 @@ public static class DiagnosticBuilder
             [
                 $"Add the missing {kind.ToLowerInvariant()} '{referenceId}' to components.{section}",
                 "Check for typos in the $ref path",
-                "Ensure the name matches exactly (case-sensitive)"
+                "Ensure the name matches exactly (case-sensitive)",
             ],
             DocumentationUrl: GetDocUrl(RuleIdentifiers.InvalidSchemaReference));
 
@@ -68,7 +68,7 @@ public static class DiagnosticBuilder
             [
                 "Bundle the document so every reference points into its own components (e.g. 'redocly bundle')",
                 "Refer to the whole component, not into it: move a nested schema into components.schemas",
-                "Replace a $dynamicRef with a $ref to the component"
+                "Replace a $dynamicRef with a $ref to the component",
             ],
             DocumentationUrl: GetDocUrl(RuleIdentifiers.UnsupportedReferenceForm));
 
@@ -91,7 +91,7 @@ public static class DiagnosticBuilder
             Context: itemName,
             Suggestions:
             [
-                $"Rename to '{suggestedName}'"
+                $"Rename to '{suggestedName}'",
             ],
             DocumentationUrl: GetDocUrl(ruleId))
             .WithLocation(filePath, 0) with
@@ -143,7 +143,7 @@ public static class DiagnosticBuilder
             Suggestions:
             [
                 $"Rename operationId to '{suggestedName}'",
-                "Use camelCase for operationIds (e.g., 'getPetById', 'createUser')"
+                "Use camelCase for operationIds (e.g., 'getPetById', 'createUser')",
             ],
             DocumentationUrl: GetDocUrl(RuleIdentifiers.OperationIdMustBeCamelCase));
 
@@ -237,7 +237,7 @@ public static class DiagnosticBuilder
             FilePath: sourceFilePath,
             Suggestions:
             [
-                "Use style 'form' (query/cookie) or 'simple' (path/header) with explode for correct serialization, or remove the unsupported style."
+                "Use style 'form' (query/cookie) or 'simple' (path/header) with explode for correct serialization, or remove the unsupported style.",
             ],
             DocumentationUrl: GetDocUrl(RuleIdentifiers.ParameterSerializationNotSupported));
 

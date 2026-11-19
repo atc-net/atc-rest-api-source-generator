@@ -613,8 +613,8 @@ public class ApiClientGenerator : IIncrementalGenerator
             // automatically use Custom format for backward compatibility
             var effectiveErrorFormat = config.CustomErrorResponseModel is not null &&
                                        config.ErrorResponseFormat == ErrorResponseFormatType.ProblemDetails
-                ? ErrorResponseFormatType.Custom
-                : config.ErrorResponseFormat;
+                                           ? ErrorResponseFormatType.Custom
+                                           : config.ErrorResponseFormat;
 
             var endpointNames = GenerateEndpointPerOperation(generatedContext, openApiDoc, projectName, pathSegment, effectiveSegment, registry, config.IncludeDeprecated, hasSegmentModels, hasSharedModels, config.UseServersBasePath, config.HttpClientName, effectiveErrorFormat, customErrorTypeName, config.ValidateSpecificationStrategy, config.StrictRequiredProperties, config.PreferXml, config.ExtensibleEnums, config.TransportFailure == TransportFailureType.Result);
             return endpointNames.Count > 0 ? (effectiveSegment, endpointNames) : null;

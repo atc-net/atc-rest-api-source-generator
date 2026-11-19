@@ -55,13 +55,15 @@ public sealed record ServerScaffoldPlan(
     /// Gets the solution's source projects, in order: the host, the contracts, the domain, then the Aspire AppHost.
     /// </summary>
     public IReadOnlyList<string> SourceProjects
-        => [.. (IsThreeProjects
+        => [
+            .. (IsThreeProjects
                    ? new[] { (HostProjectName, HostOutputPath), (ContractsProjectName, ContractsOutputPath), (DomainProjectName, DomainOutputPath) }
                    : IsTwoProjects
                        ? new[] { (HostProjectName, HostOutputPath), (DomainProjectName, DomainOutputPath) }
                        : new[] { (ContractsProjectName, ContractsOutputPath) })
                .Concat(AspireProjectName is null ? [] : [(AspireProjectName, Path.Combine(SourcePath, AspireProjectName))])
-               .Select(project => Path.GetRelativePath(RepositoryRoot, Path.Combine(project.Item2, $"{project.Item1}.csproj")).Replace('\\', '/'))];
+               .Select(project => Path.GetRelativePath(RepositoryRoot, Path.Combine(project.Item2, $"{project.Item1}.csproj")).Replace('\\', '/')),
+        ];
 
     /// <summary>
     /// Gets the API host project's folder (the contracts project's for a single project).

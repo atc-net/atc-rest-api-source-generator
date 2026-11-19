@@ -662,9 +662,7 @@ public sealed class ResultHeadersTests
 
         if (type == typeof(string))
         {
-            return IsLocation(parameter) ? Location
-                : string.Equals(parameter.Name, "xContosoTrace", StringComparison.Ordinal) ? Trace
-                : "text";
+            return IsLocation(parameter) ? Location : string.Equals(parameter.Name, "xContosoTrace", StringComparison.Ordinal) ? Trace : "text";
         }
 
         return parameter.HasDefaultValue ? parameter.DefaultValue : null;

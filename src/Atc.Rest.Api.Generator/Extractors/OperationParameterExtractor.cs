@@ -122,8 +122,8 @@ public static class OperationParameterExtractor
         var rootModelsNamespace = NamespaceBuilder.ForModels(projectName);
         var sharedModelsNamespace = includeSharedModelsUsing &&
                                     !string.Equals(segmentModelsNamespace, rootModelsNamespace, StringComparison.Ordinal)
-            ? rootModelsNamespace
-            : null;
+                                        ? rootModelsNamespace
+                                        : null;
 
         var headerContent = BuildHeaderContent(
             includeBindingAttributes: true,

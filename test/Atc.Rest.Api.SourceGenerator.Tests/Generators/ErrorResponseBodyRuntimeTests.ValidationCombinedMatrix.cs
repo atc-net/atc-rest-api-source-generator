@@ -1,14 +1,14 @@
 // ReSharper disable StringLiteralTypo
 namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 
-/// <summary>
+/// <content>
 /// End-to-end matrix of the two kinds of validation together: the DataAnnotations the generator writes from the
 /// specification, and FluentValidation validators written by hand in the domain (a synchronous rule, an asynchronous
 /// one, and a validator for the whole request - route and body). The generated server
 /// runs on Kestrel; each row is a request, each column the way it arrives. A cell passes when the answer is what the
 /// row expects: 204 for a valid request, else a 400 with exactly the expected keys, and on each key the expected
 /// messages in order - the specification's first.
-/// </summary>
+/// </content>
 public partial class ErrorResponseBodyRuntimeTests
 {
     internal const string CombinedFirstNameMessage = "FirstName must start with an uppercase letter.";

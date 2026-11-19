@@ -16,6 +16,11 @@ namespace Atc.Rest.Api.Generator.Cli.Extractors.TypeScript;
 /// </remarks>
 public sealed class TypeScriptWireNames
 {
+    /// <summary>
+    /// The module of the generic half, next to <c>wireNames.ts</c>.
+    /// </summary>
+    public const string RuntimeModule = "wireNamesRuntime";
+
     private readonly OpenApiDocument document;
     private readonly Dictionary<string, List<WireProperty>> models = new(StringComparer.Ordinal);
     private readonly HashSet<string> mapped = new(StringComparer.Ordinal);
@@ -229,11 +234,6 @@ public sealed class TypeScriptWireNames
 
         return sb.ToString();
     }
-
-    /// <summary>
-    /// The module of the generic half, next to <c>wireNames.ts</c>.
-    /// </summary>
-    public const string RuntimeModule = "wireNamesRuntime";
 
     /// <summary>
     /// Generates <c>helpers/wireNamesRuntime.ts</c>, the generic half: the shape types and the converter a
@@ -553,8 +553,8 @@ public sealed class TypeScriptWireNames
             // An alias (an array, a dictionary, a union): its structure, once per path.
             return visiting.Add(name) &&
                    document.Components?.Schemas?.TryGetValue(name, out var target) == true
-                ? ShapeOf(target, visiting)
-                : null;
+                       ? ShapeOf(target, visiting)
+                       : null;
         }
 
         // A declared date (only with --convert-dates; a plain string that looks like a date is left alone)

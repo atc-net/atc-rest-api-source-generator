@@ -1,7 +1,7 @@
 // ReSharper disable StringLiteralTypo
 namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 
-/// <summary>
+/// <content>
 /// End-to-end validation matrix: the generated server runs on Kestrel with handlers that answer 204, and a raw HTTP
 /// client sends a valid and an invalid value for every constraint the generator turns into a validation attribute -
 /// <c>pattern</c> (on a string, on a string component a property or parameter references, on the items of an array),
@@ -9,7 +9,7 @@ namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 /// form), <c>minItems</c> / <c>maxItems</c> and <c>required</c> - in every place a value arrives: the path, the query, a
 /// header, a cookie, and a JSON, URL-encoded, multipart and XML body. A valid value reaches the handler (204); an
 /// invalid one is a 400 whose <c>errors</c> name the value by its wire name.
-/// </summary>
+/// </content>
 public partial class ErrorResponseBodyRuntimeTests
 {
     /// <summary>
@@ -254,7 +254,7 @@ public partial class ErrorResponseBodyRuntimeTests
             sb.AppendLine("        '204': { description: Valid }");
         }
 
-        string Field(string key)
+        static string Field(string key)
             => ValidationFields.Single(f => f.Key == key).Schema;
         var scalars = ValidationFields.Where(f => !f.IsArray).ToList();
         const string requiredName = "{ type: string }";

@@ -8,14 +8,14 @@ public sealed class AccountInMemoryRepository
     [
         "Acme", "Global", "Tech", "Digital", "Creative", "Innovation", "Premier", "Elite",
         "Alpha", "Beta", "Omega", "Delta", "Prime", "First", "Next", "Future", "Smart",
-        "Bright", "Swift", "Peak", "Summit", "Apex", "Core", "Pro", "Max", "Ultra"
+        "Bright", "Swift", "Peak", "Summit", "Apex", "Core", "Pro", "Max", "Ultra",
     ];
 
     private static readonly string[] CompanySuffixes =
     [
         "Corporation", "Industries", "Solutions", "Labs", "Systems", "Group", "Partners",
         "Ventures", "Holdings", "Enterprises", "Technologies", "Services", "Consulting",
-        "Agency", "Network", "Media", "Dynamics", "Works", "Hub", "Studio"
+        "Agency", "Network", "Media", "Dynamics", "Works", "Hub", "Studio",
     ];
 
     private static readonly string[] Tags = ["enterprise", "startup", "small-business", "mid-market"];

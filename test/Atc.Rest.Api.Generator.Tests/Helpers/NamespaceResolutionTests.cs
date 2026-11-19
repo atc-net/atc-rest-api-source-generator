@@ -406,8 +406,7 @@ public sealed class NamespaceResolutionTests : IDisposable
         var serverMarkerPath = Path.Combine(markerDirectory, ".atc-rest-api-server");
         var serverMarkerJsonPath = Path.Combine(markerDirectory, ".atc-rest-api-server.json");
 
-        var markerPath = File.Exists(serverMarkerPath) ? serverMarkerPath :
-                         File.Exists(serverMarkerJsonPath) ? serverMarkerJsonPath : null;
+        var markerPath = File.Exists(serverMarkerPath) ? serverMarkerPath : File.Exists(serverMarkerJsonPath) ? serverMarkerJsonPath : null;
 
         if (markerPath is null)
         {
