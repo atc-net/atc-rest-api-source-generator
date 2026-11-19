@@ -3,7 +3,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 // Add the Showcase API project
 // Let Aspire manage endpoints dynamically
 var api = builder
-    .AddProject<Projects.Showcase_Api>("api");
+    .AddDotnetProject("api", "../Showcase.Api/Showcase.Api.csproj");
 
 // Probe the secured /health/live endpoint using the api-key in the X-Health-Api-Key header
 // instead of a query string, so the key is not leaked into dashboards, HTTP logs or traces.
@@ -23,14 +23,14 @@ api.WithHealthCheck("api-live");
 // WaitFor ensures the API is running before the client starts
 // Pass the actual endpoint reference
 builder
-    .AddProject<Projects.Showcase_ClientApp>("client")
+    .AddDotnetProject("client", "../Showcase.ClientApp/Showcase.ClientApp.csproj")
     .WithReference(api.GetEndpoint("http"))
     .WaitFor(api);
 
 // Add the Showcase Blazor application
 // Pass the actual endpoint reference so it gets the runtime port
 builder
-    .AddProject<Projects.Showcase_BlazorApp>("blazor")
+    .AddDotnetProject("blazor", "../Showcase.BlazorApp/Showcase.BlazorApp.csproj")
     .WithReference(api.GetEndpoint("http"))
     .WaitFor(api)
     .WithExternalHttpEndpoints();

@@ -1,4 +1,4 @@
-<Project Sdk="Aspire.AppHost.Sdk/13.4.6">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -8,15 +8,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\PetStoreSimple.Api\PetStoreSimple.Api.csproj" />
-    <ProjectReference Include="..\PetStoreSimple.ClientApp\PetStoreSimple.ClientApp.csproj" />
+    <PackageReference Include="Aspire.Hosting.AppHost" Version="17.0.0" />
+    <PackageReference Include="Aspire.Hosting.Dotnet" Version="17.0.0" />
   </ItemGroup>
 
-  <!-- Aspire.Hosting (13.6.1 too) depends on MessagePack 2.5.302, which GHSA-qhrr-8q5h-9q3h fixes in 2.5.303 -->
   <ItemGroup>
-    <PackageReference Include="MessagePack" Version="3.1.12" />
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.14" />
-    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.14" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.15" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.15" />
   </ItemGroup>
 
 </Project>
