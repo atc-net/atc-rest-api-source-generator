@@ -79,6 +79,13 @@ jobs:
       - name: 🔁 Restore packages
         run: dotnet restore Atc.Rest.Api.SourceGenerator.slnx
 
+      # Aspire 17 AppHosts build against the Aspire CLI bundle (DCP and the dashboard). Without it each AppHost runs
+      # `aspire setup` itself during the build, and the AppHosts building in parallel collide on the package's file
+      # lock (ASPIRE009) - so the bundle is set up once, before the build
+      - name: 🧰 Set up the Aspire CLI bundle
+        shell: bash
+        run: dotnet dnx --yes aspire.cli@17.0.0 -- setup --install-path "$HOME/.aspire"
+
       - name: 🛠️ Build solution
         run: dotnet build Atc.Rest.Api.SourceGenerator.slnx -c Release --no-restore
 
@@ -122,6 +129,14 @@ jobs:
       - name: 🔁 Restore packages
         if: env.RUN_DOTNET == 'true'
         run: dotnet restore Atc.Rest.Api.SourceGenerator.slnx
+
+      # Aspire 17 AppHosts build against the Aspire CLI bundle (DCP and the dashboard). Without it each AppHost runs
+      # `aspire setup` itself during the build, and the AppHosts building in parallel collide on the package's file
+      # lock (ASPIRE009) - so the bundle is set up once, before the build
+      - name: 🧰 Set up the Aspire CLI bundle
+        if: env.RUN_DOTNET == 'true'
+        shell: bash
+        run: dotnet dnx --yes aspire.cli@17.0.0 -- setup --install-path "$HOME/.aspire"
 
       - name: 🛠️ Build solution
         if: env.RUN_DOTNET == 'true'
@@ -220,6 +235,13 @@ jobs:
           name: playwright-report
           path: test/Showcase.E2ETests
 
+      # Aspire 17 AppHosts build against the Aspire CLI bundle (DCP and the dashboard). Without it each AppHost runs
+      # `aspire setup` itself during the build, and the AppHosts building in parallel collide on the package's file
+      # lock (ASPIRE009) - so the bundle is set up once, before the build
+      - name: 🧰 Set up the Aspire CLI bundle
+        shell: bash
+        run: dotnet dnx --yes aspire.cli@17.0.0 -- setup --install-path "$HOME/.aspire"
+
       - name: 🛠️ Build solution
         run: dotnet build Atc.Rest.Api.SourceGenerator.slnx -c Release
 
@@ -279,6 +301,14 @@ jobs:
       - name: 🔁 Restore packages
         if: env.RUN_DOTNET == 'true'
         run: dotnet restore Atc.Rest.Api.SourceGenerator.slnx
+
+      # Aspire 17 AppHosts build against the Aspire CLI bundle (DCP and the dashboard). Without it each AppHost runs
+      # `aspire setup` itself during the build, and the AppHosts building in parallel collide on the package's file
+      # lock (ASPIRE009) - so the bundle is set up once, before the build
+      - name: 🧰 Set up the Aspire CLI bundle
+        if: env.RUN_DOTNET == 'true'
+        shell: bash
+        run: dotnet dnx --yes aspire.cli@17.0.0 -- setup --install-path "$HOME/.aspire"
 
       - name: 🛠️ Build solution
         if: env.RUN_DOTNET == 'true'
