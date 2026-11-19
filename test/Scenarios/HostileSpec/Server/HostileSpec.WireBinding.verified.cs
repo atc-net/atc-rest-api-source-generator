@@ -302,8 +302,10 @@ public static class WireBindingExtensions
 
     /// <summary>
     /// Adds the step, which with <paramref name="requireParameters"/> also answers a required query or header
-    /// parameter that was not sent with a problem naming it. An endpoint without a validation filter asks for
-    /// that: the framework's own answer to a missing parameter names none. A required cookie that was not
+    /// parameter that was not sent with a problem naming it. Every generated endpoint asks for that: the step
+    /// runs before the framework binds, whose own answer to a missing parameter names none (in Development,
+    /// where RouteHandlerOptions.ThrowOnBadRequest is true, it throws before any filter runs), and a
+    /// validation filter cannot tell a missing value type from its default. A required cookie that was not
     /// sent is answered by the step on every host, by the cookie's name.
     /// </summary>
     public static TBuilder WithWireBinding<TBuilder>(this TBuilder builder, IReadOnlyList<WireParameter> wireParameters, bool requireParameters, params (string Name, char Delimiter)[] delimitedArrays)

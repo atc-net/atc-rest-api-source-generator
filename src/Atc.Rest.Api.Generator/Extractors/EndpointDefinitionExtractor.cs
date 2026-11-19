@@ -1075,7 +1075,7 @@ using Microsoft.AspNetCore.Builder;
 
         // The step before the framework binds the parameters: enum wire values, cookies, array items, a 400 that names
         // the parameter
-        GenerateWireBindingMetadata(builder, operation, pathItem, methodName, useValidationFilter, registry);
+        GenerateWireBindingMetadata(builder, operation, pathItem, methodName, registry);
 
         // A body the generated reader reads (XML, or JSON next to it): one it cannot read is a problem with its status,
         // not the host exception handler's 500
@@ -1364,7 +1364,6 @@ using Microsoft.AspNetCore.Builder;
         OpenApiOperation operation,
         IOpenApiPathItem? pathItem,
         string methodName,
-        bool useValidationFilter,
         TypeConflictRegistry? registry)
     {
         // A form bound field by field: the fields are checked by name (a required one is there, a value parses, an
@@ -1383,13 +1382,10 @@ using Microsoft.AspNetCore.Builder;
 
         builder.AppendLine();
 
-        // Without a validation filter the step also answers a required parameter that was not sent: the framework's
-        // own 400 names none
-        var wireArguments = new List<string> { $"{methodName}ParametersWire.Parameters" };
-        if (!useValidationFilter)
-        {
-            wireArguments.Add("requireParameters: true");
-        }
+        // The step answers a required query or header parameter that was not sent, by its name, on every endpoint: it
+        // runs before the framework binds, which in Development (ThrowOnBadRequest) throws before any filter runs, and
+        // a validation filter cannot tell a missing value type (int) from its default
+        var wireArguments = new List<string> { $"{methodName}ParametersWire.Parameters", "requireParameters: true" };
 
         builder.Append($"    .WithWireBinding({string.Join(", ", wireArguments.Concat(WireBindingHelper.DelimitedArrayArguments(operation, pathItem)))})");
     }
